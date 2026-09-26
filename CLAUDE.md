@@ -23,7 +23,7 @@ pytest tests/ -v
 
 **KEINE Datei anfassen, solange eine Suite läuft — nicht nur `CHANGELOG.json`.** Mehrere
 Tests lesen Quelldateien als Text und prüfen deren Inhalt: `test_kutter_eventloop.py`
-durchsucht `app/main.py` nach Endpunkten, `test_handpassung_schutz.py` prüft `database.py`
+und `test_flugliste_tempo.py` durchsuchen `app/main.py` nach Endpunkten, `test_handpassung_schutz.py` prüft `database.py`
 auf die Sperre, `test_vr_panel.py` liest `index.html`. Wer währenddessen speichert, bekommt
 Fehlschläge, die nichts mit dem Code zu tun haben — am 12.09.2026 zweimal hintereinander,
 beide Male grün, sobald der Test allein lief. **Erst die Suite abwarten, dann weiterschreiben.**

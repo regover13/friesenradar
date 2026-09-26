@@ -497,6 +497,37 @@ Sortiert nach `logon_time` absteigend. FriesenSpy-Einträge haben Vorrang bei Ze
 
 Flüge unter einem **Nicht-`FRS`-Callsign** (`callsign_prefix=""` liefert sie mit) erscheinen ebenfalls in der Antwort, zählen aber nicht in Statistik, FriesenBummel oder FriesenKutter (das Frontend markiert sie als „nicht gewertet").
 
+**Laufzeit (15.23.1).** Der Endpunkt ist `def`, nicht `async def` — Starlette rechnet ihn im Threadpool, statt die Event-Loop zu blockieren (#16; bis 15.23.0 standen Live-Karte und alle anderen Nutzer, solange die Flugliste eines Vielfliegers rechnete). Dasselbe gilt für alle Endpunkte, die `canonicalize_legs`, `canonicalize_flights`, `get_stats` oder `get_stats_activity` aufrufen; `tests/test_flugliste_tempo.py` sucht sie über den AST. Gemessen an einer Kopie der Produktions-DB: Vielflieger mit 104 Flügen in 30 Tagen 1,8 s → 0,7 s, 365 Tage 4,0 s → 1,3 s. Der Gewinn kommt aus `_gps_flights_for_positions`: Die Metrik-Helfer bekommen je Flug nur ihren Zeitausschnitt statt aller Positionen des Zeitraums — das Ergebnis ist feldgleich (1861 Flüge in 18 Fällen verglichen).
+
+---
+
+## GET /api/pilots/{cid}/orden
+
+Die Ordensleiste der Statistik-Details (15.23.0): je abgeschlossenem Spezial-Event im Zeitraum, für das der Pilot ein Forum-Badge hat, ein Eintrag — neueste zuerst. Hinter dem Login-Gate.
+
+**Query-Parameter:** `days` = `30 | 90 | 365` (anderes → 30, wie `/api/stats/special-events`).
+
+**Response**
+
+```json
+[
+  {"art": "reddung", "event_id": 4, "name": "FriesenReddung", "datum": "2026-09-25T18:00:00Z",
+   "sieger": false, "bild": "/api/reddung/events/4/badge/1031301.png"},
+  {"art": "bummel", "event_id": 7, "name": "FriesenBummel", "datum": "2026-09-07T18:00:00Z",
+   "sieger": true, "bild": "/api/bummel/race/7/badge/1031301.png"}
+]
+```
+
+Wer einen Orden bekommt, entscheiden **dieselben Regeln wie beim Badge-Bild** — ein Orden steht genau dort, wo auch das PNG existiert:
+
+| Art | abgeschlossen, wenn | Teilnehmer, wenn |
+|---|---|---|
+| `bummel` | `revealed_at` gesetzt und `dtend` vorbei | in `complete` oder `incomplete` der Renn-Sicht; `sieger` = Rang 1 in `complete` |
+| `kutter` | `summarized_at` gesetzt | in `participants` mit `contributed` (Fracht wirklich bewegt) |
+| `reddung` | `dtend` vorbei | mindestens eine Zelle als Erster abgesucht, oder gefunden, aufgenommen oder eingeliefert (`_reddung_badge_data`) |
+
+Im Zeitraum liegt ein Event, wenn sein `dtend` nach `jetzt − days` liegt. Die Antwort kommt aus den Snapshots (#66), gemessen 0,01 s.
+
 ---
 
 ## GET /api/pilots/{cid}/live-track
@@ -1154,6 +1185,24 @@ Zelle `z{i}_{j}` reicht von `sued + i·d_lat` bis `sued + (i+1)·d_lat` und von 
 ⚠ **Ohne die Lage des Havaristen — vor dem Fund, danach und nach der Auflösung.** Den Ort zeigt die Rauchsäule im Simulator.
 
 Gezählt wird bis zum Fund — was danach geflogen wird, ist keine Suche mehr —, ohne Fund höchstens bis `min(jetzt, dtend, aufgeloest_am)`. Die Grenze steht in `reddung_fortschreiben` und gilt damit für Poller und Lesewege gleich.
+
+---
+
+## GET /api/reddung/events/{event_id}/badge/{cid}.png
+
+Forum-Badge (PNG) für einen Teilnehmer einer FriesenReddung (15.23.0). Wie die anderen Badges ohne Login erreichbar (`/badge/` ist vom Gate ausgenommen), damit das Forum es einbinden kann.
+
+**Voraussetzungen — sonst `404`:**
+- Das Event existiert und `dtend` ist vorbei — vorher wäre es ein Zwischenstand.
+- `cid` hat beigetragen: mindestens eine Zelle als Erster abgesucht (`je_pilot` in `compute_reddung_stand`), oder den Havaristen gefunden, aufgenommen oder eingeliefert.
+
+**Response** — `image/png`, rund, 256 × 256 px, Hintergrund `app/static/badge/reddung_bg.png` (SAR-Ring mit Hubschrauber, erzeugt per ChatGPT nach der Vorlage der Bummel-Medaille). Oben „VOLL IM EINSATZ!", darunter Callsign und Muster, die Rolle (`GEFUNDEN!`, `GEBORGEN!` für aufgenommen) und der Beitrag („eingeliefert in EDWR, 12 Zellen als Erster" bzw. „7 Zellen als Erster abgesucht"), unter der Inselkette Event-Name und Datum.
+
+**Callsign und Muster** führt die Reddung nicht selbst — sie kommen aus dem längsten `flights`-Eintrag des Piloten im Eventfenster. Ohne Flug steht dort `CID …`, ohne Flugplan `k. A.` beim Muster, wie bei Bummel und Kutter. Der Name kommt aus `badge_name`, ersatzweise `name`.
+
+**Caching** wie beim Kutter-Badge: ETag aus `_BADGE_RENDER_VERSION`, Zellen, Rollen, ICAO, Muster, Callsign, Event und Datum; Datei-Cache `data/badges/reddung_<event_id>_<cid>_<hash>.png`.
+
+In der Bilanz stehen „Badge" (Bild öffnen) und „Forum" (BBCode kopieren) neben jedem Piloten mit Badge, erst nach `dtend` — im Kniebrett ohne den Kopierknopf.
 
 ---
 

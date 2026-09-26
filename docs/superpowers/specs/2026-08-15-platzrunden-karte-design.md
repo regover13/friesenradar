@@ -1,7 +1,7 @@
 # Platzrunden auf der Karte — Design
 
 **Datum:** 2026-08-15
-**Status:** abgestimmt, bereit für die Planung
+**Status:** umgesetzt (v12.8.0); Datensatz nachgebessert am 2026-09-27 — siehe 3.1, 3.2, 3.4, 5.3 bis 5.6 und 9
 
 ## Ziel
 
@@ -108,7 +108,7 @@ Michael Wellner, Datenstand 05/2022.
 
 | | Wert |
 |---|---|
-| Features | 412 (408 Polygone + 4 An-/Abflugstrecken) |
+| Features | 412: 404 Ringe, 8 offene Linien (6 An-/Abflugstrecken, 2 offene Runden; Stand 2026-09-27, s. 5.5) |
 | Plätze | 385 |
 | Echte Höhen | 265 von 412 (64 %) |
 | Größe | 204 KB, **28,3 KB gzip** |
@@ -118,7 +118,8 @@ Die Alternative (NavFarm/PocketFMS, 139 Features, 121 Plätze, Stand 2019) ist u
 und wurde verworfen — sie diente als unabhängige Gegenprobe, siehe 5.1.
 
 **Verwendet wird `platzrunden_de_korrigiert.geojson`**, nicht die Rohfassung: Vier ICAO-Codes
-waren falsch zugeordnet (Abschnitt 5.3).
+waren falsch zugeordnet (Abschnitt 5.3). Am 2026-09-27 kamen ein fünfter Code, vier zugeklappte
+Linien und neun geschlossene Plätze dazu (5.3, 5.5, 5.6).
 
 ### 3.2 Feature-Format
 
@@ -140,6 +141,14 @@ waren falsch zugeordnet (Abschnitt 5.3).
   "geometry": { "type": "Polygon", "coordinates": [[…]] }
 }
 ```
+
+Zusätzliche Felder, nur wo sie zutreffen (seit 2026-09-27):
+
+| Feld | Bedeutung |
+|---|---|
+| `icao_original` | der Code aus der Rohfassung, wenn er korrigiert wurde (5.3) |
+| `korrektur`, `typ_original` | Begründung, warum ein Ring zur offenen Linie wurde (5.5) |
+| `geschlossen`, `geschlossen_quelle` | der Platz ist laut OpenAIP geschlossen (5.6) |
 
 ### 3.3 Ablage und Auslieferung
 
@@ -166,8 +175,11 @@ Dem Muster des Fremdverkehr-Layers folgen, der in V12.7.0 entstanden ist:
   gehalten. 28 KB gzip rechtfertigen keinen Abruf beim Seitenaufbau.
 
 **Darstellung:** dünne Linie, gedeckte Farbe, `fill: false`, `interactive: true` für das
-Popup. Die 4 Features mit `typ: "strecke"` sind Linien, keine Ringe — als `LineString`
-zeichnen, nicht schließen.
+Popup. **Ob Linie oder Ring, entscheidet die Geometrie, nicht `typ`:** `LineString` sind die
+sechs Features mit `typ: "strecke"` und zwei offene Runden mit `typ: "platzrunde"` (5.5). Eine
+Linie wird nirgends geschlossen — auch nicht für die Lage des Höhenschilds
+(`_platzrundenHoehenLabel`), sonst säße es auf einer Strecke, die niemand fliegt. Runden mit
+`geschlossen: true` sind gestrichelt, ihr Popup sagt „Platz geschlossen".
 
 ### 3.5 Popup
 
@@ -238,7 +250,7 @@ die unklaren Werte AGL, müsste ihr Median um die mittlere Platzhöhe verschoben
 Ein echter Ausreißer: `EDTD` Donaueschingen, 2200 ft bei Platzhöhe 2231 ft — das wären
 −31 ft über Grund. Vermutlich ein Zahlendreher. Nicht korrigiert.
 
-### 5.3 Vier falsche ICAO-Zuordnungen — korrigiert
+### 5.3 Falsche ICAO-Zuordnungen — korrigiert
 
 Fünf Features liegen mehr als 4 km vom Platz mit dem angegebenen ICAO. Bei vieren steht ein
 anderer Platz unmittelbar daneben:
@@ -253,16 +265,70 @@ anderer Platz unmittelbar daneben:
 Die Geometrie ist jeweils richtig, nur die Verknüpfung war falsch. Korrigiert; die
 Originalwerte stehen als `icao_original` im Feature.
 
-Ungeklärt: `EDVP` Peine-Eddesse liegt 9,6 km vom OpenAIP-Platz `EDVP`
-„Peine-Glindbruchkippe", und es gibt keinen näheren Platz.
+Ein fünfter Fall fiel erst am 2026-09-27 auf: Halle-Oppin stand unter `ADAQ`, einem Code, den
+es nicht gibt — die Abstandsprüfung oben konnte ihn deshalb gar nicht messen. Korrigiert auf
+**EDAQ** (1,3 km entfernt), ebenfalls mit `icao_original`.
+
+`EDVP` Peine-Eddesse, 9,6 km vom OpenAIP-Platz `EDVP` „Peine-Glindbruchkippe", war hier als
+ungeklärt vermerkt. **Geklärt am 2026-09-27:** Peine-Eddesse ist geschlossen, Glindbruchkippe
+hat den Code übernommen — die Runde gehört zu einem Platz, den es nicht mehr gibt (5.6).
 
 ### 5.4 Geprüft und unauffällig
 
-- Alle 408 Polygon-Ringe sind geschlossen — im GeoJSON ist nichts nachzubessern
+- Alle Polygon-Ringe sind formal geschlossen (erster gleich letzter Punkt). Hier stand bis
+  2026-09-27 „im GeoJSON ist nichts nachzubessern" — **der geschlossene Ring war aber die
+  Falle, nicht der Beleg**: Bei vier Features ist er künstlich entstanden (5.5)
 - 265 echte Höhen, alle mit Wert; 147 Platzhalter, alle mit `hoehe_ft: null`
 - Umfang der Runden: Median 11,8 km; die größten (EDGS 28,7 km, EDRW 24,7 km, EDNX 24,3 km)
   gehören zu großen Plätzen und sind kein Fehlerverdacht
-- 16 ICAO-Codes sind in OpenAIP nicht mehr vorhanden, überwiegend geschlossene Plätze
+- 16 ICAO-Codes sind in OpenAIP nicht mehr vorhanden, überwiegend geschlossene Plätze — aufgelöst in 5.6
+
+### 5.5 Zugeklappte Linien — korrigiert 2026-09-27
+
+Gemeldet vom Nutzer mit Screenshots von EDWP und EDVJ: orange Dreiecke und Vierecke mit einer
+Kante quer übers Feld, die auf keiner Karte steht.
+
+**Ursache:** Die Quelle (vlflugzeuge.de, Format mit `DP`-Punkten) kennt nur Flächen; der
+letzte Punkt wird implizit mit dem ersten verbunden. Manche Plätze sind dort aber als offene
+Linie eingetragen — Gegenanflug, Queranflug, Endanflug bis zur Schwelle. Beim Umwandeln wurde
+jede zum Ring, und die Schlusskante wurde zur Rückstrecke, die niemand fliegt. NavFarm hat für
+EDWP dieselben Punkte, die Quellen stimmen also überein — falsch war nur die Lesart.
+
+**Wie gefunden:** über die Schlusskante (letzter → erster Punkt), gemessen gegen Platz und
+Bahn aus OpenAIP. Liegt sie näher als 0,6 km am Bezugspunkt und weniger als 25° schräg zur
+Bahn, ist sie der Abflug entlang der Bahn und damit echt.
+
+| | Anzahl |
+|---|---|
+| prüfbar (Platz mit Bahn in OpenAIP) | 389 |
+| Schlusskante auf der Bahn | 379 |
+| auffällig, einzeln angesehen | 10 |
+| nicht prüfbar (keine Bahn in den Referenzdaten) | 19 |
+
+Von den zehn auffälligen widersprechen nur **EDVJ** (Nutzer-Screenshot mit AIP-Blatt) und
+**EDGT** (DFS-Sichtflugkarte 29.06.2023) der amtlichen Karte. Die übrigen sind kurze
+Verbindungsstücke an der Bahn oder normale Seiten der Runde; **EDAZ** weicht ab, aber wegen
+des Datenstands (9), nicht wegen des Ringschlusses. **EDWP** fiel nicht über die Schlusskante
+auf, sondern weil beide Teile nur drei Punkte haben — Anflughaken je Bahnrichtung, die einzigen
+Dreipunkt-Ringe im Datensatz.
+
+Korrigiert: EDWP 1 und 3 als `strecke` (Anflughaken), EDVJ und EDGT als offene `platzrunde`,
+jeweils mit `korrektur`. Bewacht in `tests/test_platzrunden.py`.
+
+### 5.6 Geschlossene Plätze — gekennzeichnet 2026-09-27
+
+Gemeldet vom Nutzer mit Screenshots von Bremerhaven und Peine-Eddesse. Neun Plätze des
+Datensatzes führt OpenAIP als geschlossen (Typ 8, ohne ICAO-Code): Ahlhorn (`EDHA`),
+Bremerhaven (`EDWB`), Cottbus-Drewitz (`EDCD`), Finsterwalde-Schacksdorf (`EDUS`), Köthen
+(`EDCK`), Peine-Eddesse (`EDVP`, 5.3), Salzgitter-Drütte (`EDVS`), Seedorf (`EDXS`), Segeletz
+(`EDAI`).
+
+**Entscheidung des Nutzers: kennzeichnen, nicht löschen** — in MSFS gibt es manche dieser Plätze
+noch. Sie tragen `geschlossen: true`, werden gestrichelt gezeichnet und sagen im Popup „Platz
+geschlossen".
+
+Offen gelassen: Dedelow (`EDBD`) und Nauen (`EDCN`). OpenAIP kennt dort keinen Flugplatz mehr,
+nur Hubschrauberlandeplätze in 4 bis 5 km Entfernung — ob geschlossen, ist damit nicht belegt.
 
 ---
 
@@ -379,8 +445,19 @@ Keiner davon blockiert die Umsetzung; sie verbessern den Datenbestand.
 
 - Die 141 Plätze ohne Höhe aus der AIP VFR nachtragen
 - **Borkum (`EDWR`)** ergänzen — fehlt in beiden Quellen
-- `EDTD` (Höhe) und `EDVP` (Verortung) gegen AIP VFR prüfen
-- Datenstand 05/2022 gegen die aktuelle AIP gegenprüfen
+- `EDTD` (Höhe) gegen AIP VFR prüfen (`EDVP` ist geklärt, 5.6)
+- **Datenstand 05/2022 — bekannt veraltet, bewusst nicht nachgezogen.** Belegt am 2026-09-27:
+  `EDXD` Bohmte trägt 700 ft und ein kleines Rechteck über der Bahn, die DFS-Karte vom
+  01.06.2023 zeigt 1000 ft und eine große Runde südlich plus eine kleine nördlich; `EDAZ`
+  Schönhagen führt eine Nordrunde, die es auf der Karte vom 05.02.2026 nicht mehr gibt.
+  Eine aktuelle Vektorquelle gibt es nicht — geprüft am selben Tag: das OFMX-Paket von
+  OpenFlightMaps für ED (AIRAC 2610) enthält keine Runden, nicht einmal `codeVfrPattern`, OFM
+  zeichnet sie nur ins Kachelbild; die VATGER-Sektorpakete (`edww-package`, `edgg-package`,
+  `fis-package`) haben für kleine Plätze nur das Platzsymbol; OpenAIP führt keine. Einzige
+  aktuelle Quelle sind die DFS-Sichtflugkarten unter
+  `/opt/friesenspy/data/aip_dfs/<ICAO>.sichtflug.roh.png`, mit Gitternetz am Rand von Hand
+  abgreifbar. **Einen Komplettabgleich hat der Nutzer abgelehnt**; ein einzeln gemeldeter Platz
+  lässt sich so korrigieren.
 
 ---
 
