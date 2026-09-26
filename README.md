@@ -800,9 +800,7 @@ Gefunden wirst du dabei über deine VATSIM-Nummer, nicht über das Rufzeichen. A
 das nichts: Friese ist weiter, wer mit FRS-Rufzeichen fliegt.
 
 Die ältere Fassung bis 1.17.0 läuft noch bis zum **24.10.2026**, danach nimmt FriesenSpy ihre
-Meldungen nicht mehr an. In **MSFS 2024** gibt es bei manchen neben `Community` einen zweiten
-Ordner `Community2024`; liegt dort eine ältere Fassung, lädt MSFS sie von dort. Beim Update also
-beide prüfen. Wer die FriesenBrügge wieder entfernt: Ihre Kennung und die vom Simulator
+Meldungen nicht mehr an. Wer die FriesenBrügge wieder entfernt: Ihre Kennung und die vom Simulator
 übersetzten Modulteile bleiben unter `LocalState` liegen; das stört nicht.
 
 #### Zwei Modelle bringt sie selbst mit

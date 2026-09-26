@@ -20,9 +20,9 @@ Friesen 50 m auseinander bestanden (Diagnose „zuordnung“, `davonFriesen` 2, 
    (`_bruegge_zuordnen`, `bruegge_kennung_fuer`, `bruegge_belegte_cids`) und die Test-Vorbereitung
    in `tests/conftest.py` zurückbauen. Alte Zeilen (`protokoll` NULL) bleiben bis dahin in
    `bruegge_zuordnung` stehen.
-2. ⚠ **MSFS 2024 kann einen zweiten Ordner `LocalCache\Packages\Community2024\` haben** und lädt
-   Pakete dann von dort (so beim Nutzer: Kniebrett 2.3.1 blieb aktiv, obwohl 2.3.2 in `Community`
-   lag). Die Download-Seite sagt es seit 15.22.4. Ob jede Installation den Ordner hat, ist offen.
+2. **Das Kniebrett beim Nutzer aus `Community2024` nach `Community` verlegen** (Sitzung am
+   Simulator-Rechner, angefragt 26.09.2026). Den Ordner hat jede MSFS-2024-Installation; das
+   Kniebrett lag dort nur, weil eine unserer Sitzungen es dort abgelegt hatte. Regel in `CLAUDE.md`.
 
 ---
 
