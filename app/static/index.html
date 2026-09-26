@@ -8599,6 +8599,8 @@ let _flightsRefreshTimer = null;
 // Orden der Piloten-Details je "cid|Tage" -- renderFlightsList laeuft bei StatSim-Updates
 // mehrfach, geholt wird trotzdem nur einmal. Muss vor initFromUrl() stehen (Deep-Link, TDZ).
 const _ordenCache = {};
+// Der gerade laufende Statistik-Abruf ({key, promise}), s. fetchStats. Vor initFromUrl() (TDZ).
+let _statsLaufend = null;
 
 // ==========================================================================
 //  UTC Clock
@@ -14159,6 +14161,21 @@ async function fetchStats(_isRetry = false) {
     return openPilotFlights(currentStatsCid);
   }
   const days = document.getElementById('stats-days').value;
+  // Laeuft derselbe Abruf schon, wartet der zweite Aufrufer darauf, statt ihn zu wiederholen:
+  // Beim Deep-Link auf einen Piloten laedt der Tab-Klick die Statistik, und initFromUrl()
+  // wartet gleich danach selbst darauf (Nutzer, 26.09.2026 -- vorher alles doppelt).
+  const key = `${days}|${_statsSortBy}|${_statsSortDir}`;
+  if (!_isRetry && _statsLaufend && _statsLaufend.key === key) return _statsLaufend.promise;
+  const promise = _fetchStatsLauf(days, _isRetry);
+  _statsLaufend = { key, promise };
+  try {
+    return await promise;
+  } finally {
+    if (_statsLaufend && _statsLaufend.promise === promise) _statsLaufend = null;
+  }
+}
+
+async function _fetchStatsLauf(days, _isRetry) {
   const container = document.getElementById('stats-content');
   // Beim Retry den bestehenden Lade-/Tabelleninhalt stehen lassen (kein Flackern).
   if (!_isRetry) {

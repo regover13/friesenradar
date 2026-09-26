@@ -153,8 +153,10 @@ def test_top_muster_kachel_reagiert_auf_den_zeitraum_filter():
     """Die Kachel sitzt in derselben Reihe wie 'Aktivster Pilot' & Co. (get_stats(...,
     days=...)) und muss wie diese auf den Zeitraum-Filter reagieren -- sonst zeigt
     'Häufigstes Muster' ein Muster, das im gewaehlten Zeitraum gar nicht geflogen wurde."""
-    m = re.search(r"async function fetchStats\(_isRetry = false\)\s*\{(.*?)\n\}", INDEX, re.S)
-    assert m, "fetchStats nicht gefunden"
+    # Seit 15.23.1 steckt der eigentliche Abruf in _fetchStatsLauf (fetchStats teilt nur einen
+    # laufenden Abruf mit einem zweiten Aufrufer).
+    m = re.search(r"async function _fetchStatsLauf\(days, _isRetry\)\s*\{(.*?)\n\}", INDEX, re.S)
+    assert m, "_fetchStatsLauf nicht gefunden"
     assert re.search(r"fetchTopMuster\(Number\(days\)\)", m.group(1)), \
         "fetchTopMuster wird nicht mit dem aktuell gewaehlten Zeitraum aufgerufen"
 

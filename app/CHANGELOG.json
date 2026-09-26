@@ -1,5 +1,16 @@
 [
   {
+    "version": "15.23.1",
+    "date": "2026-09-26",
+    "highlight": false,
+    "title": "Die Piloten-Details laden schneller",
+    "items": [
+      "⚡ **Die Flugliste eines Piloten lädt deutlich schneller**, bei Vielfliegern etwa in der halben Zeit. Die Zahlen bleiben genau dieselben.",
+      "🚦 **Während eine Flugliste, eine Statistik oder die Event-Suche rechnet, bleibt FriesenSpy für alle anderen bedienbar.** Bisher standen Live-Karte und Listen so lange still.",
+      "🔗 **Ein Link auf einen Piloten lädt die Statistik nur noch einmal** statt doppelt."
+    ]
+  },
+  {
     "version": "15.23.0",
     "date": "2026-09-26",
     "highlight": false,

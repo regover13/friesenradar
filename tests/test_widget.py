@@ -38,7 +38,7 @@ def widget_env(tmp_path, monkeypatch):
 
 
 def _render(env):
-    resp = asyncio.run(main.widget(FakeReq(poller=env.poller)))
+    resp = main.widget(FakeReq(poller=env.poller))
     return resp.body.decode("utf-8")
 
 
@@ -114,7 +114,7 @@ def test_blockzeit_steht_neben_flugstunden(tmp_path, monkeypatch):
         lambda conn, days, callsign_prefix: [{"total_duration_min": 120, "total_block_min": 180}],
     )
     poller = SimpleNamespace(last_prefiles=[], ts_clients=[])
-    html = asyncio.run(main.widget(FakeReq(poller=poller))).body.decode("utf-8")
+    html = main.widget(FakeReq(poller=poller)).body.decode("utf-8")
     ft = html.split('<div class="ft">')[1].split('</div>')[0]
     assert "Flugstunden" in ft
     assert "Blockzeit" in ft
@@ -132,6 +132,6 @@ def test_ts_badge_fehlt_wenn_teamspeak_aus(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "get_live_positions", lambda conn: [])
     monkeypatch.setattr(main, "get_stats", lambda conn, days, callsign_prefix: [])
     poller = SimpleNamespace(last_prefiles=[], ts_clients=[])
-    html = asyncio.run(main.widget(FakeReq(poller=poller))).body.decode("utf-8")
+    html = main.widget(FakeReq(poller=poller)).body.decode("utf-8")
     assert "im&nbsp;TS" not in html
     assert "online" in html

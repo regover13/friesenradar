@@ -496,7 +496,7 @@ class TestGpsLegAudit:
 
     def test_requires_admin(self, db):
         with pytest.raises(HTTPException) as e:
-            asyncio.run(main.admin_gps_leg_audit(FakeReq(cookies={})))
+            main.admin_gps_leg_audit(FakeReq(cookies={}))
         assert e.value.status_code == 401
 
     def test_match_single_leg(self, db):
@@ -511,7 +511,7 @@ class TestGpsLegAudit:
         self._leg_a_to_b(conn, self.CID, base)
         conn.commit(); conn.close()
 
-        res = asyncio.run(main.admin_gps_leg_audit(FakeReq()))
+        res = main.admin_gps_leg_audit(FakeReq())
         assert isinstance(res, dict)
         assert set(res.keys()) == {"window", "summary", "flights"}
         s = res["summary"]
@@ -540,7 +540,7 @@ class TestGpsLegAudit:
         self._leg_b_to_c(conn, self.CID, base)
         conn.commit(); conn.close()
 
-        res = asyncio.run(main.admin_gps_leg_audit(FakeReq()))
+        res = main.admin_gps_leg_audit(FakeReq())
         s = res["summary"]
         assert s["extra_gps_legs"] >= 1
         fr = next(f for f in res["flights"] if f["cid"] == self.CID)
@@ -560,7 +560,7 @@ class TestGpsLegAudit:
         self._platzrunde_a(conn, self.CID, base)
         conn.commit(); conn.close()
 
-        res = asyncio.run(main.admin_gps_leg_audit(FakeReq()))
+        res = main.admin_gps_leg_audit(FakeReq())
         s = res["summary"]
         assert s["matches"] == 1
         assert s["extra_gps_legs"] == 0
@@ -582,7 +582,7 @@ class TestGpsLegAudit:
         )
         conn.commit(); conn.close()
 
-        res = asyncio.run(main.admin_gps_leg_audit(FakeReq()))
+        res = main.admin_gps_leg_audit(FakeReq())
         assert res["summary"]["missing_gps_legs"] >= 1
         fr = next(f for f in res["flights"] if f["cid"] == self.CID)
         assert fr["n_legs"] == 0
@@ -657,7 +657,7 @@ class TestPilotFlightsEndpoint:
         self._leg_b_to_c(conn, self.CID, base)
         conn.commit(); conn.close()
 
-        resp = asyncio.run(main.get_pilot_flights(self.CID))
+        resp = main.get_pilot_flights(self.CID)
         assert resp.headers.get("x-statsim-status") == "no-key"
         body = json.loads(resp.body)
 
@@ -684,7 +684,7 @@ class TestPilotFlightsEndpoint:
         )
         conn.commit(); conn.close()
 
-        resp = asyncio.run(main.get_pilot_flights(self.CID))
+        resp = main.get_pilot_flights(self.CID)
         body = json.loads(resp.body)
         assert any(f["callsign"] == "DFGKC" and f["source"] == "statsim" for f in body)
 

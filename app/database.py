@@ -1,6 +1,7 @@
 """SQLite WAL-Mode Datenbank-Layer für FriesenSpy."""
 from __future__ import annotations
 
+import bisect
 import json
 import logging
 import math
@@ -5146,6 +5147,21 @@ def _gps_flights_for_positions(
     all_ts = sorted(p["ts"] for p in positions if p.get("ts"))
     callsign_by_ts = {p["ts"]: p.get("callsign") for p in positions if p.get("callsign")}
 
+    # Einmal nach Zeit sortieren, danach bekommt jede Hilfsfunktion unten nur den Ausschnitt
+    # [von, bis], den sie sich sonst selbst aus ALLEN Positionen herausgefiltert haette. Bis
+    # 15.23.0 lief das je Flug ueber die volle Liste -- quadratisch in der Zahl der Fluege,
+    # bei einem Vielflieger 2 s je Aufruf der Piloten-Details (Nutzer, 26.09.2026). Die
+    # Hilfsfunktionen filtern weiter selbst; der Ausschnitt ist eine Obermenge ihres Fensters
+    # und behaelt die Reihenfolge gleicher Zeitstempel (stabile Sortierung), das Ergebnis
+    # bleibt also dasselbe. Bewacht in tests/test_flugliste_tempo.py.
+    nach_zeit = sorted((p for p in positions if p.get("ts")), key=lambda p: p["ts"])
+    zeiten = [p["ts"] for p in nach_zeit]
+
+    def _ausschnitt(von: str, bis: str | None) -> list[dict]:
+        unten = bisect.bisect_left(zeiten, von)
+        oben = len(zeiten) if bis is None else bisect.bisect_right(zeiten, bis)
+        return nach_zeit[unten:oben]
+
     out: list[dict] = []
     vorheriges_on_blocks: str | None = None
     for i, gf in enumerate(gps_flights):
@@ -5213,7 +5229,7 @@ def _gps_flights_for_positions(
         if vorheriges_on_blocks and such_ab < vorheriges_on_blocks:
             such_ab = vorheriges_on_blocks
         moves_in_window = [
-            p["ts"] for p in positions
+            p["ts"] for p in _ausschnitt(such_ab, end_ts)
             if such_ab <= p["ts"] <= end_ts and (p.get("groundspeed") or 0) > _BLOCK_GS_KT
         ]
         block_from = min(min(moves_in_window), takeoff_ts) if moves_in_window else takeoff_ts
@@ -5224,7 +5240,7 @@ def _gps_flights_for_positions(
         # Landung hinaus verlängert, wenn danach noch eingerollt wird (s. ``_extend_block_end``).
         # Nur bei einer ECHTEN Landung sinnvoll (offene Legs haben nichts zum „Einrollen").
         block_end = _extend_block_end(
-            positions, end_ts, next_takeoff, track_beendet=track_beendet
+            _ausschnitt(end_ts, next_takeoff), end_ts, next_takeoff, track_beendet=track_beendet
         ) if landing_ts else end_ts
 
         # ``block_sec`` ist der ungerundete Wert; ``block_min`` bleibt die abgeschnittene
@@ -5233,9 +5249,10 @@ def _gps_flights_for_positions(
         # verschieden schnelle Piloten landeten auf demselben Wert (Aach-Bummel 07.09.2026).
         # Die Auflösung ist das Poll-Raster des Feeds (15 s), nicht die Sekunde — die Zahl ist
         # so genau wie die Positionsdaten, nicht genauer.
-        block_sec = _leg_block_seconds(positions, block_from, block_end)
-        distance_nm = _distance_nm_positions(positions, takeoff_ts, end_ts)
-        air_sec = _air_seconds(positions, takeoff_ts, end_ts)
+        block_sec = _leg_block_seconds(_ausschnitt(block_from, block_end), block_from, block_end)
+        flugfenster = _ausschnitt(takeoff_ts, end_ts)
+        distance_nm = _distance_nm_positions(flugfenster, takeoff_ts, end_ts)
+        air_sec = _air_seconds(flugfenster, takeoff_ts, end_ts)
         duration_min = air_sec // 60
         # Sicherheitsnetz für die GARANTIE duration_min <= block_min (Herleitung + der eine
         # bekannte Randfall, in dem sie allein nicht reicht: s. Docstring am Funktionskopf) —

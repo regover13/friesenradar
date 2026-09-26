@@ -3416,7 +3416,7 @@ app.get("/api/vrp")(get_vrp)
 
 
 @app.get("/api/stats/activity")
-async def get_stats_activity_endpoint(days: int = 30):
+def get_stats_activity_endpoint(days: int = 30):
     """Flugaktivität über Zeit für Chart — gruppiert nach Tag/Woche/Monat."""
     days = _clamp_retention_days(days)  # #67: nie über die globale 365-Tage-Anzeigegrenze
     settings = get_settings()
@@ -3431,7 +3431,7 @@ _STATS_SORT_FIELDS = {"last_flight", "flight_count", "total_duration_min"}
 
 
 @app.get("/api/stats")
-async def get_stats_endpoint(
+def get_stats_endpoint(
     request: Request,
     days: int = 30,
     sort_by: str = "last_flight",
@@ -3575,7 +3575,7 @@ def pilot_orden(cid: int, days: int = 30):
 
 
 @app.get("/api/events")
-async def get_events(
+def get_events(
     request: Request,
     icao: str,
     radius: float = 150.0,
@@ -3833,7 +3833,7 @@ async def sse_endpoint(request: Request):
 
 
 @app.get("/api/pilots/{cid}/flights")
-async def get_pilot_flights(cid: int, days: int = 90, background_tasks: BackgroundTasks = None):
+def get_pilot_flights(cid: int, days: int = 90, background_tasks: BackgroundTasks = None):
     """Alle Flüge eines Piloten: FriesenSpy sofort + StatSim aus Cache.
 
     StatSim wird im Hintergrund aktualisiert (letzter 31-Tage-Chunk bei normalem
@@ -5316,7 +5316,7 @@ async def api_me(request: Request):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/me/visibility")
-async def api_me_visibility(request: Request):
+def api_me_visibility(request: Request):
     """Aktuelle Sichtbarkeit + Picker-Kandidaten (Mitglieder-Registry). Nur eingeloggt."""
     settings = get_settings()
     cid = _current_cid(request, settings)
@@ -5409,7 +5409,7 @@ async def admin_get_banner(request: Request):
 
 
 @app.get("/api/admin/gps-leg-audit")
-async def admin_gps_leg_audit(
+def admin_gps_leg_audit(
     request: Request, days: int = 30, cid: int | None = None, statsim: int = 0
 ):
     """Read-only Audit: vergleicht die Refile-Flüge mit der collapsed GPS-Sicht aus
@@ -8517,7 +8517,7 @@ _ICON_HEADSET = (
 
 
 @app.get("/widget", include_in_schema=False)
-async def widget(request: Request):
+def widget(request: Request):
     """Einbettbares iframe-Widget für friesenflieger.de."""
     from fastapi.responses import HTMLResponse
     settings = get_settings()
