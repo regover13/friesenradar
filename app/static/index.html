@@ -3661,6 +3661,20 @@
       font-size: 1.05rem;
       letter-spacing: 0.05em;
     }
+    /* Ordensleiste der Piloten-Details: das Forum-Badge verkleinert, an einem Band in der
+       FriesenFlieger-Palette. Bummel orange, Kutter hellblau, Sieger rot mit orangem Streifen. */
+    .orden-leiste { display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 14px; }
+    .orden { display: flex; flex-direction: column; align-items: center; text-decoration: none; }
+    .orden img { width: 44px; height: 44px; margin-top: -3px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); }
+    .orden-band {
+      width: 18px; height: 16px;
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%);
+      background: linear-gradient(90deg, #191D53 0 25%, #EEF4FD 25% 35%, #191D53 35% 65%, #EEF4FD 65% 75%, #191D53 75%);
+    }
+    .orden-band-bummel { background: linear-gradient(90deg, #D75F28 0 30%, #EEF4FD 30% 42%, #D75F28 42% 58%, #EEF4FD 58% 70%, #D75F28 70%); }
+    .orden-band-kutter { background: linear-gradient(90deg, #8FBFF1 0 30%, #191D53 30% 42%, #8FBFF1 42% 58%, #191D53 58% 70%, #8FBFF1 70%); }
+    .orden-band-sieger { background: linear-gradient(90deg, #8A1B1B 0 38%, #D75F28 38% 62%, #8A1B1B 62%); }
+    .orden:hover img { transform: scale(1.08); }
     .flights-panel-count {
       font-family: var(--text-display);
       font-size: 0.72rem;
@@ -8578,6 +8592,9 @@ let _statsSortBy  = 'last_flight';
 let _statsSortDir = 'desc';
 let _prefileRouteLine = null;
 let _flightsRefreshTimer = null;
+// Orden der Piloten-Details je "cid|Tage" -- renderFlightsList laeuft bei StatSim-Updates
+// mehrfach, geholt wird trotzdem nur einmal. Muss vor initFromUrl() stehen (Deep-Link, TDZ).
+const _ordenCache = {};
 
 // ==========================================================================
 //  UTC Clock
@@ -11178,6 +11195,9 @@ function renderFlightsList(cid, pilotName, flights, statsimStatus) {
   html += `</span>
       <button class="btn-share" style="margin-left:auto;" onclick="copyShareUrl(this)">⎘ Teilen</button>
     </div>`;
+  const ordenKey = `${cid}|${_statsDays()}`;
+  html += `<div id="pilot-orden">${_ordenHtml(_ordenCache[ordenKey])}</div>`;
+  if (!(ordenKey in _ordenCache)) _ordenLaden(cid, _statsDays());
   if (statsimStatus === 'updating') {
     html += `<div style="text-align:center;padding:4px 0;font-size:0.8em;color:var(--color-label)">${icon('refresh')} StatSim wird aktualisiert…</div>`;
   }
@@ -11209,6 +11229,35 @@ function renderFlightsList(cid, pilotName, flights, statsimStatus) {
   // Standard-Ansicht: Strecke (GPS) öffnet die GPS-Erfassung, Plan (wenn vorhanden) öffnet
   // den Flugplan, Track öffnet den GPS-Track. Kein Zeilen-Klick. #v8.1.0 / UI-Feedback 07-04
   _wireFlightRowClicks(container);
+}
+
+// Ordensleiste: je Spezial-Event mit Forum-Badge ein kleiner Orden am Band, in der Reihenfolge
+// des Servers (neueste zuerst). Ein Tipp oeffnet das Badge in voller Groesse. Ohne Orden
+// bleibt die Leiste ganz weg.
+function _ordenHtml(orden) {
+  if (!orden || !orden.length) return '';
+  return '<div class="orden-leiste">' + orden.map(o => {
+    const titel = `${o.name} · ${_fmtEventDate(o.datum).split(',')[0]}${o.sieger ? ' · Sieger' : ''}`;
+    const band = `orden-band orden-band-${escHtml(o.art)}${o.sieger ? ' orden-band-sieger' : ''}`;
+    return `<a class="orden" href="${escHtml(o.bild)}" target="_blank" rel="noopener" title="${escHtml(titel)}">`
+      + `<span class="${band}"></span>`
+      + `<img src="${escHtml(o.bild)}" alt="${escHtml(titel)}" loading="lazy" width="44" height="44"></a>`;
+  }).join('') + '</div>';
+}
+
+async function _ordenLaden(cid, days) {
+  const key = `${cid}|${days}`;
+  _ordenCache[key] = null;               // laeuft schon -- kein zweiter Abruf beim Neuzeichnen
+  try {
+    const res = await fetch(`/api/pilots/${cid}/orden?days=${days}`);
+    if (!res.ok) throw new Error(res.status);
+    _ordenCache[key] = await res.json();
+  } catch (_) {
+    delete _ordenCache[key];             // beim naechsten Oeffnen neu versuchen
+    return;
+  }
+  const el = document.getElementById('pilot-orden');
+  if (el && currentStatsCid === cid && _statsDays() === days) el.innerHTML = _ordenHtml(_ordenCache[key]);
 }
 
 // ==========================================================================

@@ -3503,6 +3503,60 @@ def get_special_events_stats(days: int = 30):
         conn.close()
 
 
+@app.get("/api/pilots/{cid}/orden")
+def pilot_orden(cid: int, days: int = 30):
+    """Ordensleiste der Statistik-Details: je abgeschlossenem Spezial-Event im Zeitraum, fuer
+    das der Pilot ein Forum-Badge hat, ein Orden -- neueste zuerst. ?days=30|90|365.
+
+    Wer einen Orden bekommt, entscheiden dieselben Regeln wie beim Badge-Bild
+    (``_badge_entry_data``, ``_kutter_badge_data``): Bummel-Teilnehmer, vollstaendig oder
+    nicht; Kutter nur mit bewegter Fracht. Abgeschlossen heisst wie bei den Spezial-Events:
+    Bummel enthuellt und vorbei, Kutter mit Feierabend-Bilanz."""
+    if days not in (30, 90, 365):
+        days = 30
+    now = _now_iso()
+    since = (datetime.strptime(now, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_timezone.utc)
+             - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    settings = get_settings()
+    prefix = settings.CALLSIGN_PREFIX
+    conn = get_connection(settings.DB_PATH)
+    try:
+        orden = []
+        for ev in list_transport_events(conn, since=since):
+            if not ev.get("summarized_at") or (ev.get("dtend") or "") < since:
+                continue
+            p = _kutter_progress(conn, ev, now, prefix)
+            if any(t.get("cid") == cid and t.get("contributed", True)
+                   for t in p.get("participants", [])):
+                orden.append({
+                    "art": "kutter", "event_id": ev["id"],
+                    "name": ev.get("badge_name") or ev.get("name") or "FriesenKutter",
+                    "datum": ev.get("dtstart"), "sieger": False,
+                    "bild": f"/api/transport/event/{ev['id']}/badge/{cid}.png",
+                })
+
+        update_bummel_reveals(conn, now, callsign_prefix=prefix)
+        for race in list_bummel_races(conn, since=since):
+            dtend = race.get("dtend") or ""
+            if not race.get("revealed_at") or now < dtend or dtend < since:
+                continue
+            v = _bummel_view(conn, race, now)
+            fertig = next((e for e in v.get("complete", []) if e.get("cid") == cid), None)
+            dabei = fertig or next((e for e in v.get("incomplete", []) if e.get("cid") == cid), None)
+            if dabei:
+                orden.append({
+                    "art": "bummel", "event_id": race["id"],
+                    "name": race.get("badge_name") or race.get("name") or "FriesenBummel",
+                    "datum": race.get("dtstart"), "sieger": bool(fertig) and fertig.get("rank") == 1,
+                    "bild": f"/api/bummel/race/{race['id']}/badge/{cid}.png",
+                })
+
+        orden.sort(key=lambda o: o["datum"] or "", reverse=True)
+        return orden
+    finally:
+        conn.close()
+
+
 @app.get("/api/events")
 async def get_events(
     request: Request,
