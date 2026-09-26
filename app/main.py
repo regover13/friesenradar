@@ -3551,6 +3551,23 @@ def pilot_orden(cid: int, days: int = 30):
                     "bild": f"/api/bummel/race/{race['id']}/badge/{cid}.png",
                 })
 
+        # Reddung: wie bei den Spezial-Events jeder Abend, dessen dtend vorbei ist. Beitrag
+        # und Rollen entscheidet _reddung_badge_data -- dieselbe Regel wie beim Badge-Bild.
+        for ev in list_reddung_events(conn, since=since):
+            if not (ev.get("dtend") or "") < now:
+                continue
+            try:
+                _reddung_badge_data(conn, ev, cid)
+            except HTTPException:
+                continue
+            orden.append({
+                "art": "reddung", "event_id": ev["id"],
+                "name": ev.get("badge_name") or ev.get("name") or "FriesenReddung",
+                "datum": ev.get("dtstart"), "sieger": False,
+                "bild": f"/api/reddung/events/{ev['id']}/badge/{cid}.png",
+            })
+        conn.commit()          # compute_reddung_stand kann den Snapshot ergaenzt haben
+
         orden.sort(key=lambda o: o["datum"] or "", reverse=True)
         return orden
     finally:
@@ -6424,6 +6441,78 @@ def reddung_events():
         return raus
     finally:
         conn.close()
+
+
+def _reddung_badge_data(conn, ev: dict, cid: int) -> dict:
+    """Render-Daten fuer das Reddung-Badge. Wirft 404, wenn die CID nichts beigetragen hat:
+    keine Zelle als Erster abgesucht und weder gefunden noch aufgenommen noch eingeliefert.
+
+    Die Reddung fuehrt kein Callsign -- es kommt aus dem laengsten Flug im Eventfenster, wie
+    ihn auch die Statistik kennt. Ohne Flug steht dort "CID …", wie bei Bummel und Kutter."""
+    stand = compute_reddung_stand(conn, ev)
+    zellen = next((p["zellen"] for p in stand.get("je_pilot", []) if p["cid"] == cid), 0)
+    rollen = [r for r in ("gefunden", "aufgenommen", "eingeliefert")
+              if (stand.get(r) or {}).get("cid") == cid]
+    if not zellen and not rollen:
+        raise HTTPException(status_code=404, detail="Teilnehmer nicht gefunden")
+    flug = conn.execute(
+        "SELECT callsign, aircraft_short FROM flights WHERE cid = ? AND superseded_by IS NULL "
+        "AND logon_time <= ? AND (logoff_time IS NULL OR logoff_time >= ?) "
+        "ORDER BY duration_min DESC LIMIT 1",
+        (cid, ev.get("dtend") or "", ev.get("dtstart") or "")).fetchone()
+    return {
+        "callsign": (flug and flug[0]) or f"CID {cid}",
+        "aircraft": (flug and flug[1]) or "",
+        "zellen": zellen,
+        "rollen": rollen,
+        "icao": (stand.get("eingeliefert") or {}).get("icao"),
+        "event": ev.get("badge_name") or ev.get("name") or "FriesenReddung",
+        "date": _fmt_de_date(ev.get("dtstart")),
+    }
+
+
+@app.get("/api/reddung/events/{event_id}/badge/{cid}.png")
+def get_reddung_badge(request: Request, event_id: int, cid: int):
+    """Forum-Badge (PNG) fuer einen Reddung-Teilnehmer -- erst nach ``dtend``, damit kein
+    Zwischenstand als "fertig" verewigt wird. Cache und ETag wie beim Kutter-Badge."""
+    import hashlib
+    import os
+
+    settings = get_settings()
+    conn = get_connection(settings.DB_PATH)
+    try:
+        ev = get_reddung_event(conn, event_id)
+        if not ev or not (ev.get("dtend") or "") < _now_iso():
+            raise HTTPException(status_code=404, detail="Event noch nicht abgeschlossen")
+        d = _reddung_badge_data(conn, ev, cid)
+        conn.commit()          # compute_reddung_stand kann den Snapshot ergaenzt haben
+    finally:
+        conn.close()
+
+    key = hashlib.md5(
+        f"v{_BADGE_RENDER_VERSION}|reddung|{d['zellen']}|{d['rollen']}|{d['icao']}|"
+        f"{d['aircraft']}|{d['callsign']}|{d['event']}|{d['date']}".encode()
+    ).hexdigest()[:10]
+    etag = f'"{key}"'
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
+
+    from app.badge import render_reddung_badge
+    cache_dir = os.path.join(os.path.dirname(settings.DB_PATH) or ".", "badges")
+    path = os.path.join(cache_dir, f"reddung_{event_id}_{cid}_{key}.png")
+    try:
+        with open(path, "rb") as fh:
+            png = fh.read()
+    except OSError:
+        png = render_reddung_badge(d)
+        try:
+            os.makedirs(cache_dir, exist_ok=True)
+            with open(path, "wb") as fh:
+                fh.write(png)
+        except OSError:
+            pass  # Cache optional -- Bild wurde bereits erzeugt
+    return Response(content=png, media_type="image/png",
+                    headers={"Cache-Control": "no-cache", "ETag": etag})
 
 
 @app.get("/api/reddung/events/{event_id}/raster")

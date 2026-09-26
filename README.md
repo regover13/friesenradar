@@ -210,7 +210,7 @@ Interaktive Karte mit allen aktuell fliegenden Friesen. Sie geht über Wangeroog
 
 **Was du tun kannst:**
 - **Pilot anklicken** → klappt die Einzelflug-Liste für diesen Piloten auf; Daten kommen sofort aus dem lokalen Cache, ein Update von StatSim läuft automatisch im Hintergrund
-- **Orden** unter dem Namen des Piloten: Für jeden FriesenBummel und FriesenKutter, bei dem er ein Badge fürs Forum bekommen hat, hängt dort ein kleiner Orden am Band, der neueste links. Es zählt derselbe Zeitraum wie oben (30, 90 oder 365 Tage). Das Band verrät die Art: orange für den Bummel, hellblau für den Kutter, rot für einen Bummel-Sieg. Ein Tipp auf den Orden öffnet das Badge in voller Größe
+- **Orden** unter dem Namen des Piloten: Für jeden FriesenBummel, FriesenKutter und jede FriesenReddung, bei denen er ein Badge fürs Forum bekommen hat, hängt dort ein kleiner Orden am Band, der neueste links. Es zählt derselbe Zeitraum wie oben (30, 90 oder 365 Tage). Das Band verrät die Art: orange für den Bummel, hellblau für den Kutter, orange-weiß gestreift für die Reddung, rot für einen Bummel-Sieg. Ein Tipp auf den Orden öffnet das Badge in voller Größe
 - **„Alle Flüge laden (letztes Jahr)"** → erzwingt einen vollständigen 365-Tage-Refresh von StatSim für diesen Piloten (dauert etwas länger)
 - **◎** neben einem Einzelflug → öffnet den GPS-Track dieses Fluges in einem eigenen Fenster (mit **⛶ Vollbild**)
 - **⎘** neben einem Einzelflug → kopiert den Link zu genau diesem Flug
@@ -426,7 +426,11 @@ nicht gewertet" mit dem Grund.
   dauerte, und darunter, welche Fläche jeder als Erster abgesucht hat. **Für Forum kopieren**
   legt dir das Ganze als fertigen Absatz fürs Forum in die Zwischenablage. **Teilen** oben rechts
   kopiert wie bei FriesenBummel und FriesenKutter den Link auf die Bilanz: Neu laden oder ein
-  geteilter Link öffnet sie wieder. Darunter zeigt die
+  geteilter Link öffnet sie wieder. Ist der Abend vorbei, steht in der Tabelle neben jedem, der
+  als Erster abgesucht oder den Havaristen gefunden, aufgenommen oder eingeliefert hat, sein
+  **Badge** fürs Forum: „Voll im Einsatz!" im Rettungsring mit Hubschrauber, darunter seine Rolle
+  und seine Zellen. **Badge** öffnet das Bild, **Forum** kopiert den Code zum Einfügen im Beitrag.
+  Darunter zeigt die
   Event-Analyse, wer im Zeitfenster rund um den Sektor unterwegs war, mit den Flugspuren —
   gesucht wird um den nächsten Platz zur Sektormitte, weit genug, um den ganzen Sektor zu erfassen.
   Auf dieser Karte stehen immer auch der Sektor als rot gestrichelter Rahmen und blau die

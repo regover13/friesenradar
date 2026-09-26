@@ -8,6 +8,8 @@ zentriert in die ruhigen Zonen gelegt. Strikt die FriesenFlieger-Palette
   - ``render_medal``        — Bummel-Teilnahme „Voll daneben!" (navy Kern, helle Schrift).
   - ``render_kutter_badge`` — Kutter-Abschluss „Voll beladen!" (navy Kern), mit Verlust-Abschnitt
     (SPITZBOOV!/BADEMESTER!/SEEROVER!), falls Fracht geklaut oder versenkt wurde.
+  - ``render_reddung_badge`` — FriesenReddung „Voll im Einsatz!" (SAR-Ring mit Hubschrauber),
+    darunter die Rolle (GEFUNDEN!/GEBORGEN!) und die als Erster abgesuchten Zellen.
 Alle tragen die Fußzeile „friesenflieger.de".
 
 Fehlt ein Hintergrund-PNG, wird auf eine schlichte gezeichnete Scheibe
@@ -293,4 +295,51 @@ def render_medal(d: dict) -> bytes:
 
     _event_caption(dr, d, _LBLUE)
     _footer(dr, _LBLUE)
+    return _finish(img)
+
+
+def _zellen_text(n: int) -> str:
+    return f"{n} Zelle" if n == 1 else f"{n} Zellen"
+
+
+def _reddung_zeilen(d: dict) -> tuple[str | None, str | None]:
+    """Rolle (orange, laut) und Beitrag (weiss, leise) fuer das Reddung-Badge -- pure Funktion.
+
+    Wer eingeliefert hat, hat fast immer auch aufgenommen; deshalb steht die Einlieferung
+    unten mit ihrem Platz statt als dritter Ruf oben."""
+    rollen = d.get("rollen") or []
+    ruf = [t for r, t in (("gefunden", "GEFUNDEN!"), ("aufgenommen", "GEBORGEN!")) if r in rollen]
+    n = int(d.get("zellen") or 0)
+    teile = []
+    if "eingeliefert" in rollen:
+        teile.append(f"eingeliefert in {d.get('icao') or '?'}")
+        if n:
+            teile.append(f"{_zellen_text(n)} als Erster")
+    elif n:
+        teile.append(f"{_zellen_text(n)} als Erster abgesucht")
+    return (" ".join(ruf) or None, ", ".join(teile) or None)
+
+
+def render_reddung_badge(d: dict) -> bytes:
+    """FriesenReddung-Badge: navy Kern im SAR-Ring. Der Kern ist oben schmaler als bei der
+    Medaille (der Hubschrauber sitzt im Ring), deshalb die engeren Breiten. Event und Datum
+    stehen unter der Inselkette."""
+    img = _load_bg("reddung_bg.png") or _fallback_disk(_NAVY)
+    dr = ImageDraw.Draw(img)
+
+    _ctext(dr, int(_S * 0.215), "VOLL IM EINSATZ!", 30, _ORANGE, 0.52)
+    _ctext(dr, int(_S * 0.290), d.get("callsign", ""), 54, _LBLUE, 0.68)
+    _ctext(dr, int(_S * 0.400), d.get("aircraft") or "k. A.", 22, _LBLUE, 0.72)
+    ruf, beitrag = _reddung_zeilen(d)
+    if ruf:
+        _ctext(dr, int(_S * 0.458), ruf, 22, _ORANGE, 0.68)
+    if beitrag:
+        _ctext(dr, int(_S * (0.515 if ruf else 0.465)), beitrag, 16, _WHITE, 0.64)
+
+    ev = d.get("event") or ""
+    if ev:
+        _ctext(dr, int(_S * 0.690), ev, 20, _LBLUE, 0.62)
+    if d.get("date"):
+        _ctext(dr, int(_S * 0.745), d["date"], 16, _LBLUE, 0.50)
+    _footer(dr, _LBLUE, y_frac=0.795)
     return _finish(img)

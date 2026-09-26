@@ -870,6 +870,9 @@
     html.vr-panel [onclick*="copyBummelForumText"],
     html.vr-panel [onclick*="copyBummelBadgeCode"],
     html.vr-panel [onclick*="copyKutterBadgeCode"],
+    html.vr-panel [onclick*="copyReddungShareHeader"],
+    html.vr-panel [onclick*="copyReddungForumText"],
+    html.vr-panel [onclick*="copyReddungBadgeCode"],
     html.vr-panel #changelog-banner,
     html.vr-panel #app-version {
       display: none !important;
@@ -3674,6 +3677,7 @@
     .orden-band-bummel { background: linear-gradient(90deg, #D75F28 0 30%, #EEF4FD 30% 42%, #D75F28 42% 58%, #EEF4FD 58% 70%, #D75F28 70%); }
     .orden-band-kutter { background: linear-gradient(90deg, #8FBFF1 0 30%, #191D53 30% 42%, #8FBFF1 42% 58%, #191D53 58% 70%, #8FBFF1 70%); }
     .orden-band-sieger { background: linear-gradient(90deg, #8A1B1B 0 38%, #D75F28 38% 62%, #8A1B1B 62%); }
+    .orden-band-reddung { background: repeating-linear-gradient(135deg, #D75F28 0 3px, #EEF4FD 3px 6px); }
     .orden:hover img { transform: scale(1.08); }
     .flights-panel-count {
       font-family: var(--text-display);
@@ -15846,10 +15850,13 @@ function _reddungBilanzHtml(r) {
   }
   const piloten = st.je_pilot || [];
   if (piloten.length) {
-    html += '<div class="table-scroll"><table><thead><tr><th>Pilot</th><th>Als Erster abgesucht</th><th>Anteil</th></tr></thead><tbody>';
+    // Das Badge gibt es erst nach dem Ende -- vorher waere es ein Zwischenstand.
+    html += '<div class="table-scroll"><table><thead><tr><th>Pilot</th><th>Als Erster abgesucht</th><th>Anteil</th>'
+          + (vorbei ? '<th>Badge</th>' : '') + '</tr></thead><tbody>';
     piloten.forEach(p => {
       const anteil = st.zellen ? Math.round(100 * p.zellen / st.zellen) : 0;
-      html += `<tr><td>${escHtml(p.name || String(p.cid))}</td><td class="mono">${p.zellen} Zellen</td><td class="mono">${anteil} %</td></tr>`;
+      html += `<tr><td>${escHtml(p.name || String(p.cid))}</td><td class="mono">${p.zellen} Zellen</td><td class="mono">${anteil} %</td>`
+            + (vorbei ? `<td>${_reddungHatBadge(st, p) ? _reddungBadgeLinks(r.id, p.cid) : ''}</td>` : '') + '</tr>';
     });
     html += '</tbody></table></div>';
   }
@@ -15891,6 +15898,19 @@ function _reddungForumText(r) {
 
 // Teilen heisst wie bei FriesenBummel und FriesenKutter: den Link kopieren. Bis 15.22.4 lag
 // hier der Forumsabsatz, und ein Deeplink auf das Event liess sich nicht setzen (Nutzer, 26.09.2026).
+// Dieselbe Regel wie _reddung_badge_data auf dem Server: eine Zelle als Erster oder eine Rolle.
+function _reddungHatBadge(st, p) {
+  return p.zellen > 0 || [st.gefunden, st.aufgenommen, st.eingeliefert].some(x => x && x.cid === p.cid);
+}
+// Badge-Links je Teilnehmer (Forum-PNG oeffnen + BBCode kopieren), wie bei Bummel und Kutter.
+function _reddungBadgeLinks(eventId, cid) {
+  const url = `/api/reddung/events/${Number(eventId)}/badge/${Number(cid)}.png`;
+  return `<a class="btn-share" href="${url}" target="_blank" rel="noopener" title="Badge als Bild öffnen">${icon('medal')} Badge</a>`
+       + ` · <button class="btn-share" onclick="copyReddungBadgeCode(${Number(eventId)}, ${Number(cid)}, this)" title="Forum-Code (BBCode) kopieren">${icon('clipboard')} Forum</button>`;
+}
+function copyReddungBadgeCode(eventId, cid, btn) {
+  _copyText(`[img]${location.origin}/api/reddung/events/${eventId}/badge/${cid}.png[/img]`, btn, 'kopiert', 1500, false);
+}
 function copyReddungShareHeader(btn) {
   if (_reddungOffenId == null) return;
   _copyText(`${location.origin}${location.pathname}#tab=events&reddung=${_reddungOffenId}`, btn);
