@@ -24,7 +24,28 @@ env:
   IMAGE: ghcr.io/regover13/friesenspy
 
 jobs:
+  # Die Tests laufen VOR dem Bau -- ein roter Stand wird nicht deployt. Bis zum 26.09.2026 gab
+  # es diesen Schritt nicht: Getestet wurde nur, wenn eine Sitzung vor dem Push daran dachte,
+  # und an dem Tag ging so ein roter Test live (Changelog-Text ohne „FriesenBrügge").
+  # Python wie im Image (3.11); Node fuer die Tests, die Quelltext aus index.html ausfuehren.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Abhaengigkeiten
+        run: pip install -r requirements.txt
+      - name: Tests
+        run: python -m pytest -q -p no:cacheprovider -n 4
+
   build-and-deploy:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
