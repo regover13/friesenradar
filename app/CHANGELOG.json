@@ -1,5 +1,15 @@
 [
   {
+    "version": "15.23.2",
+    "date": "2026-09-27",
+    "highlight": false,
+    "title": "Platzrunden ohne Phantomstrecken",
+    "items": [
+      "🛬 **Die Platzrunden von Wiefelstede, Salzgitter-Schäferstuhl und Bottenhorn stimmen wieder.** In den Daten sind sie offene Linien, auf der Karte waren sie zu Dreiecken und Vierecken geschlossen, mit einer Rückstrecke quer übers Feld, die niemand fliegt. Wiefelstede zeigt jetzt seine beiden Anflughaken, die anderen beiden eine offene Runde wie auf der DFS-Karte.",
+      "🔄 **Korrekturen an den Platzrunden kommen sofort an**, ohne dass dein Browser noch eine Weile die alte Fassung zeigt."
+    ]
+  },
+  {
     "version": "15.23.1",
     "date": "2026-09-26",
     "highlight": false,

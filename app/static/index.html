@@ -5585,9 +5585,12 @@ function _platzrundenHoehenLabel(f, layer) {
   if (p.hoehe_geschaetzt || p.hoehe_ft === null) return;
   const ll = layer.getLatLngs();
   // Polygon: [[Ring]], LineString: [Punkte] -- beide Formen kommen im Datensatz vor.
-  const ring = Array.isArray(ll[0]) ? ll[0] : ll;
+  const istFlaeche = Array.isArray(ll[0]);
+  const ring = istFlaeche ? ll[0] : ll;
   if (!ring || ring.length < 2) return;
-  const geschlossen = ring.length > 2 ? ring.concat([ring[0]]) : ring;
+  // Nur eine Flaeche wird geschlossen. Eine Linie bleibt offen -- sonst saesse das Schild auf
+  // einer Strecke, die niemand fliegt (EDWP, 27.09.2026: offene Anflughaken aus drei Punkten).
+  const geschlossen = istFlaeche && ring.length > 2 ? ring.concat([ring[0]]) : ring;
   const mitte = _gegenanflugMitte(geschlossen);
   if (!mitte) return;
   // Nur merken, NICHT binden: Ein permanenter Tooltip je Platzrunde waeren 265 DOM-Elemente,
@@ -5628,7 +5631,8 @@ function _platzrundenPopup(p) {
 function _platzrundenLaden() {
   if (_platzrundenGeladen) return Promise.resolve();
   _platzrundenGeladen = true;
-  return fetch(_PLATZRUNDEN_URL)
+  // no-cache = beim Server nachfragen (ETag, meist 304): Datenkorrekturen kommen sofort an.
+  return fetch(_PLATZRUNDEN_URL, { cache: 'no-cache' })
     .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
     .then(gj => {
       // Zwei Lagen je Platzrunde: zuerst die breite Fanglinie (nimmt den Klick), darueber die

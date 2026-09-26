@@ -112,7 +112,7 @@ def test_popup_zeigt_hoehe_auch_bei_strecken_mit_echter_hoehe():
     ausschliesst."""
     gj = json.loads(GEOJSON.read_text(encoding="utf-8"))
     strecken = [f["properties"] for f in gj["features"] if f["properties"].get("typ") == "strecke"]
-    assert len(strecken) == 4
+    assert len(strecken) == 6          # seit 27.09.2026 auch die zwei EDWP-Anflughaken
     assert all(not p["hoehe_geschaetzt"] and p["hoehe_ft"] is not None for p in strecken), (
         "Testannahme veraltet: nicht mehr alle Strecken haben eine geprüfte Höhe -- Fix prüfen"
     )
@@ -367,3 +367,81 @@ def test_geojson_wird_als_geojson_ausgeliefert():
     import mimetypes
     import app.main  # noqa: F401  -- der Import registriert den Typ
     assert mimetypes.guess_type("x.geojson")[0] == "application/geo+json"
+
+
+# --- EDWP: offene Anflughaken statt Dreiecke (Nutzer, 27.09.2026) ----------------------------
+#
+# Die Quelle (vlflugzeuge.de, deckungsgleich mit NavFarm) kennt nur Flaechen ("DP"-Punkte).
+# Wiefelstede hat aber keine Rechteck-Runde, sondern je Bahnrichtung einen Anflughaken aus drei
+# Punkten -- beim Umwandeln wurde jeder zum Ring geschlossen, auf der Karte standen zwei
+# Dreiecke mit einer Rueckstrecke, die niemand fliegt.
+
+def _edwp():
+    gj = json.loads(GEOJSON.read_text(encoding="utf-8"))
+    return [f for f in gj["features"] if f["properties"]["icao"] == "EDWP"]
+
+
+def test_kein_ring_aus_nur_drei_punkten():
+    """Ein Ring mit drei Ecken ist in diesem Datensatz eine zugeklappte Linie, keine Runde."""
+    gj = json.loads(GEOJSON.read_text(encoding="utf-8"))
+    dreiecke = [f["properties"]["name"] for f in gj["features"]
+                if f["geometry"]["type"] == "Polygon"
+                and len({tuple(p) for p in f["geometry"]["coordinates"][0]}) <= 3]
+    assert dreiecke == []
+
+
+def test_edwp_zeigt_offene_anflughaken():
+    teile = {f["properties"]["name"]: f for f in _edwp()}
+    for name, anfang, ende in (("Wiefelstede Conneforde 1", [8.042222, 53.328611], [8.063889, 53.324444]),
+                               ("Wiefelstede Conneforde 3", [8.106111, 53.315278], [8.079722, 53.319167])):
+        f = teile[name]
+        assert f["geometry"]["type"] == "LineString", name
+        punkte = f["geometry"]["coordinates"]
+        assert len(punkte) == 3 and punkte[0] == anfang and punkte[-1] == ende, name
+        assert f["properties"]["typ"] == "strecke"
+        assert "Dreieck" in f["properties"]["korrektur"]
+    assert all(f["geometry"]["type"] == "LineString" for f in teile.values())
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node fehlt")
+def test_das_hoehenschild_schliesst_nur_flaechen():
+    """Fuer die Lage des Schilds wurde jede Punktliste mit mehr als zwei Punkten zum Ring
+    geschlossen -- bei einer offenen Linie also wieder die Phantomstrecke."""
+    m = re.search(r"^function _platzrundenHoehenLabel\(", INDEX, flags=re.M)
+    quelle = INDEX[m.start():INDEX.index("\n}\n", m.start()) + 3]
+    js = ("let gesehen = []; function _gegenanflugMitte(r) { gesehen.push(r.length); return {}; }\n"
+          + quelle + """
+      const linie = {getLatLngs: () => [1, 2, 3]};
+      const flaeche = {getLatLngs: () => [[1, 2, 3, 4]]};
+      const p = {properties: {hoehe_ft: 1000, hoehe_geschaetzt: false}};
+      _platzrundenHoehenLabel(p, linie); _platzrundenHoehenLabel(p, flaeche);
+      console.log(JSON.stringify(gesehen));""")
+    erg = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=20)
+    assert erg.returncode == 0, erg.stderr
+    assert json.loads(erg.stdout.strip()) == [3, 5]
+
+
+# EDVJ und EDGT: dieselbe zugeklappte Linie, nur mit vier Punkten. Gefunden ueber die
+# Schlusskante (letzter -> erster Punkt): bei 379 von 389 pruefbaren Runden liegt sie auf der
+# Bahn und ist damit der Abflug entlang der Bahn, also echt. Von den uebrigen zehn zeigen nur
+# diese beiden auf der DFS-Sichtflugkarte keine Entsprechung (Nutzer-Screenshot EDVJ,
+# AIP-Blatt EDGT vom 29.06.2023). Sie bleiben Platzrunden, nur offen.
+@pytest.mark.parametrize("icao,name,punkte", [
+    ("EDVJ", "Salzgitter-Schaeferstuhl", 4),
+    ("EDGT", "Bottenhorn", 4),
+])
+def test_offene_platzrunden_ohne_rueckstrecke(icao, name, punkte):
+    gj = json.loads(GEOJSON.read_text(encoding="utf-8"))
+    f = next(f for f in gj["features"]
+             if f["properties"]["icao"] == icao and f["properties"]["name"] == name)
+    assert f["geometry"]["type"] == "LineString"
+    assert len(f["geometry"]["coordinates"]) == punkte
+    assert f["properties"]["typ"] == "platzrunde"
+    assert "Rueckstrecke" in f["properties"]["korrektur"]
+
+
+def test_der_datensatz_wird_beim_server_nachgefragt():
+    """Die Datei hat keine Versionsnummer und nginx keinen Cache-Control -- ohne Nachfrage
+    zeigte ein Browser eine Korrektur erst Stunden spaeter. Mit ETag kostet sie eine 304."""
+    stelle = INDEX.index("function _platzrundenLaden(")
+    assert "fetch(_PLATZRUNDEN_URL, { cache: 'no-cache' })" in INDEX[stelle:stelle + 400]
