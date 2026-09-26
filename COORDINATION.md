@@ -25,7 +25,9 @@ nach bewährter Bindung, Kniebrett neben Reiner). **Ergebnis:** `friesenbruegge/
 ⚠ **MSFS 2024 hat zwei Community-Ordner** (`LocalCache/Packages/Community` und `Community2024`). Beim Nutzer
 lag in `Community2024` noch das Kniebrett 2.3.1 und überdeckte 2.3.2 aus `Community` — der erste Praxistest
 lief deshalb gegen die alte Fassung. Bei jedem Paket-Test die **`paket_version` in `panel_devices`** gegen
-die erwartete prüfen, nicht die Datei im Ordner. Der Nutzer hat jetzt das Kniebrett nur noch in `Community2024`.
+die erwartete prüfen, nicht die Datei im Ordner. **Seit dem 26.09.2026 abends liegt das Kniebrett beim
+Nutzer nur noch in `Community`, `Community2024` ist leer.** Den Ordner hat jede MSFS-2024-Installation; der
+Nutzer will dort kein Addon von uns — **nie dorthin installieren** (Regel in `CLAUDE.md`).
 
 **Offen:** Steam-Fassungen (Pfad von `\work` ungeprüft); Kollisionskennung nur in MSFS 2020 durchgespielt;
 Rückbau des alten Wegs nach dem Stichtag 24.10.2026 (Server-Sitzung).

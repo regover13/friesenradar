@@ -20,9 +20,9 @@ Friesen 50 m auseinander bestanden (Diagnose „zuordnung“, `davonFriesen` 2, 
    (`_bruegge_zuordnen`, `bruegge_kennung_fuer`, `bruegge_belegte_cids`) und die Test-Vorbereitung
    in `tests/conftest.py` zurückbauen. Alte Zeilen (`protokoll` NULL) bleiben bis dahin in
    `bruegge_zuordnung` stehen.
-2. **Das Kniebrett beim Nutzer aus `Community2024` nach `Community` verlegen** (Sitzung am
-   Simulator-Rechner, angefragt 26.09.2026). Den Ordner hat jede MSFS-2024-Installation; das
-   Kniebrett lag dort nur, weil eine unserer Sitzungen es dort abgelegt hatte. Regel in `CLAUDE.md`.
+2. **Nach dem nächsten Start von MSFS 2024 prüfen**, ob das Kniebrett des Nutzers (CID 1602713) in
+   `panel_devices` 2.3.2 meldet — dann lädt es aus `Community`. Verlegt am 26.09.2026 abends,
+   `Community2024` ist leer (Regel in `CLAUDE.md`: nie dorthin installieren).
 
 ---
 
