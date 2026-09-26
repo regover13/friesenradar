@@ -144,6 +144,10 @@ GitHub Push → main-Branch → GitHub Actions → GHCR → SSH-Deploy auf VPS
   bestandenem Health-Check) oder Fehlschlag (rot) mit Version, Commit-Titel und Link zum Workflow-Log.
   Braucht das Repo-Secret `DISCORD_WEBHOOK` (Discord-Kanal-Webhook, **ohne** `/github`-Suffix).
   Fehlt das Secret, wird der Schritt übersprungen — der Deploy bleibt grün.
+- **Vor dem Bau laufen die Tests** (Job `test`, seit 26.09.2026). Ein roter Stand wird nicht
+  deployt, live bleibt die bisherige Fassung, und nach Discord geht eine rote Meldung mit den
+  Namen der gescheiterten Tests. Testabhängigkeiten, die das Image nicht braucht, stehen in
+  `requirements-test.txt`. Das ist das Netz darunter — vor dem Push wird trotzdem getestet.
 
 ## VPS-Einrichtung (einmalig)
 
