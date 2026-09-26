@@ -8,23 +8,21 @@ und prüfen, ob eine andere die Aufgabe schon erledigt hat.
 
 ---
 
-## FriesenBrügge-Kennung und Zuordnung im Kniebrett (#46, #47), beschlossen am 26.09.2026
+## FriesenBrügge-Kennung und Zuordnung im Kniebrett (#46, #47) — verteilt am 26.09.2026
 
-Alle Entscheidungen stehen in
-[`docs/superpowers/specs/2026-09-26-bruegge-kennung-und-zuordnung-design.md`](superpowers/specs/2026-09-26-bruegge-kennung-und-zuordnung-design.md),
-einzeln mit Wortlaut in #46 und #47. Paket 1 (Kniebrett-Seite, 15.21.1) und die
-Server-Seite von Paket 2 (15.22.0) sind live. **Offen:** die neue MSFS-Brügge 1.18.0 und das
-Kniebrett-Paket ohne Eigenfilter vom Simulator-Rechner
-(`friesenbruegge/UEBERGABE-kennung-umsetzung.md`), danach — **auf Wort des Nutzers, an einem Tag
-ohne Event** — Pakete hochladen, Satz „ersten Flug allein auf VATSIM“ auf die Download-Seite,
-Stichtag `_BRUEGGE_P2_MSFS_BIS` vier Wochen später setzen, Handbuch zum Deinstallieren.
+Beschluss: [`docs/superpowers/specs/2026-09-26-bruegge-kennung-und-zuordnung-design.md`](superpowers/specs/2026-09-26-bruegge-kennung-und-zuordnung-design.md).
+Server 15.22.x, FriesenBrügge 1.18.1 und Kniebrett 2.3.2 sind verteilt. ✅ Im Flug bewährt (FRS49
+16:18Z, FRS61 16:48Z), ✅ nach Neustart sofort zurückgebunden, ✅ Kniebrett-Praxistest mit zwei
+Friesen 50 m auseinander bestanden (Diagnose „zuordnung“, `davonFriesen` 2, `amEigenenOrt` 0).
 
-⚠ **Für die Anleitung auf der Download-Seite (Befund 26.09.2026):** MSFS 2024 hatte beim Nutzer
-neben `Community` einen zweiten Ordner `LocalCache\Packages\Community2024\`. Dort lag noch das
-Kniebrett 2.3.1, und MSFS 2024 hat es von dort geladen; 2.3.2 in `Community` blieb wirkungslos.
-Die Anleitung muss sagen: das alte Paket **in beiden Ordnern** ersetzen bzw. löschen. Ob
-`Community2024` bei jeder Installation existiert oder nur bei manchen, ist nicht geklärt. Für die
-FriesenBrügge gilt dasselbe.
+**Offen:**
+1. **Nach dem Stichtag 24.10.2026** (dann 426 für die alte MSFS-Brügge): den alten Weg
+   (`_bruegge_zuordnen`, `bruegge_kennung_fuer`, `bruegge_belegte_cids`) und die Test-Vorbereitung
+   in `tests/conftest.py` zurückbauen. Alte Zeilen (`protokoll` NULL) bleiben bis dahin in
+   `bruegge_zuordnung` stehen.
+2. ⚠ **MSFS 2024 kann einen zweiten Ordner `LocalCache\Packages\Community2024\` haben** und lädt
+   Pakete dann von dort (so beim Nutzer: Kniebrett 2.3.1 blieb aktiv, obwohl 2.3.2 in `Community`
+   lag). Die Download-Seite sagt es seit 15.22.4. Ob jede Installation den Ordner hat, ist offen.
 
 ---
 
