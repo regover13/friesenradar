@@ -2,5 +2,5 @@
 # Gebraucht von Werkzeugen, die die Tests mitpruefen: friesenbruegge/msfs-rauch/rauch_bauen.py
 # (defusedxml) und tests/test_gradnetz.py (numpy).
 -r requirements.txt
-defusedxml==0.7.1
-numpy==2.5.2
+defusedxml>=0.7
+numpy>=1.26
