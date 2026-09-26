@@ -236,3 +236,24 @@ MSFS 2024 kennt neben `LocalCache\Packages\Community` einen zweiten Ordner
 Eigenfilter) und hat das in `Community` abgelegte 2.3.2 offenbar überdeckt: Das Gerät meldete um
 15:55Z weiter `paket_version` 2.3.1. Jetzt liegt 2.3.2 in beiden Ordnern. Die Anleitung auf der
 Download-Seite sollte das erwähnen: Wer `Community2024` benutzt, muss das Paket dort tauschen.
+
+## Nachtrag 26.09.2026, 18:55: Praxistest bestanden, Stand aller offenen Punkte
+
+**Kniebrett 2.3.2, Praxistest:** Nutzer (FRS49) und Reiner Kaste (FRS61, CID 1031301) standen etwa 50 m
+auseinander, beide mit Brügge 1.18.1 und Kniebrett 2.3.2 (`panel_devices.paket_version` beider Geräte
+2.3.2, 16:36Z bzw. 16:39Z). Nutzer: *„im Kniebrett ist alles gut“.* Damit stimmt der Weg ohne
+Eigenfilter. Der erste Versuch war wertlos, weil MSFS 2024 das ältere Paket aus `Community2024`
+geladen hatte (s. den Fund oben); die Selbstdiagnose (`zuordnung`, `davonFriesen`) habe ich nicht
+ausgewertet. Ein Geisterbild unter dem eigenen Flugzeug wurde nicht gemeldet.
+
+**Neustart nach bewährter Bindung (vorher offen):** Erkennt der Server die Kennung wieder? Ja.
+`fe62f1b3…` (CID 1602713) behielt `bewaehrt_am` 16:18:04Z, obwohl MSFS 2024 danach neu gestartet wurde
+und die Bindung um 16:38:47Z neu zugeordnet wurde (`zugeordnet_am`). Das ist das Verhalten von Server
+15.22.3 (ein Sprung lässt eine Bindung nur ruhen).
+
+**Reiners Brügge:** Neue Kennung `41ffd50e…` (1.18.1, Protokoll 3), zugeordnet 16:40:04Z, 0 Verstöße.
+Seine alte Zeile `caf4486b…` (1.17.0) steht weiter in `bruegge_zuordnung`.
+
+**Stand der offenen Punkte:** erledigt sind Praxistest Kniebrett, Neustart nach bewährter Bindung und
+der Upload. Offen bleiben die Steam-Fassungen (Pfad von `\work`), der Fall „Kollisionskennung“ in
+MSFS 2024 (in 2020 gemessen) und das Ausspielen des Stichtags `_BRUEGGE_P2_MSFS_BIS` (Server-Sitzung).
