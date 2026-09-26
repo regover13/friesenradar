@@ -15804,16 +15804,18 @@ function _reddungBilanzHtml(r) {
     });
     html += '</tbody></table></div>';
   }
-  // Nur solange das Event laeuft: Danach zeigt die Live-Karte die Reddung nicht mehr, und
-  // Sektor und Zellen stehen auf der Event-Karte gleich darunter (Nutzer, 26.09.2026).
+  // „Zur Karte“ nur solange das Event laeuft: Danach zeigt die Live-Karte die Reddung nicht
+  // mehr, und Sektor und Zellen stehen auf der Event-Karte gleich darunter (Nutzer, 26.09.2026).
+  html += '<div style="margin-top:8px;">';
   if (r.laeuft) {
-    html += `<div style="margin-top:8px;"><button class="btn-share" onclick="reddungAufKarte(${Number(r.id)})">${icon('map')} Zur Karte</button></div>`;
+    html += `<button class="btn-share" style="margin-right:8px;" onclick="reddungAufKarte(${Number(r.id)})">${icon('map')} Zur Karte</button>`;
   }
+  html += `<button class="btn-share" onclick="copyReddungForumText(this)">${icon('clipboard')} Für Forum kopieren</button></div>`;
   return html;
 }
 
 // Forumsfertiger Absatz. Wo der Havarist lag, steht nicht darin -- so wenig wie auf der Karte.
-function _reddungTeilenText(r) {
+function _reddungForumText(r) {
   const st = r.stand || {};
   const zeit = ts => (ts || '').slice(11, 16) + ' UTC';
   const pct = Math.round((st.anteil || 0) * 100);
@@ -15838,9 +15840,16 @@ function _reddungTeilenText(r) {
   return z.join('\n');
 }
 
+// Teilen heisst wie bei FriesenBummel und FriesenKutter: den Link kopieren. Bis 15.22.4 lag
+// hier der Forumsabsatz, und ein Deeplink auf das Event liess sich nicht setzen (Nutzer, 26.09.2026).
 function copyReddungShareHeader(btn) {
+  if (_reddungOffenId == null) return;
+  _copyText(`${location.origin}${location.pathname}#tab=events&reddung=${_reddungOffenId}`, btn);
+}
+
+function copyReddungForumText(btn) {
   const r = _reddungListe.find(x => x.id === _reddungOffenId);
-  if (r) _copyText(_reddungTeilenText(r), btn);
+  if (r) _copyText(_reddungForumText(r), btn);
 }
 
 // ==========================================================================

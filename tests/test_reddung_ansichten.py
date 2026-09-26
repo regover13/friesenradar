@@ -238,6 +238,30 @@ def test_die_bilanz_hat_ihr_panel_mit_teilen_knopf():
     assert 'onclick="copyReddungShareHeader(this)"' in ev
 
 
+def test_teilen_kopiert_den_link_wie_bei_bummel_und_kutter():
+    """Nutzer, 26.09.2026: „Teilen“ kopierte den Forumsabsatz -- ein Deeplink auf das Event
+    liess sich so nicht setzen. Teilen heisst hier ueberall: den Link kopieren."""
+    rumpf = _ohne_kommentare(_funktion("copyReddungShareHeader"))
+    assert "#tab=events&reddung=" in rumpf
+    assert "_reddungForumText" not in rumpf
+
+
+@pytest.mark.skipif(not _NODE, reason="node fehlt")
+def test_fuer_forum_kopieren_steht_in_der_bilanz_auch_nach_dem_ende():
+    quelle = ("function escHtml(s){return String(s);}\nfunction icon(){return '';}\n"
+              "function _fmtMin(m){return m+' min';}\n"
+              + _funktion("_reddungZeitfenster") + _funktion("_reddungBalken")
+              + _funktion("_reddungMarkenHtml") + _funktion("_reddungBilanzHtml"))
+    r = {"id": 4, "name": "X", "dtstart": "2026-09-25T18:00:00Z", "dtend": "2026-09-25T19:30:00Z",
+         "laeuft": False, "vorbei_seit_s": 3600,
+         "stand": {"anteil": 0.5, "abgedeckt": 5, "zellen": 10, "kante_km": 1.0,
+                   "flaeche_km2": 5.0, "je_pilot": []}}
+    html = _node(quelle, f"_reddungBilanzHtml({json.dumps(r)})")
+    assert 'onclick="copyReddungForumText(this)"' in html and "Für Forum kopieren" in html
+    assert "Zur Karte" not in html
+    assert "_copyText(_reddungForumText(r)" in _funktion("copyReddungForumText")
+
+
 @pytest.mark.skipif(not _NODE, reason="node fehlt")
 def test_der_teilen_text_nennt_die_marken_und_keinen_ort():
     r = {"id": 3, "name": "Vermisst über der Jade", "dtend": "2026-09-24T20:00:00Z",
@@ -252,7 +276,7 @@ def test_der_teilen_text_nennt_die_marken_und_keinen_ort():
                    "dauer_min": 38,
                    "je_pilot": [{"cid": 1, "name": "Stefan", "zellen": 400},
                                 {"cid": 3, "name": "Nur Doppelt", "zellen": 0}]}}
-    text = _node(_funktion("_reddungZeitfenster") + _funktion("_reddungTeilenText"), f"_reddungTeilenText({json.dumps(r)})")
+    text = _node(_funktion("_reddungZeitfenster") + _funktion("_reddungForumText"), f"_reddungForumText({json.dumps(r)})")
     assert "FriesenReddung" in text and "Vermisst über der Jade" in text
     assert "42 %" in text and "672 km²" in text
     assert "Stefan um 19:12 UTC" in text and "EDWF" in text and "38 Minuten" in text
@@ -266,10 +290,10 @@ def test_der_teilen_text_unterscheidet_noch_nicht_und_nicht_gefunden():
     r = {"id": 3, "name": "X", "laeuft": True, "vorbei_seit_s": None,
          "stand": {"anteil": 0.1, "abgedeckt": 10, "zellen": 100, "kante_km": 1.0,
                    "flaeche_km2": 10.0, "je_pilot": []}}
-    q = _funktion("_reddungZeitfenster") + _funktion("_reddungTeilenText")
-    assert "Noch nicht gefunden" in _node(q, f"_reddungTeilenText({json.dumps(r)})")
+    q = _funktion("_reddungZeitfenster") + _funktion("_reddungForumText")
+    assert "Noch nicht gefunden" in _node(q, f"_reddungForumText({json.dumps(r)})")
     r.update(laeuft=False, vorbei_seit_s=3600)
-    danach = _node(q, f"_reddungTeilenText({json.dumps(r)})")
+    danach = _node(q, f"_reddungForumText({json.dumps(r)})")
     assert "Nicht gefunden" in danach and "Noch" not in danach
 
 
@@ -280,6 +304,7 @@ def test_die_zustaende_der_bilanz_stehen_vor_dem_ersten_aufruf():
 def test_die_readme_beschreibt_die_bilanz():
     abschnitt = README[README.index("## 🚨 FriesenReddung"):README.index("## 🔧 Verwaltung")]
     assert "**Events:**" in abschnitt and "Teilen" in abschnitt
+    assert "Für Forum kopieren" in abschnitt
 
 
 # --- Behebungen aus dem Abschluss-Review (Opus + Fable, 24.09.2026) ------------------
@@ -354,7 +379,7 @@ def test_der_teilen_text_nennt_den_retter_nur_einmal():
     r = {"id": 3, "name": "X", "laeuft": False, "vorbei_seit_s": 50000,
          "stand": {"anteil": 0.4, "abgedeckt": 4, "zellen": 10, "kante_km": 1.0,
                    "flaeche_km2": 4.0, "je_pilot": [], **_MARKEN}}
-    text = _node(_funktion("_reddungZeitfenster") + _funktion("_reddungTeilenText"), f"_reddungTeilenText({json.dumps(r)})")
+    text = _node(_funktion("_reddungZeitfenster") + _funktion("_reddungForumText"), f"_reddungForumText({json.dumps(r)})")
     assert text.count("Wolfgang") == 1 and "EDWF" in text and "19:50" in text
 
 
@@ -404,8 +429,8 @@ def test_die_flaeche_kommt_vom_server():
     """#44 Punkt 8: genau gerechnet auf dem Server -- nicht mehr Zellen × Kante² im Browser."""
     assert "st.offen_km2" in _funktion("_reddungBannerBlock")
     assert "st.flaeche_km2" in _funktion("_reddungBilanzHtml")
-    assert "st.flaeche_km2" in _funktion("_reddungTeilenText")
-    for name in ("_reddungBannerBlock", "_reddungBilanzHtml", "_reddungTeilenText"):
+    assert "st.flaeche_km2" in _funktion("_reddungForumText")
+    for name in ("_reddungBannerBlock", "_reddungBilanzHtml", "_reddungForumText"):
         assert "kante * kante" not in _funktion(name), name
 
 
@@ -486,7 +511,7 @@ def test_das_zeitfenster_nennt_beginn_und_ende():
 
 def test_bilanz_live_block_und_teilen_text_nennen_das_ende():
     assert "_reddungZeitfenster(r)" in _funktion("_reddungBilanzHtml")
-    assert "_reddungZeitfenster(r)" in _funktion("_reddungTeilenText")
+    assert "_reddungZeitfenster(r)" in _funktion("_reddungForumText")
     block = _ohne_kommentare(_funktion("_reddungBannerBlock"))
     assert "Ende ${" in block and "r.dtend" in block
 

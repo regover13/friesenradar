@@ -422,9 +422,10 @@ nicht gewertet" mit dem Grund.
   gleich wieder zum eigenen Flugzeug. Schaltest du die Ebene ab, gilt das für diesen Abend.
 - **Events:** Ein Klick auf die FriesenReddung in der Eventliste öffnet ihre Bilanz — Balken und
   abgesuchte Fläche, wer gefunden hat, wer aufgenommen und wo eingeliefert hat, wie lange die Rettung
-  dauerte, und darunter, welche Fläche jeder als Erster abgesucht hat. Der Knopf **Teilen**
-  legt dir das Ganze als fertigen Absatz fürs Forum in die Zwischenablage. Die Bilanz hat eine
-  eigene Adresse: Neu laden oder ein geteilter Link öffnet sie wieder. Darunter zeigt die
+  dauerte, und darunter, welche Fläche jeder als Erster abgesucht hat. **Für Forum kopieren**
+  legt dir das Ganze als fertigen Absatz fürs Forum in die Zwischenablage. **Teilen** oben rechts
+  kopiert wie bei FriesenBummel und FriesenKutter den Link auf die Bilanz: Neu laden oder ein
+  geteilter Link öffnet sie wieder. Darunter zeigt die
   Event-Analyse, wer im Zeitfenster rund um den Sektor unterwegs war, mit den Flugspuren —
   gesucht wird um den nächsten Platz zur Sektormitte, weit genug, um den ganzen Sektor zu erfassen.
   Auf dieser Karte stehen immer auch der Sektor als rot gestrichelter Rahmen und blau die
