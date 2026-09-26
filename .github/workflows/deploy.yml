@@ -42,7 +42,48 @@ jobs:
       - name: Abhaengigkeiten
         run: pip install -r requirements-test.txt
       - name: Tests
-        run: python -m pytest -q -p no:cacheprovider -n 4
+        run: |
+          set -o pipefail
+          python -m pytest -q -p no:cacheprovider -n 4 2>&1 | tee /tmp/pytest.log
+
+      # Rote Tests melden sich selbst: Der Deploy-Job mit seiner Discord-Meldung startet dann gar
+      # nicht erst, und ohne diesen Schritt bliebe ein roter Lauf stumm (26.09.2026).
+      - name: Discord benachrichtigen (Tests rot)
+        if: failure()
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "::notice::Secret DISCORD_WEBHOOK nicht gesetzt — Benachrichtigung übersprungen."
+            exit 0
+          fi
+          TITLE=$(printf '%s' "$COMMIT_MSG" | head -1)
+          ROT=$(grep -E '^(FAILED|ERROR) ' /tmp/pytest.log 2>/dev/null | head -8 | cut -c1-150 || true)
+          SUMME=$(grep -E '[0-9]+ (passed|failed)' /tmp/pytest.log 2>/dev/null | tail -1 || true)
+          jq -n \
+            --arg title "$TITLE" \
+            --arg url "$COMMIT_URL" \
+            --arg rot "$ROT" \
+            --arg summe "$SUMME" \
+            --arg actor "$ACTOR" \
+            --arg run "$RUN_URL" \
+            '{embeds: [{
+                author: {name: "FriesenSpy — Tests rot, nicht deployt"},
+                title: $title,
+                url: $url,
+                description: ("Auf dem VPS läuft die bisherige Version weiter.\n\n" + $summe
+                              + (if $rot == "" then "" else "\n```\n" + $rot + "\n```" end)
+                              + "\nvon **" + $actor + "** · [Workflow-Log](" + $run + ")"),
+                color: 15158332
+             }]}' > /tmp/discord.json
+          curl --fail --silent --show-error -X POST \
+               -H 'Content-Type: application/json' \
+               -d @/tmp/discord.json "$WEBHOOK" \
+            || echo "::warning::Discord-Benachrichtigung fehlgeschlagen."
 
   build-and-deploy:
     needs: test
