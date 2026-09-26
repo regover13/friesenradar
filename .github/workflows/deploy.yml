@@ -40,7 +40,7 @@ jobs:
         with:
           node-version: "20"
       - name: Abhaengigkeiten
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-test.txt
       - name: Tests
         run: python -m pytest -q -p no:cacheprovider -n 4
 
