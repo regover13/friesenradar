@@ -184,6 +184,7 @@ mkdir -p /opt/friesenspy/data
   („ich sehe nur mich“). **Wer beim Nutzer ein Paket tauscht, legt es nach `Community`, entfernt
   eine Kopie aus `Community2024` und prüft danach `paket_version` in `panel_devices` (bzw. die
   Zeile `Fassung … startet` der Brügge im Log), nicht die Datei im Ordner.**
+  Seit dem 26.09.2026 liegt dort nichts mehr von uns; die FriesenBrügge lag immer nur in `Community`.
 
 - **Der Cache-Buster des Panels hängt am Dateihash, nicht an der Versionsnummer.**
   `/panel` leitet auf `/panel?v=<VERSION>.<kurzhash der index.html>` um. Der Hash ist kein

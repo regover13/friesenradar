@@ -257,3 +257,18 @@ Seine alte Zeile `caf4486b…` (1.17.0) steht weiter in `bruegge_zuordnung`.
 **Stand der offenen Punkte:** erledigt sind Praxistest Kniebrett, Neustart nach bewährter Bindung und
 der Upload. Offen bleiben die Steam-Fassungen (Pfad von `\work`), der Fall „Kollisionskennung“ in
 MSFS 2024 (in 2020 gemessen) und das Ausspielen des Stichtags `_BRUEGGE_P2_MSFS_BIS` (Server-Sitzung).
+
+## Nachtrag 26.09.2026, 21:30: Kniebrett zurück nach `Community`
+
+Auf Wunsch des Nutzers (über die Server-Sitzung): `Community2024` hat **jede** MSFS-2024-Installation, der Nutzer
+benutzt den Ordner nicht, und das FriesenSpy-Kniebrett war dort das einzige Addon, weil unsere Sitzungen es dort
+abgelegt hatten. Das gilt nicht mehr.
+
+- Kniebrett **2.3.2** liegt jetzt in `LocalCache/Packages/Community/friesenflieger-friesenspy-efb` (7 Dateien,
+  JS-Hash identisch mit der Kopie aus `Community2024`), aus `Community2024` entfernt (Sicherung im Scratchpad der
+  Sitzung). `Community2024` ist leer, es lag dort nichts sonst von uns.
+- Die FriesenBrügge 1.18.1 liegt in beiden Simulatoren nur in `Community`; Probe- und Testpakete sind weg.
+- **Noch zu prüfen nach dem nächsten Start von MSFS 2024:** Meldet das Kniebrett `paket_version` 2.3.2 aus
+  `Community`? (Das liest die Server-Sitzung in `panel_devices` nach.)
+- Die Aussagen weiter oben („MSFS 2024 lud das Paket aus `Community2024`“) bleiben als Fundstelle stehen; die
+  Empfehlung, dort zu tauschen, gilt nicht mehr. **Nie mehr nach `Community2024` installieren.**
