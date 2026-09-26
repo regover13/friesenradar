@@ -1,5 +1,7 @@
 # Übergabe: gespeicherte Kennung (MSFS-Brügge) und Kniebrett-Paket ohne Eigenfilter
 
+> **Stand 26.09.2026: erledigt und verteilt.** Ergebnis in `ERGEBNIS-kennung-umsetzung.md` (Brügge 1.18.1, Kniebrett 2.3.2).
+
 **Für:** die Sitzung am Simulator-Rechner (die mit der Probe `probe-kennung/`)
 **Von:** der Server-Sitzung (VPS), 26.09.2026
 **Grundlage:** `docs/superpowers/specs/2026-09-26-bruegge-kennung-und-zuordnung-design.md`,

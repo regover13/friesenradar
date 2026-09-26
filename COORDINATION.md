@@ -6,6 +6,32 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-09-26 (abends) — #46/#47 auf dem Simulator-Rechner umgesetzt und im Flug bestanden
+
+**Stand:** MSFS-FriesenBrügge **1.18.1** (Kennung in `\work` per `fopen`, Protokoll 3, Kollisionskennung
+`9e3711c100000000` wird verworfen) und Kniebrett **2.3.2** (Eigenfilter gestrichen) sind gebaut, auf dem
+Server (`/opt/friesenspy/data/efb/`, hochgeladen auf Wort des Nutzers; Vorgänger als `-1.17.0`/`-2.3.1`
+daneben) und in beiden Simulatoren des Nutzers installiert. Im Flug belegt (Bindung, Bewährung, Neustart
+nach bewährter Bindung, Kniebrett neben Reiner). **Ergebnis:** `friesenbruegge/ERGEBNIS-kennung-umsetzung.md`.
+
+| Datei | Änderung |
+|---|---|
+| `friesenbruegge/msfs/bruegge.cpp` | 1.17.0 → 1.18.1 |
+| `friesenbruegge/friesenbruegge.zip` | 1.18.1 (im Repo) |
+| `msfs-panel/friesenspy-efb.zip` | 2.3.2, mit `git add -f` im Repo (`msfs-panel/*.zip` ist sonst ignoriert) |
+| `msfs-panel/PackageSources/FriesenSpy/**`, `tests/test_vr_panel.py` | Eigenfilter raus, 2.3.2 |
+| `tests/test_bruegge_ein_modul.py` | `KENNUNG_DATEI` nicht mehr verboten, zwei neue Tests |
+
+⚠ **MSFS 2024 hat zwei Community-Ordner** (`LocalCache/Packages/Community` und `Community2024`). Beim Nutzer
+lag in `Community2024` noch das Kniebrett 2.3.1 und überdeckte 2.3.2 aus `Community` — der erste Praxistest
+lief deshalb gegen die alte Fassung. Bei jedem Paket-Test die **`paket_version` in `panel_devices`** gegen
+die erwartete prüfen, nicht die Datei im Ordner. Der Nutzer hat jetzt das Kniebrett nur noch in `Community2024`.
+
+**Offen:** Steam-Fassungen (Pfad von `\work` ungeprüft); Kollisionskennung nur in MSFS 2020 durchgespielt;
+Rückbau des alten Wegs nach dem Stichtag 24.10.2026 (Server-Sitzung).
+
+---
+
 ## 2026-09-26 — #46/#47 umsetzen: Aufteilung Server-Sitzung und Simulator-Rechner
 
 Grundlage: `docs/superpowers/specs/2026-09-26-bruegge-kennung-und-zuordnung-design.md`.

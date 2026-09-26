@@ -175,6 +175,14 @@ mkdir -p /opt/friesenspy/data
   seit dem 13.08. wörtlich, dass Coherent GT Cookies nur im Speicher hält. Erst die
   Konfiguration des funktionierenden Vorbilds lesen, dann die eigene schreiben.
 
+- **MSFS 2024 hat ZWEI Community-Ordner, und `Community2024` gewinnt.** Neben
+  `LocalCache/Packages/Community` gibt es `LocalCache/Packages/Community2024`; liegt unser Paket in
+  beiden, lädt der Simulator die Kopie aus `Community2024` — am 26.09.2026 lag dort noch 2.3.1 und
+  überdeckte das frisch abgelegte 2.3.2 (Kniebrett-Test gegen die alte Fassung, „ich sehe nur mich“).
+  **Wer ein Paket beim Nutzer tauscht, sucht in BEIDEN Ordnern und tauscht dort, wo es liegt — und
+  prüft danach `paket_version` in `panel_devices` (bzw. die Zeile `Fassung … startet` der Brügge im
+  Log), nicht die Datei im Ordner.** Die Brügge selbst lag nur in `Community`.
+
 - **Der Cache-Buster des Panels hängt am Dateihash, nicht an der Versionsnummer.**
   `/panel` leitet auf `/panel?v=<VERSION>.<kurzhash der index.html>` um. Der Hash ist kein
   Beiwerk: Am 24.08.2026 wurde einen ganzen Tag lang bei unveränderter Version 13.8.2

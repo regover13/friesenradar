@@ -1,5 +1,7 @@
 # Übergabe an die Sitzung am Simulator-Rechner
 
+> **Stand 26.09.2026: erledigt.** Ergebnis in `ERGEBNIS.md` (fopen im `\work`-Ordner hält Neustart und Paket-Update in MSFS 2020 und 2024).
+
 **Für:** eine Claude-Code-Sitzung auf dem Windows-Rechner mit MSFS 2020, MSFS 2024 und den SDKs
 **Von:** der Server-Sitzung (VPS), 26.09.2026
 **Repo:** `regover13/friesenspy`. Diese Datei liegt in `friesenbruegge/probe-kennung/`. Vorher `git pull`.

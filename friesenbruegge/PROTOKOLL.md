@@ -40,6 +40,13 @@ Verbindlich für alle Umsetzungen — MSFS 2020, MSFS 2024, X-Plane 12.
 > (CID, Simulator) vergebene zurück, statt neu zu würfeln (Abschnitt 5). Kein
 > Client-Release kostet das, nur einen Server-Push.
 >
+> ⚠ **Überholt seit 26.09.2026 (MSFS 1.18.0, Protokoll 3).** Genau dieser Server-Weg hat am
+> 25.09.2026 die Kennung von FRS111N an FRS49 gegeben (#46) und ist abgeschafft. Die Kennung liegt
+> wieder auf der Platte: `\work\friesenbruegge.kennung`, geschrieben und gelesen mit gewöhnlichem
+> `fopen` (**nicht** mit der Datei-API aus `MSFS_IO.h` — es bleibt EIN Modul für beide Simulatoren).
+> Gemessen in MSFS 2020 und 2024: `probe-kennung/ERGEBNIS.md`. Umsetzung, Log-Zeilen und Befunde:
+> `ERGEBNIS-kennung-umsetzung.md`.
+>
 > **Fassung 2 (14.09.2026):** Der Server schickt die Titel mit (`arten`), die Brügge führt
 > keine eigene Tabelle mehr — und `kann` fällt weg. Fassung 1 wird weiter bedient; die
 > Änderung ist von beiden Seiten aus rückwärtsverträglich (Abschnitt 9).
