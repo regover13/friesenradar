@@ -4526,7 +4526,7 @@
               <li><strong>OpenAIP</strong> — Lufträume, Plätze und Navaids über jeden Hintergrund gelegt</li>
               <li><strong>Sichtflugkarte</strong> — das amtliche DFS-Blatt, halbtransparent; erscheint von selbst, sobald du im Kartenfeld fliegst</li>
               <li><strong>Flugplatzkarte</strong> — DFS-Flugplatz- und Rollkarte mit Rollwegnamen, Haltepunkten und Standplätzen; tritt über dem Platz an die Stelle der Sichtflugkarte</li>
-              <li><strong>Platzrunden</strong> — 412 deutsche Platzrunden mit Höhe, über jeder Kartensorte</li>
+              <li><strong>Platzrunden</strong> — die deutschen Platzrunden mit Höhe, über jeder Kartensorte</li>
               <li><strong>Meldepunkte</strong> — VFR-Meldepunkte weltweit; gefüllt heißt meldepflichtig, hohl heißt auf Anforderung</li>
               <li><strong>FSE-Plätze</strong> und <strong>FSE-Landeflächen</strong> — zwei eigene Haken: Plätze aus FSEconomy mit Bahnlänge, Belag und dem Namen, unter dem der Platz im Simulator zu finden ist</li>
               <li><strong>FriesenReddung</strong> — der Suchsektor als rot gestrichelter Rahmen, darin blau, was schon abgesucht ist; erscheint nur, solange eine FriesenReddung läuft, und verschwindet mit ihrem Ende. Danach stehen Sektor und Zellen auf der Karte unter ihrer Bilanz. Wo der Havarist liegt, zeigt sie nie</li>
@@ -5518,9 +5518,14 @@ const _PLATZRUNDEN_STAERKE = 4;
 // `pointer-events` nicht getroffen.
 const _PLATZRUNDEN_FANG_STAERKE = 16;
 
-function _platzrundenStil() {
-  return { color: _PLATZRUNDEN_FARBE, weight: _PLATZRUNDEN_STAERKE,
-           opacity: _PLATZRUNDEN_OPACITY, fill: false, className: 'platzrunde' };
+// Geschlossene Plaetze (Datensatz 05/2022, laut OpenAIP inzwischen zu) behalten ihre Runde --
+// in MSFS gibt es manche noch --, aber gestrichelt, damit niemand sie fuer aktuell haelt
+// (Nutzer, 27.09.2026). Leaflet reicht der Stilfunktion das Feature herein.
+function _platzrundenStil(f) {
+  const stil = { color: _PLATZRUNDEN_FARBE, weight: _PLATZRUNDEN_STAERKE,
+                 opacity: _PLATZRUNDEN_OPACITY, fill: false, className: 'platzrunde' };
+  if (f && f.properties && f.properties.geschlossen) stil.dashArray = '6 6';
+  return stil;
 }
 
 const _PLATZRUNDEN_FANG_OPACITY = 0.01;
@@ -5606,6 +5611,7 @@ function _platzrundenHoehenLabel(f, layer) {
 function _platzrundenPopup(p) {
   const kopf = (p.icao ? '<b>' + p.icao + '</b> ' : '') + (p.name || '');
   const zeilen = [kopf];
+  if (p.geschlossen) zeilen.push('<b>Platz geschlossen</b>');
   if (p.bahn) zeilen.push('Bahn ' + p.bahn);
   // Review-Fund (Minor): Der strecke-Zweig stand VOR dem Hoehenzweig und hat sie deshalb fuer
   // alle vier An-/Abflugstrecken unterschlagen -- dabei tragen genau diese vier eine echte,

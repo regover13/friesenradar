@@ -55,7 +55,8 @@ def test_korrigierte_icaos_sind_drin():
     gj = json.loads(GEOJSON.read_text(encoding="utf-8"))
     korrigiert = {f["properties"]["icao"]: f["properties"].get("icao_original")
                   for f in gj["features"] if f["properties"].get("icao_original")}
-    assert korrigiert == {"EDLH": "EDFJ", "EDBM": "EDBC", "EDFS": "EDQT", "EDRZ": "EDRP"}
+    assert korrigiert == {"EDLH": "EDFJ", "EDBM": "EDBC", "EDFS": "EDQT", "EDRZ": "EDRP",
+                          "EDAQ": "ADAQ"}          # Tippfehler, korrigiert 27.09.2026
 
 
 def test_ebene_wird_vor_der_layers_control_registriert():
@@ -445,3 +446,55 @@ def test_der_datensatz_wird_beim_server_nachgefragt():
     zeigte ein Browser eine Korrektur erst Stunden spaeter. Mit ETag kostet sie eine 304."""
     stelle = INDEX.index("function _platzrundenLaden(")
     assert "fetch(_PLATZRUNDEN_URL, { cache: 'no-cache' })" in INDEX[stelle:stelle + 400]
+
+
+# --- Geschlossene Plaetze (Nutzer, 27.09.2026: Bremerhaven und Peine-Eddesse auf der Karte) ----
+#
+# Der Datensatz hat Stand 05/2022. Neun Plaetze darin sind laut OpenAIP geschlossen (Typ 8,
+# ohne ICAO); Peine-Eddesse ist durch Glindbruchkippe ersetzt, das den Code EDVP uebernommen
+# hat -- deshalb lag "EDVP" 9,6 km neben dem Platz. Die Runden bleiben (in MSFS gibt es manche
+# dieser Plaetze noch), sind aber gestrichelt und im Popup als geschlossen gekennzeichnet.
+_GESCHLOSSEN = {"Ahlhorn", "Bremerhaven", "Cottbus Drewitz", "Finsterwalde-Schacksdorf",
+                "Koethen", "Peine-Eddesse", "Salzgitter-Druette", "Seedorf", "Segeletz"}
+
+
+def test_geschlossene_plaetze_sind_gekennzeichnet():
+    gj = json.loads(GEOJSON.read_text(encoding="utf-8"))
+    markiert = {f["properties"]["name"] for f in gj["features"] if f["properties"].get("geschlossen")}
+    assert markiert == _GESCHLOSSEN
+
+
+def _js(name: str) -> str:
+    m = re.search(rf"^function {re.escape(name)}\(", INDEX, flags=re.M)
+    return INDEX[m.start():INDEX.index("\n}\n", m.start()) + 3]
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node fehlt")
+def test_geschlossene_runden_sind_gestrichelt_und_sagen_es_im_popup():
+    js = ("const _PLATZRUNDEN_FARBE='x', _PLATZRUNDEN_STAERKE=3, _PLATZRUNDEN_OPACITY=0.9;\n"
+          + _js("_platzrundenStil") + _js("_platzrundenPopup") + """
+      const zu = {properties: {icao: 'EDWB', name: 'Bremerhaven', geschlossen: true,
+                               hoehe_ft: 1000, hoehe_geschaetzt: false, typ: 'platzrunde'}};
+      const offen = {properties: {icao: 'EDWT', name: 'Blexen',
+                                  hoehe_ft: 1000, hoehe_geschaetzt: false, typ: 'platzrunde'}};
+      console.log(JSON.stringify([_platzrundenStil(zu).dashArray || null,
+                                  _platzrundenStil(offen).dashArray || null,
+                                  _platzrundenPopup(zu.properties), _platzrundenPopup(offen.properties)]));""")
+    erg = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=20)
+    assert erg.returncode == 0, erg.stderr
+    strich_zu, strich_offen, popup_zu, popup_offen = json.loads(erg.stdout.strip())
+    assert strich_zu and strich_offen is None
+    assert "geschlossen" in popup_zu and "geschlossen" not in popup_offen
+
+
+def test_halle_oppin_steht_unter_seinem_icao():
+    """Im Rohdatensatz stand ADAQ -- ein Tippfehler, die Runde liegt 1,3 km neben EDAQ."""
+    gj = json.loads(GEOJSON.read_text(encoding="utf-8"))
+    halle = [f["properties"] for f in gj["features"] if f["properties"]["name"] == "Halle-Oppin"]
+    assert [(p["icao"], p.get("icao_original")) for p in halle] == [("EDAQ", "ADAQ")]
+
+
+def test_nutzertexte_nennen_keine_anzahl_der_runden():
+    readme = (STATIC.parents[1] / "README.md").read_text(encoding="utf-8")
+    assert "412 deutsche Platzrunden" not in readme
+    assert "412 deutsche Platzrunden" not in INDEX

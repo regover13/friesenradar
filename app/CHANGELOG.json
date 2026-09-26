@@ -1,5 +1,15 @@
 [
   {
+    "version": "15.23.3",
+    "date": "2026-09-27",
+    "highlight": false,
+    "title": "Platzrunden geschlossener Plätze gestrichelt",
+    "items": [
+      "🚧 **Platzrunden geschlossener Plätze sind jetzt gestrichelt** und sagen im Popup „Platz geschlossen“, etwa Bremerhaven und Peine-Eddesse. Die Daten stammen von 2022, seitdem haben einige Plätze zugemacht. In MSFS gibt es manche davon noch, deshalb bleiben sie auf der Karte.",
+      "🛬 **Die Platzrunde von Halle-Oppin gehört wieder zu EDAQ.** Sie stand unter einem Tippfehler im Datensatz."
+    ]
+  },
+  {
     "version": "15.23.2",
     "date": "2026-09-27",
     "highlight": false,

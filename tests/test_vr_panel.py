@@ -1762,7 +1762,7 @@ def test_karten_legende_beschreibt_jede_ebene_mit_eigenem_satz():
         assert len(nach_dem_namen) == 2 and len(nach_dem_namen[1].strip()) > 15, \
             f"diese Ebene hat keinen erklaerenden Satz: {zeile!r}"
     assert geprueft >= 11, f"nur {geprueft} Ebenen-Zeilen gefunden -- erwartet werden alle"
-    assert "412 deutsche Platzrunden" in block
+    assert "die deutschen Platzrunden mit Höhe" in block   # seit 27.09.2026 ohne Zahl (Nutzertext)
     assert "FSEconomy" in block
     assert 'eingeschaltetem „Verkehr"' in block, "Radar Label haengt am Verkehr-Haken -- das muss dastehen"
 

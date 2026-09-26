@@ -662,7 +662,7 @@ Alle Karten in FriesenSpy (Live-Tab, Track-Ansicht, Event-Suche) verwenden diese
 
 **OpenAIP-Overlay** (zusätzliche Checkbox): Legt Lufträume, Flugplätze und Navaids aus der OpenAIP-Datenbank über den gewählten Basis-Layer. Besonders nützlich in Kombination mit Satellit oder CARTO. Ist nur verfügbar, wenn auf dem Server ein OpenAIP API-Key konfiguriert ist.
 
-**Platzrunden** (orange Linie): 412 deutsche Platzrunden mit Höhe, über jeder Kartensorte und auf jeder Zoomstufe — auch über den Kartenblättern. Fehlt die Höhe in der Quelle, steht „Höhe nicht bekannt" statt einer geratenen Zahl.
+**Platzrunden** (orange Linie): die deutschen Platzrunden mit Höhe, über jeder Kartensorte und auf jeder Zoomstufe — auch über den Kartenblättern. Fehlt die Höhe in der Quelle, steht „Höhe nicht bekannt" statt einer geratenen Zahl. Die Daten stammen von 2022: Plätze, die inzwischen geschlossen sind, zeigen ihre Runde **gestrichelt** und im Popup „Platz geschlossen". In MSFS gibt es manche von ihnen noch.
 
 **Meldepunkte**: Die visuellen Meldepunkte (VRP) als große Dreiecke mit Namen — gefüllt heißt meldepflichtig, hohl heißt auf Anforderung; das Popup nennt die Höhe, wenn sie veröffentlicht ist. Ab Zoomstufe 9, der Name ab Stufe 11, weltweit. Ihr Gewinn zeigt sich im Anflug: Das OpenAIP-Bild endet bei Zoom 14 und die OpenFlightMap trägt Luftfahrtinhalt nur bis Stufe 12 — die Meldepunkte stehen auf jeder Stufe und über jeder Karte, auch über dem Satellitenbild. Von Hand zu pflegen ist daran nichts; die Ebene braucht einen `OPENAIP_API_KEY`. Datenquelle: OpenAIP (CC BY-NC 4.0).
 
