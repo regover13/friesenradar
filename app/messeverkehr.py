@@ -69,17 +69,30 @@ def _neuer_flug(slot: int, jetzt: datetime, belegt: set[str]) -> dict:
         "logon_time": jetzt.isoformat().replace("+00:00", "Z"),
         "updated_at": jetzt.isoformat().replace("+00:00", "Z"),
         "name": _synthetischer_pilotenname(slot),
-        "_fortschritt_km": 0.0,
     }
 
 
-def _fortschreiben(flug: dict, delta_s: float, jetzt: datetime) -> dict:
+def _als_datetime(iso: str) -> datetime:
+    return datetime.fromisoformat(iso.replace("Z", "+00:00"))
+
+
+def _fortschreiben(flug: dict, jetzt: datetime) -> dict:
+    """Schreibt einen Flug um die seit ``updated_at`` vergangene Zeit fort.
+
+    Der bisherige Fortschritt wird NICHT als eigenes Feld mitgeschleppt (das ueberlebt keine
+    Speicherung, siehe messeverkehr_flights-Schema), sondern aus der gespeicherten Position
+    zurueckgerechnet: die Haversine-Distanz vom Startplatz zur aktuellen Position IST der
+    bisherige Fortschritt in km. Das macht die Funktion zustandslos bezueglich des Fortschritts
+    und robust gegen unregelmaessige Poll-Abstaende, weil ``delta_s`` aus echter verstrichener
+    Zeit kommt statt aus einer angenommenen Konstante.
+    """
     lat0, lon0 = MESSEVERKEHR_FLUGPLAETZE[flug["departure"]]
     lat1, lon1 = MESSEVERKEHR_FLUGPLAETZE[flug["arrival"]]
     strecke_km = haversine(lat0, lon0, lat1, lon1) or 0.001
 
-    fortschritt_km = (flug.get("_fortschritt_km", 0.0)
-                       + delta_s * _KT_IN_KM_PRO_S * _REISEGESCHWINDIGKEIT_KT)
+    delta_s = max((jetzt - _als_datetime(flug["updated_at"])).total_seconds(), 0.0)
+    bisher_km = haversine(lat0, lon0, flug["latitude"], flug["longitude"])
+    fortschritt_km = bisher_km + delta_s * _KT_IN_KM_PRO_S * _REISEGESCHWINDIGKEIT_KT
     anteil = min(fortschritt_km / strecke_km, 1.0)
 
     lat = lat0 + (lat1 - lat0) * anteil
@@ -91,7 +104,6 @@ def _fortschreiben(flug: dict, delta_s: float, jetzt: datetime) -> dict:
     flug["longitude"] = lon
     flug["heading"] = int(kurs)
     flug["updated_at"] = jetzt.isoformat().replace("+00:00", "Z")
-    flug["_fortschritt_km"] = fortschritt_km
     flug["_angekommen"] = anteil >= 1.0
     return flug
 
@@ -103,7 +115,7 @@ def advance_messeverkehr(conn, jetzt: datetime, echte_callsigns: set[str]) -> li
     ``get_live_positions``) — neue simulierte Flüge weichen ihnen aus.
     Gibt den neuen Bestand als Liste von Dicts zurück, ohne interne Zwischenfelder.
     """
-    bestand = {f["cid"]: dict(f, _fortschritt_km=0.0) for f in get_messeverkehr_positions(conn)}
+    bestand = {f["cid"]: f for f in get_messeverkehr_positions(conn)}
 
     aktualisiert: dict[int, dict] = {}
     for slot in range(ZIEL_ANZAHL_FLUEGE):
@@ -112,7 +124,7 @@ def advance_messeverkehr(conn, jetzt: datetime, echte_callsigns: set[str]) -> li
         if vorher is None:
             aktualisiert[cid] = _neuer_flug(slot, jetzt, echte_callsigns)
             continue
-        nachher = _fortschreiben(vorher, delta_s=15.0, jetzt=jetzt)
+        nachher = _fortschreiben(vorher, jetzt=jetzt)
         if nachher.pop("_angekommen", False):
             aktualisiert[cid] = _neuer_flug(slot, jetzt, echte_callsigns)
         else:
