@@ -206,13 +206,19 @@ from app.database import (
     SORTEN_DFS,
     STATUS_DFS,
     PassungGesperrt,
+    cid_hat_messeverkehr_erlaubnis,
+    ist_messeverkehr_aktiv,
+    set_messeverkehr_aktiv,
+    list_messeverkehr_erlaubt,
+    add_messeverkehr_erlaubt,
+    remove_messeverkehr_erlaubt,
 )
 from app import geo
 from app import bruegge
 from app import bruegge_bindung
 from app.reddung import analyse_platz as reddung_analyse_platz
 from app.geo import filter_event_pilots
-from app.poller import VatsimPoller, create_poller, send_web_push
+from app.poller import VatsimPoller, create_poller, send_web_push, _live_positions_mit_messeverkehr
 from app.statsim import fetch_flight_track, fetch_pilot_flights
 from app.version import CHANGELOG, VERSION
 
@@ -3278,6 +3284,8 @@ async def get_live(request: Request):
     conn = get_connection(settings.DB_PATH)
     try:
         positions = get_live_positions(conn)
+        positions = _live_positions_mit_messeverkehr(conn, positions)
+        positions = _positions_fuer_betrachter(conn, positions, _current_cid(request, settings))
     finally:
         conn.close()
     return positions
@@ -3781,6 +3789,13 @@ async def _event_generator(request: Request, poller: VatsimPoller):
     except (TypeError, ValueError):
         viewer_cid = None
 
+    # Einmal pro Verbindung ermitteln, nicht pro Nachricht (wie viewer_cid selbst).
+    _conn_pruef = get_connection(settings.DB_PATH)
+    try:
+        darf_messeverkehr_sehen = cid_hat_messeverkehr_erlaubnis(_conn_pruef, viewer_cid)
+    finally:
+        _conn_pruef.close()
+
     queue = poller.subscribe_sse()
     try:
         while True:
@@ -3816,6 +3831,14 @@ async def _event_generator(request: Request, poller: VatsimPoller):
                 # Ein neues dict, kein `del`: Dieselbe Nachricht liegt in JEDER Queue — wer
                 # sie hier ändert, ändert sie auch für die Karten, die den Fremdverkehr wollen.
                 data = {k: v for k, v in data.items() if k != "fremd"}
+            elif data.get("type") == "positions":
+                roh = data.get("data", [])
+                if any(e.get("_messeverkehr") for e in roh):
+                    if darf_messeverkehr_sehen:
+                        roh = [{k: v for k, v in e.items() if k != "_messeverkehr"} for e in roh]
+                    else:
+                        roh = [e for e in roh if not e.get("_messeverkehr")]
+                    data = {**data, "data": roh}
             yield f"data: {json.dumps(data)}\n\n"
     finally:
         poller.unsubscribe_sse(queue)
@@ -4767,6 +4790,24 @@ def _forum_login_active_cached(settings) -> bool:
             conn.close()
         _gate_cache["ts"] = now
     return bool(_gate_cache["val"])
+
+
+def _positions_fuer_betrachter(conn, positions: list[dict], viewer_cid: int | None) -> list[dict]:
+    """Filtert eine Liste von Live-Positionen für einen konkreten Betrachter.
+
+    Wer nicht auf der Messeverkehr-Allowlist steht, bekommt ``_messeverkehr``-Einträge gar
+    nicht erst zu sehen. Wer berechtigt ist, bekommt sie — aber ohne das interne Merkmal, das
+    den Server sonst nie verlassen darf.
+    """
+    darf_sehen = cid_hat_messeverkehr_erlaubnis(conn, viewer_cid)
+    ergebnis = []
+    for p in positions:
+        if p.get("_messeverkehr") and not darf_sehen:
+            continue
+        if "_messeverkehr" in p:
+            p = {k: v for k, v in p.items() if k != "_messeverkehr"}
+        ergebnis.append(p)
+    return ergebnis
 
 
 def _current_cid(request: Request, settings) -> int | None:
