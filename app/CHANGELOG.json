@@ -1,5 +1,15 @@
 [
   {
+    "version": "15.25.1",
+    "date": "2026-09-27",
+    "highlight": false,
+    "title": "Admin: FriesenBrügge-Tabelle zeigt Bewährung und Rufzeichen",
+    "items": [
+      "🌉 **Die FriesenBrügge-Tabelle im Admin zeigt „bewährt · ruht“**, wenn ein bewährter Pilot gerade nicht auf VATSIM ist. Bisher stand dort nur „ruht“, und die Bewährung sah verloren aus.",
+      "🏷️ **Piloten, die nicht unter FRS fliegen, stehen dort mit ihrem VATSIM-Rufzeichen** statt nur mit der CID."
+    ]
+  },
+  {
     "version": "15.25.0",
     "date": "2026-09-27",
     "highlight": false,

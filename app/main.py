@@ -2687,6 +2687,24 @@ async def admin_titel_setzen(request: Request):
         conn.close()
 
 
+def _melder_rufzeichen_ergaenzen(melder: list[dict], schnappschuss: list[dict]) -> None:
+    """Wer nicht unter FRS fliegt, steht in keiner Friesen-Tabelle -- seine Zeile trug bis
+    27.09.2026 nur die nackte CID und wurde prompt fuer einen anderen gehalten (AUA37R fuer
+    Reiners X-Plane). Das Rufzeichen kommt dann aus dem VATSIM-Schnappschuss des Pollers."""
+    rufzeichen: dict[int, str] = {}
+    for e in schnappschuss or []:
+        try:
+            rufzeichen[int(e.get("cid"))] = str(e.get("cs") or "")
+        except (TypeError, ValueError):
+            continue
+    for m in melder:
+        if m.get("callsign") or m.get("cid") is None:
+            continue
+        cs = rufzeichen.get(int(m["cid"]))
+        if cs:
+            m["callsign"] = cs
+
+
 @app.get("/api/admin/bruegge")
 async def admin_bruegge(request: Request):
     """Wer meldet gerade, und mit welchem Takt laeuft die Drossel? (Admin)"""
@@ -2708,6 +2726,8 @@ async def admin_bruegge(request: Request):
             m["fassung_veraltet"] = bool(
                 m.get("bruegge_version") and soll
                 and _version_kleiner(m["bruegge_version"], soll))
+        _melder_rufzeichen_ergaenzen(
+            melder, getattr(getattr(request.app.state, "poller", None), "traffic_snapshot", None))
         # These 5 (#46): Bruegges, die seit Minuten abgelehnt werden -- „gebunden an A, passt
         # zu B". Bis dahin stand das nur im Server-Log, und dort liest es im Flug niemand.
         namen = {int(r[0]): r[1] for r in conn.execute(
