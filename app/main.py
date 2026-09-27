@@ -4883,10 +4883,17 @@ async def admin_get_messeverkehr(request: Request):
 
 @app.put("/api/admin/messeverkehr")
 async def admin_set_messeverkehr(request: Request):
-    """Schaltet den simulierten Messeverkehr an/aus."""
+    """Schaltet den simulierten Messeverkehr an/aus.
+
+    ``enabled`` muss ein ECHTER Boolean sein -- ``bool("false")`` waere in Python ``True``,
+    ein von Hand getipptes ``curl -d '{"enabled":"false"}'`` haette das Feature sonst
+    versehentlich eingeschaltet statt ausgeschaltet.
+    """
     require_admin(request)
     body = await request.json()
-    aktiv = bool(body.get("enabled"))
+    aktiv = body.get("enabled")
+    if not isinstance(aktiv, bool):
+        raise HTTPException(status_code=400, detail="enabled (true/false) erforderlich")
     conn = get_connection(get_settings().DB_PATH)
     try:
         set_messeverkehr_aktiv(conn, aktiv)

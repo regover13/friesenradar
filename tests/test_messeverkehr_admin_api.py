@@ -74,3 +74,21 @@ def test_ohne_admin_login_401(db):
     with pytest.raises(HTTPException) as e:
         asyncio.run(main.admin_get_messeverkehr(FakeReq(cookies={})))
     assert e.value.status_code == 401
+
+
+def test_flag_string_false_schaltet_nicht_ein(db):
+    """Final-Fix I4: bool("false") ist True in Python -- ein von Hand getipptes
+    curl -d '{"enabled":"false"}' hat das Feature bisher versehentlich EINgeschaltet statt
+    ausgeschaltet. Nur echte Booleans duerfen zaehlen, alles andere ist ein Fehler (400)."""
+    with pytest.raises(HTTPException) as e:
+        asyncio.run(main.admin_set_messeverkehr(FakeReq(body={"enabled": "false"})))
+    assert e.value.status_code == 400
+
+    res = asyncio.run(main.admin_get_messeverkehr(FakeReq()))
+    assert res["enabled"] is False
+
+
+def test_flag_ohne_enabled_feld_ist_fehler(db):
+    with pytest.raises(HTTPException) as e:
+        asyncio.run(main.admin_set_messeverkehr(FakeReq(body={})))
+    assert e.value.status_code == 400
