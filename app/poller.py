@@ -440,6 +440,27 @@ def _meldet_noch(conn, cid: int, grenze: str) -> bool:
     return bool(letzte and letzte >= grenze)
 
 
+def _live_positions_mit_messeverkehr(conn, live_positions: list[dict]) -> list[dict]:
+    """Mischt simulierten Messeverkehr in die echten Live-Positionen, wenn das Feature an ist.
+
+    Jeder beigemischte Eintrag traegt ``_messeverkehr: True`` -- dieses Merkmal verlaesst den
+    Server nie unveraendert (siehe Sichtbarkeitsfilter in app/main.py).
+    """
+    from datetime import datetime, timezone
+
+    from app.database import ist_messeverkehr_aktiv
+    from app.messeverkehr import advance_messeverkehr
+
+    if not ist_messeverkehr_aktiv(conn):
+        return live_positions
+
+    echte_callsigns = {p.get("callsign") for p in live_positions if p.get("callsign")}
+    simulierte = advance_messeverkehr(conn, datetime.now(timezone.utc), echte_callsigns)
+    for s in simulierte:
+        s["_messeverkehr"] = True
+    return live_positions + simulierte
+
+
 class VatsimPoller:
     def __init__(
         self,
@@ -1638,6 +1659,7 @@ class VatsimPoller:
 
                 # 3. Push SSE update
                 live_positions = get_live_positions(conn)
+                live_positions = _live_positions_mit_messeverkehr(conn, live_positions)
                 # Denselben Stand fuer den Kniebrett-Endpunkt vormerken (s. friesen_snapshot).
                 # Eine Kopie der Liste, nicht der Zeilen: Die Dicts werden nirgends veraendert,
                 # und eine tiefe Kopie waere bei jedem Zyklus Arbeit ohne Gegenwert.
