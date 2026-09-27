@@ -363,7 +363,7 @@ CREATE TABLE IF NOT EXISTS reddung_events (
     -- Gelaendehoehe (MSL) an der Unglueckstelle -- die Bezugsgroesse der Hoehenschranke. Der
     -- Server lernt sie aus `bruegge_steht.hoehe_ft`; `quelle` haelt fest, wie gut der Wert ist.
     havarist_grund_ft REAL,
-    havarist_grund_quelle TEXT,             -- 'gemessen' | 'admin' | 'platz'
+    havarist_grund_quelle TEXT,             -- 'gemessen' | 'admin' | 'karte' | 'platz'
     aufnehmen_noetig INTEGER DEFAULT 1,     -- 0 = der Abend endet mit dem Fund
     landung_noetig  INTEGER DEFAULT 1,      -- 0 = Schwebeflug genuegt (Winde, Wasserung)
     aufnahme_verfaellt INTEGER DEFAULT 1,   -- 1 = verfaellt, wenn der Aufnehmende abmeldet
@@ -388,7 +388,9 @@ CREATE TABLE IF NOT EXISTS reddung_events (
     created_at      TEXT,
     -- Was gesucht wird: die Geschichte des Abends, Freitext vom Veranstalter (27.09.2026).
     -- Oeffentlich -- wie viel sie verraet, entscheidet, wer sie schreibt.
-    lagetext        TEXT
+    lagetext        TEXT,
+    -- Wie weit vom Wrack aufgenommen werden darf (m). NULL = Vorgabe in app/reddung.py.
+    aufnahme_radius_m REAL
 );
 
 CREATE TABLE IF NOT EXISTS aircraft_payloads (
@@ -1130,6 +1132,8 @@ _BRUEGGE_SOLL_MIGRATIONS = [
     "ALTER TABLE reddung_events ADD COLUMN aufnahme_ab TEXT",
     # Was gesucht wird -- Freitext fuer die Pilotenansichten (27.09.2026).
     "ALTER TABLE reddung_events ADD COLUMN lagetext TEXT",
+    # Eigener Radius fuers Aufnehmen, getrennt vom Fundradius (28.09.2026).
+    "ALTER TABLE reddung_events ADD COLUMN aufnahme_radius_m REAL",
 ]
 
 _PANEL_DIAG_MIGRATIONS = [
@@ -9831,11 +9835,12 @@ _REDDUNG_FELDER = {
     "havarist_lat", "havarist_lon", "havarist_art",
     "havarist_grund_ft", "havarist_grund_quelle", "aufnehmen_noetig", "landung_noetig",
     "aufnahme_verfaellt", "source", "calendar_uid", "push_enabled", "badge_name",
-    "manual_fields", "lagetext",
+    "manual_fields", "lagetext", "aufnahme_radius_m",
 }
 
 #: Rangfolge der Quellen für ``havarist_grund_ft`` — eine Messung schlägt jede Schätzung.
-_GRUND_RANG = {"platz": 1, "admin": 2, "gemessen": 3}
+#: 'karte' (28.09.2026) = Höhenmodell beim Speichern im Admin, s. ``main._gelaende_ft``.
+_GRUND_RANG = {"platz": 1, "karte": 2, "admin": 3, "gemessen": 4}
 
 
 def create_reddung_event(conn: sqlite3.Connection, *, name: str, dtstart: str,
@@ -10450,6 +10455,7 @@ def compute_reddung_stand(conn: sqlite3.Connection, ev: dict) -> dict:
         "flaeche_km2": round(flaeche, 1),
         "offen_km2": round(max(0.0, gesamt - flaeche), 1),
         "fund_radius_m": rd.fund_radius_m(ev),
+        "aufnahme_radius_m": rd.aufnahme_radius_m(ev),
         "sektor": {k: ev[k] for k in ("sued", "west", "nord", "ost")},
         "suchdauer_min": suchdauer,
         "dauer_min": dauer,

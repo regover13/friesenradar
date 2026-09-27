@@ -7089,6 +7089,7 @@ _REDDUNG_BEREICHE = {
     "gs_max_kt":       (1.0, 1000.0, False),
     "gs_min_kt":       (0.0, 1000.0, False),
     "fund_radius_m":   (1.0, 50000.0, False),
+    "aufnahme_radius_m": (1.0, 50000.0, False),
     "fund_hoehe_ft":   (1.0, 60000.0, False),
     "havarist_lat":    (-90.0, 90.0, False),
     "havarist_lon":    (-180.0, 180.0, False),
@@ -7143,7 +7144,43 @@ def _reddung_lage_putzen(body: dict) -> None:
 #: Felder, die in den fortgeschriebenen Stand NICHT eingehen. Aendert sich nur eines davon,
 #: bleibt der Stand stehen -- s. ``_reddung_rechnung_geaendert``.
 _REDDUNG_OHNE_RECHNUNG = {"name", "lagetext", "badge_name", "push_enabled", "manual_fields",
-                          "source", "calendar_uid"}
+                          "source", "calendar_uid", "aufnahme_radius_m"}
+
+
+#: Höhenmodell für die Geländehöhe am Havaristen (Copernicus-DEM 90 m, ohne Schlüssel).
+_GELAENDE_URL = "https://api.open-meteo.com/v1/elevation"
+
+
+def _gelaende_aus_antwort(daten) -> float | None:
+    """``{"elevation": [568.0]}`` (Meter) -> Fuß, oder ``None``."""
+    try:
+        meter = float(daten["elevation"][0])
+    except (TypeError, KeyError, IndexError, ValueError):
+        return None
+    return round(meter * 3.28084, 1)
+
+
+async def _gelaende_ft(lat: float, lon: float) -> float | None:
+    """Geländehöhe (ft MSL) an einer Stelle aus dem Höhenmodell; ``None`` bei jedem Fehler.
+
+    Warum überhaupt (Nutzer, 28.09.2026): Die Suchhöhe ist „Gelände am Havaristen + AGL". Das
+    Gelände lernte der Server nur aus der Rückmeldung der Brügge, und das Wrack bekommt vor dem
+    Fund nur, wer näher als 1000 m dran ist -- bis dahin galt 0 ft. In der Eifel (1864 ft) hiess
+    „2000 ft AGL" deshalb 2000 ft MSL, und gesucht wurde zwischen den Bäumen. Das Höhenmodell
+    lieferte dort 568 m = 1864 ft, der Simulator maß 1864,3 ft.
+
+    ⚠ Asynchron und mit kurzer Frist: Der Admin-Handler läuft in der Event-Loop, und ein
+    hängender Abruf darf dort nicht Live-Karte und Poller aufhalten (#16).
+    """
+    try:
+        async with _httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(_GELAENDE_URL, params={"latitude": lat, "longitude": lon})
+        if r.status_code != 200:
+            return None
+        return _gelaende_aus_antwort(r.json())
+    except Exception as e:  # noqa: BLE001 -- jeder Fehler heisst: keine Karte, kein Abbruch
+        _logger.warning("Geländehöhe für %.4f/%.4f nicht geholt: %s", lat, lon, e)
+        return None
 
 
 def _reddung_rechnung_geaendert(alt: dict, body: dict) -> bool:
@@ -7176,7 +7213,7 @@ _REDDUNG_KOERPER = (
     "fund_radius_m", "fund_hoehe_ft",
     "havarist_lat", "havarist_lon", "havarist_art", "havarist_grund_ft",
     "havarist_grund_quelle", "aufnehmen_noetig", "landung_noetig", "aufnahme_verfaellt",
-    "badge_name", "lagetext",
+    "badge_name", "lagetext", "aufnahme_radius_m",
 )
 
 
@@ -7216,6 +7253,13 @@ async def admin_create_reddung_event(request: Request):
         raise HTTPException(status_code=400, detail=serr)
     _reddung_lage_putzen(body)
     felder = {k: body[k] for k in _REDDUNG_KOERPER if k in body}
+    # Das Gelände VOR der Verbindung holen -- kein Netzabruf innerhalb einer Transaktion.
+    if body.get("havarist_lat") is not None and body.get("havarist_lon") is not None \
+            and body.get("havarist_grund_ft") is None:
+        hoehe = await _gelaende_ft(float(body["havarist_lat"]), float(body["havarist_lon"]))
+        if hoehe is not None:
+            felder["havarist_grund_ft"] = hoehe
+            felder["havarist_grund_quelle"] = "karte"
     conn = get_connection(get_settings().DB_PATH)
     try:
         eid = create_reddung_event(
@@ -7265,6 +7309,26 @@ async def admin_update_reddung_event(request: Request, event_id: int):
             raise HTTPException(status_code=400, detail=serr)
         _reddung_lage_putzen(body)
         neu_rechnen = _reddung_rechnung_geaendert(dict(alt), body)
+        # Geländehöhe am Havaristen: neu holen, wenn er verschoben wurde (eine Messung gehört zur
+        # alten Stelle), oder nachholen, wenn sie fehlt -- aber nie für ein vergangenes Event,
+        # dessen Bilanz mit der damaligen Schranke gerechnet ist. Noch VOR jedem Schreiben.
+        lat = zusammen.get("havarist_lat", alt["havarist_lat"])
+        lon = zusammen.get("havarist_lon", alt["havarist_lon"])
+        verschoben = lat is not None and lon is not None and (
+            alt["havarist_lat"] is None or alt["havarist_lon"] is None
+            or abs(float(lat) - float(alt["havarist_lat"])) > 1e-9
+            or abs(float(lon) - float(alt["havarist_lon"])) > 1e-9)
+        fehlt = lat is not None and lon is not None and alt["havarist_grund_ft"] is None \
+            and (zusammen.get("dtend") or "") > _now_iso()
+        if (verschoben or fehlt) and body.get("havarist_grund_ft") is None:
+            hoehe = await _gelaende_ft(float(lat), float(lon))
+            if hoehe is not None:
+                body["havarist_grund_ft"] = hoehe
+                body["havarist_grund_quelle"] = "karte"
+                neu_rechnen = True
+            elif verschoben:
+                body["havarist_grund_ft"] = None
+                body["havarist_grund_quelle"] = None
         try:
             update_reddung_event(conn, event_id, **body)
         except ValueError as e:

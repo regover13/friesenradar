@@ -1,5 +1,15 @@
 [
   {
+    "version": "15.26.0",
+    "date": "2026-09-28",
+    "highlight": false,
+    "title": "Reddung: Suchhöhe über dem echten Gelände, eigener Aufnahme-Radius",
+    "items": [
+      "⛰️ **Die Suchhöhe einer FriesenReddung gilt jetzt von Anfang an über dem echten Gelände.** Bisher kannte der Server die Geländehöhe erst, wenn jemand bis auf 1000 m an das Wrack herangekommen war, und rechnete bis dahin mit 0 ft. In der Eifel hieß „2000 ft AGL“ deshalb 2000 ft MSL, und gesucht wurde zwischen den Bäumen. Jetzt holt der Admin die Höhe beim Speichern aus einem Höhenmodell.",
+      "🚁 **Aufnehmen hat einen eigenen Radius**, Vorgabe 100 m. Bisher galt der Fundradius auch fürs Landen am Wrack; wer ihn vergrößerte, machte zugleich das Finden leichter."
+    ]
+  },
+  {
     "version": "15.25.2",
     "date": "2026-09-27",
     "highlight": false,

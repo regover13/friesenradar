@@ -1383,6 +1383,15 @@
                   <input type="number" step="10" id="rd-fund-radius" value="150" />
                 </div>
                 <div class="form-group">
+                  <label for="rd-aufnahme-radius">Aufnahme-Radius (m, seitlich)</label>
+                  <input type="number" step="10" id="rd-aufnahme-radius" value="100" />
+                </div>
+                <p class="form-hint" style="grid-column:1/-1;margin:0;">
+                  <b>So weit vom Wrack darf zum Aufnehmen gelandet oder geschwebt werden.</b>
+                  Unabhängig vom Fundradius: Liegt das Wrack im Wald, größer machen, damit die
+                  Wiese daneben reicht — das Finden bleibt davon unberührt.
+                </p>
+                <div class="form-group">
                   <label for="rd-fund-hoehe">Fundhöhe (ft AGL über dem Havaristen)</label>
                   <input type="number" step="100" id="rd-fund-hoehe" value="1000" />
                 </div>
@@ -7079,7 +7088,8 @@
         // Die Herkunft der Grundhoehe gehoert NEBEN die Zahl: Ohne Bruegge-Messung ist sie
         // geschaetzt, und ueber Land kann sie um mehr als die Hoehenschranke danebenliegen.
         const grund = (ev.havarist_grund_ft === null || ev.havarist_grund_ft === undefined)
-          ? '<span class="hint">unbekannt</span>'
+          ? '<span style="color:#e0a33e">⚠ unbekannt — Suchhöhe gilt ab 0 ft MSL, bis eine '
+            + 'FriesenBrügge das Wrack meldet. Einmal speichern holt sie aus der Karte nach.</span>'
           : Math.round(ev.havarist_grund_ft) + ' ft <span class="hint">('
             + escH(ev.havarist_grund_quelle || '?') + ')</span>';
         const ort = (ev.havarist_lat === null || ev.havarist_lat === undefined)
@@ -7172,6 +7182,7 @@
         hoehe_max_ft: _rdZahl('rd-hoehe', 2000),
         gs_max_kt: _rdZahl('rd-gsmax', 140), gs_min_kt: _rdZahl('rd-gsmin', 30),
         fund_radius_m: _rdZahl('rd-fund-radius', 150),
+        aufnahme_radius_m: _rdZahl('rd-aufnahme-radius', 100),
         fund_hoehe_ft: _rdZahl('rd-fund-hoehe', 1000),
         aufnehmen_noetig: document.getElementById('rd-aufnehmen-noetig').checked ? 1 : 0,
         landung_noetig: document.getElementById('rd-landung-noetig').checked ? 1 : 0,
@@ -7225,6 +7236,8 @@
       setz('rd-hoehe', ev.hoehe_max_ft);
       setz('rd-gsmax', ev.gs_max_kt); setz('rd-gsmin', ev.gs_min_kt);
       setz('rd-fund-radius', ev.fund_radius_m); setz('rd-fund-hoehe', ev.fund_hoehe_ft);
+      // Aeltere Events haben keinen eigenen Wert -- dann gilt die Vorgabe des Servers.
+      setz('rd-aufnahme-radius', ev.aufnahme_radius_m == null ? 100 : ev.aufnahme_radius_m);
       setz('rd-hav-lat', ev.havarist_lat); setz('rd-hav-lon', ev.havarist_lon);
       const art = document.getElementById('rd-art');
       if (art) {

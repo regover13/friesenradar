@@ -2882,7 +2882,9 @@ class VatsimPoller:
                             if ev.get("aufnahme_verfaellt"):
                                 spuren = [(c, pk) for c, pk in spuren
                                           if _meldet_noch(conn, c, grenze_weg)]
-                            erg = abdeckung(spuren, [ziel], rd.fenster_aufnehmen(ev))
+                            # Eigener Radius fuers Aufnehmen (28.09.2026) -- nicht der Fundradius.
+                            erg = abdeckung(spuren, [rd.aufnahme_ziel(ev)],
+                                            rd.fenster_aufnehmen(ev))
                             t = erg.treffer.get(rd.HAVARIST)
                             if t and set_reddung_aufgenommen(conn, ev["id"], t.ts, t.cid):
                                 ev = get_reddung_event(conn, ev["id"])

@@ -508,6 +508,9 @@ Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, St
   ergeben ein lückenloses Raster. **Die Kante sollte nie größer sein als der Korridor:** Sonst
   gilt ein großes Feld als komplett abgeflogen, obwohl nur ein schmaler Streifen durch seine
   Mitte führte.
+- **Aufnahme-Radius** (Vorgabe 100 m) — so weit vom Wrack darf zum Aufnehmen gelandet oder
+  geschwebt werden. Er ist unabhängig vom Fundradius: Liegt das Wrack im Wald, macht man ihn
+  größer, damit die Wiese daneben reicht, ohne dass das Finden leichter wird.
 - **Suchen und Finden sind zwei getrennte Fenster**, und das ist der Kern: Das **Suchen** darf
   weit und hoch sein (Vorgabe 1 km seitlich, 2.000 ft), das **Finden** ist eng und tief (150 m
   seitlich, 1.000 ft). Seitliche Abstände stehen in Metern, Höhen in Fuß. Der Balken zeigt deshalb, welche *Fläche abgeflogen* ist — nicht, dass
@@ -517,8 +520,11 @@ Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, St
   Piloten bei 110 kt. Ein 40-×-40-km-Sektor ist damit rund eine halbe Stunde Arbeit; 20 × 20 km
   wären nach zehn Minuten vorbei.
 - **Alle Höhen sind Fuß AGL über dem Havaristen**, nicht MSL. Die Geländehöhe an der
-  Unglücksstelle lernt FriesenSpy aus der Rückmeldung der FriesenBrügge, die das Wrack
-  hinstellt; neben der Zahl steht, ob sie gemessen oder geschätzt ist. Dazu ein
+  Unglücksstelle holt FriesenSpy beim Speichern aus einem Höhenmodell („karte“), sobald der
+  Havarist gesetzt ist — damit gilt die Suchhöhe schon ab dem Start über dem echten Gelände.
+  Meldet die FriesenBrügge später die Höhe aus dem Simulator, ersetzt sie den Kartenwert
+  („gemessen“); neben der Zahl steht, woher sie kommt. Fehlt sie, warnt der Admin: Dann gilt die
+  Suchhöhe ab 0 ft MSL, und einmal Speichern holt sie nach. Dazu ein
   Geschwindigkeitsfenster (30–140 kt) — die Untergrenze verhindert, dass ein geparktes Flugzeug
   sein Feld den ganzen Abend abdeckt. Für den Fund selbst gilt sie nicht: Wer langsam oder
   schwebend ans Wrack herankommt, hat es gefunden.

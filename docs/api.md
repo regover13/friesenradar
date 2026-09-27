@@ -1165,7 +1165,7 @@ Alle FriesenReddungen mit ihrem Stand — für die Eventliste, später die Karte
 | `suchdauer_min` | Eventbeginn bis Fund, `null` ohne Fund |
 | `dauer_min` | Fund bis Einlieferung |
 | `aufgeloest` | Fall erledigt (eingeliefert, gefunden ohne Aufnehmen, oder `dtend`) |
-| `korridor_km`, `kante_km`, `fund_radius_m` | Parameter des Abends |
+| `korridor_km`, `kante_km`, `fund_radius_m`, `aufnahme_radius_m` | Parameter des Abends; `aufnahme_radius_m` (m, Vorgabe 100, seit 15.26.0) gilt fürs Landen/Schweben zum Aufnehmen, getrennt vom Fundradius |
 | `sektor` | `{sued, west, nord, ost}` — öffentlich, ohne ihn weiß niemand, wo zu suchen ist |
 
 Gezählt wird bis zum Fund; was danach geflogen wird, ist keine Suche mehr.

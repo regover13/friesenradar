@@ -16,6 +16,10 @@ Finden  ``fund_radius_m``     ``fund_hoehe_ft``   die Rauchfackel — dicht und 
         150 m                 1.000 ft
 ======  ====================  ==================  ==========================================
 
+**Aufnehmen hat seinen eigenen Radius** (``aufnahme_radius_m``, Vorgabe 100 m, seit 28.09.2026).
+Bis dahin galt der Fundradius auch fürs Landen am Wrack -- wer ihn vergrößerte, damit auf einer
+freien Wiese daneben gelandet werden kann, machte zugleich das Finden leichter.
+
 **„Abgesucht" heißt damit ausdrücklich NICHT „hätten wir ihn gesehen".** Die Fläche ist
 abgeflogen; gesehen hätte man eine Cessna 172 erst aus 150 m. Das trägt, weil zu jedem Event
 eine **Geschichte** gehört, die das Gebiet eingrenzt („über der Sandbank weggeblieben") — und
@@ -104,6 +108,15 @@ def fund_radius_km(ev: dict) -> float:
     return fund_radius_m(ev) / 1000.0
 
 
+#: Wie weit vom Wrack gelandet (oder geschwebt) werden darf, um aufzunehmen.
+_VORGABE_AUFNAHME_RADIUS_M = 100.0
+
+
+def aufnahme_radius_m(ev: dict) -> float:
+    """Seitlicher Abstand fürs Aufnehmen, in METERN -- unabhängig vom Fundradius."""
+    return _zahl(ev, "aufnahme_radius_m", _VORGABE_AUFNAHME_RADIUS_M)
+
+
 def fund_hoehe_schranke_msl(ev: dict) -> float:
     """Die Höhenschranke fürs FINDEN, auf MSL umgerechnet."""
     return grund_ft(ev) + _zahl(ev, "fund_hoehe_ft", _VORGABE_FUND_HOEHE_FT)
@@ -151,6 +164,14 @@ def havarist_ziel(ev: dict) -> Ziel | None:
     if lat is None or lon is None:
         return None
     return (HAVARIST, float(lat), float(lon), fund_radius_km(ev))
+
+
+def aufnahme_ziel(ev: dict) -> Ziel | None:
+    """Der Havarist als Kreisziel fürs AUFNEHMEN -- mit dem Aufnahme-Radius."""
+    lat, lon = ev.get("havarist_lat"), ev.get("havarist_lon")
+    if lat is None or lon is None:
+        return None
+    return (HAVARIST, float(lat), float(lon), aufnahme_radius_m(ev) / 1000.0)
 
 
 def fenster_suchen(ev: dict) -> Fenster:
