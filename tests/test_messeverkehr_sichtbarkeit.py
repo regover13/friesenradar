@@ -1,4 +1,13 @@
-from app.database import init_db, get_connection, add_messeverkehr_erlaubt
+import asyncio
+from types import SimpleNamespace
+
+import pytest
+
+import app.main as main
+from app.database import (
+    init_db, get_connection, add_messeverkehr_erlaubt, get_messeverkehr_positions,
+    set_messeverkehr_aktiv,
+)
 from app.main import _positions_fuer_betrachter
 
 
@@ -38,3 +47,29 @@ def test_berechtigter_betrachter_sieht_beide_ohne_markierung(tmp_path):
     assert len(ergebnis) == 2
     assert all("_messeverkehr" not in e for e in ergebnis)
     conn.close()
+
+
+class _FakeReq:
+    cookies: dict = {}
+
+
+def test_get_live_schreibt_die_simulation_nicht_fort(tmp_path, monkeypatch):
+    """Final-Fix C3: GET /api/live darf die Simulation nicht antreiben -- sonst wuerde jeder
+    unangemeldete, oeffentliche Seitenaufruf das Tempo bestimmen. Beweis: Feature an, aber vom
+    Poller noch nie geschrieben (Tabelle leer) -- nach dem Endpunkt-Aufruf MUSS sie weiter
+    leer sein, statt dass get_live selbst drei neue Fluege erzeugt."""
+    db_path = str(tmp_path / "t.db")
+    init_db(db_path)
+    monkeypatch.setattr(main, "get_settings",
+                        lambda: SimpleNamespace(DB_PATH=db_path, SECRET_KEY="s3cr3t"))
+    conn = get_connection(db_path)
+    set_messeverkehr_aktiv(conn, True)
+    conn.commit()
+    conn.close()
+
+    asyncio.run(main.get_live(_FakeReq()))
+
+    conn = get_connection(db_path)
+    bestand = get_messeverkehr_positions(conn)
+    conn.close()
+    assert bestand == [], "GET /api/live hat die Simulation fortgeschrieben -- das darf nur der Poller"

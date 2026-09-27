@@ -2,8 +2,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.database import init_db, get_connection
-from app.messeverkehr import advance_messeverkehr, MESSEVERKEHR_FLUGPLAETZE, ZIEL_ANZAHL_FLUEGE
+from app.database import init_db, get_connection, set_messeverkehr_aktiv
+from app.messeverkehr import (
+    advance_messeverkehr, messeverkehr_fuer_anzeige, MESSEVERKEHR_FLUGPLAETZE,
+    ZIEL_ANZAHL_FLUEGE,
+)
 
 
 @pytest.fixture
@@ -71,9 +74,13 @@ def test_advance_bewegt_sich_monoton_und_kommt_irgendwann_an(conn):
     ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
     conn.commit()
     verfolgte_cid = ergebnis[0]["cid"]
-    start_dep, start_arr = ergebnis[0]["departure"], ergebnis[0]["arrival"]
+    erste_logon_time = ergebnis[0]["logon_time"]
+    start_dep = ergebnis[0]["departure"]
     lat0, lon0 = MESSEVERKEHR_FLUGPLAETZE[start_dep]
 
+    # Erkennung der Ankunft ueber logon_time, NICHT ueber (departure, arrival): Die neue
+    # Zufallsroute beim Respawn kann zufaellig wieder dieselben zwei Flugplaetze treffen
+    # (bei 6 Plaetzen keine Seltenheit) -- logon_time ist dagegen je Spawn-Ereignis eindeutig.
     bisherige_distanz_km = 0.0
     angekommen = False
     for _ in range(800):
@@ -81,7 +88,7 @@ def test_advance_bewegt_sich_monoton_und_kommt_irgendwann_an(conn):
         ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
         conn.commit()
         flug = next(f for f in ergebnis if f["cid"] == verfolgte_cid)
-        if flug["departure"] != start_dep or flug["arrival"] != start_arr:
+        if flug["logon_time"] != erste_logon_time:
             angekommen = True
             break
         distanz_km = haversine(lat0, lon0, flug["latitude"], flug["longitude"])
@@ -92,3 +99,27 @@ def test_advance_bewegt_sich_monoton_und_kommt_irgendwann_an(conn):
         bisherige_distanz_km = distanz_km
 
     assert angekommen, "Flug hat sein Ziel nie erreicht (oder ist nie respawnt)"
+    assert bisherige_distanz_km > 10.0, "Flug hat sich vor der Ankunft kaum bewegt"
+
+
+def test_messeverkehr_fuer_anzeige_liest_ohne_zu_schreiben(conn):
+    """Final-Fix C3: GET /api/live darf die Simulation NICHT fortschreiben -- sonst treibt
+    jeder oeffentliche, nicht angemeldete Seitenaufruf das Tempo der Simulation. Nur der
+    Poller darf per advance_messeverkehr schreiben; lesende Endpunkte holen den Bestand nur."""
+    jetzt = datetime(2026, 11, 21, 10, 0, 0, tzinfo=timezone.utc)
+    set_messeverkehr_aktiv(conn, True)
+    conn.commit()
+    advance_messeverkehr(conn, jetzt, echte_callsigns=set())
+    conn.commit()
+
+    vor_lesen = messeverkehr_fuer_anzeige(conn)
+    assert len(vor_lesen) == ZIEL_ANZAHL_FLUEGE
+
+    # Mehrfaches Lesen veraendert den Bestand nicht (kein Schreibzugriff versteckt).
+    nach_lesen = messeverkehr_fuer_anzeige(conn)
+    assert vor_lesen == nach_lesen
+
+
+def test_messeverkehr_fuer_anzeige_leer_wenn_feature_aus(conn):
+    ergebnis = messeverkehr_fuer_anzeige(conn)
+    assert ergebnis == []

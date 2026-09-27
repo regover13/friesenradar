@@ -137,3 +137,17 @@ def advance_messeverkehr(conn, jetzt: datetime, echte_callsigns: set[str]) -> li
 
     replace_messeverkehr_positions(conn, ergebnis)
     return ergebnis
+
+
+def messeverkehr_fuer_anzeige(conn) -> list[dict]:
+    """Liest den aktuellen Bestand simulierter Fluege, OHNE ihn fortzuschreiben.
+
+    Fuer lesende Endpunkte (GET /api/live): Nur der Poller darf per advance_messeverkehr
+    schreiben, sonst wuerde jeder oeffentliche Seitenaufruf die Simulation antreiben (Review
+    Fund C3). Leer, solange das Feature-Flag aus ist.
+    """
+    from app.database import ist_messeverkehr_aktiv
+
+    if not ist_messeverkehr_aktiv(conn):
+        return []
+    return get_messeverkehr_positions(conn)

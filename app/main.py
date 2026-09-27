@@ -218,7 +218,8 @@ from app import bruegge
 from app import bruegge_bindung
 from app.reddung import analyse_platz as reddung_analyse_platz
 from app.geo import filter_event_pilots
-from app.poller import VatsimPoller, create_poller, send_web_push, _live_positions_mit_messeverkehr
+from app.poller import VatsimPoller, create_poller, send_web_push
+from app.messeverkehr import messeverkehr_fuer_anzeige
 from app.statsim import fetch_flight_track, fetch_pilot_flights
 from app.version import CHANGELOG, VERSION
 
@@ -3279,12 +3280,20 @@ async def push_unsubscribe(request: Request):
 
 @app.get("/api/live")
 async def get_live(request: Request):
-    """Aktuelle Live-Positionen aller online Friesen."""
+    """Aktuelle Live-Positionen aller online Friesen.
+
+    Liest den Messeverkehr nur (``messeverkehr_fuer_anzeige``) -- schreibt ihn NICHT fort.
+    Nur der Poller darf per ``advance_messeverkehr`` schreiben, sonst wuerde jeder
+    unangemeldete, oeffentliche Seitenaufruf die Simulation antreiben (Review Fund C3).
+    """
     settings = get_settings()
     conn = get_connection(settings.DB_PATH)
     try:
         positions = get_live_positions(conn)
-        positions = _live_positions_mit_messeverkehr(conn, positions)
+        simulierte = messeverkehr_fuer_anzeige(conn)
+        for s in simulierte:
+            s["_messeverkehr"] = True
+        positions = positions + simulierte
         positions = _positions_fuer_betrachter(conn, positions, _current_cid(request, settings))
     finally:
         conn.close()
