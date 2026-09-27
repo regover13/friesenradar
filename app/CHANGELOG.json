@@ -1,5 +1,15 @@
 [
   {
+    "version": "15.25.2",
+    "date": "2026-09-27",
+    "highlight": false,
+    "title": "Admin: Listen laden bei jedem Klick neu",
+    "items": [
+      "🔄 **Ein Klick auf einen Bereich oder Event-Typ im Admin lädt die Liste jetzt neu.** Bisher wurde sie nur einmal je Seitenaufruf geholt, und am Reddung-Abend fehlte deshalb der Knopf „Aufnahme freigeben“. Betrieb und Mitteilungen laden weiter nur einmal, damit halb getippte Eingaben nicht verloren gehen.",
+      "🚨 **Die Reddung-Liste frischt sich alle 30 Sekunden selbst auf**, solange sie offen ist und ein Event läuft. „Aufnahme freigeben“ erscheint damit von selbst, sobald jemand aufgenommen hat."
+    ]
+  },
+  {
     "version": "15.25.1",
     "date": "2026-09-27",
     "highlight": false,

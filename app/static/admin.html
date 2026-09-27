@@ -6741,6 +6741,10 @@
 
     /** Welche Bereiche schon geladen haben. Schlüssel: 'events', 'typ:kutter', … */
     const _geladen = new Set();
+    // Bereiche, die nur EINMAL je Seitenaufruf laden: Ihre Lader fuellen Eingabefelder
+    // (Messeverkehr, Banner) oder haengen Handler an (Forum-Login-Schalter). Neu laden hiesse
+    // dort, halb getippte Eingaben zu verlieren und Handler zu verdoppeln.
+    const _EINMAL_LADEN = new Set(['betrieb', 'mitteilungen']);
     let _tabAktiv = null;
     let _typAktiv = null;
 
@@ -7285,7 +7289,9 @@
       });
       _tabAktiv = tab;
 
-      if (!_geladen.has(tab)) {
+      // Jeder Klick laedt neu -- ausser dort, wo der Lader Eingabefelder fuellt oder Handler
+      // anhaengt (s. _EINMAL_LADEN).
+      if (!_EINMAL_LADEN.has(tab) || !_geladen.has(tab)) {
         _geladen.add(tab);
         const holen = _tabLader(tab);
         if (holen) holen();
@@ -7314,13 +7320,31 @@
       });
       _typAktiv = typ;
 
-      if (!_geladen.has('typ:' + typ)) {
-        _geladen.add('typ:' + typ);
-        const holen = _typLader(typ);
-        if (holen) holen();
-      }
+      // Bei JEDEM Oeffnen neu laden (Nutzer, 27.09.2026): Am Reddung-Abend fehlte der Knopf
+      // „Aufnahme freigeben", weil die Liste vor der Aufnahme geladen war und jeder Klick nur
+      // umschaltete. Die Listen sind reine Anzeige; Formulare stehen ausserhalb.
+      const holen = _typLader(typ);
+      if (holen) holen();
       _hashSchreiben();
     }
+
+    // Laeuft gerade eine FriesenReddung? Nach der Uhr des Geraets -- hier sitzt der
+    // Veranstalter am Rechner, nicht im Kniebrett.
+    function _rdLaeuftEines() {
+      const jetzt = Date.now();
+      return (_rdEvents || []).some(function (ev) {
+        return Date.parse(ev.dtstart) <= jetzt && jetzt <= Date.parse(ev.dtend);
+      });
+    }
+
+    // Die Reddung-Liste frischt sich auf, solange sie offen ist und ein Event laeuft -- dann
+    // erscheint „Aufnahme freigeben" von selbst, sobald jemand aufgenommen hat.
+    function _rdTaktSchritt() {
+      if (_tabAktiv !== 'events' || _typAktiv !== 'reddung' || document.hidden) return;
+      if (!_rdLaeuftEines()) return;
+      loadReddung();
+    }
+    setInterval(_rdTaktSchritt, 30000);
 
     // Der geöffnete Bereich steht im Hash. Damit übersteht er ein Neuladen, und man kann
     // sich eine Stelle verlinken — dasselbe Muster wie `#tab=events&bummel=…` in der App.
