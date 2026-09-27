@@ -26,6 +26,12 @@ _MAX_FLUGDAUER_MIN = 90
 _CALLSIGN_MIN = 10   # keine einstelligen -- wirken wie alte Gruendungsmitglieder-Callsigns
 _CALLSIGN_MAX = 299  # keine vierstelligen -- bei FRS-Callsigns unueblich
 _N_SUFFIX_ANTEIL = 0.25  # "Neu-Friese"-Kennung, ab und zu, nicht immer (Nutzerwunsch 27.09.2026)
+# Plausibilitaets-Grenzen fuer die Anzeige (Nutzerfund 27.09.2026: 7.295.605 ft/129.601 kt
+# wurden einmal ausgeliefert -- Ursache ungeklaert, siehe _position_bei). Kleine Flugzeuge in
+# unseren Aufzeichnungen fliegen nie ueber FL450 oder 500 kt; grosszuegig genug, um echte
+# Werte nie zu beschneiden, eng genug, um jede Art von Ausreisser abzufangen.
+_MAX_PLAUSIBLE_ALTITUDE_FT = 45000
+_MAX_PLAUSIBLE_GROUNDSPEED_KT = 500
 
 # Interne Buchhaltung (welcher echte Flug wird gerade abgespielt) -- verlaesst den Server nie,
 # siehe messeverkehr_fuer_anzeige() und _live_positions_mit_messeverkehr() in app/poller.py.
@@ -158,11 +164,18 @@ def _position_bei(conn, quelle_cid: int, zeitpunkt: datetime) -> dict | None:
             return a if a is not None else b
         return a + (b - a) * anteil
 
+    def _gekappt(wert, obergrenze):
+        if wert is None:
+            return wert
+        return min(max(wert, 0.0), obergrenze)
+
     return {
         "latitude": _interp(vorher["latitude"], nachher["latitude"]),
         "longitude": _interp(vorher["longitude"], nachher["longitude"]),
-        "altitude": _interp(vorher["altitude"], nachher["altitude"]),
-        "groundspeed": _interp(vorher["groundspeed"], nachher["groundspeed"]),
+        "altitude": _gekappt(_interp(vorher["altitude"], nachher["altitude"]),
+                             _MAX_PLAUSIBLE_ALTITUDE_FT),
+        "groundspeed": _gekappt(_interp(vorher["groundspeed"], nachher["groundspeed"]),
+                                _MAX_PLAUSIBLE_GROUNDSPEED_KT),
         "heading": vorher["heading"] if anteil < 0.5 else nachher["heading"],
     }
 
@@ -299,8 +312,13 @@ def advance_messeverkehr(conn, jetzt: datetime, echte_callsigns: set[str]) -> li
             belegte_callsigns.add(neuer["callsign"])
 
     replace_messeverkehr_positions(conn, list(aktualisiert.values()))
+    # ORDER BY cid, wie get_messeverkehr_positions() -- sonst liefert dieser Rueckgabewert
+    # (speist den SSE-Broadcast) eine ANDERE Reihenfolge als der REST-Lesepfad (speist
+    # Erstladung + HTTP-Fallback), und die Live-Liste flackert zwischen beiden hin und her
+    # (Nutzerfund 27.09.2026: "wechseln staendig die Position").
+    geordnet = sorted(aktualisiert.values(), key=lambda f: f["cid"])
     return [{k: v for k, v in f.items() if k not in _INTERNE_REPLAY_SPALTEN}
-            for f in aktualisiert.values()]
+            for f in geordnet]
 
 
 def messeverkehr_fuer_anzeige(conn) -> list[dict]:

@@ -188,6 +188,35 @@ def test_position_bei_interpoliert_linear(conn):
     assert ausserhalb is None
 
 
+def test_position_bei_kappt_unplausible_werte(conn):
+    """Nutzerfund 27.09.2026 (Screenshot der Live-Liste): ein simulierter Flug zeigte
+    7.295.605 ft und 129.601 kt, ein anderer 99.626 ft bei 0 kt. In position_history selbst
+    liegt nirgends ein Wert ueber 20.009 ft / 762 kt (gemessen), die Interpolation kann
+    rechnerisch auch keinen groesseren Wert liefern als ihre beiden Stuetzpunkte -- die exakte
+    Ursache des Einzelfalls blieb ungeklaert. Diese Kappung macht das Symptom unabhaengig von
+    der Ursache unmoeglich: Werte ausserhalb plausibler Flugzeug-Grenzen werden gekappt, nie
+    ungeprueft ausgeliefert."""
+    _pilot(conn, 998)
+    ts0 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    ts1 = ts0 + timedelta(minutes=10)
+    conn.execute(
+        "INSERT INTO position_history (cid, callsign, latitude, longitude, altitude, "
+        "groundspeed, heading, ts) VALUES (?,?,?,?,?,?,?,?)",
+        (998, "FRSY", 50.0, 8.0, 999999, 99999, 90, _iso(ts0)),
+    )
+    conn.execute(
+        "INSERT INTO position_history (cid, callsign, latitude, longitude, altitude, "
+        "groundspeed, heading, ts) VALUES (?,?,?,?,?,?,?,?)",
+        (998, "FRSY", 51.0, 10.0, 999999, 99999, 270, _iso(ts1)),
+    )
+    conn.commit()
+
+    position = _position_bei(conn, 998, ts0 + timedelta(minutes=5))
+    assert position is not None
+    assert 0 <= position["altitude"] <= 45000, position["altitude"]
+    assert 0 <= position["groundspeed"] <= 500, position["groundspeed"]
+
+
 def test_historischen_flug_waehlen_ignoriert_zu_kurze_und_zu_lange(conn):
     _seed_historischer_flug(conn, cid=1, callsign="FRS1", dauer_min=2, schritte=3)  # zu kurz
     _seed_historischer_flug(conn, cid=2, callsign="FRS2", dauer_min=40, schritte=5)  # passt
@@ -347,3 +376,21 @@ def test_advance_stuerzt_nicht_bei_zeilen_ohne_replay_buchhaltung(conn):
     # Der respawnte Flug hat eine neue logon_time, nicht die alte -- klarer Beweis, dass er
     # tatsaechlich neu erzeugt und nicht einfach durchgereicht wurde.
     assert all(f["logon_time"] != "2026-09-27T10:00:00Z" for f in ergebnis)
+
+
+def test_advance_liefert_dieselbe_reihenfolge_wie_get_messeverkehr_positions(conn):
+    """Nutzerfund 27.09.2026: die simulierten Piloten wechselten staendig ihre Position in
+    der Live-Liste. Ursache: advance_messeverkehr() (speist den SSE-Broadcast) gab die Fluege
+    in Slot-Reihenfolge zurueck, get_messeverkehr_positions() (speist den REST-Fallback und
+    die Erstladung) in `ORDER BY cid` -- GENAU entgegengesetzt bei den fest vergebenen
+    negativen CIDs. Beide Kanaele fuettern dieselbe Tabelle, das Flip-Flop zwischen den zwei
+    Reihenfolgen sah wie eine staendige Umsortierung aus. Beide Wege muessen dieselbe
+    Reihenfolge liefern."""
+    _seed_historischer_flug(conn)
+    jetzt = datetime(2026, 11, 21, 10, 0, 0, tzinfo=timezone.utc)
+    von_advance = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
+    conn.commit()
+    from app.database import get_messeverkehr_positions
+    von_lesend = get_messeverkehr_positions(conn)
+
+    assert [f["cid"] for f in von_advance] == [f["cid"] for f in von_lesend]
