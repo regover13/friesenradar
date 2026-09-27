@@ -104,10 +104,11 @@ def test_alle_panels_sind_noch_da():
     """Beim Umsortieren darf keines verlorengehen — 17 Panels plus die Wertungs-Vorschau.
 
     Die Zahl ist ein Bestandswaechter: Sie steigt, wenn jemand bewusst ein Panel ergaenzt (am
-    20.09.2026 die FriesenReddung, von 17 auf 18), und faellt nur, wenn beim Umsortieren eines
-    verlorengegangen ist. Genau deshalb steht hier eine Zahl und keine Untergrenze.
+    20.09.2026 die FriesenReddung, von 17 auf 18; am 27.09.2026 der Messeverkehr, von 18 auf
+    19), und faellt nur, wenn beim Umsortieren eines verlorengegangen ist. Genau deshalb steht
+    hier eine Zahl und keine Untergrenze.
     """
-    assert len(_baum().panels) == 18
+    assert len(_baum().panels) == 19
 
 
 # --------------------------------------------------- Laden erst beim Oeffnen
