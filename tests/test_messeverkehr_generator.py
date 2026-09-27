@@ -221,6 +221,34 @@ def test_position_bei_kappt_unplausible_werte(conn):
     assert 0 <= position["groundspeed"] <= 500, position["groundspeed"]
 
 
+def test_position_bei_kappt_auch_ohne_interpolation(conn):
+    """Nutzerfund 27.09.2026 (Fund Nr. 2, Live-Screenshot nach dem Deploy des ersten Fixes):
+    1.826.572 ft/3.752 kt kamen trotz aktiver Kappung durch. Ursache: _gekappt sass nur im
+    Interpolations-Zweig -- die beiden fruehen Rueckgaben (kein "vorher", oder "vorher" ==
+    "nachher") gaben rohe, ungekappte Werte zurueck. Beide Faelle hier nachgestellt."""
+    _pilot(conn, 996)
+    ts0 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    conn.execute(
+        "INSERT INTO position_history (cid, callsign, latitude, longitude, altitude, "
+        "groundspeed, heading, ts) VALUES (?,?,?,?,?,?,?,?)",
+        (996, "FRSN", 50.0, 8.0, 1826572, 3752, 90, _iso(ts0)),
+    )
+    conn.commit()
+    fenster_von, fenster_bis = _iso(ts0), _iso(ts0 + timedelta(minutes=10))
+
+    # Fall 1: "vorher" fehlt (Zeitpunkt vor dem einzigen Punkt) -> fruehe Rueckgabe von "nachher".
+    vor_dem_punkt = _position_bei(conn, 996, ts0 - timedelta(seconds=5), fenster_von, fenster_bis)
+    assert vor_dem_punkt is not None
+    assert 0 <= vor_dem_punkt["altitude"] <= 45000, vor_dem_punkt["altitude"]
+    assert 0 <= vor_dem_punkt["groundspeed"] <= 500, vor_dem_punkt["groundspeed"]
+
+    # Fall 2: "vorher" == "nachher" (Zeitpunkt trifft den einzigen Punkt exakt).
+    exakter_treffer = _position_bei(conn, 996, ts0, fenster_von, fenster_bis)
+    assert exakter_treffer is not None
+    assert 0 <= exakter_treffer["altitude"] <= 45000, exakter_treffer["altitude"]
+    assert 0 <= exakter_treffer["groundspeed"] <= 500, exakter_treffer["groundspeed"]
+
+
 def test_historischen_flug_waehlen_ignoriert_zu_kurze_und_zu_lange(conn):
     _seed_historischer_flug(conn, cid=1, callsign="FRS1", dauer_min=2, schritte=3)  # zu kurz
     _seed_historischer_flug(conn, cid=2, callsign="FRS2", dauer_min=40, schritte=5)  # passt

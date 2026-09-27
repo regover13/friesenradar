@@ -153,9 +153,28 @@ def _position_bei(conn, quelle_cid: int, zeitpunkt: datetime,
     liefern: Ohne diese Abfangung kaeme Slot 0 nie zustande, und dasselbe traf schon vorher
     jede Nachbesetzung (dort war vorsprung_sek ebenfalls immer 0.0).
 
+    PRODUKTIONSVORFALL 27.09.2026 (Fund Nr. 2): Die Plausibilitaets-Kappung (_gekappt) sass nur
+    im Interpolations-Zweig ganz unten -- die beiden fruehen Rueckgaben oben (kein "vorher",
+    oder "vorher"=="nachher") gaben rohe position_history-Werte UNGEKAPPT zurueck. Ein einzelner
+    Ausreisser in der Aufzeichnung (VATSIM liefert beim Verbindungsaufbau gelegentlich Muell-
+    Hoehen/-Geschwindigkeiten, unveraendert aufgezeichnet) kam dadurch ungebremst durch --
+    dieselbe Erscheinung wie der urspruengliche Fund (7.295.605 ft), nur ueber einen anderen
+    Rueckgabepfad. Jeder Rueckgabepfad kappt jetzt gleichermassen ueber _kappen().
+
     Der Kurs wird NICHT interpoliert (zirkulaer -- 350->10 Grad waere sonst faelschlich 180)
     -- der naehere Messpunkt liefert ihn.
     """
+    def _gekappt(wert, obergrenze):
+        if wert is None:
+            return wert
+        return min(max(wert, 0.0), obergrenze)
+
+    def _kappen(row: dict) -> dict:
+        row = dict(row)
+        row["altitude"] = _gekappt(row["altitude"], _MAX_PLAUSIBLE_ALTITUDE_FT)
+        row["groundspeed"] = _gekappt(row["groundspeed"], _MAX_PLAUSIBLE_GROUNDSPEED_KT)
+        return row
+
     zeitpunkt_iso = _iso(zeitpunkt)
     vorher = conn.execute(
         "SELECT latitude, longitude, altitude, groundspeed, heading, ts FROM position_history "
@@ -170,9 +189,9 @@ def _position_bei(conn, quelle_cid: int, zeitpunkt: datetime,
     if nachher is None:
         return None
     if vorher is None:
-        return dict(nachher)
+        return _kappen(nachher)
     if vorher["ts"] == nachher["ts"]:
-        return dict(vorher)
+        return _kappen(vorher)
 
     t0, t1 = _als_datetime(vorher["ts"]), _als_datetime(nachher["ts"])
     anteil = (zeitpunkt - t0).total_seconds() / max((t1 - t0).total_seconds(), 1e-6)
@@ -183,20 +202,13 @@ def _position_bei(conn, quelle_cid: int, zeitpunkt: datetime,
             return a if a is not None else b
         return a + (b - a) * anteil
 
-    def _gekappt(wert, obergrenze):
-        if wert is None:
-            return wert
-        return min(max(wert, 0.0), obergrenze)
-
-    return {
+    return _kappen({
         "latitude": _interp(vorher["latitude"], nachher["latitude"]),
         "longitude": _interp(vorher["longitude"], nachher["longitude"]),
-        "altitude": _gekappt(_interp(vorher["altitude"], nachher["altitude"]),
-                             _MAX_PLAUSIBLE_ALTITUDE_FT),
-        "groundspeed": _gekappt(_interp(vorher["groundspeed"], nachher["groundspeed"]),
-                                _MAX_PLAUSIBLE_GROUNDSPEED_KT),
+        "altitude": _interp(vorher["altitude"], nachher["altitude"]),
+        "groundspeed": _interp(vorher["groundspeed"], nachher["groundspeed"]),
         "heading": vorher["heading"] if anteil < 0.5 else nachher["heading"],
-    }
+    })
 
 
 def _neuer_flug(conn, slot: int, jetzt: datetime, belegte_callsigns: set[str],
