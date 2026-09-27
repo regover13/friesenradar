@@ -456,6 +456,7 @@ def _live_positions_mit_messeverkehr(conn, live_positions: list[dict]) -> list[d
 
     echte_callsigns = {p.get("callsign") for p in live_positions if p.get("callsign")}
     simulierte = advance_messeverkehr(conn, datetime.now(timezone.utc), echte_callsigns)
+    conn.commit()
     for s in simulierte:
         s["_messeverkehr"] = True
     return live_positions + simulierte
@@ -1659,12 +1660,17 @@ class VatsimPoller:
 
                 # 3. Push SSE update
                 live_positions = get_live_positions(conn)
-                live_positions = _live_positions_mit_messeverkehr(conn, live_positions)
-                # Denselben Stand fuer den Kniebrett-Endpunkt vormerken (s. friesen_snapshot).
-                # Eine Kopie der Liste, nicht der Zeilen: Die Dicts werden nirgends veraendert,
-                # und eine tiefe Kopie waere bei jedem Zyklus Arbeit ohne Gegenwert.
+                # Denselben (UNGEMISCHTEN) Stand fuer den Kniebrett-Endpunkt vormerken (s.
+                # friesen_snapshot) -- der speist u.a. die Positions-Rueckmeldung
+                # (_kniebrett_kandidaten) und darf niemals eine negative Messeverkehr-CID
+                # enthalten koennen, sonst liesse sich darueber eine simulierte Position in
+                # den ungefilterten bruegge-Broadcast einschleusen. Eine Kopie der Liste,
+                # nicht der Zeilen: Die Dicts werden nirgends veraendert, und eine tiefe
+                # Kopie waere bei jedem Zyklus Arbeit ohne Gegenwert.
                 self.friesen_snapshot = list(live_positions)
                 self.friesen_snapshot_ts = time.time()
+                # Gemischt wird erst hier, NUR fuer den positions-Broadcast.
+                broadcast_positions = _live_positions_mit_messeverkehr(conn, live_positions)
 
                 # Neu gesehene Flugzeugtypen: Zuladung automatisch recherchieren + vorbefüllen
                 # (Admin kann die Werte jederzeit überschreiben; source='llm' kennzeichnet sie).
@@ -1687,7 +1693,7 @@ class VatsimPoller:
                 conn.close()
             uhr.marke("db")
 
-            self.broadcast_sse({"type": "positions", "data": live_positions})
+            self.broadcast_sse({"type": "positions", "data": broadcast_positions})
 
             # Auto-Recherche für neu gesehene Typcodes im Hintergrund anstoßen (nur mit Key)
             if new_codes:
