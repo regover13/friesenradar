@@ -33,8 +33,12 @@ _CID_BASIS = -900000
 
 
 def _synthetischer_pilotenname(slot: int) -> str:
-    namen = ["Messe-Friese Nord", "Messe-Friese Sued", "Messe-Friese Ost",
-             "Messe-Friese West", "Messe-Friese Mitte"]
+    """Gewoehnliche Vor-/Nachnamen, KEINE Hinweise auf Messe/Demo/Simulation im Klartext --
+    die Karte soll fuer Berechtigte wie echter Verkehr aussehen (Nutzerentscheidung, siehe
+    Spec: "das soll echt aussehen!!"). Namen bewusst anders gewaehlt als real bekannte
+    Vereinsmitglieder."""
+    namen = ["Jan Sievers", "Frauke Boysen", "Karsten Petersen",
+             "Insa Cornelsen", "Gerrit Aden"]
     return namen[slot % len(namen)]
 
 

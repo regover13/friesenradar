@@ -123,3 +123,18 @@ def test_messeverkehr_fuer_anzeige_liest_ohne_zu_schreiben(conn):
 def test_messeverkehr_fuer_anzeige_leer_wenn_feature_aus(conn):
     ergebnis = messeverkehr_fuer_anzeige(conn)
     assert ergebnis == []
+
+
+def test_pilotennamen_verraten_nicht_dass_es_simuliert_ist(conn):
+    """Final-Fix I2 (teilweise): Namen wie "Messe-Friese Nord" sind praktisch eine sichtbare
+    Kennzeichnung in der Live-Liste und im Popup -- genau das, was der Nutzer ausdruecklich
+    NICHT wollte ("das soll echt aussehen!!"). Kein Name darf Hinweise auf Messe/Demo/
+    Simulation im Klartext tragen, und jeder soll wie ein normaler Vor- und Nachname aussehen."""
+    jetzt = datetime(2026, 11, 21, 10, 0, 0, tzinfo=timezone.utc)
+    ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
+    conn.commit()
+    verraeterische_woerter = ("messe", "demo", "simul", "test", "fake")
+    for flug in ergebnis:
+        name_klein = flug["name"].lower()
+        assert not any(wort in name_klein for wort in verraeterische_woerter), flug["name"]
+        assert len(flug["name"].split()) >= 2, f"kein Vor-/Nachname-Muster: {flug['name']!r}"
