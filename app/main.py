@@ -219,6 +219,7 @@ from app.database import (
     list_messeverkehr_ausschluss_callsigns,
     set_messeverkehr_ausschluss_callsigns,
     replace_messeverkehr_positions,
+    messeverkehr_geplante_starts_leeren,
 )
 from app import geo
 from app import bruegge
@@ -4958,6 +4959,7 @@ async def admin_set_messeverkehr(request: Request):
         set_messeverkehr_aktiv(conn, aktiv)
         if aktiv and not war_aktiv:
             replace_messeverkehr_positions(conn, [])
+            messeverkehr_geplante_starts_leeren(conn)
         conn.commit()
         return {"status": "ok", "enabled": aktiv}
     finally:

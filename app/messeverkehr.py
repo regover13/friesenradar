@@ -39,20 +39,49 @@ _INTERNE_REPLAY_SPALTEN = ("quelle_flight_id", "quelle_cid", "quelle_logon_time"
                            "quelle_logoff_time")
 
 
-def _synthetischer_pilotenname(slot: int) -> str:
-    """Name im selben Muster wie echte FriesenSpy-Piloten: (Vor-/voller Name) + Heimatflugplatz
-    (ICAO) am Ende, z.B. "Tobias EDKB" -- Nutzerfund 27.09.2026 (Screenshot der Live-Liste):
-    OHNE den Platz fielen die erfundenen Namen sofort auf. Manchmal nur Vorname, wie im echten
-    Vorbild auch. Namen bewusst anders gewaehlt als real bekannte Vereinsmitglieder."""
-    piloten = [
-        ("Jan", "EDXW"),
-        ("Frauke Boysen", "EDHL"),
-        ("Karsten", "EDXR"),
-        ("Insa Cornelsen", "EDHF"),
-        ("Gerrit", "EDVE"),
-    ]
-    name, heimat = piloten[slot % len(piloten)]
-    return f"{name} {heimat}"
+# Feste erfundene Identitaeten: jedes simulierte Callsign hat IMMER denselben Namen, und jeder
+# Name gehoert zu genau einem Callsign (Nutzerregel 27.09.2026: "Callsign-Name darf sich nicht
+# aendern! Wir brauchen so viele Namen, wie wir Callsigns frei haben"). Vorher hing der Name am
+# Slot, das Callsign war zufaellig -- "Karsten EDXR" flog so mit zwei Callsigns gleichzeitig.
+#
+# Die Listen wurden gegen die echte Mitgliederliste abgeglichen (keine Uebereinstimmung bei
+# Vor- oder Nachnamen). ⚠ Die Listen und die Saat NICHT aendern: Die Zuordnung entsteht durch
+# ein festes Mischen, jede Aenderung wuerfelt ALLE Zuordnungen neu.
+_VORNAMEN = (
+    "Jasper", "Frauke", "Karsten", "Insa", "Gerrit", "Meike", "Ole", "Sven", "Wiebke", "Finn",
+    "Hauke", "Imke", "Jannik", "Silke", "Bente", "Torben", "Anke", "Malte", "Gesa", "Henning",
+    "Tjark", "Maren", "Lasse", "Heike", "Fiete", "Kerstin", "Arne", "Levke", "Jörn", "Swantje",
+)
+_NACHNAMEN = (
+    "Boysen", "Cornelsen", "Petersen", "Jensen", "Hansen", "Feddersen", "Carstensen",
+    "Lorenzen", "Paulsen", "Nissen", "Brodersen", "Ketelsen", "Clausen", "Asmussen", "Janssen",
+    "Ahrens", "Harms", "Oltmanns", "Rickmers", "Tadsen",
+)
+_HEIMATPLAETZE = (
+    "EDXW", "EDHL", "EDXR", "EDHF", "EDVE", "EDXF", "EDHK", "EDXJ", "EDXB", "EDXO", "EDXH",
+    "EDXY", "EDWS", "EDWB", "EDXM", "EDHE", "EDWE",
+)
+_IDENTITAETEN_SAAT = 20260927
+
+
+def _identitaeten_bauen() -> dict[str, str]:
+    """Callsign -> "Name ICAO" fuer jede Nummer im freien Bereich. Name im selben Muster wie
+    echte FriesenSpy-Piloten: (Vor- oder voller Name) + Heimatflugplatz am Ende -- ohne den
+    Platz fielen erfundene Namen sofort auf. Ob ein Callsign die 'N'-Endung (Neu-Friese) traegt,
+    ist ebenfalls fest, damit auch dieselbe Person nicht mal mit, mal ohne N auftaucht."""
+    zufall = random.Random(_IDENTITAETEN_SAAT)
+    namen = [f"{v} {n}" for v in _VORNAMEN for n in _NACHNAMEN] + list(_VORNAMEN)
+    zufall.shuffle(namen)
+    nummern = range(_CALLSIGN_MIN, _CALLSIGN_MAX + 1)
+    assert len(namen) >= len(nummern)
+    ergebnis: dict[str, str] = {}
+    for name, nummer in zip(namen, nummern):
+        suffix = "N" if zufall.random() < _N_SUFFIX_ANTEIL else ""
+        ergebnis[f"FRS{nummer}{suffix}"] = f"{name} {zufall.choice(_HEIMATPLAETZE)}"
+    return ergebnis
+
+
+_IDENTITAETEN = _identitaeten_bauen()
 
 
 def bekannte_echte_callsigns(conn) -> set[str]:
@@ -80,20 +109,13 @@ def bekannte_echte_callsigns(conn) -> set[str]:
     return ergebnis
 
 
-def _freies_callsign(belegt: set[str]) -> str:
-    """Zufaellige FRS-Nummer aus einer breiten Spanne, zwei- bis dreistellig, ab und zu mit
-    'N'-Endung (Neu-Friese-Kennung). Ein festes Zahlenmuster (frueher: 800 + slot*10) sah
-    selbst wie eine Kennzeichnung aus (Nutzerfund 27.09.2026)."""
-    for _ in range(30):
-        nummer = random.randint(_CALLSIGN_MIN, _CALLSIGN_MAX)
-        suffix = "N" if random.random() < _N_SUFFIX_ANTEIL else ""
-        kandidat = f"FRS{nummer}{suffix}"
-        if kandidat not in belegt:
-            return kandidat
-    n = 1
-    while f"FRSX{n}" in belegt:
-        n += 1
-    return f"FRSX{n}"
+def _freies_callsign(belegt: set[str]) -> str | None:
+    """Zufaellige freie Identitaet aus _IDENTITAETEN. Eine Nummer gilt als belegt, wenn sie in
+    IRGENDEINER Form (mit oder ohne 'N') belegt ist -- echter FRS137 und simulierter FRS137N
+    waeren sonst zwei Personen hinter derselben Nummer. None, wenn nichts mehr frei ist."""
+    frei = [cs for cs in _IDENTITAETEN
+            if not ({cs.rstrip("N"), cs.rstrip("N") + "N"} & belegt)]
+    return random.choice(frei) if frei else None
 
 
 def _als_datetime(iso: str) -> datetime:
@@ -104,10 +126,22 @@ def _iso(dt: datetime) -> str:
     return dt.isoformat().replace("+00:00", "Z")
 
 
-def _historischen_flug_waehlen(conn) -> dict | None:
+def _historischen_flug_waehlen(conn, ausschluss_quelle_cids: frozenset[int] = frozenset()) -> dict | None:
     """Waehlt zufaellig einen abgeschlossenen, echten Flug mit brauchbarem Track (mind. zwei
     aufgezeichnete Positionen). Nur deutsche Strecken (ICAO-Praefix "ED" bei Start UND Ziel) --
-    Nutzerwunsch 27.09.2026, nachdem eine internationale Strecke (Florida) auftauchte."""
+    Nutzerwunsch 27.09.2026, nachdem eine internationale Strecke (Florida) auftauchte.
+
+    ``ausschluss_quelle_cids``: die cid des echten Quellflugs JEDES gerade aktiven simulierten
+    Fluges (auch derer, die in diesem Zyklus schon neu vergeben wurden) -- Nutzerfund
+    27.09.2026: derselbe echte Pilot (erkennbar am identischen Namen, wenn auch mit
+    unterschiedlichem simulierten Callsign) flog zweimal gleichzeitig, weil zwei Slots
+    unabhaengig voneinander denselben Quellflug zogen."""
+    ausschluss_sql = ""
+    params: list = [_MIN_FLUGDAUER_MIN, _MAX_FLUGDAUER_MIN]
+    if ausschluss_quelle_cids:
+        platzhalter = ",".join("?" * len(ausschluss_quelle_cids))
+        ausschluss_sql = f" AND cid NOT IN ({platzhalter})"
+        params.extend(ausschluss_quelle_cids)
     for _ in range(10):
         row = conn.execute(
             "SELECT id, cid, aircraft_short, aircraft_icao, departure, arrival, route, "
@@ -116,9 +150,9 @@ def _historischen_flug_waehlen(conn) -> dict | None:
             "FROM flights "
             "WHERE logon_time IS NOT NULL AND logoff_time IS NOT NULL "
             "  AND departure LIKE 'ED%' AND arrival LIKE 'ED%' "
-            "  AND duration_min BETWEEN ? AND ? "
+            "  AND duration_min BETWEEN ? AND ?" + ausschluss_sql + " "
             "ORDER BY RANDOM() LIMIT 1",
-            (_MIN_FLUGDAUER_MIN, _MAX_FLUGDAUER_MIN),
+            params,
         ).fetchone()
         if row is None:
             return None
@@ -212,38 +246,35 @@ def _position_bei(conn, quelle_cid: int, zeitpunkt: datetime,
 
 
 def _neuer_flug(conn, slot: int, jetzt: datetime, belegte_callsigns: set[str],
-                kopfstart: bool) -> dict | None:
-    """Startet einen neuen simulierten Flug, indem ein echter historischer Flug ab jetzt
-    abgespielt wird. None, wenn keine geeignete Historie gefunden wurde (z.B. leere DB).
+                belegte_quelle_cids: frozenset[int] = frozenset()) -> dict | None:
+    """Startet einen neuen simulierten Flug: ein echter historischer Flug wird ab seinem
+    EIGENEN Anfang (Boden, Rollen, Start ...) abgespielt -- Nutzerwunsch 27.09.2026. None,
+    wenn keine geeignete Historie gefunden wurde (z.B. leere DB).
 
-    Beim Aktivieren (kopfstart) erscheint Slot 0 sofort, ohne Vorsprung -- Nutzerwunsch
-    27.09.2026: "der erste Pilot erscheint sofort, sonst weiss ich nicht, ob es wirklich an
-    ist". Nur die UEBRIGEN Slots verteilen sich zufaellig ueber die konfigurierte Staffelung.
-    Eine spaetere Nachbesetzung (kopfstart=False, ein Flug ist angekommen) startet wie bisher
-    immer sofort -- die Staffelung gilt nur fuer den allerersten Schwarm."""
-    quelle = _historischen_flug_waehlen(conn)
+    WANN ein Slot ueberhaupt (neu) besetzt wird, entscheidet advance_messeverkehr() (Slot 0
+    sofort, alle anderen zeitversetzt ueber messeverkehr_geplante_starts) -- diese Funktion
+    kennt selbst kein "sofort" oder "gestaffelt" mehr. Nutzerkorrektur 27.09.2026: die
+    fruehere Fassung faelschte die Staffelung ueber eine zurueckdatierte Anzeige-Startzeit,
+    obwohl der Flug in Wirklichkeit im selben Moment wie alle anderen entstand -- auf der
+    Karte erschienen dadurch trotzdem alle gleichzeitig.
+
+    ``belegte_quelle_cids``: die echten Quellflug-cids aller GERADE aktiven simulierten Fluege
+    -- verhindert, dass derselbe echte Pilot zweimal gleichzeitig fliegt (Nutzerfund
+    27.09.2026, s. _historischen_flug_waehlen)."""
+    quelle = _historischen_flug_waehlen(conn, ausschluss_quelle_cids=belegte_quelle_cids)
     if quelle is None:
         return None
-    quelle_logon = _als_datetime(quelle["logon_time"])
-    quelle_logoff = _als_datetime(quelle["logoff_time"])
-    dauer_sek = max((quelle_logoff - quelle_logon).total_seconds(), 1.0)
-
-    vorsprung_sek = 0.0
-    if kopfstart and slot > 0:
-        from app.database import messeverkehr_staffelung_minuten
-        max_staffelung_sek = messeverkehr_staffelung_minuten(conn) * 60.0
-        vorsprung_sek = random.uniform(0.0, min(max_staffelung_sek, dauer_sek * 0.7))
-
-    spawn_zeit = jetzt - timedelta(seconds=vorsprung_sek)
-    virtueller_start = quelle_logon + timedelta(seconds=vorsprung_sek)
-    position = _position_bei(conn, quelle["cid"], virtueller_start,
+    position = _position_bei(conn, quelle["cid"], _als_datetime(quelle["logon_time"]),
                              quelle["logon_time"], quelle["logoff_time"])
     if position is None:
+        return None
+    callsign = _freies_callsign(belegte_callsigns)
+    if callsign is None:
         return None
 
     return {
         "cid": _CID_BASIS - slot,
-        "callsign": _freies_callsign(belegte_callsigns),
+        "callsign": callsign,
         "aircraft": quelle["aircraft_short"],
         "aircraft_icao": quelle["aircraft_icao"],
         "departure": quelle["departure"],
@@ -260,9 +291,9 @@ def _neuer_flug(conn, slot: int, jetzt: datetime, belegte_callsigns: set[str],
         "altitude": position["altitude"],
         "groundspeed": position["groundspeed"],
         "heading": position["heading"],
-        "logon_time": _iso(spawn_zeit),
+        "logon_time": _iso(jetzt),
         "updated_at": _iso(jetzt),
-        "name": _synthetischer_pilotenname(slot),
+        "name": _IDENTITAETEN[callsign],
         "quelle_flight_id": quelle["id"],
         "quelle_cid": quelle["cid"],
         "quelle_logon_time": quelle["logon_time"],
@@ -317,26 +348,64 @@ def advance_messeverkehr(conn, jetzt: datetime, echte_callsigns: set[str]) -> li
     dazu, damit neue simulierte Callsigns weder aktuell noch historisch mit einem echten
     kollidieren. Gibt den neuen Bestand als Liste von Dicts zurück, ohne die interne
     Replay-Buchhaltung (siehe ``_INTERNE_REPLAY_SPALTEN``).
+
+    Ein leerer Slot > 0 wird NICHT sofort (neu) besetzt -- Nutzerkorrektur 27.09.2026: Die
+    fruehere Fassung legte beim Aktivieren ALLE Fluege im selben Moment an und datierte nur
+    ihre ANZEIGE-Startzeit zurueck ("Staffelung") -- auf der Karte tauchten dadurch trotzdem
+    alle gleichzeitig auf ("warum 8? es sollte nur einer sein, die anderen nacheinander").
+    Jetzt wird pro leerem Slot > 0 EINMAL ein realer, zukuenftiger Zeitpunkt gewuerfelt
+    (messeverkehr_geplante_starts) und der Slot bleibt bis dahin schlicht aus dem Ergebnis
+    heraus -- die Staffelung ist echte, spaeter eintretende Sichtbarkeit, kein Anzeige-Trick.
+    Slot 0 besetzt sich weiterhin immer sofort ("damit man sieht, ob es wirklich an ist").
     """
+    from app.database import (messeverkehr_geplante_starts, set_messeverkehr_geplanter_start,
+                               clear_messeverkehr_geplanter_start, messeverkehr_staffelung_minuten)
+
     bestand = {f["cid"]: f for f in get_messeverkehr_positions(conn)}
-    kopfstart = not bestand
-    belegte_callsigns = bekannte_echte_callsigns(conn) | set(echte_callsigns)
     ziel_anzahl = min(_ziel_anzahl(conn), _MAX_SLOTS)
+    geplant = messeverkehr_geplante_starts(conn)
+    staffelung_sek = max(0, messeverkehr_staffelung_minuten(conn)) * 60.0
+
+    # Erst alle UEBERLEBENDEN (fortgeschriebenen) Fluege ermitteln -- NUR deren Quellflug-cid
+    # blockiert andere Slots. Ein Slot, der GERADE selbst gelandet ist, darf beim eigenen
+    # Respawn nicht durch seinen eigenen (nicht mehr aktiven) Quellflug blockiert werden --
+    # sonst kaeme z.B. Slot 0 nie wieder zustande, sobald nur ein einziger geeigneter
+    # historischer Flug existiert (Fund beim Testen 27.09.2026).
+    ueberlebt: dict[int, dict] = {}
+    for slot in range(ziel_anzahl):
+        vorher = bestand.get(_CID_BASIS - slot)
+        if vorher is not None:
+            weiter = _fortschreiben(conn, vorher, jetzt)
+            if weiter is not None:
+                ueberlebt[slot] = weiter
+
+    belegte_callsigns = (bekannte_echte_callsigns(conn) | set(echte_callsigns)
+                         | {f["callsign"] for f in ueberlebt.values()})
+    belegte_quelle_cids = {f["quelle_cid"] for f in ueberlebt.values() if f.get("quelle_cid")}
 
     aktualisiert: dict[int, dict] = {}
     for slot in range(ziel_anzahl):
         cid = _CID_BASIS - slot
-        vorher = bestand.get(cid)
-        if vorher is None:
-            neuer = _neuer_flug(conn, slot, jetzt, belegte_callsigns, kopfstart)
-        else:
-            nachher = _fortschreiben(conn, vorher, jetzt)
-            neuer = nachher if nachher is not None else _neuer_flug(
-                conn, slot, jetzt, belegte_callsigns, kopfstart=False
-            )
+        neuer = ueberlebt.get(slot)
+        if neuer is None:
+            # Slot ist leer -- entweder schon vorher, oder gerade erst geworden (Landung /
+            # kaputte Zeile). Beides gleich behandelt: Slot 0 versucht sofort neu, alle
+            # anderen wuerfeln (einmalig) einen echten, spaeteren Zeitpunkt oder pruefen den
+            # bereits gewuerfelten.
+            if slot == 0:
+                neuer = _neuer_flug(conn, slot, jetzt, belegte_callsigns, frozenset(belegte_quelle_cids))
+            else:
+                ab_iso = geplant.get(slot)
+                if ab_iso is None:
+                    ab = jetzt + timedelta(seconds=random.uniform(0.0, staffelung_sek))
+                    set_messeverkehr_geplanter_start(conn, slot, _iso(ab))
+                elif jetzt >= _als_datetime(ab_iso):
+                    neuer = _neuer_flug(conn, slot, jetzt, belegte_callsigns, frozenset(belegte_quelle_cids))
         if neuer is not None:
+            clear_messeverkehr_geplanter_start(conn, slot)
             aktualisiert[cid] = neuer
             belegte_callsigns.add(neuer["callsign"])
+            belegte_quelle_cids.add(neuer["quelle_cid"])
 
     replace_messeverkehr_positions(conn, list(aktualisiert.values()))
     # ORDER BY cid, wie get_messeverkehr_positions() -- sonst liefert dieser Rueckgabewert

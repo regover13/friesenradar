@@ -140,6 +140,11 @@ CREATE TABLE IF NOT EXISTS messeverkehr_ausschluss_callsigns (
     callsign TEXT PRIMARY KEY
 );
 
+CREATE TABLE IF NOT EXISTS messeverkehr_geplante_starts (
+    slot INTEGER PRIMARY KEY,
+    ab   TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS statsim_cache (
     statsim_id   INTEGER PRIMARY KEY,
     cid          INTEGER NOT NULL,
@@ -12348,15 +12353,46 @@ def set_messeverkehr_anzahl_max(conn: sqlite3.Connection, maximum: int) -> None:
 
 
 def messeverkehr_staffelung_minuten(conn: sqlite3.Connection) -> int:
-    """Wie viele Minuten Vorsprung ein Flug beim allerersten Start hoechstens bekommt, damit
-    nicht alle gleichzeitig 'online' erscheinen. Default 30. Gilt NICHT fuer den allerersten
-    Flug (Slot 0) -- der erscheint immer sofort, Nutzerwunsch 27.09.2026."""
+    """Hoechstens so viele Minuten REALE Zeit vergehen, bevor ein leerer Slot tatsaechlich
+    (neu) besetzt wird -- ab dem Moment, in dem der Slot leer wird. Default 30. Gilt NICHT
+    fuer Slot 0 -- der besetzt sich immer sofort, Nutzerwunsch 27.09.2026 ("damit man sieht,
+    ob es wirklich an ist"). Nutzerkorrektur 27.09.2026: die Staffelung muss echte, spaeter
+    eintretende Sichtbarkeit sein -- nicht nur eine zurueckdatierte Anzeige-Zeit, waehrend
+    tatsaechlich alle Slots im selben Moment entstehen (s. messeverkehr.py, _geplante_starts)."""
     return int(get_app_setting(conn, "messeverkehr_staffelung_min", "30"))
 
 
 def set_messeverkehr_staffelung_minuten(conn: sqlite3.Connection, minuten: int) -> None:
     """Kein commit."""
     set_app_setting(conn, "messeverkehr_staffelung_min", str(int(minuten)))
+
+
+def messeverkehr_geplante_starts(conn: sqlite3.Connection) -> dict[int, str]:
+    """Slot -> ISO-Zeitpunkt, ab dem er tatsaechlich (neu) besetzt werden darf -- gewuerfelt
+    einmal, wenn der Slot leer WIRD, nicht bei jedem Poll-Zyklus neu (sonst liefe die Frist
+    immer weiter weg)."""
+    rows = conn.execute("SELECT slot, ab FROM messeverkehr_geplante_starts").fetchall()
+    return {int(r["slot"]): r["ab"] for r in rows}
+
+
+def set_messeverkehr_geplanter_start(conn: sqlite3.Connection, slot: int, ab_iso: str) -> None:
+    """Kein commit."""
+    conn.execute(
+        "INSERT INTO messeverkehr_geplante_starts (slot, ab) VALUES (?, ?) "
+        "ON CONFLICT(slot) DO UPDATE SET ab = excluded.ab",
+        (slot, ab_iso),
+    )
+
+
+def clear_messeverkehr_geplanter_start(conn: sqlite3.Connection, slot: int) -> None:
+    """Kein commit -- der Slot wurde besetzt oder ist nicht mehr Teil der Zielzahl."""
+    conn.execute("DELETE FROM messeverkehr_geplante_starts WHERE slot = ?", (slot,))
+
+
+def messeverkehr_geplante_starts_leeren(conn: sqlite3.Connection) -> None:
+    """Kein commit -- alle vorgemerkten Startzeitpunkte verwerfen (z.B. beim Reaktivieren,
+    damit kein Slot aus einer frueheren Aktivierung sofort 'faellig' ist)."""
+    conn.execute("DELETE FROM messeverkehr_geplante_starts")
 
 
 def list_messeverkehr_ausschluss_callsigns(conn: sqlite3.Connection) -> list[str]:

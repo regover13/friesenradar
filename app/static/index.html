@@ -8738,14 +8738,19 @@ function connectSSE() {
 function fmtAlt(alt) {
   if (alt === null || alt === undefined) return '—';
   alt = Number(alt);
+  // Ganzzahlig runden -- toLocaleString('de') zeigt bei einem Fliesskommawert sonst bis zu
+  // drei Nachkommastellen (Komma als Dezimaltrennzeichen), was neben dem Punkt als
+  // Tausendertrennzeichen wie eine viel zu grosse Zahl aussieht (Nutzerfund 27.09.2026:
+  // "2.484,213 ft" als "2.484.213" gelesen -- Messeverkehr liefert echte Fliesskommawerte
+  // aus der Interpolation, VATSIM-Rohdaten sind schon ganzzahlig, darum fiel das vorher nie auf).
   return alt > 18000
     ? 'FL' + Math.round(alt / 100)
-    : alt.toLocaleString('de') + ' ft';
+    : Math.round(alt).toLocaleString('de') + ' ft';
 }
 
 function fmtGS(gs) {
   if (gs === null || gs === undefined) return '—';
-  return Number(gs).toLocaleString('de') + ' kt';
+  return Math.round(Number(gs)).toLocaleString('de') + ' kt';
 }
 
 function fmtOnlineTime(logonIso) {

@@ -89,7 +89,8 @@ def test_advance_erzeugt_fluege_aus_echter_historie(conn):
     jetzt = datetime(2026, 11, 21, 10, 0, 0, tzinfo=timezone.utc)
     ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
     conn.commit()
-    assert len(ergebnis) == ZIEL_ANZAHL_FLUEGE
+    # Nur Slot 0 erscheint beim Aktivieren sofort -- s. test_staffelung_laesst_uebrige_slots_*.
+    assert len(ergebnis) == 1
     for flug in ergebnis:
         assert flug["cid"] < 0
         assert flug["departure"] == "EDXW"
@@ -125,18 +126,40 @@ def test_messeverkehr_fuer_anzeige_ohne_interne_spalten(conn):
 
 
 def test_kopfstart_staffelt_die_logon_zeiten_beim_ersten_start(conn):
-    """Nutzerfund 27.09.2026: alle drei Fluege gingen beim ersten Aktivieren gleichzeitig
-    "online". Jetzt startet nur Slot 0 sofort, die UEBRIGEN Slots mit zufaelligem Vorsprung."""
-    _seed_historischer_flug(conn, dauer_min=60, schritte=20)
+    """Nutzerkorrektur 27.09.2026: 'es sollte zu Beginn nur einer sein und die Starts
+    nacheinander innerhalb von 30 Minuten erfolgen' -- die erste Fassung legte alle Fluege im
+    selben Moment an und daetierte nur ihre ANZEIGE-Startzeit zurueck, wodurch auf der Karte
+    trotzdem alle gleichzeitig auftauchten ('warum 8?'). Jetzt ist nur Slot 0 im ersten Zyklus
+    da; die uebrigen erscheinen ECHT zeitversetzt, jeder mit logon_time == dem Moment seines
+    tatsaechlichen Erscheinens."""
+    # Drei VERSCHIEDENE Quellfluege -- sonst kann bei ZIEL_ANZAHL_FLUEGE=3 nicht jeder Slot
+    # einen eigenen ziehen (kein Pilot fliegt zweimal gleichzeitig, s.
+    # test_niemals_derselbe_echte_pilot_gleichzeitig_zweimal).
+    for i in range(ZIEL_ANZAHL_FLUEGE):
+        _seed_historischer_flug(conn, cid=600000 + i, callsign=f"FRS6{i}", dauer_min=60, schritte=20)
     jetzt = datetime(2026, 11, 21, 10, 0, 0, tzinfo=timezone.utc)
     ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
     conn.commit()
-    jetzt_iso = jetzt.isoformat().replace("+00:00", "Z")
-    erster = next(f for f in ergebnis if f["cid"] == -900000)  # Slot 0
-    uebrige = [f for f in ergebnis if f["cid"] != -900000]
-    assert erster["logon_time"] == jetzt_iso
-    assert any(f["logon_time"] != jetzt_iso for f in uebrige), \
-        "alle uebrigen Fluege gingen ebenfalls zur exakt selben Zeit online"
+    assert len(ergebnis) == 1
+    assert ergebnis[0]["cid"] == -900000  # Slot 0
+    assert ergebnis[0]["logon_time"] == jetzt.isoformat().replace("+00:00", "Z")
+
+    gesehen = {-900000}
+    for _ in range(40):
+        jetzt = jetzt + timedelta(minutes=1)
+        ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
+        conn.commit()
+        jetzt_iso = jetzt.isoformat().replace("+00:00", "Z")
+        for f in ergebnis:
+            if f["cid"] not in gesehen:
+                assert f["logon_time"] == jetzt_iso, \
+                    "ein spaeter erschienener Flug muss ab seinem tatsaechlichen Erscheinen " \
+                    "online sein, nicht zurueckdatiert"
+                gesehen.add(f["cid"])
+        if len(gesehen) == ZIEL_ANZAHL_FLUEGE:
+            break
+    assert len(gesehen) == ZIEL_ANZAHL_FLUEGE, \
+        "nicht alle Slots sind innerhalb der Staffelung erschienen"
 
 
 def test_advance_bewegt_sich_entlang_der_echten_spur_und_respawnt(conn):
@@ -278,9 +301,50 @@ def test_bekannte_echte_callsigns_liest_alle_quellen(conn):
 
 
 def test_freies_callsign_meidet_belegte(conn):
-    belegt = {f"FRS{n}" for n in range(2, 300)}
-    kandidat = _freies_callsign(belegt)
-    assert kandidat not in belegt
+    from app.messeverkehr import _IDENTITAETEN
+
+    alle = list(_IDENTITAETEN)
+    uebrig = alle[0]
+    belegt = set(alle[1:])
+    assert _freies_callsign(belegt) == uebrig
+    assert _freies_callsign(set(alle)) is None
+
+
+def test_nummer_gilt_mit_und_ohne_n_als_belegt():
+    """Echter FRS137 und simulierter FRS137N waeren zwei Personen hinter derselben Nummer."""
+    for _ in range(300):
+        cs = _freies_callsign({"FRS137", "FRS138N"})
+        assert cs.rstrip("N") not in {"FRS137", "FRS138"}, cs
+
+
+def test_callsign_und_name_sind_fest_und_eindeutig():
+    """Nutzerregel 27.09.2026: 'Callsign-Name darf sich nicht aendern! Wir brauchen so viele
+    Namen, wie wir Callsigns frei haben.' Jede Nummer hat genau eine Identitaet, jeder Name
+    gehoert zu genau einem Callsign, und die Zuordnung ist ueber Neustarts hinweg stabil."""
+    from app.messeverkehr import (_IDENTITAETEN, _identitaeten_bauen, _CALLSIGN_MIN,
+                                  _CALLSIGN_MAX)
+
+    assert len(_IDENTITAETEN) == _CALLSIGN_MAX - _CALLSIGN_MIN + 1
+    nummern = [cs.rstrip("N") for cs in _IDENTITAETEN]
+    assert len(set(nummern)) == len(nummern), "eine Nummer mit zwei Identitaeten"
+    namen_ohne_platz = [n.rsplit(" ", 1)[0] for n in _IDENTITAETEN.values()]
+    assert len(set(namen_ohne_platz)) == len(namen_ohne_platz), "ein Name mit zwei Callsigns"
+    assert _identitaeten_bauen() == _IDENTITAETEN, "Zuordnung nicht stabil"
+
+
+def test_callsign_behaelt_seinen_namen_ueber_respawns(conn):
+    """Derselbe Callsign muss bei jedem Auftauchen denselben Namen tragen."""
+    set_messeverkehr_anzahl_max(conn, 1)
+    conn.commit()
+    _seed_historischer_flug(conn, dauer_min=15, schritte=5)
+    jetzt = datetime(2026, 8, 1, 10, 0, 0, tzinfo=timezone.utc)
+    gesehen: dict[str, str] = {}
+    for _ in range(300):
+        for f in advance_messeverkehr(conn, jetzt, echte_callsigns=set()):
+            assert gesehen.setdefault(f["callsign"], f["name"]) == f["name"], f
+        conn.commit()
+        jetzt = jetzt + timedelta(minutes=1)
+    assert len(gesehen) > 3, "zu wenige Respawns fuer eine Aussage"
 
 
 def test_freies_callsign_streut_ueber_viele_aufrufe():
@@ -366,12 +430,12 @@ def test_kopfstart_erster_pilot_kommt_trotz_verzoegertem_erstem_trackpunkt(conn)
     jetzt = ts0  # exakt logon_time -- der kritische Grenzfall
     ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
     conn.commit()
-    assert len(ergebnis) == ZIEL_ANZAHL_FLUEGE, "Slot 0 (oder ein anderer) fehlt beim Kopfstart"
+    assert any(f["cid"] == -900000 for f in ergebnis), "Slot 0 fehlt beim Kopfstart"
 
 
-def test_kopfstart_nachbesetzung_startet_ebenfalls_sofort(conn):
-    """Die Staffelung gilt nur fuer den allerersten Schwarm -- eine Nachbesetzung (ein Flug
-    ist angekommen, kopfstart=False fuer diesen Slot) erscheint wie bisher sofort."""
+def test_slot_null_respawnt_immer_sofort(conn):
+    """Slot 0 besetzt sich auch nach einer Landung immer sofort neu -- keine Staffelung.
+    Mit max=1 ist er hier der einzige Slot."""
     set_messeverkehr_anzahl_max(conn, 1)
     conn.commit()
     _seed_historischer_flug(conn, dauer_min=15, schritte=5)
@@ -390,6 +454,79 @@ def test_kopfstart_nachbesetzung_startet_ebenfalls_sofort(conn):
             break
     assert respawnt_bei is not None, "Flug ist nie angekommen (oder nie respawnt)"
     assert ergebnis[0]["logon_time"] == respawnt_bei.isoformat().replace("+00:00", "Z")
+
+
+def test_nachbesetzung_bei_slot_ungleich_null_wartet_auf_geplanten_start(conn):
+    """Nutzerwunsch 27.09.2026 (urspruengliche Spezifikation): faellt ein Pilot weg (landet),
+    wird die Luecke erst INNERHALB der Staffelung wieder aufgefuellt, nicht sofort -- das
+    30-Minuten-Los laeuft ab dem Moment der Luecke. Nur Slot 0 ist die Ausnahme
+    (test_slot_null_respawnt_immer_sofort)."""
+    set_messeverkehr_anzahl_max(conn, 2)
+    conn.commit()
+    _seed_historischer_flug(conn, cid=1, callsign="FRS1", dauer_min=15, schritte=5)
+    _seed_historischer_flug(conn, cid=2, callsign="FRS2", dauer_min=15, schritte=5)
+    jetzt = datetime(2026, 8, 1, 10, 0, 0, tzinfo=timezone.utc)  # deckt sich mit ts0
+    ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
+    conn.commit()
+    assert len(ergebnis) == 1, "Slot 1 sollte beim Kopfstart noch nicht da sein"
+
+    # Genug Zeit vergehen lassen, bis Slot 1 einmal ERSCHEINT (Staffelung), und danach
+    # den echten Landemoment des Quellflugs abwarten, bis er wieder VERSCHWINDET.
+    slot1_erschienen = False
+    slot1_verschwunden_bei = None
+    for _ in range(400):
+        jetzt = jetzt + timedelta(minutes=1)
+        ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
+        conn.commit()
+        hat_slot1 = any(f["cid"] == -900001 for f in ergebnis)
+        if hat_slot1:
+            slot1_erschienen = True
+        elif slot1_erschienen:
+            slot1_verschwunden_bei = jetzt
+            break
+    assert slot1_erschienen, "Slot 1 ist nie erschienen"
+    assert slot1_verschwunden_bei is not None, "Slot 1 ist nie 'gelandet' (verschwunden)"
+
+    # Direkt im naechsten Zyklus nach dem Verschwinden darf Slot 1 NICHT sofort wieder da sein
+    # (default Staffelung 30 min, wir sind gerade erst eine Minute weiter).
+    jetzt_direkt_danach = slot1_verschwunden_bei + timedelta(minutes=1)
+    ergebnis = advance_messeverkehr(conn, jetzt_direkt_danach, echte_callsigns=set())
+    conn.commit()
+    assert not any(f["cid"] == -900001 for f in ergebnis), \
+        "Slot 1 wurde sofort nachbesetzt statt die Staffelung abzuwarten"
+
+
+def test_niemals_derselbe_echte_pilot_gleichzeitig_zweimal(conn):
+    """Nutzerfund 27.09.2026 (Screenshot: 'Karsten EDXR' zweimal gleichzeitig, mit
+    unterschiedlichem Callsign): zwei Slots duerfen nie denselben echten Quellflug (also
+    denselben echten Piloten) gleichzeitig abspielen."""
+    from app.database import set_messeverkehr_staffelung_minuten
+
+    set_messeverkehr_anzahl_max(conn, 2)
+    set_messeverkehr_staffelung_minuten(conn, 0)
+    conn.commit()
+    # Nur EIN geeigneter Quellflug in der DB -- ohne den Ausschluss wuerde Slot 1 zwangslaeufig
+    # denselben ziehen wie Slot 0, sobald er auch abgefragt wird.
+    _seed_historischer_flug(conn, cid=1, callsign="FRS1", dauer_min=60, schritte=10)
+    jetzt = datetime(2026, 8, 1, 10, 0, 0, tzinfo=timezone.utc)
+    ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
+    conn.commit()
+    # Mit nur einem Quellflug in der DB kann Slot 1 (Staffelung 0, sollte sofort faellig sein)
+    # NICHT entstehen -- der Ausschluss verhindert es korrekt, es gibt keinen zweiten Kandidaten.
+    assert len(ergebnis) == 1
+
+    # Jetzt einen zweiten, unabhaengigen Quellflug ergaenzen -- Slot 1 muss IHN ziehen, nie
+    # denselben cid wie Slot 0.
+    _seed_historischer_flug(conn, cid=2, callsign="FRS2", dauer_min=60, schritte=10)
+    for _ in range(20):
+        jetzt = jetzt + timedelta(seconds=15)
+        ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
+        conn.commit()
+        if len(ergebnis) == 2:
+            break
+    assert len(ergebnis) == 2
+    namen = [f["name"] for f in ergebnis]
+    assert len(set(namen)) == 2, f"derselbe simulierte Name zweimal gleichzeitig: {namen}"
 
 
 def test_staffelung_minuten_ist_konfigurierbar(conn):
