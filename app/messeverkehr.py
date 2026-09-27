@@ -34,12 +34,19 @@ _INTERNE_REPLAY_SPALTEN = ("quelle_flight_id", "quelle_cid", "quelle_logon_time"
 
 
 def _synthetischer_pilotenname(slot: int) -> str:
-    """Gewoehnliche Vor-/Nachnamen, KEINE Hinweise auf Messe/Demo/Simulation im Klartext --
-    die Karte soll fuer Berechtigte wie echter Verkehr aussehen. Namen bewusst anders gewaehlt
-    als real bekannte Vereinsmitglieder."""
-    namen = ["Jan Sievers", "Frauke Boysen", "Karsten Petersen",
-             "Insa Cornelsen", "Gerrit Aden"]
-    return namen[slot % len(namen)]
+    """Name im selben Muster wie echte FriesenSpy-Piloten: (Vor-/voller Name) + Heimatflugplatz
+    (ICAO) am Ende, z.B. "Tobias EDKB" -- Nutzerfund 27.09.2026 (Screenshot der Live-Liste):
+    OHNE den Platz fielen die erfundenen Namen sofort auf. Manchmal nur Vorname, wie im echten
+    Vorbild auch. Namen bewusst anders gewaehlt als real bekannte Vereinsmitglieder."""
+    piloten = [
+        ("Jan", "EDXW"),
+        ("Frauke Boysen", "EDHL"),
+        ("Karsten", "EDXR"),
+        ("Insa Cornelsen", "EDHF"),
+        ("Gerrit", "EDVE"),
+    ]
+    name, heimat = piloten[slot % len(piloten)]
+    return f"{name} {heimat}"
 
 
 def bekannte_echte_callsigns(conn) -> set[str]:

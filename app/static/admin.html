@@ -2107,6 +2107,63 @@
         </div>
 
 
+        <!-- MESSEVERKEHR (simulierter Verkehr fuer den Messestand, 27.09.2026) -->
+        <div class="panel">
+          <div class="panel-title"><span>✈️ Messeverkehr</span></div>
+          <p style="color:#8aa0b8;font-size:0.82rem;margin:4px 0 12px;">
+            Spielt echte, abgeschlossene Fluege unter erfundener Identitaet ab, damit die Live-Karte
+            fuer freigeschaltete Betrachter (z. B. am Messestand) nie leer wirkt. Fuer alle anderen
+            unsichtbar.
+          </p>
+          <label style="display:flex;gap:8px;align-items:center;margin-bottom:12px;cursor:pointer;">
+            <input type="checkbox" id="mvToggle" />
+            <span>Messeverkehr aktiv</span>
+          </label>
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+            <label style="display:flex;flex-direction:column;gap:2px;font-size:0.82rem;color:#8aa0b8;">
+              Min. gleichzeitig
+              <input type="number" id="mvMin" min="0" max="10" style="width:80px;" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:2px;font-size:0.82rem;color:#8aa0b8;">
+              Max. gleichzeitig
+              <input type="number" id="mvMax" min="0" max="10" style="width:80px;" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:2px;font-size:0.82rem;color:#8aa0b8;">
+              Staffelung Start (Min.)
+              <input type="number" id="mvStaffelung" min="0" max="180" style="width:100px;" />
+            </label>
+          </div>
+          <button class="btn btn-sm" id="mvEinstellungenSaveBtn">Einstellungen speichern</button>
+
+          <hr style="border-color:#2a3a4a;margin:16px 0;" />
+
+          <p style="color:#8aa0b8;font-size:0.82rem;margin:0 0 8px;">
+            <b>Wer sieht den Messeverkehr?</b> CID hinzufuegen (z. B. Messestand-Geraet).
+          </p>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input type="text" id="mvCidInput" placeholder="CID" style="width:120px;" />
+            <input type="text" id="mvCidVon" placeholder="Notiz (optional)" style="flex:1;min-width:120px;" />
+            <button class="btn btn-sm" id="mvCidAddBtn">+ Hinzufuegen</button>
+          </div>
+          <div id="mvErlaubtContainer"></div>
+
+          <hr style="border-color:#2a3a4a;margin:16px 0;" />
+
+          <p style="color:#8aa0b8;font-size:0.82rem;margin:0 0 8px;">
+            <b>Ausschluss-Callsigns:</b> echte, reservierte Callsigns, die NIE als simulierte
+            Kennung vergeben werden (unabhaengig davon, ob FriesenSpy sie selbst schon gesehen
+            hat). Ein Callsign je Zeile.
+          </p>
+          <textarea id="mvAusschlussText" rows="6" style="width:100%;font-family:monospace;font-size:0.82rem;"
+                    placeholder="FRS1&#10;FRS12&#10;FRS49N"></textarea>
+          <div style="margin-top:8px;">
+            <button class="btn btn-sm" id="mvAusschlussSaveBtn">Ausschlussliste speichern</button>
+            <span id="mvAusschlussCount" style="color:#8aa0b8;font-size:0.82rem;margin-left:10px;"></span>
+          </div>
+        </div>
+
+
         <!-- ERKENNUNGSLÜCKEN (v8.6.0) -->
         <div class="panel">
           <div class="panel-title"><span>🔍 Erkennungslücken (Start/Landung)</span></div>
@@ -2635,6 +2692,95 @@
       const res = await api('POST', '/api/admin/forum-login', { enabled: desired });
       if (res && res.ok) toast('Board-Login ' + (desired ? 'aktiviert' : 'deaktiviert') + '.');
       loadForumLogin();
+    });
+
+    // ====================================================================
+    // MESSEVERKEHR (simulierter Verkehr fuer den Messestand)
+    // ====================================================================
+    let _mvStand = null;
+
+    async function loadMesseverkehr() {
+      try {
+        const r = await fetch('/api/admin/messeverkehr', { credentials: 'same-origin' });
+        if (!r.ok) return;
+        _mvStand = await r.json();
+        document.getElementById('mvToggle').checked = _mvStand.enabled;
+        document.getElementById('mvMin').value = _mvStand.min_fluege;
+        document.getElementById('mvMax').value = _mvStand.max_fluege;
+        document.getElementById('mvStaffelung').value = _mvStand.staffelung_min;
+        document.getElementById('mvAusschlussText').value = (_mvStand.ausschluss_callsigns || []).join('\n');
+        document.getElementById('mvAusschlussCount').textContent =
+          (_mvStand.ausschluss_callsigns || []).length + ' Callsign(s)';
+        renderMvErlaubt(_mvStand.erlaubt || []);
+      } catch { /* still */ }
+    }
+
+    function renderMvErlaubt(rows) {
+      const c = document.getElementById('mvErlaubtContainer');
+      if (!rows.length) { c.innerHTML = '<div class="empty-hint">Noch niemand freigeschaltet.</div>'; return; }
+      c.innerHTML = '<div class="table-wrap"><table style="font-size:0.8rem;width:max-content;min-width:100%;"><thead><tr>'
+        + '<th style="text-align:left;">CID</th><th style="text-align:left;">Notiz</th><th style="text-align:left;">Seit</th><th></th></tr></thead><tbody>'
+        + rows.map(e => '<tr><td><b>' + escH(String(e.cid)) + '</b></td>'
+          + '<td>' + escH(e.hinzugefuegt_von || '—') + '</td>'
+          + '<td>' + escH(e.hinzugefuegt_am || '—') + '</td>'
+          + '<td><button class="btn btn-sm btn-danger" onclick="mvCidEntfernen(' + e.cid + ')">✕</button></td></tr>').join('')
+        + '</tbody></table></div>';
+    }
+
+    document.getElementById('mvToggle').addEventListener('change', async e => {
+      const desired = e.target.checked;
+      const res = await api('PUT', '/api/admin/messeverkehr', { enabled: desired });
+      if (res && res.ok) toast('Messeverkehr ' + (desired ? 'aktiviert' : 'deaktiviert') + '.');
+      else { toast('Fehler beim Umschalten.', true); }
+      loadMesseverkehr();
+    });
+
+    document.getElementById('mvEinstellungenSaveBtn').addEventListener('click', async () => {
+      const min_fluege = parseInt(document.getElementById('mvMin').value, 10);
+      const max_fluege = parseInt(document.getElementById('mvMax').value, 10);
+      const staffelung_min = parseInt(document.getElementById('mvStaffelung').value, 10);
+      if (Number.isNaN(min_fluege) || Number.isNaN(max_fluege) || Number.isNaN(staffelung_min)) {
+        toast('Bitte alle drei Felder ausfuellen.', true); return;
+      }
+      const res = await api('PUT', '/api/admin/messeverkehr/einstellungen',
+        { min_fluege, max_fluege, staffelung_min });
+      if (res && res.ok) toast('Einstellungen gespeichert.');
+      else {
+        let detail = 'Fehler beim Speichern.';
+        try { detail = ((await res.clone().json()) || {}).detail || detail; } catch {}
+        toast(detail, true);
+      }
+    });
+
+    document.getElementById('mvCidAddBtn').addEventListener('click', async () => {
+      const cidRaw = document.getElementById('mvCidInput').value.trim();
+      const von = document.getElementById('mvCidVon').value.trim();
+      const cid = parseInt(cidRaw, 10);
+      if (!cidRaw || Number.isNaN(cid)) { toast('Gueltige CID eingeben.', true); return; }
+      const res = await api('POST', '/api/admin/messeverkehr/erlaubt', { cid, von: von || null });
+      if (!res || !res.ok) { toast('Fehler beim Hinzufuegen.', true); return; }
+      document.getElementById('mvCidInput').value = '';
+      document.getElementById('mvCidVon').value = '';
+      toast('CID freigeschaltet.');
+      loadMesseverkehr();
+    });
+
+    async function mvCidEntfernen(cid) {
+      const ok = await confirmCritical('CID entfernen?',
+        `CID ${cid} sieht den Messeverkehr danach nicht mehr. Fortfahren?`, 'Entfernen', true);
+      if (!ok) return;
+      const res = await api('DELETE', '/api/admin/messeverkehr/erlaubt/' + encodeURIComponent(cid));
+      if (!res || !res.ok) { toast('Fehler beim Entfernen.', true); return; }
+      toast('CID entfernt.');
+      loadMesseverkehr();
+    }
+
+    document.getElementById('mvAusschlussSaveBtn').addEventListener('click', async () => {
+      const callsigns = document.getElementById('mvAusschlussText').value
+        .split('\n').map(s => s.trim()).filter(Boolean);
+      const res = await api('PUT', '/api/admin/messeverkehr/ausschluss', { callsigns });
+      if (res && res.ok) { toast('Ausschlussliste gespeichert (' + callsigns.length + ' Callsign(s)).'); loadMesseverkehr(); }
+      else { toast('Fehler beim Speichern.', true); }
     });
 
     // ====================================================================
@@ -6602,7 +6748,7 @@
         karten:       function () { loadAirportLinks(); loadDfsCharts(); },
         mitteilungen: function () { loadBanner(); },
         bruegge:      null,   // `bgStart()` holt beim ersten Mal selbst, siehe `_tabTakt`
-        betrieb:      function () { loadForumLogin(); },
+        betrieb:      function () { loadForumLogin(); loadMesseverkehr(); },
       })[tab];
     }
 

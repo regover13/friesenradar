@@ -299,3 +299,18 @@ def test_freies_callsign_manchmal_mit_n_suffix():
     ergebnisse = [_freies_callsign(set()) for _ in range(200)]
     mit_n = [k for k in ergebnisse if k.endswith("N")]
     assert 10 < len(mit_n) < 100, len(mit_n)
+
+
+def test_pilotenname_endet_immer_auf_heimatflugplatz(conn):
+    """Nutzerfund 27.09.2026 (Screenshot der Live-Liste): echte Namen bei FriesenSpy tragen
+    IMMER den Heimatflugplatz (ICAO) am Ende, z.B. "Tobias EDKB" -- manchmal nur Vorname,
+    aber nie ohne den Platz. Ohne den Platz fielen die erfundenen Namen sofort auf."""
+    _seed_historischer_flug(conn)
+    jetzt = datetime(2026, 11, 21, 10, 0, 0, tzinfo=timezone.utc)
+    ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
+    conn.commit()
+    for flug in ergebnis:
+        teile = flug["name"].split()
+        assert len(teile) >= 2, flug["name"]
+        heimat = teile[-1]
+        assert len(heimat) == 4 and heimat.isalpha() and heimat.isupper(), flug["name"]
