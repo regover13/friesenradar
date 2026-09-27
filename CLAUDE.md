@@ -238,6 +238,15 @@ mkdir -p /opt/friesenspy/data
   Buttons in eine eigene Zeile UNTER die Daten zu legen (`colspan`), statt in eine Spalte ganz
   rechts, die sonst erst nach Scrollen erreichbar ist (Erkennungslücken-Muster).
 
+- **Tabellen behalten beim Neubau ihre Scrollstellung — automatisch, solange sie in
+  `.live-table-wrap`/`.table-scroll` stehen** (15.24.0, `_scrollStellungHalten`). Ein
+  MutationObserver setzt die gemerkte Stellung am neu eingesetzten Wrapper wieder; Schlüssel ist
+  das nächste Element mit `id` plus die Nummer des Wrappers darin. Ein Renderer muss dafür nichts
+  tun. **Wer aber einen neuen selbsttätigen Takt baut** (`setInterval`, SSE, Nachlade-Timer),
+  hüllt ihn in `_imTakt(fn)` bzw. ruft `_wennFingerFrei(fn)` — sonst baut er die Tabelle mitten
+  in der Wischbewegung um und würgt sie ab. Nutzer-Fund 27.09.2026: Die Live-Tabelle sprang auf
+  dem Handy alle paar Sekunden an den Anfang. `tests/test_scrollstellung.py` listet die Takte.
+
 - **Eine Geste, die auf dem ganzen Dokument lauscht, muss Karte und Scroll-Bereiche
   aussparen.** Das Herunterziehen zum Aktualisieren (`_ziehErlaubt`, v14.20.0) hängt an
   `document` und feuert damit über jedem Element. Auf dem Karten-Tab steht die Seite *immer*

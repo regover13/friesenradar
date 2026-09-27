@@ -53,14 +53,14 @@ def test_der_takt_laeuft_und_haelt_einen_aussetzer_aus():
     assert "fetch('/api/reddung/events')" in rumpf
     fang = rumpf.index("catch")
     assert rumpf.index("return", fang) < rumpf.index("_reddungBannerZeigen()")
-    assert "setInterval(_reddungTakt, 30000)" in INDEX
+    assert "setInterval(_imTakt(_reddungTakt), 30000)" in INDEX
     assert "_reddungTakt();" in _funktion("alleDatenNeuLaden")
 
 
 def test_die_zustaende_stehen_vor_dem_ersten_aufruf():
     """⚠ Ein `let` hinter seinem ersten Aufruf auf oberster Ebene legt die GANZE Seite lahm
     (TDZ) -- und `node --check` findet das nicht."""
-    erster_aufruf = INDEX.index("setInterval(_reddungTakt, 30000)")
+    erster_aufruf = INDEX.index("setInterval(_imTakt(_reddungTakt), 30000)")
     assert INDEX.index("let _reddungListe") < erster_aufruf
 
 
@@ -183,7 +183,7 @@ def test_die_karte_holt_sich_die_ebene_beim_oeffnen():
 
 
 def test_die_kartenzustaende_stehen_vor_dem_ersten_aufruf():
-    erster_aufruf = INDEX.index("setInterval(_reddungTakt, 30000)")
+    erster_aufruf = INDEX.index("setInterval(_imTakt(_reddungTakt), 30000)")
     for name in ("let _reddungGruppe", "const _reddungZeichnung",
                  "const _reddungRasterFertig", "let _reddungAbgewaehlt", "let _reddungSelbst"):
         assert INDEX.index(name) < erster_aufruf, name
@@ -248,7 +248,7 @@ def test_teilen_kopiert_den_link_wie_bei_bummel_und_kutter():
 
 @pytest.mark.skipif(not _NODE, reason="node fehlt")
 def test_fuer_forum_kopieren_steht_in_der_bilanz_auch_nach_dem_ende():
-    quelle = ("function escHtml(s){return String(s);}\nfunction icon(){return '';}\n"
+    quelle = ("function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\nfunction icon(){return '';}\n"
               "function _fmtMin(m){return m+' min';}\n"
               + _funktion("_reddungZeitfenster") + _funktion("_reddungBalken")
               + _funktion("_reddungMarkenHtml") + _funktion("_reddungBilanzHtml"))
@@ -298,7 +298,7 @@ def test_der_teilen_text_unterscheidet_noch_nicht_und_nicht_gefunden():
 
 
 def test_die_zustaende_der_bilanz_stehen_vor_dem_ersten_aufruf():
-    assert INDEX.index("let _reddungOffenId") < INDEX.index("setInterval(_reddungTakt, 30000)")
+    assert INDEX.index("let _reddungOffenId") < INDEX.index("setInterval(_imTakt(_reddungTakt), 30000)")
 
 
 def test_die_readme_beschreibt_die_bilanz():
@@ -314,7 +314,7 @@ def test_nach_der_rettung_steht_nicht_mehr_laeuft_gerade():
     """Review W1 (Opus): Nach der Einlieferung stand bis dtend weiter „läuft gerade" --
     bei Event 2 am 20.09.2026 waeren das 93 Minuten gewesen. Der Server behandelt ein
     aufgeloestes Event laengst nicht mehr als laufend (/api/me/reddung)."""
-    quelle = ("function escHtml(s){return String(s);}\nfunction icon(){return '';}\n"
+    quelle = ("function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\nfunction icon(){return '';}\n"
               "var _reddungMeinStatus = null;\n"
               + _funktion("_reddungBalken") + _funktion("_reddungMarkenHtml")
               + _funktion("_reddungStatusZeile") + _funktion("_reddungBannerBlock"))
@@ -368,7 +368,7 @@ def test_die_marken_nennen_den_retter_nur_einmal():
     """*„Aufnehmendem und Einlieferndem? Das ist doch immer derselbe"* -- ja: Der Poller setzt
     `eingeliefert_von` ausnahmslos auf `aufgenommen_von` (eingeliefert wird durch dessen
     Landung). Zweimal denselben Namen zu nennen, liest sich wie zwei Leute."""
-    quelle = "function escHtml(s){return String(s);}\n" + _funktion("_reddungMarkenHtml")
+    quelle = "function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\n" + _funktion("_reddungMarkenHtml")
     html = _node(quelle, f"_reddungMarkenHtml({json.dumps(_MARKEN)})")
     assert html.count("Wolfgang") == 1 and "EDWF" in html and "19:50" in html
     assert "Stefan" in html
@@ -462,7 +462,7 @@ def test_das_raster_wird_nur_bei_sichtbarer_karte_geholt():
 
 
 def test_die_neuen_zustaende_stehen_vor_dem_ersten_aufruf():
-    erster_aufruf = INDEX.index("setInterval(_reddungTakt, 30000)")
+    erster_aufruf = INDEX.index("setInterval(_imTakt(_reddungTakt), 30000)")
     for name in ("let _reddungTaktNr", "const _reddungRasterNr", "let _reddungListeGeladen"):
         assert INDEX.index(name) < erster_aufruf, name
 
@@ -539,7 +539,7 @@ def test_der_live_block_zeigt_den_eigenen_stand():
     """Nicht wegklickbar: Er steht im Block, solange die FriesenReddung laeuft."""
     block = _ohne_kommentare(_funktion("_reddungBannerBlock"))
     assert "_reddungStatusZeile(_reddungMeinStatus)" in block
-    assert INDEX.index("let _reddungMeinStatus") < INDEX.index("setInterval(_reddungTakt, 30000)")
+    assert INDEX.index("let _reddungMeinStatus") < INDEX.index("setInterval(_imTakt(_reddungTakt), 30000)")
 
 
 def test_der_hinweis_nennt_vatsim_und_kommt_bei_neuem_zustand_wieder():

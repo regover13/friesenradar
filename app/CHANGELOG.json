@@ -1,5 +1,16 @@
 [
   {
+    "version": "15.24.0",
+    "date": "2026-09-27",
+    "highlight": false,
+    "title": "Pilotennamen führen zur Statistik, Tabellen springen nicht mehr",
+    "items": [
+      "👤 **Jeder Pilotenname ist jetzt ein Link auf seine Statistik**: in der Live-Liste, bei den Flugplänen, im Karten-Popup, im Muster-Fenster, in der Event-Suche und bei Bummel, Kutter und Reddung. Beim Kutter ist es das Rufzeichen. Dein eigener Name oben im Kopf führt zu deiner Statistik. Ein Klick öffnet die Details des Piloten mit Flugliste und Orden.",
+      "📱 **Seitlich verschobene Tabellen bleiben stehen, wenn sie sich aktualisieren.** Bisher sprang etwa die Live-Tabelle auf dem Handy alle paar Sekunden zurück an den Anfang. Das gilt jetzt in allen Ansichten, auch in den Statistiken, den Piloten-Details und den Events, und auch beim Sortieren.",
+      "👆 **Solange dein Finger auf einer Tabelle liegt, wartet die Aktualisierung**, bis die Tabelle ausgerollt ist. So bricht keine Wischbewegung mehr mittendrin ab."
+    ]
+  },
+  {
     "version": "15.23.3",
     "date": "2026-09-27",
     "highlight": false,

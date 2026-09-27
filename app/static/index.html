@@ -3401,6 +3401,14 @@
       letter-spacing: 0.1em;
     }
 
+    /* Pilotenname als Verweis auf seine Statistik (pilotLinkHtml). Blau = klickbar. Steht
+       hinter .pilot-card-cid, damit der Name auf der Event-Karte ebenfalls blau wird. */
+    .pilot-link {
+      color: var(--green);
+      cursor: pointer;
+    }
+    .pilot-link:hover { text-decoration: underline; }
+
     /* Statistiken Disclaimer */
     .stats-disclaimer {
       font-family: var(--text-display);
@@ -8256,7 +8264,8 @@ function fsRefreshSession() {
         // Der Sender fuer Issue #23 haengt an der Anmeldung -- ohne cid meldet der Server
         // ohnehin "aus" zurueck. Er startet hoechstens einmal (s. _kbStarten).
         if (_PANEL_MODUS && _meineCid != null) _kbStarten();
-        document.getElementById('userName').textContent = d.name || ('CID ' + (d.cid || '—'));
+        // Der eigene Name fuehrt wie jeder Pilotenname zur eigenen Statistik (pilotLinkHtml).
+        document.getElementById('userName').innerHTML = pilotLinkHtml(d.name || ('CID ' + (d.cid || '—')), d.cid);
         document.getElementById('userBox').hidden = false;
         // Sichtbarkeits-Panel nur für eingeloggte Mitglieder (CID bekannt).
         const vs = document.getElementById('visibility-section');
@@ -8671,8 +8680,7 @@ function connectSSE() {
       if (msg.type === 'positions') {
         setSSEStatus('connected');
         liveData = msg.data;
-        renderLiveTable(msg.data);
-        updateMap(msg.data);
+        _wennFingerFrei(_liveZeichnen);
         // Prefiles/TeamSpeak NICHT hier mitfeuern — sie laufen auf eigenem, langsamerem
         // Takt (siehe setInterval unten). Sonst feuerte das Paar bei jedem 15s-Push und
         // sprengte zusammen mit mehreren Geräten pro IP das geteilte /api/-Rate-Limit (429).
@@ -8804,6 +8812,134 @@ function fmtRouteHtml(dep, arr, opts) {
 }
 
 // ==========================================================================
+//  TABELLEN BEHALTEN BEIM AKTUALISIEREN IHRE SCROLLSTELLUNG
+// ==========================================================================
+// Nutzer-Fund 27.09.2026: Auf dem Smartphone sprang die waagerecht verschobene Live-Tabelle
+// alle paar Sekunden zurueck an den Anfang. Jede Aktualisierung baut eine Tabelle per
+// innerHTML neu, und der neue Wrapper beginnt wieder links -- bei der Live-Tabelle gleich
+// dreifach (SSE-Push, Rueckfall-Abruf, 10-s-Anzeigetakt), und ebenso bei jeder anderen
+// Tabelle, die sich selbst auffrischt oder neu sortiert wird.
+//
+// Warum an EINER Stelle und nicht in den Renderern (dasselbe Argument wie beim
+// Panel-Kartenlayout): Tabellen entstehen an Dutzenden Stellen, und die naechste neue
+// vergaesse man zwangslaeufig. Ein Scroll-Lauscher merkt sich die Stellung jedes Wrappers,
+// ein MutationObserver setzt sie beim neu eingesetzten wieder. Der Beobachter laeuft als
+// Mikrotask vor dem naechsten Zeichnen -- der Sprung nach links ist also nie zu sehen.
+//
+// Der Schluessel ist das naechste Element mit id plus die laufende Nummer des Wrappers darin.
+// Damit findet die neu gebaute Tabelle ihre Vorgaengerin, und zwei Tabellen im selben
+// Bereich (Bummel-Teilnehmer und -Wertung) kommen sich nicht in die Quere.
+//
+// Die Stellung allein reicht nicht: Ein Umbau MITTEN in der Wischbewegung wuergt sie ab, weil
+// das beruehrte Element aus dem DOM verschwindet. Deshalb wartet jeder selbsttaetige Takt
+// (_imTakt, _wennFingerFrei), solange ein Finger auf einer Tabelle liegt, und laeuft einmal
+// nach, wenn sie ausgerollt ist. Was der Nutzer selbst ausloest (Sortieren, Aufklappen),
+// wartet nie -- der Klick kommt ohnehin erst nach dem Loslassen.
+const _SCROLL_WRAPS = '.live-table-wrap, .table-scroll';
+const _scrollStand = {};                 // Schluessel -> [scrollLeft, scrollTop]
+const _FINGER_NACHLAUF_MS = 350;         // so lange ohne Scrollen gilt die Tabelle als ausgerollt
+// touchend erreicht das Dokument nicht, wenn sein Ziel inzwischen entfernt wurde. Ohne
+// Obergrenze bliebe die Seite dann stehen, bis zur naechsten Beruehrung.
+const _FINGER_HOECHSTENS_MS = 15000;
+let _fingerGriff = 0;                    // 0 frei, 1 Finger liegt auf, 2 Tabelle rollt aus
+let _fingerSeit = 0;
+let _fingerUhr = null;
+const _taktWartet = new Set();
+
+function _scrollSchluessel(wrap) {
+  const anker = wrap.parentElement && wrap.parentElement.closest('[id]');
+  if (!anker) return null;
+  const alle = anker.querySelectorAll(_SCROLL_WRAPS);
+  for (let i = 0; i < alle.length; i++) if (alle[i] === wrap) return anker.id + '|' + i;
+  return null;
+}
+
+function _scrollMerken(e) {
+  const w = e.target;
+  if (!w || w.nodeType !== 1 || !w.matches(_SCROLL_WRAPS)) return;
+  const k = _scrollSchluessel(w);
+  if (k) _scrollStand[k] = [w.scrollLeft, w.scrollTop];
+  // Rollt die Tabelle nach dem Loslassen noch aus, verlaengert jeder Schritt die Wartezeit.
+  if (_fingerGriff === 2) {
+    clearTimeout(_fingerUhr);
+    _fingerUhr = setTimeout(_fingerFrei, _FINGER_NACHLAUF_MS);
+  }
+}
+
+function _scrollZurueck(wurzel) {
+  if (!wurzel || wurzel.nodeType !== 1) return;
+  const wraps = [];
+  if (wurzel.matches(_SCROLL_WRAPS)) wraps.push(wurzel);
+  // NodeList ist im Kniebrett nicht iterierbar (s. _initPanelTranslit) -- daher der Index.
+  const innen = wurzel.querySelectorAll(_SCROLL_WRAPS);
+  for (let i = 0; i < innen.length; i++) wraps.push(innen[i]);
+  for (let i = 0; i < wraps.length; i++) {
+    const k = _scrollSchluessel(wraps[i]);
+    const s = k && _scrollStand[k];
+    if (!s) continue;
+    if (s[0]) wraps[i].scrollLeft = s[0];
+    if (s[1]) wraps[i].scrollTop = s[1];
+  }
+}
+
+function _fingerRunter(e) {
+  const ziel = e.target;
+  if (!ziel || !ziel.closest || !ziel.closest(_SCROLL_WRAPS)) return;
+  clearTimeout(_fingerUhr);
+  _fingerGriff = 1;
+  _fingerSeit = Date.now();
+}
+
+function _fingerHoch() {
+  if (_fingerGriff !== 1) return;
+  _fingerGriff = 2;
+  clearTimeout(_fingerUhr);
+  _fingerUhr = setTimeout(_fingerFrei, _FINGER_NACHLAUF_MS);
+}
+
+function _fingerFrei() {
+  clearTimeout(_fingerUhr);
+  _fingerGriff = 0;
+  // Aufgelaufene Takte laufen je EINMAL nach -- drei verpasste Auffrischungen sind ein Neubau.
+  const nachholen = Array.from(_taktWartet);
+  _taktWartet.clear();
+  for (const fn of nachholen) { try { fn(); } catch (_) {} }
+}
+
+// Fuehrt fn aus, sobald kein Finger mehr auf einer Tabelle liegt -- jetzt oder nachher.
+function _wennFingerFrei(fn) {
+  if (!_fingerGriff) { fn(); return; }
+  _taktWartet.add(fn);
+  // Haelt die Sperre zu lange, ist das Loslassen verloren gegangen: jetzt alles nachholen,
+  // fn eingeschlossen -- ueber das Set nur einmal, auch wenn es schon wartete.
+  if (Date.now() - _fingerSeit > _FINGER_HOECHSTENS_MS) _fingerFrei();
+}
+
+// Fuer setInterval: jeder Takt wartet auf den Finger. fn bleibt dasselbe Objekt, damit
+// aufgelaufene Takte im Set zu einem zusammenfallen.
+function _imTakt(fn) {
+  return function () { _wennFingerFrei(fn); };
+}
+
+function _scrollStellungHalten() {
+  document.addEventListener('scroll', _scrollMerken, true);
+  const leise = { capture: true, passive: true };
+  document.addEventListener('touchstart', _fingerRunter, leise);
+  document.addEventListener('touchend', _fingerHoch, leise);
+  document.addEventListener('touchcancel', _fingerHoch, leise);
+  // Am Rechner: die Scrollleiste mit der Maus ziehen.
+  document.addEventListener('mousedown', _fingerRunter, leise);
+  document.addEventListener('mouseup', _fingerHoch, leise);
+  if (typeof MutationObserver !== 'function') return;
+  new MutationObserver((eintraege) => {
+    for (let j = 0; j < eintraege.length; j++) {
+      const neu = eintraege[j].addedNodes;
+      for (let i = 0; i < neu.length; i++) _scrollZurueck(neu[i]);
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+}
+
+// ==========================================================================
 //  LIVE TAB
 // ==========================================================================
 // Ein verdecktes Element neu zu zeichnen kostet dieselbe Arbeit wie ein sichtbares und
@@ -8859,7 +8995,7 @@ function renderLiveTable(pilots) {
     html += `
           <tr data-callsign="${escHtml(p.callsign)}" ${isNew ? 'class="new-row"' : ''}>
             <td class="td-callsign" data-cs="${escHtml(p.callsign || '')}">${escHtml((p.callsign || '').toUpperCase())}${listenLinkIcon(p.callsign)}</td>
-            <td>${escHtml(p.name || '—')}</td>
+            <td>${p.name ? pilotLinkHtml(p.name, p.cid) : '—'}</td>
             <td class="mono">${acLink(p.aircraft)}</td>
             <td class="td-route td-callsign-link text-green" data-cs="${escHtml(p.callsign || '')}">${fmtRouteHtml(p.departure, p.arrival)}</td>
             <td class="td-alt">${fmtAlt(p.altitude)}</td>
@@ -9951,7 +10087,7 @@ async function openAcModal(code) {
 
   if (d.top && d.top.length) {
     h += '<div class="ac-block"><h4>Am häufigsten</h4>'
-       + d.top.map(t => '<div>' + escHtml(t.name || t.callsign || ('CID ' + t.cid))
+       + d.top.map(t => '<div>' + pilotLinkHtml(t.name || t.callsign || ('CID ' + t.cid), t.cid)
            + ' — ' + t.n + '</div>').join('') + '</div>';
   }
 
@@ -10038,7 +10174,7 @@ function renderPrefiles(data) {
       : '';
     html += `<tr data-idx="${i}" style="cursor:pointer;">
       <td class="mono">${escHtml(p.callsign)}</td>
-      <td>${escHtml(p.name || String(p.cid || ''))}</td>
+      <td>${pilotLinkHtml(p.name || String(p.cid || ''), p.cid)}</td>
       <td class="mono text-green">${route}</td>
       <td class="mono text-label">${dep}</td>
       <td style="text-align:center">${mapBtn}</td>
@@ -10446,7 +10582,7 @@ function renderBummelParticipants(view) {
       const miss = (p.missing || []).length ? ` <span class="bi-missing">(fehlt ${escHtml((p.missing || []).join(', '))})</span>` : '';
       const st = p.in_progress ? icon('plane-departure') + ' unterwegs' : ((p.missing || []).length ? 'unvollständig' : 'alle Etappen');
       html += `<tr>
-        <td>${escHtml(p.name || ('CID ' + p.cid))}</td>
+        <td>${pilotLinkHtml(p.name || ('CID ' + p.cid), p.cid)}</td>
         <td class="mono text-label">${escHtml(p.cid)}</td>
         <td class="mono">${escHtml(p.callsign || '')}</td>
         <td class="mono">${acLink(p.aircraft)}</td>
@@ -10465,7 +10601,7 @@ function renderBummelParticipants(view) {
   if (flying.length) {
     html += '<div class="bummel-incomplete"><strong>' + icon('plane-departure') + ' Gerade unterwegs:</strong><br>';
     html += flying.map(p =>
-      `${escHtml(p.name || p.callsign || ('CID ' + p.cid))} — ${escHtml(p.departure)} - ${escHtml(p.arrival) || 'in der Luft'}`
+      `${pilotLinkHtml(p.name || p.callsign || ('CID ' + p.cid), p.cid)} — ${escHtml(p.departure)} - ${escHtml(p.arrival) || 'in der Luft'}`
     ).join('<br>');
     html += '</div>';
   }
@@ -10539,7 +10675,7 @@ function renderBummelStandings(data, inProgress) {
       const medal = e.rank === 1 ? icon('trophy') + ' ' : '';
       html += `<tr class="${cls}">
         <td class="mono">${e.rank}</td>
-        <td>${medal}${escHtml(e.name || e.callsign || ('CID ' + e.cid))}</td>
+        <td>${medal}${pilotLinkHtml(e.name || e.callsign || ('CID ' + e.cid), e.cid)}</td>
         <td class="mono">${acLink(e.aircraft)}</td>
         <td class="mono">${e.leg_count != null ? e.leg_count : '—'}</td>
         <td class="mono">${_fmtBlockSek(e.total_sec, e.total_min)}</td>
@@ -10555,7 +10691,7 @@ function renderBummelStandings(data, inProgress) {
   if (inProgress && inProgress.length) {
     html += '<div class="bummel-incomplete"><strong>' + icon('plane-departure') + ' Gerade unterwegs:</strong><br>';
     html += inProgress.map(p =>
-      `${escHtml(p.name || p.callsign || ('CID ' + p.cid))} — ${escHtml(p.departure)} - ${escHtml(p.arrival) || 'in der Luft'}`
+      `${pilotLinkHtml(p.name || p.callsign || ('CID ' + p.cid), p.cid)} — ${escHtml(p.departure)} - ${escHtml(p.arrival) || 'in der Luft'}`
     ).join('<br>');
     html += '</div>';
   }
@@ -10565,7 +10701,7 @@ function renderBummelStandings(data, inProgress) {
     html += data.incomplete.map(e => {
       const visited = (e.visited || []).join(', ') || '—';
       const missing = (e.missing || []).join(', ');
-      return `${escHtml(e.name || e.callsign || ('CID ' + e.cid))} — geflogen: ${escHtml(visited)}` +
+      return `${pilotLinkHtml(e.name || e.callsign || ('CID ' + e.cid), e.cid)} — geflogen: ${escHtml(visited)}` +
              (missing ? ` <span class="bi-missing">(fehlt: ${escHtml(missing)})</span>` : '') +
              ` ${_bummelBadgeLinks(data.id, e.cid)}`;
     }).join('<br>');
@@ -10590,7 +10726,7 @@ async function fetchBummelActive() {
     html += `<div class="bb-sub">Strecke: ${escHtml((v.route || []).join(' - '))}</div>`;
     html += `<div class="bb-sub">${v.participant_count} Teilnehmer · ${icon('lock')} Ergebnisse nach Renn-Ende</div>`;
     if (v.in_progress && v.in_progress.length) {
-      html += `<div class="bb-sub">${icon('plane-departure')} Unterwegs: ${v.in_progress.map(p => escHtml(p.name || p.callsign || ('CID ' + p.cid))).join(', ')}</div>`;
+      html += `<div class="bb-sub">${icon('plane-departure')} Unterwegs: ${v.in_progress.map(p => pilotLinkHtml(p.name || p.callsign || ('CID ' + p.cid), p.cid)).join(', ')}</div>`;
     }
     if (v.id != null) {
       html += `<div style="margin-top:8px;"><button class="btn-share" onclick="openBummelById(${v.id})">${emoji('checkered-flag')} Zum Bummel</button></div>`;
@@ -10656,7 +10792,7 @@ function _kutterBannerBlock(d) {
             ? '🅿️ lädt in ' + _kesc(p.place)
             : '🅿️ steht in ' + _kesc(p.place));
       active.push({
-        callsign: p.callsign, aircraft: p.aircraft,
+        cid: p.cid, callsign: p.callsign, aircraft: p.aircraft,
         kg: kg, lines: p.cargo_lines || [],
         // Strecke-START = letzter Landeplatz (bleibt im Flug erhalten, wechselt bei jeder
         // Zwischenlandung). Strecke-ZIEL nur MIT Ware bekannt (Ziel der Ware = Event-Ziel);
@@ -10690,7 +10826,7 @@ function _kutterBannerBlock(d) {
           ? `${_kesc(a.dep)} - ${a.dest ? _kesc(a.dest) : '—'}`
           : '—';
         // Callsign neutral (keine Link-Farbe — es ist keiner; Links sind hier nur Pin + Zum Kutter).
-        return `<tr><td class="mono">${_kesc(a.callsign || '—')}</td><td class="mono">${acLink(a.aircraft)}</td>`
+        return `<tr><td class="mono">${a.callsign ? pilotLinkHtml(a.callsign, a.cid) : '—'}</td><td class="mono">${acLink(a.aircraft)}</td>`
           + `<td class="${loadCls}">${load}</td><td class="mono">${strecke}</td><td>${a.status}</td>${map}</tr>`;
       }).join('');
       html += '<div class="table-scroll"><table class="kutter-feed"><thead><tr><th>Callsign</th><th>Muster</th>'
@@ -11010,6 +11146,44 @@ async function openPilotFromEvents(cid) {
   await openPilotFlights(cid);
 }
 
+// Pilotennamen fuehren in die Statistik des Piloten (Nutzerwunsch 27.09.2026). Ueberall, wo
+// ein Pilot mit CID steht, erzeugt pilotLinkHtml den Verweis; geoeffnet wird er von EINEM
+// delegierten Lauscher am Dokument (_pilotLinkKlick). Damit ueberlebt er jeden innerHTML-
+// Neubau, und kein Renderer muss Handler anhaengen.
+function pilotLinkHtml(name, cid) {
+  const text = escHtml(name);
+  const n = Number(cid);
+  if (!n) return text;
+  return `<span class="pilot-link" data-pilot-cid="${n}" title="Statistik öffnen">${text}</span>`;
+}
+
+// Anders als openPilotFromEvents bleibt der gewaehlte Zeitraum stehen. Nur wenn der Pilot
+// darin nicht vorkommt, geht es auf das Jahr -- openPilotFlights bricht sonst still ab.
+async function openPilotStats(cid) {
+  const ac = document.getElementById('ac-modal');
+  if (ac && ac.classList.contains('open')) closeAcModal();
+  document.querySelector('[data-tab="statistiken"]').click();
+  await fetchStats();
+  if (!pilotStatsMap[cid]) {
+    const sel = document.getElementById('stats-days');
+    if (sel) sel.value = '365';
+    await fetchStats();
+  }
+  await openPilotFlights(cid);
+  window.scrollTo(0, 0);
+}
+
+// Einfangphase und stopPropagation: Steht der Name in einer Zeile mit eigenem Klick
+// (Flugplaene -> Flugplan-Fenster), soll nur die Statistik aufgehen.
+function _pilotLinkKlick(e) {
+  const el = e.target && e.target.closest && e.target.closest('[data-pilot-cid]');
+  if (!el) return;
+  e.stopPropagation();
+  e.preventDefault();
+  openPilotStats(Number(el.dataset.pilotCid));
+}
+document.addEventListener('click', _pilotLinkKlick, true);
+
 function closePilotFlights() {
   clearTimeout(_flightsRefreshTimer);
   currentStatsCid = null;
@@ -11044,7 +11218,9 @@ function scheduleFlightsRefresh(cid, pilotName, delayMs, fullLoad) {
       const res = await fetch(url);
       const flights = await res.json();
       const status = res.headers.get('X-StatSim-Status') || 'no-key';
-      renderFlightsList(cid, pilotName, flights, status);
+      _wennFingerFrei(() => {
+        if (currentStatsCid === cid) renderFlightsList(cid, pilotName, flights, status);
+      });
       if (status === 'updating') scheduleFlightsRefresh(cid, pilotName, 15000, fullLoad);
     } catch (_) {}
   }, delayMs);
@@ -13977,7 +14153,7 @@ function buildPopupHtml(roh) {
     : '';
   return `
     <div class="popup-callsign">${escHtml((p.callsign || '').toUpperCase())}${listenLinkIcon(p.callsign)}</div>
-    <div class="popup-row">Pilot: <span>${escHtml(p.name || '—')}</span></div>
+    <div class="popup-row">Pilot: <span>${p.name ? pilotLinkHtml(p.name, p.cid) : '—'}</span></div>
     <div class="popup-row">Muster: <span>${acLink(p.aircraft)}</span></div>
     <div class="popup-row">Flugplan: <span>${fmtRouteHtml(p.departure, p.arrival)}</span></div>
     <div class="popup-row">Höhe: <span>${fmtAlt(p.altitude)}</span></div>
@@ -14841,7 +15017,7 @@ function renderEventsResults(data, icaoStr, radiusKm, startVal, endVal) {
           <div class="pilot-card-dot" style="background:${color};"></div>
           <div>
             <span class="pilot-card-callsign" style="cursor:pointer;" onclick="openPilotFromEvents(${p.cid})" title="Piloten-Detail öffnen">${escHtml(callsign)}</span>
-            ${p.name ? `<span class="pilot-card-cid" style="margin-left:8px;">${escHtml(p.name)}</span>` : ''}
+            ${p.name ? `<span class="pilot-card-cid pilot-link" style="margin-left:8px;" onclick="openPilotFromEvents(${p.cid})" title="Piloten-Detail öffnen">${escHtml(p.name)}</span>` : ''}
             <span class="pilot-card-cid" style="margin-left:8px;">CID ${p.cid}</span>
             <span class="pilot-card-detail" style="margin-left:8px;">${flights.length} ${flightWord}</span>
             ${_bummelStandingBadge(p.cid)}
@@ -15345,7 +15521,7 @@ function _kutterBadgeSection(d) {
   const parts = (d.participants || []).filter(p => p.contributed !== false);
   if (!d.summarized_at || !parts.length) return '';
   const rows = parts.map(p =>
-    '<div class="kutter-badge-row">' + _kesc(p.callsign || ('CID ' + p.cid)) + ' — '
+    '<div class="kutter-badge-row">' + pilotLinkHtml(p.callsign || ('CID ' + p.cid), p.cid) + ' — '
       + _kutterBadgeLinks(d.id, p.cid) + '</div>'
   ).join('');
   return '<div class="kutter-badges"><div class="kutter-badges-title">' + icon('medal') + ' Badges</div>' + rows + '</div>';
@@ -15375,7 +15551,7 @@ function _kutterDetailBody(d) {
                  + (f.airborne ? ' ' + icon('plane') : ' 🅿️') + '</td>'
       : f.carried_through ? '<td class="kf-res">' + _kDualKg(f.reserved_kg, f.onboard_reserved_kg) + ' ' + icon('shuffle') + '</td>'
       : '<td class="kf-empty">leer</td>';
-    return '<tr><td>' + t + '</td><td>' + _kesc(f.callsign) + '</td><td>' + acLink(f.aircraft)
+    return '<tr><td>' + t + '</td><td>' + pilotLinkHtml(f.callsign || '', f.cid) + '</td><td>' + acLink(f.aircraft)
       + '</td><td>' + _kesc(f.dep) + ' - ' + _kesc(f.arr) + '</td>' + kg + _kCargoLabel(f) + '</tr>';
   }).join('');
   const feed = '<div class="table-scroll"><table class="kutter-feed"><thead><tr><th>Zeit</th><th>Callsign</th><th>Muster</th>'
@@ -15409,7 +15585,7 @@ async function openKutterDetail(id) {
   // Erst NACH dem Rendern scrollen — vorher stimmen die Höhen nicht (Sprung vom Live-Tab).
   wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
   clearInterval(_kutterPollTimer);
-  _kutterPollTimer = setInterval(_refreshKutterDetail, 25000);
+  _kutterPollTimer = setInterval(_imTakt(_refreshKutterDetail), 25000);
   // Wie beim Bummel: darunter die normale Event-Ansicht (Karte + Piloten des Zeitraums).
   const d = _lastKutterDetail;  // von _refreshKutterDetail gesetzt
   if (d && d.route && d.route.length) {
@@ -15457,7 +15633,7 @@ async function _refreshKutterDetail() {
 // Rauchsaeule im Simulator (Nutzerentscheidung 24.09.2026).
 //
 // ⚠ Alle Zustaende stehen HIER oben -- vor dem ersten Aufruf auf oberster Ebene
-// (`setInterval(_reddungTakt, …)` weiter unten). Ein `let` dahinter legte die Seite lahm.
+// (`setInterval(_imTakt(_reddungTakt), …)` weiter unten). Ein `let` dahinter legte die Seite lahm.
 let _reddungListe = [];          // letzte Antwort von /api/reddung/events
 // Mindestens eine Antwort da? Sonst heisst „fehlt in der Liste" nur „noch nicht geladen".
 let _reddungListeGeladen = false;
@@ -15531,16 +15707,16 @@ function _reddungBalken(pct) {
 function _reddungMarkenHtml(st) {
   const zeit = ts => (ts || '').slice(11, 16) + ' UTC';
   const z = [];
-  if (st.gefunden) z.push(`Gefunden von ${escHtml(st.gefunden.name || '?')} um ${zeit(st.gefunden.ts)}`);
+  if (st.gefunden) z.push(`Gefunden von ${pilotLinkHtml(st.gefunden.name || '?', st.gefunden.cid)} um ${zeit(st.gefunden.ts)}`);
   // Aufnehmen und Einliefern ist immer DERSELBE Pilot: Der Poller setzt `eingeliefert_von`
   // ausnahmslos auf `aufgenommen_von`, eingeliefert wird durch dessen Landung. Deshalb eine
   // Zeile mit einem Namen -- zweimal derselbe liest sich wie zwei Leute.
   if (st.aufgenommen) {
-    let t = `Aufgenommen von ${escHtml(st.aufgenommen.name || '?')} um ${zeit(st.aufgenommen.ts)}`;
+    let t = `Aufgenommen von ${pilotLinkHtml(st.aufgenommen.name || '?', st.aufgenommen.cid)} um ${zeit(st.aufgenommen.ts)}`;
     if (st.eingeliefert) t += `, eingeliefert in ${escHtml(st.eingeliefert.icao || '?')} um ${zeit(st.eingeliefert.ts)}`;
     z.push(t);
   } else if (st.eingeliefert) {
-    z.push(`Eingeliefert in ${escHtml(st.eingeliefert.icao || '?')} von ${escHtml(st.eingeliefert.name || '?')} um ${zeit(st.eingeliefert.ts)}`);
+    z.push(`Eingeliefert in ${escHtml(st.eingeliefert.icao || '?')} von ${pilotLinkHtml(st.eingeliefert.name || '?', st.eingeliefert.cid)} um ${zeit(st.eingeliefert.ts)}`);
   }
   if (!z.length) return '<div class="bb-sub">Noch nicht gefunden.</div>';
   return z.map(t => `<div class="bb-sub">${t}</div>`).join('');
@@ -15882,7 +16058,7 @@ function _reddungBilanzHtml(r) {
           + (vorbei ? '<th>Badge</th>' : '') + '</tr></thead><tbody>';
     piloten.forEach(p => {
       const anteil = st.zellen ? Math.round(100 * p.zellen / st.zellen) : 0;
-      html += `<tr><td>${escHtml(p.name || String(p.cid))}</td><td class="mono">${p.zellen} Zellen</td><td class="mono">${anteil} %</td>`
+      html += `<tr><td>${pilotLinkHtml(p.name || String(p.cid), p.cid)}</td><td class="mono">${p.zellen} Zellen</td><td class="mono">${anteil} %</td>`
             + (vorbei ? `<td>${_reddungHatBadge(st, p) ? _reddungBadgeLinks(r.id, p.cid) : ''}</td>` : '') + '</tr>';
     });
     html += '</tbody></table></div>';
@@ -16301,46 +16477,52 @@ fetchAndRenderTeamspeak();
 // SSE-'positions'-Push gekoppelt. Sonst feuert ein im Hintergrund gepufferter SSE-
 // Rückstau beim Wiederöffnen hunderte Frames auf einmal, was je Frame ein prefiles+
 // teamspeak-Paar auslöste -> 429-Sturm. Diese Daten ändern sich ohnehin nur langsam.
-setInterval(fetchAndRenderPrefiles, 60000);
-setInterval(fetchAndRenderTeamspeak, 30000);
+// Jeder selbsttaetige Takt wartet, solange ein Finger auf einer Tabelle liegt (_imTakt).
+setInterval(_imTakt(fetchAndRenderPrefiles), 60000);
+setInterval(_imTakt(fetchAndRenderTeamspeak), 30000);
 fetchBummelActive();
-setInterval(fetchBummelActive, 60000);  // Bummel-Banner langsam pollen (wie Prefiles)
+setInterval(_imTakt(fetchBummelActive), 60000);  // Bummel-Banner langsam pollen (wie Prefiles)
 fetchKutterActive();
-setInterval(fetchKutterActive, 25000);  // Kutter-Live-Block im Kutter-Detail-Takt (Live-Aktualität)
+setInterval(_imTakt(fetchKutterActive), 25000);  // Kutter-Live-Block im Kutter-Detail-Takt (Live-Aktualität)
 _reddungTakt();
-setInterval(_reddungTakt, 30000);  // FriesenReddung: Live-Block, Karte und Bilanz im Takt des Pollers
+setInterval(_imTakt(_reddungTakt), 30000);  // FriesenReddung: Live-Block, Karte und Bilanz im Takt des Pollers
 // Delegierter Karten-Klick des Kutter-Blocks (überlebt die innerHTML-Refreshs).
 _on(document.getElementById('kutter-banner'), 'click', e => {
   const el = e.target.closest('[data-callsign]');
   if (el) switchToMapAndCenter(el.dataset.callsign);
 });
+_scrollStellungHalten();
 connectSSE();
 initFromUrl();
+
+// Live-Tabelle und Karte aus dem aktuellen Stand zeichnen. Alle drei Wege (SSE-Push,
+// Rueckfall-Abruf, Anzeigetakt) gehen hierueber -- als EIN Funktionsobjekt, damit sie
+// unter dem Finger zu einem einzigen Nachholen zusammenfallen (_wennFingerFrei).
+function _liveZeichnen() {
+  renderLiveTable(liveData);
+  updateMap(liveData);
+}
 
 // Update online times + map every 10s (lokale Re-Render, kein Fetch)
 // Auffrischung der ANZEIGE aus bereits vorhandenen Daten (z. B. "Online seit" laeuft
 // weiter). Kein zweiter Datenabruf -- den macht refreshLiveData unten im 15s-Takt.
 // Beide Aufrufe verlassen sich darauf, dass renderLiveTable/updateMap bei verdeckter
 // Ansicht von selbst nichts tun.
-setInterval(() => {
-  if (liveData.length > 0) {
-    renderLiveTable(liveData);
-    updateMap(liveData);
-  }
-}, 10000);
+setInterval(_imTakt(() => {
+  if (liveData.length > 0) _liveZeichnen();
+}), 10000);
 
 async function refreshLiveData() {
   try {
     const res = await fetch('/api/live');
     const data = await res.json();
     liveData = data;
-    renderLiveTable(data);
-    updateMap(data);
+    _wennFingerFrei(_liveZeichnen);
   } catch (_) {}
 }
 
 // HTTP-Polling alle 15s als Fallback für iOS/PWA (SSE oft unzuverlässig)
-setInterval(refreshLiveData, 15000);
+setInterval(_imTakt(refreshLiveData), 15000);
 
 // ==========================================================================
 //  KARTEN-VOLLBILD (Karte-Tab, Events-Tab, Track-Modal)

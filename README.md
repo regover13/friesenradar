@@ -266,6 +266,10 @@ Jedes Flugzeug-Kürzel ist ein Link — in der Live-Liste, im Karten-Popup, im F
 
 Steht im Flugplan ein anderes Kürzel als das eigentliche Muster, sagt das Fenster es dazu („Flugplan-Kürzel X, gemeint ist Y"). Der Zustand ist teilbar: Der Link trägt das Muster im Hash (`#actype=C172`).
 
+### Piloten-Namen (überall anklickbar)
+
+Jeder Pilotenname ist ein Link auf die Statistik dieses Piloten – auch dein eigener Name oben im Kopf, dazu in der Live-Liste, bei den eingereichten Flugplänen, im Karten-Popup, im Muster-Fenster, in der Event-Suche und in allen Ansichten von FriesenBummel, FriesenKutter und FriesenReddung. Beim Kutter steht statt des Namens das Rufzeichen, und das ist dann der Link. Ein Klick wechselt in den Tab Statistiken und öffnet dort die Details des Piloten mit Flugliste und Orden. Der eingestellte Zeitraum bleibt stehen; kommt der Pilot darin nicht vor, springt er auf 365 Tage.
+
 ---
 
 ## 🏁 FriesenBummel
