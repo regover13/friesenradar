@@ -136,6 +136,10 @@ CREATE TABLE IF NOT EXISTS messeverkehr_erlaubt (
     hinzugefuegt_von TEXT
 );
 
+CREATE TABLE IF NOT EXISTS messeverkehr_ausschluss_callsigns (
+    callsign TEXT PRIMARY KEY
+);
+
 CREATE TABLE IF NOT EXISTS statsim_cache (
     statsim_id   INTEGER PRIMARY KEY,
     cid          INTEGER NOT NULL,
@@ -1351,6 +1355,7 @@ _MESSEVERKEHR_MIGRATIONS = [
     # werden vor der Auslieferung an Client/Frontend gefiltert (app/messeverkehr.py,
     # _INTERNE_REPLAY_SPALTEN).
     "ALTER TABLE messeverkehr_flights ADD COLUMN quelle_flight_id INTEGER",
+    "ALTER TABLE messeverkehr_flights ADD COLUMN quelle_cid INTEGER",
     "ALTER TABLE messeverkehr_flights ADD COLUMN quelle_logon_time TEXT",
     "ALTER TABLE messeverkehr_flights ADD COLUMN quelle_logoff_time TEXT",
 ]
@@ -12244,8 +12249,14 @@ def kniebrett_modi_alle(conn: sqlite3.Connection) -> dict[int, str]:
 # ---------------------------------------------------------------------------
 
 def get_messeverkehr_positions(conn: sqlite3.Connection) -> list[dict]:
-    """Aktuelle simulierte Flüge — gleiche Feldform wie get_live_positions()."""
-    rows = conn.execute("SELECT * FROM messeverkehr_flights").fetchall()
+    """Aktuelle simulierte Flüge — gleiche Feldform wie get_live_positions().
+
+    ORDER BY cid: explizit, nicht der zufälligen SQLite-Scan-Reihenfolge überlassen (cid ist
+    zwar als INTEGER PRIMARY KEY ein Rowid-Alias und damit ohnehin natürlich sortiert, aber
+    das ist ein interner SQLite-Zufall, kein verbriefter Vertrag). Nutzerfund 27.09.2026: die
+    Reihenfolge in der Live-Liste sollte über Poll-Zyklen stabil bleiben.
+    """
+    rows = conn.execute("SELECT * FROM messeverkehr_flights ORDER BY cid").fetchall()
     return [_row_to_dict(r) for r in rows]
 
 
@@ -12264,7 +12275,7 @@ def replace_messeverkehr_positions(conn: sqlite3.Connection, flights: list[dict]
         "altitude", "groundspeed", "heading", "logon_time", "updated_at", "name",
         "flight_rules", "aircraft_icao", "alternate", "deptime", "cruise_tas",
         "enroute_time", "fuel_time", "route",
-        "quelle_flight_id", "quelle_logon_time", "quelle_logoff_time",
+        "quelle_flight_id", "quelle_cid", "quelle_logon_time", "quelle_logoff_time",
     )
     zeilen = [{spalte: f.get(spalte) for spalte in _SPALTEN} for f in flights]
     conn.execute("DELETE FROM messeverkehr_flights")
@@ -12316,3 +12327,61 @@ def ist_messeverkehr_aktiv(conn: sqlite3.Connection) -> bool:
 def set_messeverkehr_aktiv(conn: sqlite3.Connection, aktiv: bool) -> None:
     """Schaltet den Messeverkehr an/aus (kein commit)."""
     set_app_setting(conn, "messeverkehr_enabled", "1" if aktiv else "0")
+
+
+def messeverkehr_anzahl_bereich(conn: sqlite3.Connection) -> tuple[int, int]:
+    """(min, max) gleichzeitig simulierter Fluege. Default 2-4."""
+    minimum = int(get_app_setting(conn, "messeverkehr_min_fluege", "2"))
+    maximum = int(get_app_setting(conn, "messeverkehr_max_fluege", "4"))
+    return minimum, maximum
+
+
+def set_messeverkehr_anzahl_bereich(conn: sqlite3.Connection, minimum: int, maximum: int) -> None:
+    """Setzt (min, max) gleichzeitig simulierter Fluege (kein commit)."""
+    set_app_setting(conn, "messeverkehr_min_fluege", str(int(minimum)))
+    set_app_setting(conn, "messeverkehr_max_fluege", str(int(maximum)))
+
+
+def messeverkehr_anzahl_aktuell(conn: sqlite3.Connection) -> int | None:
+    """Die fuer die laufende Aktivierung gewuerfelte Zielzahl -- None, solange noch keine
+    gewuerfelt wurde (z.B. direkt nach dem Aktivieren)."""
+    v = get_app_setting(conn, "messeverkehr_anzahl_aktuell", None)
+    return int(v) if v is not None else None
+
+
+def set_messeverkehr_anzahl_aktuell(conn: sqlite3.Connection, anzahl: int) -> None:
+    """Kein commit."""
+    set_app_setting(conn, "messeverkehr_anzahl_aktuell", str(int(anzahl)))
+
+
+def messeverkehr_staffelung_minuten(conn: sqlite3.Connection) -> int:
+    """Wie viele Minuten Vorsprung ein Flug beim allerersten Start hoechstens bekommt, damit
+    nicht alle gleichzeitig 'online' erscheinen. Default 30."""
+    return int(get_app_setting(conn, "messeverkehr_staffelung_min", "30"))
+
+
+def set_messeverkehr_staffelung_minuten(conn: sqlite3.Connection, minuten: int) -> None:
+    """Kein commit."""
+    set_app_setting(conn, "messeverkehr_staffelung_min", str(int(minuten)))
+
+
+def list_messeverkehr_ausschluss_callsigns(conn: sqlite3.Connection) -> list[str]:
+    """Zusaetzliche, von Hand gepflegte Ausschlussliste echter Callsigns (z.B. aus der vollen
+    Forum-Mitgliederliste) -- ergaenzt bekannte_echte_callsigns() in app/messeverkehr.py um
+    Callsigns, die FriesenSpy selbst nie beobachtet hat (nie geflogen, nie eingeloggt)."""
+    rows = conn.execute(
+        "SELECT callsign FROM messeverkehr_ausschluss_callsigns ORDER BY callsign"
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
+def set_messeverkehr_ausschluss_callsigns(conn: sqlite3.Connection, callsigns: list[str]) -> None:
+    """Ersetzt die komplette Ausschlussliste (kein commit). Normalisiert auf UPPER/trim,
+    verwirft leere Eintraege. Speichert bewusst NUR Callsigns, keine Namen -- die vom Nutzer
+    bereitgestellte Quelle (Mitgliederliste mit Namen) bleibt ausserhalb von Git und der DB."""
+    conn.execute("DELETE FROM messeverkehr_ausschluss_callsigns")
+    normalisiert = sorted({(c or "").strip().upper() for c in callsigns if (c or "").strip()})
+    conn.executemany(
+        "INSERT INTO messeverkehr_ausschluss_callsigns (callsign) VALUES (?)",
+        [(c,) for c in normalisiert],
+    )

@@ -10,6 +10,31 @@ def _conn(tmp_path):
     return get_connection(db_path)
 
 
+def _seed_historischer_flug(conn, cid=600001, callsign="FRS600"):
+    """Minimaler echter Flug samt Track, seit der Replay-Umstellung (27.09.2026) Vorbedingung
+    dafuer, dass advance_messeverkehr ueberhaupt etwas erzeugt."""
+    from datetime import datetime, timedelta, timezone
+
+    ts0 = datetime(2026, 8, 1, 10, 0, 0, tzinfo=timezone.utc)
+    ts1 = ts0 + timedelta(minutes=20)
+    iso = lambda dt: dt.isoformat().replace("+00:00", "Z")
+    conn.execute("INSERT INTO pilots (cid, name, added_at) VALUES (?, 'Testpilot', ?)",
+                 (cid, iso(ts0)))
+    conn.execute(
+        "INSERT INTO flights (cid, callsign, aircraft_short, departure, arrival, "
+        "logon_time, logoff_time, duration_min) VALUES (?,?,?,?,?,?,?,?)",
+        (cid, callsign, "C172", "EDXW", "EDHL", iso(ts0), iso(ts1), 20),
+    )
+    for i in range(5):
+        ts = ts0 + timedelta(minutes=5 * i)
+        conn.execute(
+            "INSERT INTO position_history (cid, callsign, latitude, longitude, altitude, "
+            "groundspeed, heading, ts) VALUES (?,?,?,?,?,?,?,?)",
+            (cid, callsign, 54.0 + i * 0.1, 8.0 + i * 0.1, 1000 + i * 100, 90, 90, iso(ts)),
+        )
+    conn.commit()
+
+
 def test_ohne_flag_bleibt_liste_unveraendert(tmp_path):
     conn = _conn(tmp_path)
     echte = [{"cid": 123, "callsign": "FRS1", "latitude": 1.0, "longitude": 2.0}]
@@ -20,6 +45,7 @@ def test_ohne_flag_bleibt_liste_unveraendert(tmp_path):
 
 def test_mit_flag_werden_simulierte_fluege_markiert_beigemischt(tmp_path):
     conn = _conn(tmp_path)
+    _seed_historischer_flug(conn)
     set_messeverkehr_aktiv(conn, True)
     conn.commit()
     echte = [{"cid": 123, "callsign": "FRS1", "latitude": 1.0, "longitude": 2.0}]
@@ -39,6 +65,7 @@ def test_mischen_committet_seinen_schreibvorgang(tmp_path):
     db_path = str(tmp_path / "test.db")
     init_db(db_path)
     conn = get_connection(db_path)
+    _seed_historischer_flug(conn)
     set_messeverkehr_aktiv(conn, True)
     conn.commit()
     _live_positions_mit_messeverkehr(conn, [])

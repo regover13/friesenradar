@@ -84,6 +84,25 @@ def test_add_list_remove_messeverkehr_erlaubt(conn):
     assert list_messeverkehr_erlaubt(conn) == []
 
 
+def test_messeverkehr_positions_explizit_nach_cid_sortiert(conn):
+    """Nutzerfund 27.09.2026: die Reihenfolge in der Live-Liste sprang. `replace_...` fuellt
+    die Tabelle bei jedem Poll-Zyklus komplett neu (DELETE+INSERT) -- ohne explizites ORDER BY
+    ist die von SQLite zurueckgegebene Reihenfolge nicht verbrieft. Feste, deterministische
+    Sortierung nach cid (== Slot-Nummer, ueber die Sitzung stabil) behebt das unabhaengig von
+    der internen SQLite-Scan-Reihenfolge. Bewusst in gemischter Einfuege-Reihenfolge angelegt,
+    damit ein Test, der sich zufaellig auf Einfuege-/Rowid-Reihenfolge verlaesst, nicht zufaellig
+    gruen waere."""
+    fluege = [
+        {"cid": -900001, "callsign": "FRS15", "logon_time": "t", "updated_at": "t", "name": "B"},
+        {"cid": -900002, "callsign": "FRS20", "logon_time": "t", "updated_at": "t", "name": "C"},
+        {"cid": -900000, "callsign": "FRS10", "logon_time": "t", "updated_at": "t", "name": "A"},
+    ]
+    replace_messeverkehr_positions(conn, fluege)
+    conn.commit()
+    cids = [r["cid"] for r in get_messeverkehr_positions(conn)]
+    assert cids == sorted(cids), cids
+
+
 def test_messeverkehr_aktiv_default_false(conn):
     assert ist_messeverkehr_aktiv(conn) is False
 
