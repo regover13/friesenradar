@@ -12334,34 +12334,23 @@ def set_messeverkehr_aktiv(conn: sqlite3.Connection, aktiv: bool) -> None:
     set_app_setting(conn, "messeverkehr_enabled", "1" if aktiv else "0")
 
 
-def messeverkehr_anzahl_bereich(conn: sqlite3.Connection) -> tuple[int, int]:
-    """(min, max) gleichzeitig simulierter Fluege. Default 2-4."""
-    minimum = int(get_app_setting(conn, "messeverkehr_min_fluege", "2"))
-    maximum = int(get_app_setting(conn, "messeverkehr_max_fluege", "4"))
-    return minimum, maximum
+def messeverkehr_anzahl_max(conn: sqlite3.Connection) -> int:
+    """Wie viele Fluege beim Aktivieren gleichzeitig simuliert werden. Default 4.
+
+    Nutzerentscheidung 27.09.2026: kein Min-Feld mehr -- die Zielzahl ist immer die
+    konfigurierte Zahl selbst, nichts wird mehr zwischen min und max gewuerfelt."""
+    return int(get_app_setting(conn, "messeverkehr_max_fluege", "4"))
 
 
-def set_messeverkehr_anzahl_bereich(conn: sqlite3.Connection, minimum: int, maximum: int) -> None:
-    """Setzt (min, max) gleichzeitig simulierter Fluege (kein commit)."""
-    set_app_setting(conn, "messeverkehr_min_fluege", str(int(minimum)))
+def set_messeverkehr_anzahl_max(conn: sqlite3.Connection, maximum: int) -> None:
+    """Setzt die Zielzahl gleichzeitig simulierter Fluege (kein commit)."""
     set_app_setting(conn, "messeverkehr_max_fluege", str(int(maximum)))
-
-
-def messeverkehr_anzahl_aktuell(conn: sqlite3.Connection) -> int | None:
-    """Die fuer die laufende Aktivierung gewuerfelte Zielzahl -- None, solange noch keine
-    gewuerfelt wurde (z.B. direkt nach dem Aktivieren)."""
-    v = get_app_setting(conn, "messeverkehr_anzahl_aktuell", None)
-    return int(v) if v is not None else None
-
-
-def set_messeverkehr_anzahl_aktuell(conn: sqlite3.Connection, anzahl: int) -> None:
-    """Kein commit."""
-    set_app_setting(conn, "messeverkehr_anzahl_aktuell", str(int(anzahl)))
 
 
 def messeverkehr_staffelung_minuten(conn: sqlite3.Connection) -> int:
     """Wie viele Minuten Vorsprung ein Flug beim allerersten Start hoechstens bekommt, damit
-    nicht alle gleichzeitig 'online' erscheinen. Default 30."""
+    nicht alle gleichzeitig 'online' erscheinen. Default 30. Gilt NICHT fuer den allerersten
+    Flug (Slot 0) -- der erscheint immer sofort, Nutzerwunsch 27.09.2026."""
     return int(get_app_setting(conn, "messeverkehr_staffelung_min", "30"))
 
 

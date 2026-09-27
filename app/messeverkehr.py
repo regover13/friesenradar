@@ -145,9 +145,16 @@ def _position_bei(conn, quelle_cid: int, zeitpunkt: datetime,
     strukturell unmoeglich: Ausserhalb des Fensters gibt es keinen Bezugspunkt mehr, und die
     Funktion liefert None ("angekommen") statt eines Sprungs.
 
-    None auch, wenn der Zeitpunkt ausserhalb des aufgezeichneten Datenfensters liegt (Flug
-    "angekommen"). Der Kurs wird NICHT interpoliert (zirkulaer -- 350->10 Grad waere sonst
-    faelschlich 180) -- der naehere Messpunkt liefert ihn.
+    None nur, wenn KEIN Punkt mehr bis ``fenster_bis`` folgt (Flug "angekommen"). Liegt der
+    Zeitpunkt VOR dem ersten aufgezeichneten Punkt -- der Normalfall fuer Slot 0 beim Kopfstart
+    (Nutzerfund 27.09.2026, Fable-Review: virtueller Start == quelle_logon, der reale erste
+    Track-Punkt liegt aber immer etwas SPAETER als logon_time, weil er erst beim naechsten
+    Poll-Zyklus entsteht) --, wird auf den ersten bekannten Punkt eingefroren, statt None zu
+    liefern: Ohne diese Abfangung kaeme Slot 0 nie zustande, und dasselbe traf schon vorher
+    jede Nachbesetzung (dort war vorsprung_sek ebenfalls immer 0.0).
+
+    Der Kurs wird NICHT interpoliert (zirkulaer -- 350->10 Grad waere sonst faelschlich 180)
+    -- der naehere Messpunkt liefert ihn.
     """
     zeitpunkt_iso = _iso(zeitpunkt)
     vorher = conn.execute(
@@ -160,8 +167,10 @@ def _position_bei(conn, quelle_cid: int, zeitpunkt: datetime,
         "WHERE cid = ? AND ts >= ? AND ts <= ? ORDER BY ts ASC LIMIT 1",
         (quelle_cid, zeitpunkt_iso, fenster_bis),
     ).fetchone()
-    if vorher is None or nachher is None:
+    if nachher is None:
         return None
+    if vorher is None:
+        return dict(nachher)
     if vorher["ts"] == nachher["ts"]:
         return dict(vorher)
 
@@ -193,7 +202,13 @@ def _position_bei(conn, quelle_cid: int, zeitpunkt: datetime,
 def _neuer_flug(conn, slot: int, jetzt: datetime, belegte_callsigns: set[str],
                 kopfstart: bool) -> dict | None:
     """Startet einen neuen simulierten Flug, indem ein echter historischer Flug ab jetzt
-    abgespielt wird. None, wenn keine geeignete Historie gefunden wurde (z.B. leere DB)."""
+    abgespielt wird. None, wenn keine geeignete Historie gefunden wurde (z.B. leere DB).
+
+    Beim Aktivieren (kopfstart) erscheint Slot 0 sofort, ohne Vorsprung -- Nutzerwunsch
+    27.09.2026: "der erste Pilot erscheint sofort, sonst weiss ich nicht, ob es wirklich an
+    ist". Nur die UEBRIGEN Slots verteilen sich zufaellig ueber die konfigurierte Staffelung.
+    Eine spaetere Nachbesetzung (kopfstart=False, ein Flug ist angekommen) startet wie bisher
+    immer sofort -- die Staffelung gilt nur fuer den allerersten Schwarm."""
     quelle = _historischen_flug_waehlen(conn)
     if quelle is None:
         return None
@@ -202,7 +217,7 @@ def _neuer_flug(conn, slot: int, jetzt: datetime, belegte_callsigns: set[str],
     dauer_sek = max((quelle_logoff - quelle_logon).total_seconds(), 1.0)
 
     vorsprung_sek = 0.0
-    if kopfstart:
+    if kopfstart and slot > 0:
         from app.database import messeverkehr_staffelung_minuten
         max_staffelung_sek = messeverkehr_staffelung_minuten(conn) * 60.0
         vorsprung_sek = random.uniform(0.0, min(max_staffelung_sek, dauer_sek * 0.7))
@@ -274,24 +289,12 @@ def _fortschreiben(conn, flug: dict, jetzt: datetime) -> dict | None:
     return flug
 
 
-def _ziel_anzahl(conn, kopfstart: bool) -> int:
-    """Wie viele Fluege gleichzeitig laufen sollen -- einmal je Aktivierung zufaellig aus dem
-    admin-Bereich (min, max) gewuerfelt und dann bis zur naechsten Deaktivierung stabil
-    gehalten (kein Flackern durch staendiges Neuwuerfeln)."""
-    from app.database import (messeverkehr_anzahl_aktuell, messeverkehr_anzahl_bereich,
-                               set_messeverkehr_anzahl_aktuell)
+def _ziel_anzahl(conn) -> int:
+    """Wie viele Fluege gleichzeitig laufen sollen -- die konfigurierte Zielzahl selbst
+    (Nutzerentscheidung 27.09.2026: kein Min/Max-Bereich mehr, nur noch ein Maximum)."""
+    from app.database import messeverkehr_anzahl_max
 
-    if not kopfstart:
-        bestehend = messeverkehr_anzahl_aktuell(conn)
-        if bestehend is not None:
-            return bestehend
-
-    minimum, maximum = messeverkehr_anzahl_bereich(conn)
-    minimum = max(0, minimum)
-    maximum = max(minimum, maximum)
-    anzahl = random.randint(minimum, maximum)
-    set_messeverkehr_anzahl_aktuell(conn, anzahl)
-    return anzahl
+    return max(0, messeverkehr_anzahl_max(conn))
 
 
 def advance_messeverkehr(conn, jetzt: datetime, echte_callsigns: set[str]) -> list[dict]:
@@ -306,7 +309,7 @@ def advance_messeverkehr(conn, jetzt: datetime, echte_callsigns: set[str]) -> li
     bestand = {f["cid"]: f for f in get_messeverkehr_positions(conn)}
     kopfstart = not bestand
     belegte_callsigns = bekannte_echte_callsigns(conn) | set(echte_callsigns)
-    ziel_anzahl = min(_ziel_anzahl(conn, kopfstart), _MAX_SLOTS)
+    ziel_anzahl = min(_ziel_anzahl(conn), _MAX_SLOTS)
 
     aktualisiert: dict[int, dict] = {}
     for slot in range(ziel_anzahl):

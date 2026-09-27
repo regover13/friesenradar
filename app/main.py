@@ -212,12 +212,13 @@ from app.database import (
     list_messeverkehr_erlaubt,
     add_messeverkehr_erlaubt,
     remove_messeverkehr_erlaubt,
-    messeverkehr_anzahl_bereich,
-    set_messeverkehr_anzahl_bereich,
+    messeverkehr_anzahl_max,
+    set_messeverkehr_anzahl_max,
     messeverkehr_staffelung_minuten,
     set_messeverkehr_staffelung_minuten,
     list_messeverkehr_ausschluss_callsigns,
     set_messeverkehr_ausschluss_callsigns,
+    replace_messeverkehr_positions,
 )
 from app import geo
 from app import bruegge
@@ -4880,12 +4881,10 @@ async def admin_get_messeverkehr(request: Request):
     require_admin(request)
     conn = get_connection(get_settings().DB_PATH)
     try:
-        minimum, maximum = messeverkehr_anzahl_bereich(conn)
         return {
             "enabled": ist_messeverkehr_aktiv(conn),
             "erlaubt": list_messeverkehr_erlaubt(conn),
-            "min_fluege": minimum,
-            "max_fluege": maximum,
+            "max_fluege": messeverkehr_anzahl_max(conn),
             "staffelung_min": messeverkehr_staffelung_minuten(conn),
             "ausschluss_callsigns": list_messeverkehr_ausschluss_callsigns(conn),
         }
@@ -4895,23 +4894,20 @@ async def admin_get_messeverkehr(request: Request):
 
 @app.put("/api/admin/messeverkehr/einstellungen")
 async def admin_set_messeverkehr_einstellungen(request: Request):
-    """Setzt Anzahl-Bereich (min/max gleichzeitiger Fluege) und Staffelung (Minuten Vorsprung
-    beim allerersten Start). min <= max, beide >= 0."""
+    """Setzt die Zielzahl gleichzeitiger Fluege und die Staffelung (Minuten Vorsprung fuer die
+    Fluege NACH dem ersten beim allerersten Start). Beide >= 0."""
     require_admin(request)
     body = await request.json()
     try:
-        minimum = int(body.get("min_fluege"))
         maximum = int(body.get("max_fluege"))
         staffelung = int(body.get("staffelung_min"))
     except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="min_fluege/max_fluege/staffelung_min (Zahlen) erforderlich")
-    if minimum < 0 or maximum < 0 or staffelung < 0:
+        raise HTTPException(status_code=400, detail="max_fluege/staffelung_min (Zahlen) erforderlich")
+    if maximum < 0 or staffelung < 0:
         raise HTTPException(status_code=400, detail="Werte muessen >= 0 sein")
-    if minimum > maximum:
-        raise HTTPException(status_code=400, detail="min_fluege darf nicht ueber max_fluege liegen")
     conn = get_connection(get_settings().DB_PATH)
     try:
-        set_messeverkehr_anzahl_bereich(conn, minimum, maximum)
+        set_messeverkehr_anzahl_max(conn, maximum)
         set_messeverkehr_staffelung_minuten(conn, staffelung)
         conn.commit()
         return {"status": "ok"}
@@ -4943,6 +4939,13 @@ async def admin_set_messeverkehr(request: Request):
     ``enabled`` muss ein ECHTER Boolean sein -- ``bool("false")`` waere in Python ``True``,
     ein von Hand getipptes ``curl -d '{"enabled":"false"}'`` haette das Feature sonst
     versehentlich eingeschaltet statt ausgeschaltet.
+
+    PRODUKTIONSVORFALL 27.09.2026: Deaktivieren raeumte messeverkehr_flights bisher nicht auf.
+    advance_messeverkehr() erkennt einen "Kopfstart" (Staffelung, sofortiger erster Flug) nur
+    an einer LEEREN Tabelle -- lag dort noch der Bestand einer frueheren Aktivierung, galt das
+    Wiedereinschalten als blosse Fortsetzung: Alte Fluege wurden mit ihrer alten logon_time
+    weiter fortgeschrieben, "Online seit" zeigte Minuten, die seit dem naechsten Klick gar
+    nicht vergangen waren. Reaktivieren muss deshalb immer bei leerer Tabelle beginnen.
     """
     require_admin(request)
     body = await request.json()
@@ -4951,7 +4954,10 @@ async def admin_set_messeverkehr(request: Request):
         raise HTTPException(status_code=400, detail="enabled (true/false) erforderlich")
     conn = get_connection(get_settings().DB_PATH)
     try:
+        war_aktiv = ist_messeverkehr_aktiv(conn)
         set_messeverkehr_aktiv(conn, aktiv)
+        if aktiv and not war_aktiv:
+            replace_messeverkehr_positions(conn, [])
         conn.commit()
         return {"status": "ok", "enabled": aktiv}
     finally:

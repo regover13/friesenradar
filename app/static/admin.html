@@ -2132,10 +2132,6 @@
 
           <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
             <label style="display:flex;flex-direction:column;gap:2px;font-size:0.82rem;color:#8aa0b8;">
-              Min. gleichzeitig
-              <input type="number" id="mvMin" min="0" max="10" style="width:80px;" />
-            </label>
-            <label style="display:flex;flex-direction:column;gap:2px;font-size:0.82rem;color:#8aa0b8;">
               Max. gleichzeitig
               <input type="number" id="mvMax" min="0" max="10" style="width:80px;" />
             </label>
@@ -2715,7 +2711,6 @@
         if (!r.ok) return;
         _mvStand = await r.json();
         document.getElementById('mvToggle').checked = _mvStand.enabled;
-        document.getElementById('mvMin').value = _mvStand.min_fluege;
         document.getElementById('mvMax').value = _mvStand.max_fluege;
         document.getElementById('mvStaffelung').value = _mvStand.staffelung_min;
         document.getElementById('mvAusschlussText').value = (_mvStand.ausschluss_callsigns || []).join('\n');
@@ -2746,14 +2741,13 @@
     });
 
     document.getElementById('mvEinstellungenSaveBtn').addEventListener('click', async () => {
-      const min_fluege = parseInt(document.getElementById('mvMin').value, 10);
       const max_fluege = parseInt(document.getElementById('mvMax').value, 10);
       const staffelung_min = parseInt(document.getElementById('mvStaffelung').value, 10);
-      if (Number.isNaN(min_fluege) || Number.isNaN(max_fluege) || Number.isNaN(staffelung_min)) {
-        toast('Bitte alle drei Felder ausfuellen.', true); return;
+      if (Number.isNaN(max_fluege) || Number.isNaN(staffelung_min)) {
+        toast('Bitte beide Felder ausfuellen.', true); return;
       }
       const res = await api('PUT', '/api/admin/messeverkehr/einstellungen',
-        { min_fluege, max_fluege, staffelung_min });
+        { max_fluege, staffelung_min });
       if (res && res.ok) toast('Einstellungen gespeichert.');
       else {
         let detail = 'Fehler beim Speichern.';

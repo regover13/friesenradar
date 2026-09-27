@@ -60,6 +60,32 @@ def test_flag_umschalten(db):
     assert res["enabled"] is True
 
 
+def test_reaktivierung_raeumt_alte_fluege_weg(db):
+    """PRODUKTIONSVORFALL 27.09.2026: Liegen beim Wiedereinschalten noch Fluege einer
+    frueheren Aktivierung in messeverkehr_flights, erkennt advance_messeverkehr() das nicht
+    als 'Kopfstart' (Staffelung, sofortiger erster Flug) -- die Tabelle muss beim Uebergang
+    aus->an leer sein."""
+    from app.database import get_connection, replace_messeverkehr_positions
+
+    conn = get_connection(db)
+    replace_messeverkehr_positions(conn, [{
+        "cid": -900000, "callsign": "FRS999", "aircraft": "C172",
+        "departure": "EDXW", "arrival": "EDHL", "latitude": 54.1, "longitude": 8.3,
+        "altitude": 1000, "groundspeed": 90, "heading": 90,
+        "logon_time": "2026-09-27T09:00:00Z", "updated_at": "2026-09-27T09:00:00Z",
+        "name": "Alte Aktivierung",
+    }])
+    conn.commit()
+    conn.close()
+
+    asyncio.run(main.admin_set_messeverkehr(FakeReq(body={"enabled": True})))
+
+    conn = get_connection(db)
+    from app.database import get_messeverkehr_positions
+    assert get_messeverkehr_positions(conn) == []
+    conn.close()
+
+
 def test_cid_hinzufuegen_und_entfernen(db):
     asyncio.run(main.admin_add_messeverkehr_erlaubt(FakeReq(body={"cid": 123456, "von": "Tobias"})))
     res = asyncio.run(main.admin_get_messeverkehr(FakeReq()))
@@ -96,7 +122,6 @@ def test_flag_ohne_enabled_feld_ist_fehler(db):
 
 def test_get_liefert_einstellungen_mit_defaults(db):
     res = asyncio.run(main.admin_get_messeverkehr(FakeReq()))
-    assert res["min_fluege"] == 2
     assert res["max_fluege"] == 4
     assert res["staffelung_min"] == 30
     assert res["ausschluss_callsigns"] == []
@@ -104,26 +129,17 @@ def test_get_liefert_einstellungen_mit_defaults(db):
 
 def test_einstellungen_setzen(db):
     asyncio.run(main.admin_set_messeverkehr_einstellungen(
-        FakeReq(body={"min_fluege": 1, "max_fluege": 5, "staffelung_min": 45})
+        FakeReq(body={"max_fluege": 5, "staffelung_min": 45})
     ))
     res = asyncio.run(main.admin_get_messeverkehr(FakeReq()))
-    assert res["min_fluege"] == 1
     assert res["max_fluege"] == 5
     assert res["staffelung_min"] == 45
-
-
-def test_einstellungen_min_darf_nicht_ueber_max_liegen(db):
-    with pytest.raises(HTTPException) as e:
-        asyncio.run(main.admin_set_messeverkehr_einstellungen(
-            FakeReq(body={"min_fluege": 5, "max_fluege": 1, "staffelung_min": 30})
-        ))
-    assert e.value.status_code == 400
 
 
 def test_einstellungen_negative_werte_sind_fehler(db):
     with pytest.raises(HTTPException) as e:
         asyncio.run(main.admin_set_messeverkehr_einstellungen(
-            FakeReq(body={"min_fluege": -1, "max_fluege": 4, "staffelung_min": 30})
+            FakeReq(body={"max_fluege": -1, "staffelung_min": 30})
         ))
     assert e.value.status_code == 400
 

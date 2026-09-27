@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.database import init_db, get_connection, set_messeverkehr_anzahl_bereich
+from app.database import init_db, get_connection, set_messeverkehr_anzahl_max
 from app.messeverkehr import (
     advance_messeverkehr,
     bekannte_echte_callsigns,
@@ -13,7 +13,7 @@ from app.messeverkehr import (
     _INTERNE_REPLAY_SPALTEN,
 )
 
-ZIEL_ANZAHL_FLUEGE = 3  # in den meisten Tests fest verdrahtet, s. set_messeverkehr_anzahl_bereich unten
+ZIEL_ANZAHL_FLUEGE = 3  # in den meisten Tests fest verdrahtet, s. set_messeverkehr_anzahl_max unten
 
 
 @pytest.fixture
@@ -21,9 +21,9 @@ def conn(tmp_path):
     db_path = str(tmp_path / "test.db")
     init_db(db_path)
     c = get_connection(db_path)
-    # Deterministisch fuer Tests, die eine feste Anzahl erwarten -- der Bereich selbst wird in
-    # test_anzahl_bereich_* eigens getestet.
-    set_messeverkehr_anzahl_bereich(c, ZIEL_ANZAHL_FLUEGE, ZIEL_ANZAHL_FLUEGE)
+    # Deterministisch fuer Tests, die eine feste Anzahl erwarten -- die Zielzahl selbst wird in
+    # test_anzahl_max_* eigens getestet.
+    set_messeverkehr_anzahl_max(c, ZIEL_ANZAHL_FLUEGE)
     c.commit()
     yield c
     c.close()
@@ -126,13 +126,17 @@ def test_messeverkehr_fuer_anzeige_ohne_interne_spalten(conn):
 
 def test_kopfstart_staffelt_die_logon_zeiten_beim_ersten_start(conn):
     """Nutzerfund 27.09.2026: alle drei Fluege gingen beim ersten Aktivieren gleichzeitig
-    "online". Jetzt startet jeder Slot mit zufaelligem Vorsprung in seinem Quellflug."""
+    "online". Jetzt startet nur Slot 0 sofort, die UEBRIGEN Slots mit zufaelligem Vorsprung."""
     _seed_historischer_flug(conn, dauer_min=60, schritte=20)
     jetzt = datetime(2026, 11, 21, 10, 0, 0, tzinfo=timezone.utc)
     ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
     conn.commit()
-    logon_zeiten = {f["logon_time"] for f in ergebnis}
-    assert len(logon_zeiten) > 1, "alle Fluege gingen zur exakt selben Zeit online"
+    jetzt_iso = jetzt.isoformat().replace("+00:00", "Z")
+    erster = next(f for f in ergebnis if f["cid"] == -900000)  # Slot 0
+    uebrige = [f for f in ergebnis if f["cid"] != -900000]
+    assert erster["logon_time"] == jetzt_iso
+    assert any(f["logon_time"] != jetzt_iso for f in uebrige), \
+        "alle uebrigen Fluege gingen ebenfalls zur exakt selben Zeit online"
 
 
 def test_advance_bewegt_sich_entlang_der_echten_spur_und_respawnt(conn):
@@ -258,10 +262,10 @@ def test_freies_callsign_streut_ueber_viele_aufrufe():
     assert len(ergebnisse) > 15, ergebnisse
 
 
-def test_anzahl_bereich_wird_eingehalten_und_bleibt_stabil(conn):
-    """Admin-Wunsch 27.09.2026: min/max gleichzeitiger Fluege einstellbar. Einmal je
-    Aktivierung gewuerfelt, danach stabil (kein Flackern durch Neuwuerfeln bei jedem Zyklus)."""
-    set_messeverkehr_anzahl_bereich(conn, 1, 1)
+def test_anzahl_max_wird_eingehalten(conn):
+    """Admin-Wunsch 27.09.2026, vereinfacht: kein Min-Feld mehr -- die Zielzahl ist die
+    konfigurierte Zahl selbst, in jedem Zyklus."""
+    set_messeverkehr_anzahl_max(conn, 1)
     conn.commit()
     _seed_historischer_flug(conn, dauer_min=60, schritte=10)
     jetzt = datetime(2026, 11, 21, 10, 0, 0, tzinfo=timezone.utc)
@@ -276,15 +280,88 @@ def test_anzahl_bereich_wird_eingehalten_und_bleibt_stabil(conn):
         assert len(weiterer) == 1
 
 
-def test_anzahl_bereich_erlaubt_null(conn):
-    """min=max=0 muss das Feature effektiv leerlaufen lassen, ohne Fehler."""
-    set_messeverkehr_anzahl_bereich(conn, 0, 0)
+def test_anzahl_max_erlaubt_null(conn):
+    """max=0 muss das Feature effektiv leerlaufen lassen, ohne Fehler."""
+    set_messeverkehr_anzahl_max(conn, 0)
     conn.commit()
     _seed_historischer_flug(conn)
     jetzt = datetime(2026, 11, 21, 10, 0, 0, tzinfo=timezone.utc)
     ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
     conn.commit()
     assert ergebnis == []
+
+
+def test_kopfstart_erster_pilot_startet_sofort_ohne_vorsprung(conn):
+    """Nutzerwunsch 27.09.2026: 'der erste Pilot erscheint sofort, sonst weiss ich nicht, ob
+    es wirklich an ist' -- nur die UEBRIGEN Fluege verteilen sich ueber die Staffelung."""
+    _seed_historischer_flug(conn, dauer_min=60, schritte=20)
+    jetzt = datetime(2026, 11, 21, 10, 0, 0, tzinfo=timezone.utc)
+    ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
+    conn.commit()
+    erster = next(f for f in ergebnis if f["cid"] == -900000)  # Slot 0
+    assert erster["logon_time"] == jetzt.isoformat().replace("+00:00", "Z")
+
+
+def test_kopfstart_erster_pilot_kommt_trotz_verzoegertem_erstem_trackpunkt(conn):
+    """Fable-Review 27.09.2026: In der Produktion liegt logon_time (VATSIM-Server-Zeit) fast
+    immer VOR dem ersten aufgezeichneten position_history-Punkt -- der entsteht erst beim
+    naechsten Poll-Zyklus, typischerweise 0-15s spaeter. Mit vorsprung_sek=0.0 fuer Slot 0
+    verlangte _position_bei vorher einen Punkt EXAKT bei logon_time; den gibt es in Wirklichkeit
+    praktisch nie -- Slot 0 waere beim Kopfstart nie zustande gekommen (und dasselbe traf jede
+    Nachbesetzung, dort war vorsprung_sek schon vorher immer 0.0)."""
+    cid, callsign = 500002, "FRS600"
+    ts0 = datetime(2026, 8, 1, 10, 0, 0, tzinfo=timezone.utc)
+    logon_time = _iso(ts0)
+    logoff_time = _iso(ts0 + timedelta(minutes=60))
+    conn.execute(
+        "INSERT INTO pilots (cid, name, added_at) VALUES (?, ?, ?)",
+        (cid, "Testpilot", logon_time),
+    )
+    conn.execute(
+        "INSERT INTO flights (cid, callsign, aircraft_short, aircraft_icao, departure, "
+        "arrival, route, flight_rules, cruise_tas, alternate, deptime, enroute_time, "
+        "fuel_time, logon_time, logoff_time, duration_min) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (cid, callsign, "C172", "C172", "EDXW", "EDHL", "DCT", "V", "100",
+         "EDXR", "1000", "0020", "0100", logon_time, logoff_time, 60),
+    )
+    # Erster Track-Punkt liegt bewusst 18s NACH logon_time -- der reale Poll-Verzug.
+    for versatz_sek in (18, 3540):
+        ts = ts0 + timedelta(seconds=versatz_sek)
+        conn.execute(
+            "INSERT INTO position_history (cid, callsign, latitude, longitude, altitude, "
+            "groundspeed, heading, ts) VALUES (?,?,?,?,?,?,?,?)",
+            (cid, callsign, 54.0, 8.5, 1000, 90, 90, _iso(ts)),
+        )
+    conn.commit()
+
+    jetzt = ts0  # exakt logon_time -- der kritische Grenzfall
+    ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
+    conn.commit()
+    assert len(ergebnis) == ZIEL_ANZAHL_FLUEGE, "Slot 0 (oder ein anderer) fehlt beim Kopfstart"
+
+
+def test_kopfstart_nachbesetzung_startet_ebenfalls_sofort(conn):
+    """Die Staffelung gilt nur fuer den allerersten Schwarm -- eine Nachbesetzung (ein Flug
+    ist angekommen, kopfstart=False fuer diesen Slot) erscheint wie bisher sofort."""
+    set_messeverkehr_anzahl_max(conn, 1)
+    conn.commit()
+    _seed_historischer_flug(conn, dauer_min=15, schritte=5)
+    jetzt = datetime(2026, 8, 1, 10, 0, 0, tzinfo=timezone.utc)  # deckt sich mit ts0
+    ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
+    conn.commit()
+    erste_logon_time = ergebnis[0]["logon_time"]
+
+    respawnt_bei = None
+    for _ in range(200):
+        jetzt = jetzt + timedelta(minutes=1)
+        ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())
+        conn.commit()
+        if ergebnis[0]["logon_time"] != erste_logon_time:
+            respawnt_bei = jetzt
+            break
+    assert respawnt_bei is not None, "Flug ist nie angekommen (oder nie respawnt)"
+    assert ergebnis[0]["logon_time"] == respawnt_bei.isoformat().replace("+00:00", "Z")
 
 
 def test_staffelung_minuten_ist_konfigurierbar(conn):
