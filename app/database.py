@@ -380,7 +380,10 @@ CREATE TABLE IF NOT EXISTS reddung_events (
     push_enabled    INTEGER DEFAULT 1,
     badge_name      TEXT,
     manual_fields   TEXT,
-    created_at      TEXT
+    created_at      TEXT,
+    -- Was gesucht wird: die Geschichte des Abends, Freitext vom Veranstalter (27.09.2026).
+    -- Oeffentlich -- wie viel sie verraet, entscheidet, wer sie schreibt.
+    lagetext        TEXT
 );
 
 CREATE TABLE IF NOT EXISTS aircraft_payloads (
@@ -1120,6 +1123,8 @@ _BRUEGGE_SOLL_MIGRATIONS = [
     "ALTER TABLE bruegge_soll ADD COLUMN nur_nah_m REAL",
     # Ab wann ein Schwebeflug als Aufnahme zaehlt -- s. den Kommentar an der Spalte.
     "ALTER TABLE reddung_events ADD COLUMN aufnahme_ab TEXT",
+    # Was gesucht wird -- Freitext fuer die Pilotenansichten (27.09.2026).
+    "ALTER TABLE reddung_events ADD COLUMN lagetext TEXT",
 ]
 
 _PANEL_DIAG_MIGRATIONS = [
@@ -9821,7 +9826,7 @@ _REDDUNG_FELDER = {
     "havarist_lat", "havarist_lon", "havarist_art",
     "havarist_grund_ft", "havarist_grund_quelle", "aufnehmen_noetig", "landung_noetig",
     "aufnahme_verfaellt", "source", "calendar_uid", "push_enabled", "badge_name",
-    "manual_fields",
+    "manual_fields", "lagetext",
 }
 
 #: Rangfolge der Quellen für ``havarist_grund_ft`` — eine Messung schlägt jede Schätzung.

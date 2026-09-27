@@ -1,5 +1,15 @@
 [
   {
+    "version": "15.25.0",
+    "date": "2026-09-27",
+    "highlight": false,
+    "title": "Reddung: die Lage sagt, was gesucht wird",
+    "items": [
+      "🚨 **Jede FriesenReddung kann jetzt eine Lage haben**: Der Veranstalter beschreibt, was passiert ist und was gesucht wird. Sie steht oben in der Reddung-Ansicht, schon vor dem Start, während der Suche im Live-Tab und im Forumstext.",
+      "🛟 **Die Bilanz einer Reddung bleibt erhalten, wenn im Admin nur Name oder Lage geändert werden.** Bisher wurde bei jedem Speichern neu gerechnet, und nach dem Abend hätte das die abgesuchte Fläche verlieren können."
+    ]
+  },
+  {
     "version": "15.24.0",
     "date": "2026-09-27",
     "highlight": false,

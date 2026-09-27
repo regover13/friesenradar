@@ -1269,6 +1269,16 @@
                   <label for="rd-dtend">Ende (UTC, optional)</label>
                   <input type="datetime-local" id="rd-dtend" />
                 </div>
+                <div class="form-group" style="grid-column:1/-1;">
+                  <label for="rd-lagetext">Lage – was wird gesucht?</label>
+                  <textarea id="rd-lagetext" rows="4" maxlength="2000" style="width:100%;"
+                    placeholder="z.B. Eine Cessna 172 ist auf dem Weg von Mendig nach Bitburg verschollen. Letzter Funkkontakt über der Hohen Acht."></textarea>
+                </div>
+                <p class="form-hint" style="grid-column:1/-1;margin:0;">
+                  <b>Die Lage sehen alle Piloten</b>, schon vor dem Start: oben in der
+                  Reddung-Ansicht, im Live-Block und im Forumstext. Wie viel sie verrät,
+                  entscheidest du. Leer lassen heißt: keine Lage.
+                </p>
                 <p class="form-hint" style="grid-column:1/-1;margin:0;">
                   <b>Was dort liegt, entscheidest du</b> — ein Flugzeug, ein Boot, ein
                   Seehund, ein Mülleimer. Die Vorgabe ist ein kleines Flugzeug, weil ein
@@ -7165,6 +7175,8 @@
         aufnehmen_noetig: document.getElementById('rd-aufnehmen-noetig').checked ? 1 : 0,
         landung_noetig: document.getElementById('rd-landung-noetig').checked ? 1 : 0,
         aufnahme_verfaellt: document.getElementById('rd-aufnahme-verfaellt').checked ? 1 : 0,
+        // Leer schickt '' -- der Server macht daraus NULL, und eine alte Lage ist weg.
+        lagetext: document.getElementById('rd-lagetext').value.trim(),
       };
       const art = document.getElementById('rd-art').value;
       if (art) koerper.havarist_art = art;
@@ -7203,6 +7215,7 @@
         if (el) el.value = (wert === null || wert === undefined) ? '' : wert;
       };
       setz('rd-name', ev.name);
+      setz('rd-lagetext', ev.lagetext);
       setz('rd-dtstart', isoToLocal(ev.dtstart));
       setz('rd-dtend', isoToLocal(ev.dtend));
       setz('rd-sued', ev.sued); setz('rd-nord', ev.nord);

@@ -248,7 +248,7 @@ def test_teilen_kopiert_den_link_wie_bei_bummel_und_kutter():
 
 @pytest.mark.skipif(not _NODE, reason="node fehlt")
 def test_fuer_forum_kopieren_steht_in_der_bilanz_auch_nach_dem_ende():
-    quelle = ("function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\nfunction icon(){return '';}\n"
+    quelle = ("function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\nfunction _reddungLageHtml(){return '';}\nfunction icon(){return '';}\n"
               "function _fmtMin(m){return m+' min';}\n"
               + _funktion("_reddungZeitfenster") + _funktion("_reddungBalken")
               + _funktion("_reddungMarkenHtml") + _funktion("_reddungBilanzHtml"))
@@ -314,7 +314,7 @@ def test_nach_der_rettung_steht_nicht_mehr_laeuft_gerade():
     """Review W1 (Opus): Nach der Einlieferung stand bis dtend weiter „läuft gerade" --
     bei Event 2 am 20.09.2026 waeren das 93 Minuten gewesen. Der Server behandelt ein
     aufgeloestes Event laengst nicht mehr als laufend (/api/me/reddung)."""
-    quelle = ("function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\nfunction icon(){return '';}\n"
+    quelle = ("function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\nfunction _reddungLageHtml(){return '';}\nfunction icon(){return '';}\n"
               "var _reddungMeinStatus = null;\n"
               + _funktion("_reddungBalken") + _funktion("_reddungMarkenHtml")
               + _funktion("_reddungStatusZeile") + _funktion("_reddungBannerBlock"))
@@ -368,7 +368,7 @@ def test_die_marken_nennen_den_retter_nur_einmal():
     """*„Aufnehmendem und Einlieferndem? Das ist doch immer derselbe"* -- ja: Der Poller setzt
     `eingeliefert_von` ausnahmslos auf `aufgenommen_von` (eingeliefert wird durch dessen
     Landung). Zweimal denselben Namen zu nennen, liest sich wie zwei Leute."""
-    quelle = "function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\n" + _funktion("_reddungMarkenHtml")
+    quelle = "function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\nfunction _reddungLageHtml(){return '';}\n" + _funktion("_reddungMarkenHtml")
     html = _node(quelle, f"_reddungMarkenHtml({json.dumps(_MARKEN)})")
     assert html.count("Wolfgang") == 1 and "EDWF" in html and "19:50" in html
     assert "Stefan" in html

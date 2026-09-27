@@ -1145,7 +1145,9 @@ Läuft gerade eine FriesenReddung — und fehlt **diesem** Piloten die FriesenBr
 
 Alle FriesenReddungen mit ihrem Stand — für die Eventliste, später die Karte. Öffentlich (hinter dem Login-Gate wie die übrige Seite).
 
-**Response** `[{ "id": int, "name": string, "dtstart": string, "dtend": string, "laeuft": bool, "vorbei_seit_s": int|null, "analyse": {"icao": string, "radius_km": int|null}, "source": string, "aufnehmen_noetig": 0|1, "landung_noetig": 0|1, "stand": {…}, "fundort": {"lat": float, "lon": float}|null }]`
+**Response** `[{ "id": int, "name": string, "dtstart": string, "dtend": string, "laeuft": bool, "vorbei_seit_s": int|null, "analyse": {"icao": string, "radius_km": int|null}, "source": string, "aufnehmen_noetig": 0|1, "landung_noetig": 0|1, "lagetext": string|null, "stand": {…}, "fundort": {"lat": float, "lon": float}|null }]`
+
+`lagetext` (15.25.0) ist die **Lagebeschreibung** des Veranstalters — Freitext, was gesucht wird, auch vor dem Start; `null`, wenn keine gesetzt ist. Bewusst nicht `lage` genannt: „Lage des Havaristen" heißt hier sein **Ort**, und der ist geheim (s. unten). Was der Text verrät, entscheidet der Veranstalter. Im Admin: `lagetext` beim Anlegen und Ändern (`POST /api/admin/reddung/events[/{id}]`), Text bis 2000 Zeichen, Leerraum an den Rändern wird entfernt, leer = `null`. Ein Ändern verwirft den fortgeschriebenen Stand nur, wenn sich ein Rechenwert ändert — nicht bei `name`, `lagetext` oder `badge_name` (`_reddung_rechnung_geaendert`).
 
 `analyse` nennt Platz und Radius für die Event-Analyse der Bilanz: den nächsten Platz zur Sektormitte und einen Radius, der von dort den ganzen Sektor erfasst — oder `{"icao": "global", "radius_km": null}`, wenn im Umkreis von 150 km keiner liegt. Nur aus dem Sektor gerechnet, nie aus der Lage des Havaristen.
 

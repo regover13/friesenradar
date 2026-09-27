@@ -1251,6 +1251,17 @@
     .reddung-live-block + .reddung-live-block {
       margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--green-dim);
     }
+    /* Was gesucht wird -- der Text des Veranstalters. pre-line behaelt seine Absaetze,
+       ohne dass Einrueckungen die Zeile sprengen. */
+    .reddung-lage {
+      white-space: pre-line;
+      font-size: 0.85rem;
+      line-height: 1.45;
+      margin: 8px 0;
+      padding: 8px 10px;
+      border-left: 3px solid #e0a33e;
+      background: rgba(224,163,62,0.08);
+    }
     .bummel-rank-1 { color: #ffd24a; font-weight: 700; }
     .bummel-avg-row {
       font-family: var(--text-mono);
@@ -15742,6 +15753,8 @@ function _reddungBannerBlock(r) {
   // „läuft gerade" darueber (Review 24.09.2026: bei Event 2 waeren das 93 Minuten gewesen).
   const fertig = !!st.aufgeloest;
   let html = `<div class="reddung-live-block"><div class="bb-title">🚨 ${escHtml(r.name || 'FriesenReddung')} ${fertig ? '— abgeschlossen' : 'läuft gerade'}</div>`;
+  // Was gesucht wird, solange gesucht wird -- danach steht das Ergebnis im Vordergrund.
+  if (!fertig) html += _reddungLageHtml(r);
   html += _reddungBalken(pct);
   const ende = (r.dtend || '').slice(11, 16);
   html += fertig
@@ -16038,12 +16051,19 @@ function _reddungBilanzZeigen() {
   inhalt.innerHTML = _reddungBilanzHtml(r);
 }
 
+// Was gesucht wird (Nutzerwunsch 27.09.2026): der Freitext des Veranstalters. Leer = nichts.
+function _reddungLageHtml(r) {
+  if (!r || !r.lagetext) return '';
+  return `<div class="reddung-lage">${escHtml(r.lagetext)}</div>`;
+}
+
 function _reddungBilanzHtml(r) {
   const st = r.stand || {};
   const pct = Math.round((st.anteil || 0) * 100);
   const km2 = Math.round(st.flaeche_km2 || 0);     // genau, vom Server (#44)
   const vorbei = r.vorbei_seit_s != null;
   let html = `<div class="bb-sub">${_reddungZeitfenster(r)}</div>`;
+  html += _reddungLageHtml(r);
   html += _reddungBalken(pct);
   html += `<div class="bb-sub">${pct} % abgesucht — ${st.abgedeckt || 0} von ${st.zellen || 0} Zellen, ${km2} km²</div>`;
   if (st.gefunden) html += _reddungMarkenHtml(st);
@@ -16079,8 +16099,10 @@ function _reddungForumText(r) {
   const zeit = ts => (ts || '').slice(11, 16) + ' UTC';
   const pct = Math.round((st.anteil || 0) * 100);
   const km2 = Math.round(st.flaeche_km2 || 0);     // genau, vom Server (#44)
-  const z = [`🚨 FriesenReddung — ${r.name || 'FriesenReddung'}`, _reddungZeitfenster(r),
-             `Abgesucht: ${pct} % (${km2} km²)`].filter(Boolean);
+  const z = [`🚨 FriesenReddung — ${r.name || 'FriesenReddung'}`, _reddungZeitfenster(r)]
+    .filter(Boolean);
+  if (r.lagetext) z.push(`Lage: ${r.lagetext}`);
+  z.push(`Abgesucht: ${pct} % (${km2} km²)`);
   if (st.gefunden) z.push(`Gefunden: ${st.gefunden.name} um ${zeit(st.gefunden.ts)}`);
   else z.push(r.vorbei_seit_s != null ? 'Nicht gefunden' : 'Noch nicht gefunden');
   // Derselbe Pilot nimmt auf und liefert ein (s. _reddungMarkenHtml) -- ein Name, eine Zeile.

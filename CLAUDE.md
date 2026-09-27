@@ -403,6 +403,12 @@ für ein abgeschlossenes Event nur VATSIM vor, verwürfe es mangels Brügge-Meld
 die abgesuchte Fläche eines längst verkündeten Abends auf null. Beim Umstieg selbst wurde die
 Zahl deshalb bewusst **nicht** erhöht.
 
+**Dieselbe Falle hat das Admin-Speichern, und dort ist sie seit 15.25.0 zu:** Das Formular
+schickt immer alle Felder, und bis dahin verwarf jedes Speichern den Stand — auch für einen
+neuen Namen. `_reddung_rechnung_geaendert` verwirft ihn nur noch, wenn sich ein Rechenwert
+wirklich ändert (`_REDDUNG_OHNE_RECHNUNG`: Name, `lagetext`, Badge-Name …). Wer ein neues
+Feld ohne Einfluss auf den Stand anlegt, trägt es dort ein.
+
 ## Wem eine FriesenBrügge gehört — ab Protokoll 3 (stehende Regeln, Beschluss 26.09.2026)
 
 **Die Kennung benennt die Installation, nicht den Piloten.** Eine Brügge ohne Kennung bekommt

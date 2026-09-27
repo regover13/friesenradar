@@ -347,6 +347,11 @@ Die **FriesenReddung** („Reddung" ist Platt für Rettung) ist ein Event-Typ, d
 notgelandete Maschine. Bekannt ist nur der Sektor. Die Gruppe fliegt hinaus, teilt ihn
 untereinander auf und sucht ihn ab.
 
+**Was gesucht wird, steht in der Lage:** Oben in der Reddung-Ansicht beschreibt der
+Veranstalter, was passiert ist, zum Beispiel wer verschollen ist, wohin er unterwegs war und
+wo der letzte Funkkontakt war. Die Lage ist schon vor dem Start zu lesen, damit du dich
+vorbereiten kannst, und steht während der Suche auch im Reddung-Block im Live-Tab.
+
 **So läuft es:**
 
 1. **Suchen.** Wer tief und langsam über eine Stelle fliegt, hat sie abgesucht. Der
@@ -492,6 +497,11 @@ Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, St
 - **Piloten-Verwaltung** — bekannte Piloten auflisten, manuell anlegen oder umbenennen und löschen (Namenspflege; **keine** Mitglieder-Allowlist — Friesen werden weiter über das Callsign-Präfix `FRS` erkannt).
 
 ### Rund um die FriesenReddung
+- **Lage** — ein Textfeld für die Geschichte des Abends: was gesucht wird und was man darüber
+  weiß. Alle Piloten sehen sie, schon vor dem Start; wie viel sie verrät, entscheidest du. Sie
+  steht auch im Forumstext der Bilanz. Die Lage oder den Namen nachträglich zu ändern, lässt die
+  Bilanz unangetastet — neu gerechnet wird nur, wenn sich Sektor, Zeitfenster oder eine der
+  Schranken ändert.
 - **Event anlegen** — Name, Zeitfenster und der **Suchsektor** als Rechteck (vier Koordinaten).
   Daneben stehen **Zellkante** und **Korridor**: Die Zellkante bestimmt, wie fein der Sektor in
   Felder zerlegt wird, der Korridor, wie weit seitlich ein Überflug noch zählt. Gleiche Werte

@@ -6607,6 +6607,8 @@ def reddung_events():
                 "source": ev.get("source"),
                 "aufnehmen_noetig": ev.get("aufnehmen_noetig"),
                 "landung_noetig": ev.get("landung_noetig"),
+                # Was gesucht wird -- vom Veranstalter geschrieben, auch vor dem Start.
+                "lagetext": ev.get("lagetext"),
                 "stand": stand,
                 "fundort": reddung_fundort(conn, ev, now),
             })
@@ -7091,7 +7093,52 @@ def _validate_reddung_felder(body: dict) -> str | None:
     oben = body.get("gs_max_kt")
     if unten is not None and oben is not None and float(unten) > float(oben):
         return "gs_min_kt darf nicht über gs_max_kt liegen"
+    lagetext = body.get("lagetext")
+    if lagetext is not None:
+        if not isinstance(lagetext, str):
+            return "lagetext: Text erwartet"
+        if len(lagetext.strip()) > _REDDUNG_LAGE_MAX:
+            return f"lagetext: höchstens {_REDDUNG_LAGE_MAX} Zeichen"
     return None
+
+
+#: Die Lage ist ein Absatz, kein Roman -- sie steht im Live-Block ueber der Karte.
+_REDDUNG_LAGE_MAX = 2000
+
+
+def _reddung_lage_putzen(body: dict) -> None:
+    """Leerraum an den Raendern weg, leer heisst keine Lage (NULL). Erst NACH der Pruefung."""
+    if "lagetext" in body:
+        body["lagetext"] = (body["lagetext"] or "").strip() or None
+
+
+#: Felder, die in den fortgeschriebenen Stand NICHT eingehen. Aendert sich nur eines davon,
+#: bleibt der Stand stehen -- s. ``_reddung_rechnung_geaendert``.
+_REDDUNG_OHNE_RECHNUNG = {"name", "lagetext", "badge_name", "push_enabled", "manual_fields",
+                          "source", "calendar_uid"}
+
+
+def _reddung_rechnung_geaendert(alt: dict, body: dict) -> bool:
+    """Aendert der Koerper etwas, das in den Stand eingeht?
+
+    ⚠ Das Admin-Formular schickt beim Speichern IMMER alle Felder. Bis 15.24.0 verwarf deshalb
+    jedes Speichern den Stand -- auch nur fuer einen neuen Namen oder eine korrigierte Lage.
+    Nach dem Ende ist das gefaehrlich: `bruegge_spur` ist nach 12 Stunden aufgeraeumt, und die
+    Neuberechnung faende nur noch VATSIM vor, verwuerfe es mangels Bruegge-Meldung und setzte
+    die abgesuchte Flaeche eines verkuendeten Abends auf null. Im Zweifel gilt es als
+    geaendert -- lieber einmal zu viel neu rechnen als einen falschen Stand behalten.
+    """
+    for k, neu in body.items():
+        if k in _REDDUNG_OHNE_RECHNUNG:
+            continue
+        bisher = alt.get(k)
+        if isinstance(neu, (int, float)) and isinstance(bisher, (int, float)) \
+                and not isinstance(neu, bool):
+            if abs(float(neu) - float(bisher)) > 1e-9:
+                return True
+        elif neu != bisher:
+            return True
+    return False
 
 
 #: Felder, die Anlegen und Ändern aus dem Körper übernehmen. Die Positivliste in
@@ -7101,7 +7148,7 @@ _REDDUNG_KOERPER = (
     "fund_radius_m", "fund_hoehe_ft",
     "havarist_lat", "havarist_lon", "havarist_art", "havarist_grund_ft",
     "havarist_grund_quelle", "aufnehmen_noetig", "landung_noetig", "aufnahme_verfaellt",
-    "badge_name",
+    "badge_name", "lagetext",
 )
 
 
@@ -7139,6 +7186,7 @@ async def admin_create_reddung_event(request: Request):
     serr = _validate_reddung_sektor(body)
     if serr:
         raise HTTPException(status_code=400, detail=serr)
+    _reddung_lage_putzen(body)
     felder = {k: body[k] for k in _REDDUNG_KOERPER if k in body}
     conn = get_connection(get_settings().DB_PATH)
     try:
@@ -7187,6 +7235,8 @@ async def admin_update_reddung_event(request: Request, event_id: int):
         serr = _validate_reddung_sektor(zusammen)
         if serr:
             raise HTTPException(status_code=400, detail=serr)
+        _reddung_lage_putzen(body)
+        neu_rechnen = _reddung_rechnung_geaendert(dict(alt), body)
         try:
             update_reddung_event(conn, event_id, **body)
         except ValueError as e:
@@ -7195,8 +7245,9 @@ async def admin_update_reddung_event(request: Request, event_id: int):
         # Zellschluessel `z<i>_<j>` zeigen nach einer Aenderung auf ANDERE Zellen. Ohne das
         # Verwerfen stand `zellen 4, abgedeckt 8, anteil 2.0` in der Liste, und vier Zellen
         # galten als abgesucht, ueber die nie jemand geflogen war. Bummel und Kutter tun
-        # dasselbe an derselben Stelle.
-        delete_progress_snapshot(conn, "reddung", event_id)
+        # dasselbe an derselben Stelle. Aber NUR dann: Name und Lage aendern daran nichts.
+        if neu_rechnen:
+            delete_progress_snapshot(conn, "reddung", event_id)
         reddung_objekte_abgleichen(conn, get_reddung_event(conn, event_id))
         conn.commit()
         return {"status": "ok"}
