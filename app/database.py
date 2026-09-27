@@ -1338,6 +1338,23 @@ _LIVE_POSITIONS_MIGRATIONS = [
     "ALTER TABLE live_positions ADD COLUMN remarks TEXT",
 ]
 
+_MESSEVERKEHR_MIGRATIONS = [
+    "ALTER TABLE messeverkehr_flights ADD COLUMN flight_rules TEXT",
+    "ALTER TABLE messeverkehr_flights ADD COLUMN aircraft_icao TEXT",
+    "ALTER TABLE messeverkehr_flights ADD COLUMN alternate TEXT",
+    "ALTER TABLE messeverkehr_flights ADD COLUMN deptime TEXT",
+    "ALTER TABLE messeverkehr_flights ADD COLUMN cruise_tas TEXT",
+    "ALTER TABLE messeverkehr_flights ADD COLUMN enroute_time TEXT",
+    "ALTER TABLE messeverkehr_flights ADD COLUMN fuel_time TEXT",
+    "ALTER TABLE messeverkehr_flights ADD COLUMN route TEXT",
+    # Replay-Buchhaltung (welcher echte Flug wird gerade abgespielt) -- interne Spalten,
+    # werden vor der Auslieferung an Client/Frontend gefiltert (app/messeverkehr.py,
+    # _INTERNE_REPLAY_SPALTEN).
+    "ALTER TABLE messeverkehr_flights ADD COLUMN quelle_flight_id INTEGER",
+    "ALTER TABLE messeverkehr_flights ADD COLUMN quelle_logon_time TEXT",
+    "ALTER TABLE messeverkehr_flights ADD COLUMN quelle_logoff_time TEXT",
+]
+
 _PILOTS_MIGRATIONS = [
     # Pilot von der Friesen-Erkennung ausschließen, obwohl das Callsign den Präfix trägt
     # (z. B. Gast-CID auf einem FRS-Tag bei PC-21-Flügen). Default 1: Bestandspiloten bleiben
@@ -1431,6 +1448,11 @@ def init_db(db_path: str) -> None:
                 conn.execute(stmt)
             except sqlite3.OperationalError:
                 pass  # Spalte existiert bereits
+        for stmt in _MESSEVERKEHR_MIGRATIONS:
+            try:
+                conn.execute(stmt)
+            except sqlite3.OperationalError:
+                pass
         for stmt in _CALENDAR_MIGRATIONS:
             try:
                 conn.execute(stmt)
@@ -12237,14 +12259,19 @@ def replace_messeverkehr_positions(conn: sqlite3.Connection, flights: list[dict]
     for f in flights:
         if f["cid"] >= 0:
             raise ValueError(f"messeverkehr cid muss negativ sein, war {f['cid']!r}")
+    _SPALTEN = (
+        "cid", "callsign", "aircraft", "departure", "arrival", "latitude", "longitude",
+        "altitude", "groundspeed", "heading", "logon_time", "updated_at", "name",
+        "flight_rules", "aircraft_icao", "alternate", "deptime", "cruise_tas",
+        "enroute_time", "fuel_time", "route",
+        "quelle_flight_id", "quelle_logon_time", "quelle_logoff_time",
+    )
+    zeilen = [{spalte: f.get(spalte) for spalte in _SPALTEN} for f in flights]
     conn.execute("DELETE FROM messeverkehr_flights")
     conn.executemany(
-        "INSERT INTO messeverkehr_flights "
-        "(cid, callsign, aircraft, departure, arrival, latitude, longitude, altitude, "
-        " groundspeed, heading, logon_time, updated_at, name) "
-        "VALUES (:cid, :callsign, :aircraft, :departure, :arrival, :latitude, :longitude, "
-        " :altitude, :groundspeed, :heading, :logon_time, :updated_at, :name)",
-        flights,
+        "INSERT INTO messeverkehr_flights (" + ", ".join(_SPALTEN) + ") "
+        "VALUES (" + ", ".join(f":{s}" for s in _SPALTEN) + ")",
+        zeilen,
     )
 
 
