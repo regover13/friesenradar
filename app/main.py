@@ -3843,11 +3843,7 @@ async def _event_generator(request: Request, poller: VatsimPoller):
             elif data.get("type") == "positions":
                 roh = data.get("data", [])
                 if any(e.get("_messeverkehr") for e in roh):
-                    if darf_messeverkehr_sehen:
-                        roh = [{k: v for k, v in e.items() if k != "_messeverkehr"} for e in roh]
-                    else:
-                        roh = [e for e in roh if not e.get("_messeverkehr")]
-                    data = {**data, "data": roh}
+                    data = {**data, "data": _messeverkehr_gefiltert(roh, darf_messeverkehr_sehen)}
             yield f"data: {json.dumps(data)}\n\n"
     finally:
         poller.unsubscribe_sse(queue)
@@ -4801,6 +4797,17 @@ def _forum_login_active_cached(settings) -> bool:
     return bool(_gate_cache["val"])
 
 
+def _messeverkehr_gefiltert(positions: list[dict], darf_sehen: bool) -> list[dict]:
+    """Reiner Filter, keine DB: Wer nicht sehen darf, verliert ``_messeverkehr``-Einträge
+    komplett. Wer sehen darf, bekommt sie — aber ohne das interne Merkmal, das den Server
+    nie verlassen darf. Von REST (``_positions_fuer_betrachter``) und SSE
+    (``_event_generator``) gemeinsam genutzt, damit die Regel nur an einer Stelle steht.
+    """
+    if darf_sehen:
+        return [{k: v for k, v in p.items() if k != "_messeverkehr"} for p in positions]
+    return [p for p in positions if not p.get("_messeverkehr")]
+
+
 def _positions_fuer_betrachter(conn, positions: list[dict], viewer_cid: int | None) -> list[dict]:
     """Filtert eine Liste von Live-Positionen für einen konkreten Betrachter.
 
@@ -4809,14 +4816,7 @@ def _positions_fuer_betrachter(conn, positions: list[dict], viewer_cid: int | No
     den Server sonst nie verlassen darf.
     """
     darf_sehen = cid_hat_messeverkehr_erlaubnis(conn, viewer_cid)
-    ergebnis = []
-    for p in positions:
-        if p.get("_messeverkehr") and not darf_sehen:
-            continue
-        if "_messeverkehr" in p:
-            p = {k: v for k, v in p.items() if k != "_messeverkehr"}
-        ergebnis.append(p)
-    return ergebnis
+    return _messeverkehr_gefiltert(positions, darf_sehen)
 
 
 def _current_cid(request: Request, settings) -> int | None:
