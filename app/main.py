@@ -212,6 +212,12 @@ from app.database import (
     list_messeverkehr_erlaubt,
     add_messeverkehr_erlaubt,
     remove_messeverkehr_erlaubt,
+    messeverkehr_anzahl_bereich,
+    set_messeverkehr_anzahl_bereich,
+    messeverkehr_staffelung_minuten,
+    set_messeverkehr_staffelung_minuten,
+    list_messeverkehr_ausschluss_callsigns,
+    set_messeverkehr_ausschluss_callsigns,
 )
 from app import geo
 from app import bruegge
@@ -4869,14 +4875,63 @@ async def admin_set_forum_login(request: Request):
 
 @app.get("/api/admin/messeverkehr")
 async def admin_get_messeverkehr(request: Request):
-    """Status des simulierten Messeverkehrs: Feature-Flag + Allowlist."""
+    """Status des simulierten Messeverkehrs: Feature-Flag, Allowlist, Anzahl-Bereich,
+    Staffelung, Ausschluss-Callsigns."""
     require_admin(request)
     conn = get_connection(get_settings().DB_PATH)
     try:
+        minimum, maximum = messeverkehr_anzahl_bereich(conn)
         return {
             "enabled": ist_messeverkehr_aktiv(conn),
             "erlaubt": list_messeverkehr_erlaubt(conn),
+            "min_fluege": minimum,
+            "max_fluege": maximum,
+            "staffelung_min": messeverkehr_staffelung_minuten(conn),
+            "ausschluss_callsigns": list_messeverkehr_ausschluss_callsigns(conn),
         }
+    finally:
+        conn.close()
+
+
+@app.put("/api/admin/messeverkehr/einstellungen")
+async def admin_set_messeverkehr_einstellungen(request: Request):
+    """Setzt Anzahl-Bereich (min/max gleichzeitiger Fluege) und Staffelung (Minuten Vorsprung
+    beim allerersten Start). min <= max, beide >= 0."""
+    require_admin(request)
+    body = await request.json()
+    try:
+        minimum = int(body.get("min_fluege"))
+        maximum = int(body.get("max_fluege"))
+        staffelung = int(body.get("staffelung_min"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="min_fluege/max_fluege/staffelung_min (Zahlen) erforderlich")
+    if minimum < 0 or maximum < 0 or staffelung < 0:
+        raise HTTPException(status_code=400, detail="Werte muessen >= 0 sein")
+    if minimum > maximum:
+        raise HTTPException(status_code=400, detail="min_fluege darf nicht ueber max_fluege liegen")
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        set_messeverkehr_anzahl_bereich(conn, minimum, maximum)
+        set_messeverkehr_staffelung_minuten(conn, staffelung)
+        conn.commit()
+        return {"status": "ok"}
+    finally:
+        conn.close()
+
+
+@app.put("/api/admin/messeverkehr/ausschluss")
+async def admin_set_messeverkehr_ausschluss(request: Request):
+    """Ersetzt die komplette Ausschlussliste echter Callsigns (kein Anhaengen)."""
+    require_admin(request)
+    body = await request.json()
+    callsigns = body.get("callsigns")
+    if not isinstance(callsigns, list) or not all(isinstance(c, str) for c in callsigns):
+        raise HTTPException(status_code=400, detail="callsigns (Liste von Texten) erforderlich")
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        set_messeverkehr_ausschluss_callsigns(conn, callsigns)
+        conn.commit()
+        return {"status": "ok"}
     finally:
         conn.close()
 

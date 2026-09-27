@@ -92,3 +92,50 @@ def test_flag_ohne_enabled_feld_ist_fehler(db):
     with pytest.raises(HTTPException) as e:
         asyncio.run(main.admin_set_messeverkehr(FakeReq(body={})))
     assert e.value.status_code == 400
+
+
+def test_get_liefert_einstellungen_mit_defaults(db):
+    res = asyncio.run(main.admin_get_messeverkehr(FakeReq()))
+    assert res["min_fluege"] == 2
+    assert res["max_fluege"] == 4
+    assert res["staffelung_min"] == 30
+    assert res["ausschluss_callsigns"] == []
+
+
+def test_einstellungen_setzen(db):
+    asyncio.run(main.admin_set_messeverkehr_einstellungen(
+        FakeReq(body={"min_fluege": 1, "max_fluege": 5, "staffelung_min": 45})
+    ))
+    res = asyncio.run(main.admin_get_messeverkehr(FakeReq()))
+    assert res["min_fluege"] == 1
+    assert res["max_fluege"] == 5
+    assert res["staffelung_min"] == 45
+
+
+def test_einstellungen_min_darf_nicht_ueber_max_liegen(db):
+    with pytest.raises(HTTPException) as e:
+        asyncio.run(main.admin_set_messeverkehr_einstellungen(
+            FakeReq(body={"min_fluege": 5, "max_fluege": 1, "staffelung_min": 30})
+        ))
+    assert e.value.status_code == 400
+
+
+def test_einstellungen_negative_werte_sind_fehler(db):
+    with pytest.raises(HTTPException) as e:
+        asyncio.run(main.admin_set_messeverkehr_einstellungen(
+            FakeReq(body={"min_fluege": -1, "max_fluege": 4, "staffelung_min": 30})
+        ))
+    assert e.value.status_code == 400
+
+
+def test_ausschluss_callsigns_setzen_und_lesen(db):
+    asyncio.run(main.admin_set_messeverkehr_ausschluss(
+        FakeReq(body={"callsigns": ["frs7", " FRS8 ", "", "FRS9N"]})
+    ))
+    res = asyncio.run(main.admin_get_messeverkehr(FakeReq()))
+    assert res["ausschluss_callsigns"] == ["FRS7", "FRS8", "FRS9N"]
+
+    # Erneutes Setzen ERSETZT die Liste komplett, haengt nicht an.
+    asyncio.run(main.admin_set_messeverkehr_ausschluss(FakeReq(body={"callsigns": ["FRS1"]})))
+    res = asyncio.run(main.admin_get_messeverkehr(FakeReq()))
+    assert res["ausschluss_callsigns"] == ["FRS1"]
