@@ -114,6 +114,28 @@ CREATE INDEX IF NOT EXISTS idx_ph_cid_ts ON position_history(cid, ts);
 CREATE INDEX IF NOT EXISTS idx_ph_ts     ON position_history(ts);
 CREATE INDEX IF NOT EXISTS idx_flights_cid ON flights(cid);
 
+CREATE TABLE IF NOT EXISTS messeverkehr_flights (
+    cid          INTEGER PRIMARY KEY,
+    callsign     TEXT,
+    aircraft     TEXT,
+    departure    TEXT,
+    arrival      TEXT,
+    latitude     REAL,
+    longitude    REAL,
+    altitude     INTEGER,
+    groundspeed  INTEGER,
+    heading      INTEGER,
+    logon_time   TEXT,
+    updated_at   TEXT,
+    name         TEXT
+);
+
+CREATE TABLE IF NOT EXISTS messeverkehr_erlaubt (
+    cid              INTEGER PRIMARY KEY,
+    hinzugefuegt_am  TEXT NOT NULL,
+    hinzugefuegt_von TEXT
+);
+
 CREATE TABLE IF NOT EXISTS statsim_cache (
     statsim_id   INTEGER PRIMARY KEY,
     cid          INTEGER NOT NULL,
@@ -12193,3 +12215,77 @@ def kniebrett_modi_alle(conn: sqlite3.Connection) -> dict[int, str]:
     """
     rows = conn.execute("SELECT cid, modus FROM kniebrett_melden").fetchall()
     return {int(r[0]): str(r[1]) for r in rows}
+
+
+# ---------------------------------------------------------------------------
+# Messeverkehr (docs/superpowers/specs/2026-09-27-messeverkehr-design.md)
+# ---------------------------------------------------------------------------
+
+def get_messeverkehr_positions(conn: sqlite3.Connection) -> list[dict]:
+    """Aktuelle simulierte Flüge — gleiche Feldform wie get_live_positions()."""
+    rows = conn.execute("SELECT * FROM messeverkehr_flights").fetchall()
+    return [_row_to_dict(r) for r in rows]
+
+
+def replace_messeverkehr_positions(conn: sqlite3.Connection, flights: list[dict]) -> None:
+    """Ersetzt den kompletten Bestand simulierter Flüge (kein commit).
+
+    Jede cid MUSS negativ sein — das ist die einzige Schranke, die verhindert, dass ein
+    simulierter Flug je mit einer echten VATSIM-CID kollidiert oder in einer Stelle landet,
+    die cid > 0 voraussetzt.
+    """
+    for f in flights:
+        if f["cid"] >= 0:
+            raise ValueError(f"messeverkehr cid muss negativ sein, war {f['cid']!r}")
+    conn.execute("DELETE FROM messeverkehr_flights")
+    conn.executemany(
+        "INSERT INTO messeverkehr_flights "
+        "(cid, callsign, aircraft, departure, arrival, latitude, longitude, altitude, "
+        " groundspeed, heading, logon_time, updated_at, name) "
+        "VALUES (:cid, :callsign, :aircraft, :departure, :arrival, :latitude, :longitude, "
+        " :altitude, :groundspeed, :heading, :logon_time, :updated_at, :name)",
+        flights,
+    )
+
+
+def cid_hat_messeverkehr_erlaubnis(conn: sqlite3.Connection, cid: int | None) -> bool:
+    """True, wenn diese CID den Messeverkehr sehen darf. None → immer False."""
+    if cid is None:
+        return False
+    row = conn.execute(
+        "SELECT 1 FROM messeverkehr_erlaubt WHERE cid = ?", (cid,)
+    ).fetchone()
+    return row is not None
+
+
+def list_messeverkehr_erlaubt(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute(
+        "SELECT cid, hinzugefuegt_am, hinzugefuegt_von FROM messeverkehr_erlaubt "
+        "ORDER BY hinzugefuegt_am"
+    ).fetchall()
+    return [_row_to_dict(r) for r in rows]
+
+
+def add_messeverkehr_erlaubt(conn: sqlite3.Connection, cid: int, von: str | None) -> None:
+    """Fügt eine CID zur Messeverkehr-Allowlist hinzu (kein commit)."""
+    conn.execute(
+        "INSERT INTO messeverkehr_erlaubt (cid, hinzugefuegt_am, hinzugefuegt_von) "
+        "VALUES (?, ?, ?) "
+        "ON CONFLICT(cid) DO UPDATE SET hinzugefuegt_am = excluded.hinzugefuegt_am, "
+        "hinzugefuegt_von = excluded.hinzugefuegt_von",
+        (cid, _now_utc(), von),
+    )
+
+
+def remove_messeverkehr_erlaubt(conn: sqlite3.Connection, cid: int) -> None:
+    """Entfernt eine CID von der Messeverkehr-Allowlist (kein commit)."""
+    conn.execute("DELETE FROM messeverkehr_erlaubt WHERE cid = ?", (cid,))
+
+
+def ist_messeverkehr_aktiv(conn: sqlite3.Connection) -> bool:
+    return get_app_setting(conn, "messeverkehr_enabled", "0") == "1"
+
+
+def set_messeverkehr_aktiv(conn: sqlite3.Connection, aktiv: bool) -> None:
+    """Schaltet den Messeverkehr an/aus (kein commit)."""
+    set_app_setting(conn, "messeverkehr_enabled", "1" if aktiv else "0")
