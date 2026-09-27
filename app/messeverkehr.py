@@ -106,7 +106,8 @@ def _iso(dt: datetime) -> str:
 
 def _historischen_flug_waehlen(conn) -> dict | None:
     """Waehlt zufaellig einen abgeschlossenen, echten Flug mit brauchbarem Track (mind. zwei
-    aufgezeichnete Positionen)."""
+    aufgezeichnete Positionen). Nur deutsche Strecken (ICAO-Praefix "ED" bei Start UND Ziel) --
+    Nutzerwunsch 27.09.2026, nachdem eine internationale Strecke (Florida) auftauchte."""
     for _ in range(10):
         row = conn.execute(
             "SELECT id, cid, aircraft_short, aircraft_icao, departure, arrival, route, "
@@ -114,8 +115,7 @@ def _historischen_flug_waehlen(conn) -> dict | None:
             "       logon_time, logoff_time "
             "FROM flights "
             "WHERE logon_time IS NOT NULL AND logoff_time IS NOT NULL "
-            "  AND departure IS NOT NULL AND departure != '' "
-            "  AND arrival IS NOT NULL AND arrival != '' "
+            "  AND departure LIKE 'ED%' AND arrival LIKE 'ED%' "
             "  AND duration_min BETWEEN ? AND ? "
             "ORDER BY RANDOM() LIMIT 1",
             (_MIN_FLUGDAUER_MIN, _MAX_FLUGDAUER_MIN),
@@ -132,23 +132,33 @@ def _historischen_flug_waehlen(conn) -> dict | None:
     return None
 
 
-def _position_bei(conn, quelle_cid: int, zeitpunkt: datetime) -> dict | None:
-    """Interpolierte Position aus position_history zum gegebenen Zeitpunkt.
+def _position_bei(conn, quelle_cid: int, zeitpunkt: datetime,
+                  fenster_von: str, fenster_bis: str) -> dict | None:
+    """Interpolierte Position aus position_history zum gegebenen Zeitpunkt -- AUSSCHLIESSLICH
+    innerhalb von [fenster_von, fenster_bis] (des gewaehlten Quellflugs).
 
-    None, wenn der Zeitpunkt ausserhalb des aufgezeichneten Fensters liegt (Flug
+    PRODUKTIONSVORFALL 27.09.2026: Ohne diese Fensterung suchte die Funktion in der GESAMTEN
+    Positionshistorie eines Piloten. Bei einer Aufzeichnungsluecke im gewaehlten Flug griff
+    sie in einen zeitlich weit entfernten, voellig anderen Flug DESSELBEN Piloten -- ein
+    simulierter Flug sprang dadurch binnen einem Zyklus quer über den Globus (Nutzerfund:
+    "FRS122 ist mal schnell von Florida an die Elfenbeinkueste"). Die Fensterung macht das
+    strukturell unmoeglich: Ausserhalb des Fensters gibt es keinen Bezugspunkt mehr, und die
+    Funktion liefert None ("angekommen") statt eines Sprungs.
+
+    None auch, wenn der Zeitpunkt ausserhalb des aufgezeichneten Datenfensters liegt (Flug
     "angekommen"). Der Kurs wird NICHT interpoliert (zirkulaer -- 350->10 Grad waere sonst
     faelschlich 180) -- der naehere Messpunkt liefert ihn.
     """
     zeitpunkt_iso = _iso(zeitpunkt)
     vorher = conn.execute(
         "SELECT latitude, longitude, altitude, groundspeed, heading, ts FROM position_history "
-        "WHERE cid = ? AND ts <= ? ORDER BY ts DESC LIMIT 1",
-        (quelle_cid, zeitpunkt_iso),
+        "WHERE cid = ? AND ts <= ? AND ts >= ? ORDER BY ts DESC LIMIT 1",
+        (quelle_cid, zeitpunkt_iso, fenster_von),
     ).fetchone()
     nachher = conn.execute(
         "SELECT latitude, longitude, altitude, groundspeed, heading, ts FROM position_history "
-        "WHERE cid = ? AND ts >= ? ORDER BY ts ASC LIMIT 1",
-        (quelle_cid, zeitpunkt_iso),
+        "WHERE cid = ? AND ts >= ? AND ts <= ? ORDER BY ts ASC LIMIT 1",
+        (quelle_cid, zeitpunkt_iso, fenster_bis),
     ).fetchone()
     if vorher is None or nachher is None:
         return None
@@ -199,7 +209,8 @@ def _neuer_flug(conn, slot: int, jetzt: datetime, belegte_callsigns: set[str],
 
     spawn_zeit = jetzt - timedelta(seconds=vorsprung_sek)
     virtueller_start = quelle_logon + timedelta(seconds=vorsprung_sek)
-    position = _position_bei(conn, quelle["cid"], virtueller_start)
+    position = _position_bei(conn, quelle["cid"], virtueller_start,
+                             quelle["logon_time"], quelle["logoff_time"])
     if position is None:
         return None
 
@@ -244,11 +255,12 @@ def _fortschreiben(conn, flug: dict, jetzt: datetime) -> dict | None:
     echten Live-Positionen blieben stehen. Eine unvollstaendige Zeile ist fachlich nichts
     anderes als ein "angekommener" Flug: sie wird verworfen und respawnt.
     """
-    if not flug.get("quelle_cid") or not flug.get("quelle_logon_time"):
+    if not flug.get("quelle_cid") or not flug.get("quelle_logon_time") or not flug.get("quelle_logoff_time"):
         return None
     verstrichen = (jetzt - _als_datetime(flug["logon_time"])).total_seconds()
     virtueller_zeitpunkt = _als_datetime(flug["quelle_logon_time"]) + timedelta(seconds=verstrichen)
-    position = _position_bei(conn, flug["quelle_cid"], virtueller_zeitpunkt)
+    position = _position_bei(conn, flug["quelle_cid"], virtueller_zeitpunkt,
+                             flug["quelle_logon_time"], flug["quelle_logoff_time"])
     if position is None:
         return None
 

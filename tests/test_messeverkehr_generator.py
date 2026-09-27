@@ -178,24 +178,24 @@ def test_position_bei_interpoliert_linear(conn):
     )
     conn.commit()
 
-    mitte = _position_bei(conn, 999, ts0 + timedelta(minutes=5))
+    fenster_von, fenster_bis = _iso(ts0), _iso(ts1)
+    mitte = _position_bei(conn, 999, ts0 + timedelta(minutes=5), fenster_von, fenster_bis)
     assert mitte is not None
     assert abs(mitte["latitude"] - 50.5) < 1e-6
     assert abs(mitte["longitude"] - 9.0) < 1e-6
     assert abs(mitte["altitude"] - 2000) < 1e-6
 
-    ausserhalb = _position_bei(conn, 999, ts1 + timedelta(minutes=1))
+    ausserhalb = _position_bei(conn, 999, ts1 + timedelta(minutes=1), fenster_von, fenster_bis)
     assert ausserhalb is None
 
 
 def test_position_bei_kappt_unplausible_werte(conn):
     """Nutzerfund 27.09.2026 (Screenshot der Live-Liste): ein simulierter Flug zeigte
-    7.295.605 ft und 129.601 kt, ein anderer 99.626 ft bei 0 kt. In position_history selbst
-    liegt nirgends ein Wert ueber 20.009 ft / 762 kt (gemessen), die Interpolation kann
-    rechnerisch auch keinen groesseren Wert liefern als ihre beiden Stuetzpunkte -- die exakte
-    Ursache des Einzelfalls blieb ungeklaert. Diese Kappung macht das Symptom unabhaengig von
-    der Ursache unmoeglich: Werte ausserhalb plausibler Flugzeug-Grenzen werden gekappt, nie
-    ungeprueft ausgeliefert."""
+    7.295.605 ft und 129.601 kt, ein anderer 99.626 ft bei 0 kt. Die eigentliche Ursache war
+    die fehlende Fensterung in _position_bei (s. test_position_bei_ueberschreitet_nie_das_
+    flugfenster) -- diese Kappung ist eine zusaetzliche, ursachenunabhaengige Sicherung:
+    selbst wenn position_history irgendwann echte Ausreisser enthaelt, werden Werte
+    ausserhalb plausibler Flugzeug-Grenzen gekappt, nie ungeprueft ausgeliefert."""
     _pilot(conn, 998)
     ts0 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
     ts1 = ts0 + timedelta(minutes=10)
@@ -211,7 +211,7 @@ def test_position_bei_kappt_unplausible_werte(conn):
     )
     conn.commit()
 
-    position = _position_bei(conn, 998, ts0 + timedelta(minutes=5))
+    position = _position_bei(conn, 998, ts0 + timedelta(minutes=5), _iso(ts0), _iso(ts1))
     assert position is not None
     assert 0 <= position["altitude"] <= 45000, position["altitude"]
     assert 0 <= position["groundspeed"] <= 500, position["groundspeed"]
@@ -394,3 +394,68 @@ def test_advance_liefert_dieselbe_reihenfolge_wie_get_messeverkehr_positions(con
     von_lesend = get_messeverkehr_positions(conn)
 
     assert [f["cid"] for f in von_advance] == [f["cid"] for f in von_lesend]
+
+
+def test_position_bei_ueberschreitet_nie_das_flugfenster(conn):
+    """PRODUKTIONSVORFALL 27.09.2026: _position_bei suchte in der GESAMTEN
+    position_history-Historie eines Piloten, nicht nur im Zeitfenster des gewaehlten Fluges.
+    Bei einer Aufzeichnungsluecke griff die Suche in einen VOELLIG ANDEREN, zeitlich weit
+    entfernten Flug desselben Piloten -- Nutzerfund: "FRS122 ist mal schnell von Florida an
+    die Elfenbeinkueste". Diese beiden Punkte hier simulieren genau das: ein Flug in
+    Deutschland (Fenster), und Wochen spaeter ein voellig anderer, weit entfernter Flug
+    DESSELBEN cid ausserhalb des Fensters. Die Suche darf NIE ueber die Fenstergrenzen
+    hinausgreifen."""
+    _pilot(conn, 997)
+    fenster_von = datetime(2026, 8, 5, 17, 0, 0, tzinfo=timezone.utc)
+    fenster_bis = datetime(2026, 8, 5, 18, 0, 0, tzinfo=timezone.utc)
+    # Einziger Punkt INNERHALB des Fensters (Deutschland).
+    conn.execute(
+        "INSERT INTO position_history (cid, callsign, latitude, longitude, altitude, "
+        "groundspeed, heading, ts) VALUES (?,?,?,?,?,?,?,?)",
+        (997, "FRSZ", 51.13, 13.77, 2000, 100, 90, _iso(fenster_von)),
+    )
+    # Weit entfernter Punkt WOCHEN SPAETER, ausserhalb des Fensters (Elfenbeinkueste).
+    conn.execute(
+        "INSERT INTO position_history (cid, callsign, latitude, longitude, altitude, "
+        "groundspeed, heading, ts) VALUES (?,?,?,?,?,?,?,?)",
+        (997, "FRSZ", 5.0, -4.0, 3000, 150, 90, _iso(fenster_bis + timedelta(days=20))),
+    )
+    conn.commit()
+
+    # Zeitpunkt liegt NACH dem letzten Punkt IM Fenster -> muss als "angekommen" gelten
+    # (None), NICHT den weit entfernten Punkt ausserhalb des Fensters heranziehen.
+    # fenster_von/fenster_bis als ISO-Text, wie es die echten Aufrufer immer tun (logon_time/
+    # logoff_time kommen als TEXT-Spalten aus der DB) -- ein rohes datetime-Objekt wuerde
+    # sqlite3s eigenen (abweichenden) Adapter nehmen statt _iso(), und die Textvergleiche in
+    # der SQL-Abfrage koennten leise danebengehen.
+    ergebnis = _position_bei(conn, 997, fenster_von + timedelta(minutes=30),
+                             _iso(fenster_von), _iso(fenster_bis))
+    assert ergebnis is None, ergebnis
+
+
+def test_historischen_flug_waehlen_nur_deutsche_strecken(conn):
+    """Nutzerwunsch 27.09.2026: die simulierten Fluege sollen in Deutschland stattfinden --
+    kein KEVB->KMCO (Florida) mehr. Nur Fluege mit deutschem Start UND Ziel (ICAO-Praefix ED)
+    kommen als Vorlage infrage."""
+    conn.execute(
+        "INSERT INTO pilots (cid, name, added_at) VALUES (5, 'X', '2026-01-01T00:00:00Z')"
+    )
+    conn.execute(
+        "INSERT INTO flights (cid, callsign, departure, arrival, logon_time, logoff_time, "
+        "duration_min) VALUES (5, 'FRS5', 'KEVB', 'KMCO', '2026-01-01T10:00:00Z', "
+        "'2026-01-01T10:30:00Z', 30)"
+    )
+    for i in range(2):
+        conn.execute(
+            "INSERT INTO position_history (cid, callsign, latitude, longitude, altitude, "
+            "groundspeed, heading, ts) VALUES (5, 'FRS5', 28.0, -81.0, 1000, 100, 90, ?)",
+            (f"2026-01-01T10:0{i}:00Z",),
+        )
+    _seed_historischer_flug(conn, cid=6, callsign="FRS6", departure="EDXW", arrival="EDHL")
+    conn.commit()
+
+    for _ in range(10):
+        gefunden = _historischen_flug_waehlen(conn)
+        assert gefunden is not None
+        assert gefunden["departure"].startswith("ED"), gefunden
+        assert gefunden["arrival"].startswith("ED"), gefunden
