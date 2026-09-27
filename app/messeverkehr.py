@@ -222,7 +222,17 @@ def _neuer_flug(conn, slot: int, jetzt: datetime, belegte_callsigns: set[str],
 def _fortschreiben(conn, flug: dict, jetzt: datetime) -> dict | None:
     """Rueckt einen laufenden Replay-Flug an die Position vor, die der echte Quellflug zum
     entsprechenden virtuellen Zeitpunkt hatte. None, wenn das Aufzeichnungsfenster zuende ist
-    (Flug "angekommen")."""
+    (Flug "angekommen") -- ODER wenn die Zeile keine (vollstaendige) Replay-Buchhaltung traegt.
+
+    Der zweite Fall ist kein theoretisches Risiko: Beim Umstieg vom synthetischen Generator
+    auf Historien-Replay (27.09.2026) lagen in der Produktions-DB noch Zeilen aus der alten
+    Fassung, ganz ohne quelle_cid/quelle_logon_time/quelle_logoff_time. _als_datetime(None)
+    riss damit den KOMPLETTEN Poll-Zyklus alle 15s ab -- nicht nur den Messeverkehr, auch die
+    echten Live-Positionen blieben stehen. Eine unvollstaendige Zeile ist fachlich nichts
+    anderes als ein "angekommener" Flug: sie wird verworfen und respawnt.
+    """
+    if not flug.get("quelle_cid") or not flug.get("quelle_logon_time"):
+        return None
     verstrichen = (jetzt - _als_datetime(flug["logon_time"])).total_seconds()
     virtueller_zeitpunkt = _als_datetime(flug["quelle_logon_time"]) + timedelta(seconds=verstrichen)
     position = _position_bei(conn, flug["quelle_cid"], virtueller_zeitpunkt)

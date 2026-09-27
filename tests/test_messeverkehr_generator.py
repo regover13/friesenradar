@@ -314,3 +314,36 @@ def test_pilotenname_endet_immer_auf_heimatflugplatz(conn):
         assert len(teile) >= 2, flug["name"]
         heimat = teile[-1]
         assert len(heimat) == 4 and heimat.isalpha() and heimat.isupper(), flug["name"]
+
+
+def test_advance_stuerzt_nicht_bei_zeilen_ohne_replay_buchhaltung(conn):
+    """PRODUKTIONSVORFALL 27.09.2026: Nach dem Umstieg auf Historien-Replay lagen in
+    messeverkehr_flights noch Zeilen aus dem alten, rein synthetischen Generator -- ohne
+    quelle_cid/quelle_logon_time/quelle_logoff_time (NULL). _fortschreiben() rief darauf
+    _als_datetime(None) auf und riss den KOMPLETTEN Poll-Zyklus jede 15s ab (nicht nur den
+    Messeverkehr) -- Traceback: "AttributeError: 'NoneType' object has no attribute
+    'replace'". Live-Notfallmassnahme war, die Tabelle leerzuraeumen; dieser Test bindet die
+    eigentliche Ursache: eine Zeile ohne Replay-Buchhaltung darf advance_messeverkehr nicht
+    zum Absturz bringen, sondern muss wie ein "angekommener" Flug behandelt werden (respawnt)."""
+    _seed_historischer_flug(conn)
+    from app.database import replace_messeverkehr_positions
+
+    alte_zeile = {
+        "cid": -900000, "callsign": "FRS999", "aircraft": "C172",
+        "departure": "EDXW", "arrival": "EDHL", "latitude": 54.1, "longitude": 8.3,
+        "altitude": 3500, "groundspeed": 110, "heading": 90,
+        "logon_time": "2026-09-27T10:00:00Z", "updated_at": "2026-09-27T10:00:00Z",
+        "name": "Alter Generator",
+        # quelle_flight_id/quelle_cid/quelle_logon_time/quelle_logoff_time bewusst NICHT
+        # gesetzt -- genau der Zustand nach dem Schema-Umstieg.
+    }
+    replace_messeverkehr_positions(conn, [alte_zeile])
+    conn.commit()
+
+    jetzt = datetime(2026, 9, 27, 10, 0, 30, tzinfo=timezone.utc)
+    ergebnis = advance_messeverkehr(conn, jetzt, echte_callsigns=set())  # darf NICHT werfen
+    conn.commit()
+    assert len(ergebnis) >= 1
+    # Der respawnte Flug hat eine neue logon_time, nicht die alte -- klarer Beweis, dass er
+    # tatsaechlich neu erzeugt und nicht einfach durchgereicht wurde.
+    assert all(f["logon_time"] != "2026-09-27T10:00:00Z" for f in ergebnis)
