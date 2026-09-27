@@ -4858,6 +4858,67 @@ async def admin_set_forum_login(request: Request):
     return {"status": "ok", "enabled": enabled}
 
 
+@app.get("/api/admin/messeverkehr")
+async def admin_get_messeverkehr(request: Request):
+    """Status des simulierten Messeverkehrs: Feature-Flag + Allowlist."""
+    require_admin(request)
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        return {
+            "enabled": ist_messeverkehr_aktiv(conn),
+            "erlaubt": list_messeverkehr_erlaubt(conn),
+        }
+    finally:
+        conn.close()
+
+
+@app.put("/api/admin/messeverkehr")
+async def admin_set_messeverkehr(request: Request):
+    """Schaltet den simulierten Messeverkehr an/aus."""
+    require_admin(request)
+    body = await request.json()
+    aktiv = bool(body.get("enabled"))
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        set_messeverkehr_aktiv(conn, aktiv)
+        conn.commit()
+        return {"status": "ok", "enabled": aktiv}
+    finally:
+        conn.close()
+
+
+@app.post("/api/admin/messeverkehr/erlaubt")
+async def admin_add_messeverkehr_erlaubt(request: Request):
+    """Fügt eine CID zur Messeverkehr-Allowlist hinzu."""
+    require_admin(request)
+    body = await request.json()
+    try:
+        cid = int(body.get("cid"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="cid (Zahl) erforderlich")
+    von = str(body.get("von") or "").strip() or None
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        add_messeverkehr_erlaubt(conn, cid, von)
+        conn.commit()
+        return {"status": "ok"}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/admin/messeverkehr/erlaubt/{cid}")
+async def admin_remove_messeverkehr_erlaubt(cid: int, request: Request):
+    """Entfernt eine CID von der Messeverkehr-Allowlist."""
+    require_admin(request)
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        remove_messeverkehr_erlaubt(conn, cid)
+        conn.commit()
+        return {"status": "ok"}
+    finally:
+        conn.close()
+
+
 # Einmal-Nonce-Store gegen Replay des eingehenden SSO-Tokens (In-Process, TTL = Token-Frische).
 _used_sso_nonces: dict[str, float] = {}
 
