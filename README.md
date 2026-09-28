@@ -383,7 +383,10 @@ er festlegt, ob zum Aufnehmen gelandet werden muss.
 
 **Wie schnell und wie hoch?** Das zeigen zwei Schilder im Reddung-Block, wie auf der
 Autobahn: die Höchstgeschwindigkeit fürs Suchen (Vorgabe 140 kt, darunter „ab 30 kt“) und die
-Höchsthöhe (Vorgabe 2000 ft AGL, gemessen über dem Gelände am Wrack). Klein darunter steht, was
+Höchsthöhe in **ft MSL**, so wie sie der Höhenmesser zeigt: Gelände am Wrack plus die
+eingestellte Suchhöhe (Vorgabe 2000 ft), auf volle 500 ft aufgerundet — bei 1800 ft Gelände
+also 4000 ft MSL. Das Aufrunden ist Absicht: Die genaue Zahl verriete, wie hoch das Wrack liegt.
+Gewertet wird genau bis zu dieser Zahl. Klein darunter steht, was
 fürs Finden gilt (Fundradius und Fundhöhe) und fürs Aufnehmen — Landung mit Full Stop oder
 Schwebeflug unter 30 kt über Wasser, und wie weit vom Wrack. Die Zahlen sind die des Abends,
 also genau die, nach denen gewertet wird.
@@ -546,6 +549,9 @@ Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, St
 - **Aufnahme-Radius** (Vorgabe 150 m) — so weit vom Wrack darf zum Aufnehmen gelandet oder
   geschwebt werden. Er ist unabhängig vom Fundradius: Liegt das Wrack im Wald, macht man ihn
   größer, damit die Wiese daneben reicht, ohne dass das Finden leichter wird.
+- **Suchhöhe als MSL auf dem Schild** — die Piloten sehen Gelände am Wrack plus Suchhöhe, auf
+  volle 500 ft aufgerundet (die Admin-Zeile nennt sie als „Suchgrenze“). Gewertet wird bis zu
+  genau dieser Zahl; das Finden bleibt davon unberührt und genau über dem Wrack.
 - **Suchen und Finden sind zwei getrennte Fenster**, und das ist der Kern: Das **Suchen** darf
   weit und hoch sein (Vorgabe 1 km seitlich, 2.000 ft), das **Finden** ist eng und tief (150 m
   seitlich, 1.000 ft). Seitliche Abstände stehen in Metern, Höhen in Fuß. Der Balken zeigt deshalb, welche *Fläche abgeflogen* ist — nicht, dass

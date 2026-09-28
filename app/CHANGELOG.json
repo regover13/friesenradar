@@ -1,5 +1,14 @@
 [
   {
+    "version": "15.31.0",
+    "date": "2026-09-28",
+    "highlight": false,
+    "title": "Reddung: Suchhöhe in ft MSL, auf 500 ft aufgerundet",
+    "items": [
+      "📏 **Das Höhenschild zeigt jetzt die Suchgrenze in ft MSL, wie sie der Höhenmesser anzeigt**: Gelände am Wrack plus Suchhöhe, auf volle 500 ft aufgerundet. Bei 1800 ft Gelände und 2000 ft Suchhöhe stehen dort 4000 ft. Gewertet wird genau bis zu dieser Zahl. Das Aufrunden ist Absicht, damit die Zahl nicht verrät, wie hoch das Wrack liegt."
+    ]
+  },
+  {
     "version": "15.30.0",
     "date": "2026-09-28",
     "highlight": false,

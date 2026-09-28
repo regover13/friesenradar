@@ -114,10 +114,27 @@ def test_live_block_und_reddung_ansicht_zeigen_die_regeln():
 
 
 
-def test_die_regeln_tragen_keine_msl_hoehe():
-    """MSL minus AGL ergäbe die Geländehöhe am Wrack -- und die verrät die Lage (Nutzer,
-    28.09.2026: „Doch ohne MSL. Die Angabe verrät die Höhe des Wracks!"). Auch nicht, wenn
-    das Gelände bekannt ist."""
+def test_die_suchgrenze_steht_nur_gerundet_als_msl_darin():
+    """Die genaue MSL-Grenze verriete die Geländehöhe am Wrack (Nutzer, 28.09.2026: „Die
+    Angabe verrät die Höhe des Wracks!"). Deshalb nur die auf 500 ft aufgerundete Suchgrenze,
+    und keine MSL-Fundhöhe."""
     r = rd.regeln({"havarist_grund_ft": 1864.3, "hoehe_max_ft": 2000, "fund_hoehe_ft": 1000})
-    assert not [k for k in r if "msl" in k.lower()], r
+    assert r["hoehe_max_msl_ft"] == 4000 and r["hoehe_max_msl_ft"] % 500 == 0
+    assert [k for k in r if "msl" in k.lower()] == ["hoehe_max_msl_ft"]
     assert 1864.3 + 2000 not in r.values() and 1864.3 + 1000 not in r.values()
+    assert rd.regeln({})["hoehe_max_msl_ft"] is None, "ohne Gelände keine MSL-Zahl"
+
+
+@pytest.mark.skipif(not _NODE, reason="node fehlt")
+def test_das_hoehenschild_zeigt_msl_wenn_bekannt():
+    html = _render({**_BASIS, "hoehe_max_msl_ft": 4000})
+    schild = html[:html.index('class="reddung-regeln-klein"')]
+    assert ">4000<" in schild and "ft MSL" in schild and ">2000<" not in schild
+    ohne = _render(_BASIS)
+    assert ">2000<" in ohne and "ft AGL" in ohne, "ohne bekanntes Gelände wie bisher"
+
+
+
+def test_der_admin_zeigt_die_suchgrenze_wie_die_piloten_sie_sehen():
+    admin = (Path(__file__).resolve().parents[1] / "app" / "static" / "admin.html").read_text(encoding="utf-8")
+    assert "Math.ceil((ev.havarist_grund_ft + (ev.hoehe_max_ft || 2000)) / 500) * 500" in admin

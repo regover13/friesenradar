@@ -16110,8 +16110,12 @@ function _reddungRegelnHtml(r) {
   let html = '<div class="reddung-regeln"><div class="reddung-schilder">'
     + `<figure class="reddung-schild">${_reddungSchild(n(g.gs_max_kt), false)}`
     + `<figcaption>kt · ab ${n(g.gs_min_kt)} kt</figcaption></figure>`
-    + `<figure class="reddung-schild">${_reddungSchild(n(g.hoehe_max_ft), true)}`
-    + '<figcaption>ft AGL</figcaption></figure></div>';
+    // Die Suchgrenze in MSL, auf 500 ft aufgerundet -- so vom Hoehenmesser ablesbar, ohne die
+    // Gelaendehoehe am Wrack zu verraten (Nutzer, 28.09.2026). Ohne bekanntes Gelaende AGL.
+    + (g.hoehe_max_msl_ft != null
+        ? `<figure class="reddung-schild">${_reddungSchild(n(g.hoehe_max_msl_ft), true)}<figcaption>ft MSL</figcaption></figure>`
+        : `<figure class="reddung-schild">${_reddungSchild(n(g.hoehe_max_ft), true)}<figcaption>ft AGL</figcaption></figure>`)
+    + '</div>';
   const fund = `Finden: näher als ${n(g.fund_radius_m)} m, unter ${n(g.fund_hoehe_ft)} ft AGL`;
   let auf;
   if (!g.aufnehmen_noetig) auf = 'Kein Aufnehmen nötig – der Fund beendet den Abend';

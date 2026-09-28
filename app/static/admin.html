@@ -7170,7 +7170,11 @@
           ? '<span style="color:#e0a33e">⚠ unbekannt — Suchhöhe gilt ab 0 ft MSL, bis eine '
             + 'FriesenBrügge das Wrack meldet. Einmal speichern holt sie aus der Karte nach.</span>'
           : Math.round(ev.havarist_grund_ft) + ' ft <span class="hint">('
-            + escH(ev.havarist_grund_quelle || '?') + ')</span>';
+            + escH(ev.havarist_grund_quelle || '?') + ')</span>'
+            // Was die Piloten auf dem Schild sehen: die Suchgrenze in MSL, auf 500 ft aufgerundet
+            // -- dieselbe Rechnung wie rd.hoehe_schranke_msl.
+            + ' · Suchgrenze <b>' + (Math.ceil((ev.havarist_grund_ft + (ev.hoehe_max_ft || 2000)) / 500) * 500)
+            + ' ft MSL</b>';
         const ort = (ev.havarist_lat === null || ev.havarist_lat === undefined)
           ? '<span style="color:#e0a33e">⚠ noch nicht gesetzt</span>'
           : Number(ev.havarist_lat).toFixed(4) + ' / ' + Number(ev.havarist_lon).toFixed(4);

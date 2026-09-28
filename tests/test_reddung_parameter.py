@@ -51,8 +51,8 @@ def test_beide_reichweiten_sind_einstellbar():
 
 def test_der_fund_ist_auch_in_der_hoehe_enger():
     """Der Suchkorridor darf hoch geflogen werden, der Fund nicht -- 20 ft Gelaende plus
-    2.000 ft Suche gegen 20 ft plus 1.000 ft Fund."""
-    assert reddung.hoehe_schranke_msl(EV) == pytest.approx(2020.0)
+    2.000 ft Suche (auf 2.500 ft MSL aufgerundet) gegen 20 ft plus 1.000 ft Fund."""
+    assert reddung.hoehe_schranke_msl(EV) == pytest.approx(2500.0)
     assert reddung.fund_hoehe_schranke_msl(EV) == pytest.approx(1020.0)
     assert reddung.fenster_finden(EV).hoehe_max_ft < reddung.fenster_suchen(EV).hoehe_max_ft
 
@@ -89,11 +89,19 @@ def test_die_zellen_kommen_aus_dem_sektor_und_tragen_den_korridor():
     assert len({z[0] for z in zellen}) == len(zellen)
 
 
-def test_die_hoehenschranke_ist_agl_ueber_dem_havaristen():
-    """1000 ft AGL bei 20 ft Gelaende heisst 1020 ft MSL -- gemessen wird gegen die
-    MSL-Hoehe aus position_history."""
-    assert reddung.hoehe_schranke_msl(EV) == pytest.approx(2020.0)
-    assert reddung.fenster_suchen(EV).hoehe_max_ft == pytest.approx(2020.0)
+def test_die_suchgrenze_ist_msl_auf_volle_500_ft_aufgerundet():
+    """Nutzer, 28.09.2026: Die Suchgrenze wird als MSL ausgegeben, auf volle 500 ft
+    aufgerundet -- damit verwischt der Bezug zur Gelaendehoehe am Wrack. Gerechnet wird mit
+    GENAU dieser Zahl, sonst zeigte das Schild 4000 und gezaehlt wuerde nur bis 3864."""
+    assert reddung.hoehe_schranke_msl(EV) == pytest.approx(2500.0)          # 20 + 2000
+    assert reddung.fenster_suchen(EV).hoehe_max_ft == pytest.approx(2500.0)
+    for grund, soll in ((1800, 4000), (1864.3, 4000), (2000, 4000), (2100, 4500), (0, 2000)):
+        assert reddung.hoehe_schranke_msl({**EV, "havarist_grund_ft": grund}) == soll, grund
+
+
+def test_die_fundgrenze_bleibt_genau():
+    """Nur die SUCHE wird gerundet -- Finden bleibt eng und genau über dem Wrack."""
+    assert reddung.fund_hoehe_schranke_msl({**EV, "havarist_grund_ft": 1864.3}) == pytest.approx(2864.3)
 
 
 def test_ohne_gemessene_grundhoehe_gilt_null():

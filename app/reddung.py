@@ -143,9 +143,23 @@ def grund_ft(ev: dict) -> float:
     return _zahl(ev, "havarist_grund_ft", 0.0)
 
 
+#: Auf diese Stufe wird die Such-Obergrenze in MSL aufgerundet (Nutzer, 28.09.2026).
+SUCHHOEHE_STUFE_FT = 500
+
+
 def hoehe_schranke_msl(ev: dict) -> float:
-    """Die AGL-Schranke, auf MSL umgerechnet -- so kommt die Höhe aus position_history."""
-    return grund_ft(ev) + _zahl(ev, "hoehe_max_ft", _VORGABE_HOEHE_FT)
+    """Die Such-Obergrenze in MSL: Gelände am Wrack plus AGL-Schranke, **auf volle 500 ft
+    aufgerundet** -- so kommt die Höhe aus position_history.
+
+    Warum gerundet (Nutzer, 28.09.2026): Die Grenze steht als MSL auf dem Schild im
+    Reddung-Block, und die genaue Zahl verriete die Geländehöhe am Wrack (1864 + 2000 = 3864).
+    Aufgerundet steht dort 4000 -- der Bezug verwischt auf ein 500-ft-Band. Gerechnet wird mit
+    GENAU dieser Zahl, sonst zeigte das Schild 4000, und wer 3900 flog, zählte nicht. Die Suche
+    wird dadurch um höchstens 499 ft großzügiger; das Finden bleibt genau (fund_hoehe_schranke_msl).
+    """
+    import math
+    roh = grund_ft(ev) + _zahl(ev, "hoehe_max_ft", _VORGABE_HOEHE_FT)
+    return float(math.ceil(roh / SUCHHOEHE_STUFE_FT) * SUCHHOEHE_STUFE_FT)
 
 
 def zellen_fuer(ev: dict) -> list[Ziel]:
@@ -171,16 +185,19 @@ def havarist_ziel(ev: dict) -> Ziel | None:
 def regeln(ev: dict) -> dict:
     """Die Regeln des Abends für die Anzeige -- „wie schnell, wie hoch darf ich?" (28.09.2026).
 
-    Dieselben Zahlen, mit denen gerechnet wird, samt Vorgaben. **Nur AGL-Werte, nie die
-    Geländehöhe am Wrack** -- aus ihr ließe sich die Lage eingrenzen. **Und auch keine
-    MSL-Werte:** MSL minus AGL ergäbe genau diese Höhe. Am 28.09.2026 kurz eingebaut und vor
-    dem Deploy zurückgenommen (Nutzer: „Die Angabe verrät die Höhe des Wracks!").
+    Dieselben Zahlen, mit denen gerechnet wird, samt Vorgaben. **Nie die Geländehöhe am
+    Wrack**, und auch keine GENAUE MSL-Höhe -- MSL minus AGL ergäbe sie (Nutzer: „Die Angabe
+    verrät die Höhe des Wracks!"). Einzige MSL-Zahl ist die auf 500 ft aufgerundete
+    Such-Obergrenze ``hoehe_max_msl_ft``, mit der auch gerechnet wird; ``None``, solange das
+    Gelände unbekannt ist.
     """
     from app.gps_legs import _GPS_GROUND_AGL_FT
     return {
         "gs_max_kt": _zahl(ev, "gs_max_kt", _VORGABE_GS_MAX_KT),
         "gs_min_kt": _zahl(ev, "gs_min_kt", _VORGABE_GS_MIN_KT),
         "hoehe_max_ft": _zahl(ev, "hoehe_max_ft", _VORGABE_HOEHE_FT),
+        "hoehe_max_msl_ft": (hoehe_schranke_msl(ev)
+                             if ev.get("havarist_grund_ft") is not None else None),
         "fund_radius_m": fund_radius_m(ev),
         "fund_hoehe_ft": _zahl(ev, "fund_hoehe_ft", _VORGABE_FUND_HOEHE_FT),
         "aufnahme_radius_m": aufnahme_radius_m(ev),
