@@ -657,3 +657,54 @@ def test_der_reddung_job_laeuft_alle_zehn_sekunden(tmp_path):
     p._register_jobs()
     job = p._scheduler.get_job("reddung_check")
     assert job.trigger.interval.total_seconds() == poller_modul._REDDUNG_TAKT_S == 10
+
+
+# --- Direkt mit dunkelblauem Rauchsignal starten (Nutzer, 28.09.2026) -----------------------
+
+def _fackel(pfad, eid):
+    c = get_connection(pfad)
+    try:
+        r = c.execute("SELECT art FROM bruegge_soll WHERE id LIKE ?",
+                      (f"reddung-{eid}-fackel%",)).fetchone()
+        return r[0] if r else None
+    finally:
+        c.close()
+
+
+def _arten(pfad):
+    c = get_connection(pfad)
+    try:
+        for art in ("flugzeug_echo", "rauch_navy", "licht"):
+            c.execute("INSERT OR REPLACE INTO bruegge_art (art, bedeutung, status, angelegt_am) "
+                      "VALUES (?,?,'aktiv','2026-09-20T00:00:00Z')", (art, art))
+            for sim in ("msfs2024", "xplane12"):
+                c.execute("INSERT OR REPLACE INTO bruegge_katalog (simulator, titel, art, rang, "
+                          "status, quelle) VALUES (?,?,?,1,'aktiv','bord')", (sim, f"{art}-{sim}", art))
+        c.commit()
+    finally:
+        c.close()
+
+
+def test_mit_haken_brennt_die_fackel_ab_dem_start(db):
+    _arten(db)
+    eid = _event(db, signal_ab_start=1)
+    _lauf(db)
+    ev = _ev(db, eid)
+    assert ev["signal_am"] == ev["dtstart"], "gezündet zum Start, nicht zum Takt"
+    assert _fackel(db, eid) == "rauch_navy"
+
+
+def test_vor_dem_start_brennt_nichts(db):
+    """Sonst verriete die Fackel die Stelle, bevor gesucht wird."""
+    _arten(db)
+    eid = _event(db, start_vor_h=-1.0, signal_ab_start=1)      # beginnt in einer Stunde
+    _lauf(db)
+    assert _ev(db, eid)["signal_am"] is None
+    assert _fackel(db, eid) is None
+
+
+def test_ohne_haken_zuendet_niemand(db):
+    _arten(db)
+    eid = _event(db)
+    _lauf(db)
+    assert _ev(db, eid)["signal_am"] is None

@@ -506,3 +506,21 @@ def test_speichern_fragt_vorher_nach():
     assert "confirm(" in speichern[frage:]
     assert frage < speichern.index("await api('POST', pfad, koerper)"), "vor dem Absenden"
     assert "noch nicht begonnen" in speichern
+
+
+def test_der_haken_steht_im_formular_und_ist_vorgabe_aus():
+    assert re.search(r'<input type="checkbox" id="rd-signal-ab-start"(?![^>]*checked)[^>]*>', _ADMIN)
+    assert "direkt mit dunkelblauem Rauchsignal starten" in _ADMIN
+    assert "signal_ab_start: document.getElementById('rd-signal-ab-start').checked ? 1 : 0" in _ADMIN
+    assert "getElementById('rd-signal-ab-start').checked = !!ev.signal_ab_start" in _ADMIN
+    # Ein neues Event beginnt wieder ohne Haken.
+    schliessen = _admin_js("_rdFormSchliessen")
+    assert "getElementById('rd-signal-ab-start')" in schliessen and ".checked = false" in schliessen
+
+
+def test_der_haken_verwirft_die_bilanz_nicht_und_wird_gespeichert(db):
+    assert "signal_ab_start" in main._REDDUNG_OHNE_RECHNUNG
+    eid = _anlegen(signal_ab_start=1)
+    assert _ev(db, eid)["signal_ab_start"] == 1
+    with pytest.raises(HTTPException):
+        _aendern(eid, {"signal_ab_start": 5})

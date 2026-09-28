@@ -1,5 +1,14 @@
 [
   {
+    "version": "15.28.0",
+    "date": "2026-09-28",
+    "highlight": false,
+    "title": "Reddung: direkt mit Rauchsignal starten",
+    "items": [
+      "🔵 **Eine FriesenReddung kann jetzt gleich mit dunkelblauem Rauchsignal beginnen.** Ein Haken im Admin, Vorgabe aus: Die Fackel steigt dann zum Start am Wrack auf, vorher nicht."
+    ]
+  },
+  {
     "version": "15.27.2",
     "date": "2026-09-28",
     "highlight": false,

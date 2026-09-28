@@ -524,6 +524,8 @@ Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, St
   und während eines laufenden Events geht dann ein Push an alle. „Eingrenzung
   aufheben“ und Speichern nimmt sie wieder weg. Den Havaristen außerhalb des Sektors nimmt der
   Admin gar nicht erst an.
+- **Direkt mit dunkelblauem Rauchsignal starten** — ein Haken im Formular, Vorgabe aus: Die
+  Fackel steigt dann zum Start von selbst am Wrack auf, vorher nicht.
 - **🔵 Rauchfackel zünden** — ein Knopf in der Event-Zeile, solange das Event läuft und noch
   nicht gefunden ist: Am Wrack steigt dunkelblauer Rauch auf, für alle sichtbar, bis der Fund
   ihn durch den orangen ersetzt. Vor dem Start geht das bewusst nicht — die Fackel verriete die

@@ -2786,7 +2786,7 @@ class VatsimPoller:
                 get_reddung_event, list_reddung_events, reddung_fortschreiben,
                 reddung_grund_lernen, reddung_landung_aus_bruegge,
                 reddung_objekte_abgleichen, reddung_spuren,
-                reddung_start_melden,
+                reddung_start_melden, update_reddung_event,
                 set_reddung_aufgeloest, set_reddung_aufgenommen, set_reddung_eingeliefert,
                 set_reddung_gefunden,
             )
@@ -2839,6 +2839,14 @@ class VatsimPoller:
                                          "\U0001f6a8 Dafür brauchst du die FriesenBrügge und "
                                          "eine VATSIM-Verbindung mit Friesen-Rufzeichen."),
                                 "url": "/"})
+                        # Direkt mit dunkelblauem Rauchsignal (Admin-Haken, 28.09.2026): gezuendet
+                        # zum START -- nie vorher, sonst verriete die Fackel die Stelle, bevor
+                        # gesucht wird. Die Objekte stellt Stufe 6 im selben Takt.
+                        if (ev.get("signal_ab_start") and not ev.get("signal_am")
+                                and not ev.get("gefunden_am")
+                                and ev.get("havarist_lat") is not None):
+                            update_reddung_event(conn, ev["id"], signal_am=ev["dtstart"])
+                            ev = get_reddung_event(conn, ev["id"])
                         ziel = rd.havarist_ziel(ev)
                         if ziel is None:
                             continue

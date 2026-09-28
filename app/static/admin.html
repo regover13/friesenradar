@@ -1451,6 +1451,14 @@
                 </label>
                 <p class="form-hint" id="rd-landung-hint" style="margin:2px 0 10px 24px;"></p>
                 <label class="check-line">
+                  <input type="checkbox" id="rd-signal-ab-start" />
+                  Event direkt mit dunkelblauem Rauchsignal starten
+                </label>
+                <p class="form-hint" style="margin:2px 0 10px 24px;">
+                  Die Fackel steigt zum Start am Wrack auf, für alle sichtbar — vorher nicht.
+                  Ohne Haken zündest du sie bei Bedarf während des Events per Knopf.
+                </p>
+                <label class="check-line">
                   <input type="checkbox" id="rd-aufnahme-verfaellt" checked />
                   Aufnahme verfällt, wenn der Aufnehmende abmeldet
                 </label>
@@ -7290,6 +7298,7 @@
         aufnehmen_noetig: document.getElementById('rd-aufnehmen-noetig').checked ? 1 : 0,
         landung_noetig: document.getElementById('rd-landung-noetig').checked ? 1 : 0,
         aufnahme_verfaellt: document.getElementById('rd-aufnahme-verfaellt').checked ? 1 : 0,
+        signal_ab_start: document.getElementById('rd-signal-ab-start').checked ? 1 : 0,
         // Leer schickt '' -- der Server macht daraus NULL, und eine alte Lage ist weg.
         lagetext: document.getElementById('rd-lagetext').value.trim(),
       };
@@ -7328,8 +7337,10 @@
       _rdEditingId = null;
       _rdEcken = [null, null];
       // Die Eingrenzung gehoert zu EINEM Abend -- sie darf nicht als Vorlage ins naechste neue
-      // Event wandern wie Name oder Radien.
+      // Event wandern wie Name oder Radien. Ebenso der Rauchsignal-Haken: Vorgabe ist AUS.
       rdEingrenzungAufheben();
+      const haken = document.getElementById('rd-signal-ab-start');
+      if (haken) haken.checked = false;
       const t = document.getElementById('rd-form-title');
       if (t) t.textContent = 'Neues Event anlegen';
     }
@@ -7377,6 +7388,7 @@
       document.getElementById('rd-aufnehmen-noetig').checked = !!ev.aufnehmen_noetig;
       document.getElementById('rd-landung-noetig').checked = !!ev.landung_noetig;
       document.getElementById('rd-aufnahme-verfaellt').checked = !!ev.aufnahme_verfaellt;
+      document.getElementById('rd-signal-ab-start').checked = !!ev.signal_ab_start;
       const t = document.getElementById('rd-form-title');
       if (t) t.textContent = 'Event bearbeiten: ' + (ev.name || '');
       document.getElementById('rd-form').classList.remove('hidden');

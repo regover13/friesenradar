@@ -7114,6 +7114,7 @@ _REDDUNG_BEREICHE = {
     "eng_nord":        (-90.0, 90.0, False),
     "eng_west":        (-180.0, 180.0, False),
     "eng_ost":         (-180.0, 180.0, False),
+    "signal_ab_start": (0, 1, True),
     "fund_hoehe_ft":   (1.0, 60000.0, False),
     "havarist_lat":    (-90.0, 90.0, False),
     "havarist_lon":    (-180.0, 180.0, False),
@@ -7220,7 +7221,7 @@ _REDDUNG_OHNE_RECHNUNG = {"name", "lagetext", "badge_name", "push_enabled", "man
                           # genau deshalb bleiben abgesuchte Zellen stehen (Nutzer, 28.09.2026).
                           "eng_sued", "eng_west", "eng_nord", "eng_ost",
                           # Die fruehe Fackel steht im Simulator, sie rechnet nichts (Fable 4).
-                          "signal_am"}
+                          "signal_am", "signal_ab_start"}
 
 
 #: Höhenmodell für die Geländehöhe am Havaristen (Copernicus-DEM 90 m, ohne Schlüssel).
@@ -7290,7 +7291,7 @@ _REDDUNG_KOERPER = (
     "havarist_lat", "havarist_lon", "havarist_art", "havarist_grund_ft",
     "havarist_grund_quelle", "aufnehmen_noetig", "landung_noetig", "aufnahme_verfaellt",
     "badge_name", "lagetext", "aufnahme_radius_m",
-    "eng_sued", "eng_west", "eng_nord", "eng_ost",
+    "eng_sued", "eng_west", "eng_nord", "eng_ost", "signal_ab_start",
 )
 
 

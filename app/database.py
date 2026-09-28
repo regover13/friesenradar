@@ -396,7 +396,9 @@ CREATE TABLE IF NOT EXISTS reddung_events (
     -- Anteile und Badges ausserhalb gingen verloren. Alle vier NULL = keine Eingrenzung.
     eng_sued REAL, eng_west REAL, eng_nord REAL, eng_ost REAL,
     -- Fruehe Rauchfackel per Admin-Knopf (Friesen-Dunkelblau), bis der Fund sie ersetzt.
-    signal_am TEXT
+    signal_am TEXT,
+    -- 1 = die Fackel brennt ab dem Start von selbst (Poller setzt signal_am = dtstart).
+    signal_ab_start INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS aircraft_payloads (
@@ -1150,6 +1152,8 @@ _BRUEGGE_SOLL_MIGRATIONS = [
     "ALTER TABLE reddung_events ADD COLUMN eng_nord REAL",
     "ALTER TABLE reddung_events ADD COLUMN eng_ost REAL",
     "ALTER TABLE reddung_events ADD COLUMN signal_am TEXT",
+    # Direkt mit dunkelblauem Rauchsignal starten (Admin-Haken, 28.09.2026).
+    "ALTER TABLE reddung_events ADD COLUMN signal_ab_start INTEGER DEFAULT 0",
 ]
 
 _PANEL_DIAG_MIGRATIONS = [
@@ -9852,7 +9856,7 @@ _REDDUNG_FELDER = {
     "havarist_grund_ft", "havarist_grund_quelle", "aufnehmen_noetig", "landung_noetig",
     "aufnahme_verfaellt", "source", "calendar_uid", "push_enabled", "badge_name",
     "manual_fields", "lagetext", "aufnahme_radius_m",
-    "eng_sued", "eng_west", "eng_nord", "eng_ost", "signal_am",
+    "eng_sued", "eng_west", "eng_nord", "eng_ost", "signal_am", "signal_ab_start",
 }
 
 #: Rangfolge der Quellen für ``havarist_grund_ft`` — eine Messung schlägt jede Schätzung.
