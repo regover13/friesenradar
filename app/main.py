@@ -2752,8 +2752,6 @@ async def admin_bruegge_vergessen(request: Request):
     koennte (Nutzerentscheidung 26.09.2026).
     """
     require_admin(request)
-    # Loeschen nur mit Passwort (Nutzer, 28.09.2026) -- s. tests/test_admin_loeschen_mit_passwort.py
-    require_confirm(request)
     body = await request.json()
     kennung = str(body.get("kennung") or "")[:64]
     if not re.fullmatch(r"[0-9A-Za-z]{1,64}", kennung):
@@ -2996,8 +2994,6 @@ async def admin_revoke_panel_device(request: Request, device_prefix: str):
 async def admin_clear_panel_diag(request: Request):
     """Diagnose-Datensätze löschen (Admin) -- für einen sauberen Messlauf."""
     require_admin(request)
-    # Loeschen nur mit Passwort (Nutzer, 28.09.2026) -- s. tests/test_admin_loeschen_mit_passwort.py
-    require_confirm(request)
     conn = get_connection(get_settings().DB_PATH)
     try:
         clear_panel_diag(conn)
@@ -5013,8 +5009,6 @@ async def admin_add_messeverkehr_erlaubt(request: Request):
 async def admin_remove_messeverkehr_erlaubt(cid: int, request: Request):
     """Entfernt eine CID von der Messeverkehr-Allowlist."""
     require_admin(request)
-    # Loeschen nur mit Passwort (Nutzer, 28.09.2026) -- s. tests/test_admin_loeschen_mit_passwort.py
-    require_confirm(request)
     conn = get_connection(get_settings().DB_PATH)
     try:
         remove_messeverkehr_erlaubt(conn, cid)
@@ -6401,8 +6395,6 @@ async def admin_hide_race(request: Request, race_id: int):
     regulären Ende normal automatisch enthüllt.
     """
     require_admin(request)
-    # Loeschen nur mit Passwort (Nutzer, 28.09.2026) -- s. tests/test_admin_loeschen_mit_passwort.py
-    require_confirm(request)
     conn = get_connection(get_settings().DB_PATH)
     try:
         race = get_bummel_race(conn, race_id)
@@ -6458,8 +6450,6 @@ async def admin_set_override(request: Request, race_id: int):
 @app.delete("/api/admin/bummel/races/{race_id}/override/{cid}")
 async def admin_delete_override(request: Request, race_id: int, cid: int):
     require_admin(request)
-    # Loeschen nur mit Passwort (Nutzer, 28.09.2026) -- s. tests/test_admin_loeschen_mit_passwort.py
-    require_confirm(request)
     conn = get_connection(get_settings().DB_PATH)
     try:
         delete_bummel_override(conn, race_id, cid)
@@ -8436,8 +8426,6 @@ async def admin_dfs_verwerfen(icao: str, sorte: str, request: Request):
 @app.delete("/api/admin/aip-charts-dfs/{icao}/{sorte}")
 async def admin_dfs_loeschen(icao: str, sorte: str, request: Request):
     require_admin(request)
-    # Loeschen nur mit Passwort (Nutzer, 28.09.2026) -- s. tests/test_admin_loeschen_mit_passwort.py
-    require_confirm(request)
     code = _dfs_blatt_normalisieren(icao, sorte)
     conn = get_connection(get_settings().DB_PATH)
     try:
@@ -8475,8 +8463,6 @@ async def admin_upsert_airport_link(request: Request):
 async def admin_delete_airport_link(icao: str, request: Request):
     """Löscht einen Flugplatz-Link."""
     require_admin(request)
-    # Loeschen nur mit Passwort (Nutzer, 28.09.2026) -- s. tests/test_admin_loeschen_mit_passwort.py
-    require_confirm(request)
     conn = get_connection(get_settings().DB_PATH)
     try:
         delete_airport_link(conn, icao)

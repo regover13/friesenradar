@@ -3109,12 +3109,12 @@
     // These 5 (#46): Bindung und Erinnerung einer Brügge löschen. Sie beginnt danach wie eine
     // neue Installation -- im Stand auf den Meter, nach ihrem Start angemeldet.
     async function bgVergessen(kennung) {
-      const ok = await confirmCritical('FriesenBrügge vergessen?',
-        'Bindung und Erinnerung werden gelöscht, auch eine Bewährung. Sie wird danach neu zugeordnet.',
-        'Vergessen', true);
-      if (!ok) return;
-      const r = await api('POST', '/api/admin/bruegge/vergessen', { kennung: kennung });
-      if (!r) return;
+      if (!confirm('Bindung und Erinnerung dieser FriesenBrügge löschen? Sie wird danach neu zugeordnet.')) return;
+      const r = await fetch('/api/admin/bruegge/vergessen', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kennung: kennung }),
+      });
       if (!r.ok) { alert('Vergessen fehlgeschlagen (' + r.status + ')'); return; }
       bgLaden();
     }
@@ -3245,17 +3245,17 @@
                        '</td></tr>';
               }).join('')
             : '<tr><td colspan="6" class="empty-hint">Nichts angefordert.</td></tr>';
-          // EIN Klick, ohne Nachfrage und ohne Passwort -- bewusst (Nutzer, 28.09.2026): Das nimmt
-          // nur ein angefordertes Objekt zurueck, es loescht keine gespeicherten Daten.
           sb.querySelectorAll('.bg-weg').forEach(function (b) {
             b.addEventListener('click', async function () {
-              await api('DELETE', '/api/admin/bruegge/soll/' + encodeURIComponent(b.dataset.id));
+              await fetch('/api/admin/bruegge/soll/' + encodeURIComponent(b.dataset.id),
+                          { method: 'DELETE', credentials: 'same-origin' });
               bgLaden();
             });
           });
           sb.querySelectorAll('.bg-weg-gruppe').forEach(function (b) {
             b.addEventListener('click', async function () {
-              await api('DELETE', '/api/admin/bruegge/soll/' + encodeURIComponent(b.dataset.id) + '?gruppe=true');
+              await fetch('/api/admin/bruegge/soll/' + encodeURIComponent(b.dataset.id) + '?gruppe=true',
+                          { method: 'DELETE', credentials: 'same-origin' });
               bgLaden();
             });
           });

@@ -16,7 +16,7 @@ import pytest
 from fastapi import HTTPException
 
 import app.main as main
-from app.auth import ADMIN_COOKIE, CONFIRM_COOKIE, make_admin_token, make_confirm_token
+from app.auth import ADMIN_COOKIE, make_admin_token
 from app.database import init_db, get_connection
 
 SECRET = "s3cr3t"
@@ -91,14 +91,7 @@ def test_cid_hinzufuegen_und_entfernen(db):
     res = asyncio.run(main.admin_get_messeverkehr(FakeReq()))
     assert {e["cid"] for e in res["erlaubt"]} == {123456}
 
-    # Entfernen nur mit Passwort (Nutzer, 28.09.2026) -- ohne Step-up-Token abgelehnt ...
-    with pytest.raises(HTTPException) as e:
-        asyncio.run(main.admin_remove_messeverkehr_erlaubt(123456, FakeReq()))
-    assert e.value.detail == "confirm_required"
-    # ... mit Token geht es.
-    mit_pw = FakeReq(cookies={ADMIN_COOKIE: TOKEN,
-                              CONFIRM_COOKIE: make_confirm_token(SECRET, PW, 9_999_999_999)})
-    asyncio.run(main.admin_remove_messeverkehr_erlaubt(123456, mit_pw))
+    asyncio.run(main.admin_remove_messeverkehr_erlaubt(123456, FakeReq()))
     res = asyncio.run(main.admin_get_messeverkehr(FakeReq()))
     assert res["erlaubt"] == []
 

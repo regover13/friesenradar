@@ -9,15 +9,6 @@
     ]
   },
   {
-    "version": "15.27.2",
-    "date": "2026-09-28",
-    "highlight": false,
-    "title": "Admin: Löschen nur mit Passwort",
-    "items": [
-      "🔐 **Was im Admin dauerhaft gelöscht wird, verlangt jetzt immer das Passwort**: FriesenBrügge vergessen, CID von der Messe-Liste nehmen, Bummel-Ergebnis verbergen, Korrekturen, DFS-Karten und Flugplatz-Links löschen. Was nur etwas zurücknimmt, etwa ein Objekt aus dem Simulator, bleibt ein Klick."
-    ]
-  },
-  {
     "version": "15.27.1",
     "date": "2026-09-28",
     "highlight": false,
