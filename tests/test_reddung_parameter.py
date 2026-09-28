@@ -95,7 +95,15 @@ def test_die_suchgrenze_ist_msl_auf_volle_500_ft_aufgerundet():
     GENAU dieser Zahl, sonst zeigte das Schild 4000 und gezaehlt wuerde nur bis 3864."""
     assert reddung.hoehe_schranke_msl(EV) == pytest.approx(2500.0)          # 20 + 2000
     assert reddung.fenster_suchen(EV).hoehe_max_ft == pytest.approx(2500.0)
-    for grund, soll in ((1800, 4000), (1864.3, 4000), (2000, 4000), (2100, 4500), (0, 2000)):
+    for grund, soll in ((1800, 4000), (1864.3, 4000), (2100, 4500)):
+        assert reddung.hoehe_schranke_msl({**EV, "havarist_grund_ft": grund}) == soll, grund
+
+
+def test_eine_volle_500_wird_trotzdem_aufgerundet():
+    """Nutzer, 28.09.2026 (Testevent auf See): 0 + 2000 = 2000 stand unverändert auf dem Schild
+    -- und verriet damit, dass das Wrack genau auf Meereshöhe liegt. Deshalb IMMER auf die
+    nächsthöhere 500: Aus der Zahl folgt nur ein 500-ft-Band, nie ein genauer Wert."""
+    for grund, soll in ((0, 2500), (2000, 4500), (500, 3000), (499.9, 2500)):
         assert reddung.hoehe_schranke_msl({**EV, "havarist_grund_ft": grund}) == soll, grund
 
 
@@ -106,7 +114,7 @@ def test_die_fundgrenze_bleibt_genau():
 
 def test_ohne_gemessene_grundhoehe_gilt_null():
     assert reddung.grund_ft({**EV, "havarist_grund_ft": None}) == 0.0
-    assert reddung.hoehe_schranke_msl({**EV, "havarist_grund_ft": None}) == pytest.approx(2000.0)
+    assert reddung.hoehe_schranke_msl({**EV, "havarist_grund_ft": None}) == pytest.approx(2500.0)
 
 
 def test_das_suchfenster_hat_eine_untergrenze():

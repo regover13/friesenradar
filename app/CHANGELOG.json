@@ -3,8 +3,10 @@
     "version": "15.31.1",
     "date": "2026-09-28",
     "highlight": false,
-    "title": "Admin: Reddung-Formular nennt die Suchgrenze der Piloten",
+    "title": "Reddung: Suchgrenze immer auf die nächste 500, MSL-Schild mit Wellen",
     "items": [
+      "📏 **Die Suchgrenze wird jetzt immer auf die nächsthöhere volle 500 ft aufgerundet**, auch wenn die Summe schon glatt ist. Liegt das Wrack auf Meereshöhe, stehen dort 2500 statt 2000 ft. So verrät die Zahl die Höhe des Wracks nicht.",
+      "🌊 **Das Höhenschild in ft MSL hat unten Wellen** statt des zweiten Dreiecks, denn gemessen wird ab Meereshöhe.",
       "📝 **Unter den Suchfeldern im Reddung-Formular steht jetzt, welche Suchgrenze in ft MSL die Piloten sehen**, und sie ändert sich beim Tippen mit. Das Feld selbst bleibt die Höhe über dem Gelände am Wrack. Der Hinweistext dazu ist auf dem neuen Stand."
     ]
   },

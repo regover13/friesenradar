@@ -148,8 +148,8 @@ SUCHHOEHE_STUFE_FT = 500
 
 
 def hoehe_schranke_msl(ev: dict) -> float:
-    """Die Such-Obergrenze in MSL: Gelände am Wrack plus AGL-Schranke, **auf volle 500 ft
-    aufgerundet** -- so kommt die Höhe aus position_history.
+    """Die Such-Obergrenze in MSL: Gelände am Wrack plus AGL-Schranke, **auf die nächsthöhere
+    volle 500 ft aufgerundet** -- so kommt die Höhe aus position_history.
 
     Warum gerundet (Nutzer, 28.09.2026): Die Grenze steht als MSL auf dem Schild im
     Reddung-Block, und die genaue Zahl verriete die Geländehöhe am Wrack (1864 + 2000 = 3864).
@@ -157,9 +157,11 @@ def hoehe_schranke_msl(ev: dict) -> float:
     GENAU dieser Zahl, sonst zeigte das Schild 4000, und wer 3900 flog, zählte nicht. Die Suche
     wird dadurch um höchstens 499 ft großzügiger; das Finden bleibt genau (fund_hoehe_schranke_msl).
     """
+    # IMMER auf die naechsthoehere Stufe, auch von einer vollen 500 aus: 0 + 2000 blieb sonst
+    # 2000 und verriet, dass das Wrack genau auf Meereshoehe liegt (Testevent 28.09.2026).
     import math
     roh = grund_ft(ev) + _zahl(ev, "hoehe_max_ft", _VORGABE_HOEHE_FT)
-    return float(math.ceil(roh / SUCHHOEHE_STUFE_FT) * SUCHHOEHE_STUFE_FT)
+    return float((math.floor(roh / SUCHHOEHE_STUFE_FT) + 1) * SUCHHOEHE_STUFE_FT)
 
 
 def zellen_fuer(ev: dict) -> list[Ziel]:

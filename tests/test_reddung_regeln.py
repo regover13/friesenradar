@@ -130,14 +130,17 @@ def test_das_hoehenschild_zeigt_msl_wenn_bekannt():
     html = _render({**_BASIS, "hoehe_max_msl_ft": 4000})
     schild = html[:html.index('class="reddung-regeln-klein"')]
     assert ">4000<" in schild and "ft MSL" in schild and ">2000<" not in schild
+    # MSL: oben das Dreieck, unten Wellen statt des zweiten Dreiecks (Nutzer, 28.09.2026)
+    assert 'class="wellen"' in schild
     ohne = _render(_BASIS)
     assert ">2000<" in ohne and "ft AGL" in ohne, "ohne bekanntes Gelände wie bisher"
+    assert 'class="wellen"' not in ohne, "AGL: Dreiecke oben und unten, keine Wellen"
 
 
 
 def test_der_admin_zeigt_die_suchgrenze_wie_die_piloten_sie_sehen():
     admin = (Path(__file__).resolve().parents[1] / "app" / "static" / "admin.html").read_text(encoding="utf-8")
-    assert "Math.ceil((ev.havarist_grund_ft + (ev.hoehe_max_ft || 2000)) / 500) * 500" in admin
+    assert "Math.floor((ev.havarist_grund_ft + (ev.hoehe_max_ft || 2000)) / 500 + 1) * 500" in admin
 
 
 def test_das_formular_sagt_was_die_piloten_sehen():
@@ -145,7 +148,7 @@ def test_das_formular_sagt_was_die_piloten_sehen():
     aber unter den Feldern steht mit, welche MSL-Grenze auf dem Schild erscheint."""
     admin = (Path(__file__).resolve().parents[1] / "app" / "static" / "admin.html").read_text(encoding="utf-8")
     rechnung = admin[admin.index("function _rdRechnung()"):admin.index("function _rdHinweise()")]
-    assert "_rdGrund" in rechnung and "ft MSL" in rechnung and "/ 500) * 500" in rechnung
+    assert "_rdGrund" in rechnung and "ft MSL" in rechnung and "/ 500 + 1) * 500" in rechnung
     assert "_rdGrund = ev.havarist_grund_ft" in admin[admin.index("function rdEdit("):]
     assert "'rd-hoehe'" in admin[admin.index("['rd-kante', 'rd-korridor'"):][:120]
     assert "Rückmeldung der FriesenBrügge, die das\n                  Wrack" not in admin

@@ -16088,15 +16088,20 @@ function _reddungBilanzZeigen() {
   inhalt.innerHTML = _reddungBilanzHtml(r);
 }
 
-// Ein rundes Schild mit rotem Rand wie auf der Autobahn. `hoehe` setzt die beiden Dreiecke
-// oben und unten wie beim Zeichen fuer die Durchfahrtshoehe.
+// Ein rundes Schild mit rotem Rand wie auf der Autobahn. `hoehe`: 'agl' setzt die beiden
+// Dreiecke oben und unten wie beim Zeichen fuer die Durchfahrtshoehe (Hoehe ueber dem Boden);
+// 'msl' ersetzt das untere durch Wellen -- gemessen ab Meereshoehe (Nutzer, 28.09.2026).
 function _reddungSchild(zahl, hoehe) {
   const t = String(zahl);
   const gross = t.length >= 4 ? 15 : 20;
-  const dreiecke = hoehe
-    ? '<path d="M20 7 h10 l-5 6 z M20 43 h10 l-5 -6 z" fill="#111"/>' : '';
+  const oben = '<path d="M20 7 h10 l-5 6 z" fill="#111"/>';
+  const unten = hoehe === 'msl'
+    ? '<path class="wellen" d="M16 39 q2.25 -2 4.5 0 t4.5 0 t4.5 0 t4.5 0 M16 43 q2.25 -2 4.5 0 t4.5 0 t4.5 0 t4.5 0"'
+      + ' fill="none" stroke="#111" stroke-width="1.6"/>'
+    : '<path d="M20 43 h10 l-5 -6 z" fill="#111"/>';
+  const zeichen = hoehe ? oben + unten : '';
   return '<svg viewBox="0 0 50 50" width="56" height="56" aria-hidden="true">'
-    + '<circle cx="25" cy="25" r="22" fill="#fff" stroke="#d0021b" stroke-width="5"/>' + dreiecke
+    + '<circle cx="25" cy="25" r="22" fill="#fff" stroke="#d0021b" stroke-width="5"/>' + zeichen
     + `<text x="25" y="${hoehe ? 30 : 32}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif"`
     + ` font-weight="700" font-size="${gross}" fill="#111">${escHtml(t)}</text></svg>`;
 }
@@ -16113,8 +16118,8 @@ function _reddungRegelnHtml(r) {
     // Die Suchgrenze in MSL, auf 500 ft aufgerundet -- so vom Hoehenmesser ablesbar, ohne die
     // Gelaendehoehe am Wrack zu verraten (Nutzer, 28.09.2026). Ohne bekanntes Gelaende AGL.
     + (g.hoehe_max_msl_ft != null
-        ? `<figure class="reddung-schild">${_reddungSchild(n(g.hoehe_max_msl_ft), true)}<figcaption>ft MSL</figcaption></figure>`
-        : `<figure class="reddung-schild">${_reddungSchild(n(g.hoehe_max_ft), true)}<figcaption>ft AGL</figcaption></figure>`)
+        ? `<figure class="reddung-schild">${_reddungSchild(n(g.hoehe_max_msl_ft), 'msl')}<figcaption>ft MSL</figcaption></figure>`
+        : `<figure class="reddung-schild">${_reddungSchild(n(g.hoehe_max_ft), 'agl')}<figcaption>ft AGL</figcaption></figure>`)
     + '</div>';
   const fund = `Finden: näher als ${n(g.fund_radius_m)} m, unter ${n(g.fund_hoehe_ft)} ft AGL`;
   let auf;

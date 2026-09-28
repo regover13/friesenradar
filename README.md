@@ -384,8 +384,9 @@ er festlegt, ob zum Aufnehmen gelandet werden muss.
 **Wie schnell und wie hoch?** Das zeigen zwei Schilder im Reddung-Block, wie auf der
 Autobahn: die Höchstgeschwindigkeit fürs Suchen (Vorgabe 140 kt, darunter „ab 30 kt“) und die
 Höchsthöhe in **ft MSL**, so wie sie der Höhenmesser zeigt: Gelände am Wrack plus die
-eingestellte Suchhöhe (Vorgabe 2000 ft), auf volle 500 ft aufgerundet — bei 1800 ft Gelände
-also 4000 ft MSL. Das Aufrunden ist Absicht: Die genaue Zahl verriete, wie hoch das Wrack liegt.
+eingestellte Suchhöhe (Vorgabe 2000 ft), aufgerundet auf die nächsthöhere volle 500 ft — bei
+1800 ft Gelände also 4000 ft MSL, bei einem Wrack auf Meereshöhe 2500 ft MSL. Unten auf dem
+Schild stehen dann Wellen statt des zweiten Dreiecks. Das Aufrunden ist Absicht: Die genaue Zahl verriete, wie hoch das Wrack liegt.
 Gewertet wird genau bis zu dieser Zahl. Klein darunter steht, was
 fürs Finden gilt (Fundradius und Fundhöhe) und fürs Aufnehmen — Landung mit Full Stop oder
 Schwebeflug unter 30 kt über Wasser, und wie weit vom Wrack. Die Zahlen sind die des Abends,
