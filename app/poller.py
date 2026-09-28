@@ -2786,7 +2786,7 @@ class VatsimPoller:
                 get_reddung_event, list_reddung_events, reddung_fortschreiben,
                 reddung_grund_lernen, reddung_landung_aus_bruegge,
                 reddung_objekte_abgleichen, reddung_spuren,
-                reddung_start_melden, update_reddung_event,
+                reddung_start_melden, update_reddung_event, reddung_letzte_naehe,
                 set_reddung_aufgeloest, set_reddung_aufgenommen, set_reddung_eingeliefert,
                 set_reddung_gefunden,
             )
@@ -2868,13 +2868,15 @@ class VatsimPoller:
                                                    "url": "/"})
 
                         # 1b -- Blaue Fackel ueber der abgesuchten Havarist-Zelle (Admin-Haken,
-                        # 28.09.2026): 30 s nachdem die Zelle als abgesucht gilt -- also erst,
-                        # wenn jemand darueber gesucht hat, und nie vor dem Fund ueberfluessig.
+                        # 28.09.2026): Die Zelle ist abgesucht UND seit 30 s ist niemand mehr in
+                        # Sichtweite des Wracks. Wer es gesehen hat und kreist, soll selbst
+                        # entdecken -- die Fackel ist fuer den, der daneben war und weiterflog.
                         if (ev.get("signal_bei_zelle") and not ev.get("signal_am")
                                 and not ev.get("gefunden_am")):
                             t = (stand.get("treffer") or {}).get(rd.havarist_zelle(ev))
                             if t:
-                                zuend = rd.signal_nach_zelle(t[1])
+                                naehe = reddung_letzte_naehe(conn, ev, t[1], now)
+                                zuend = rd.signal_nach_zelle(t[1], naehe)
                                 if now >= zuend:
                                     update_reddung_event(conn, ev["id"], signal_am=zuend)
                                     ev = get_reddung_event(conn, ev["id"])

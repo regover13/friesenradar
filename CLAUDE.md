@@ -81,6 +81,22 @@ Datei nicht gelesen, weil nichts auf sie zeigte — während parallel am selben 
 gearbeitet wurde. Eine Koordinationsdatei, die man erst findet, wenn man ohnehin `ls` tippt,
 koordiniert nicht.
 
+## Reddung-Änderungen ohne Simulator prüfen: `scripts/reddung_nachspielen.py`
+
+Spielt einen echten Abend im Zeitraffer mit dem **echten Poller** in einer Wegwerf-DB nach
+(30-s-Takt, vorgespulte Uhr), Admin-Aktionen über die echten Endpunkt-Funktionen. Gesichert
+ist die Reddung vom 27.09.2026, anonymisiert in `tests/fixtures/reddung_2026-09-27_eifel.json`;
+`tests/test_reddung_nachspielen.py` hält fest, dass Fund, Aufnahme und Einlieferung wie am
+Abend herauskommen. **Wer an der Reddung-Wertung etwas ändert, spielt vorher alle Szenarien
+durch** (`python scripts/reddung_nachspielen.py spielen --fixture …`).
+
+- Einen weiteren Abend sichern: `… sichern --db KOPIE --event ID --aus DATEI`. KOPIE per
+  `.backup`, nie per `cp`. Das Repo ist öffentlich: Namen fallen weg, CIDs/Rufzeichen werden
+  ersetzt, die Zuordnung steht nur in der Ausgabe.
+- **Früh sichern:** `bruegge_spur` ist nach 12 Stunden leer. Der Datensatz trägt deshalb nur
+  VATSIM-Punkte; die Brügge-Meldungen (auch `am_boden` für die Einlieferung) werden daraus
+  nachgebildet, Zeiten weichen um Sekunden ab.
+
 ## Passwort beim Löschen im Admin: nur für ganze Einträge (Nutzerentscheidung 28.09.2026)
 
 Das Passwort erneut (`require_confirm`) verlangen die Löschungen **ganzer Einträge**: Events

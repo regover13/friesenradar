@@ -10573,6 +10573,39 @@ _FACKEL_VERSATZ_GRAD = 0.0003    # ~33 m nach Norden
 _HAVARIST_NAH_M = 1000.0
 
 
+def reddung_letzte_naehe(conn: sqlite3.Connection, ev: dict, ab: str, bis: str) -> str | None:
+    """Wann war zuletzt jemand in Sichtweite des Wracks? Zeitstempel in ``(ab, bis]`` oder ``None``.
+
+    „In Sichtweite" heisst hier genau das, was das Einblenden des Wracks verlangt
+    (``bruegge_soll_fuer``, ``_HAVARIST_NAH_M``): hoechstens 1000 m seitlich und hoechstens
+    1000 m ueber Grund. Wer hoeher darueber fliegt, bekommt das Wrack gar nicht gezeigt.
+    Gezaehlt werden VATSIM- und Bruegge-Punkte, JEDES Piloten -- kreist ein anderer ums Wrack,
+    soll ihm die Fackel die Entdeckung ebenso wenig vorwegnehmen (Nutzer, 28.09.2026).
+    """
+    import math
+    from app import reddung as rd
+    from app.geo import haversine
+    if ev.get("havarist_lat") is None or ev.get("havarist_lon") is None:
+        return None
+    lat, lon = float(ev["havarist_lat"]), float(ev["havarist_lon"])
+    d_lat = _HAVARIST_NAH_M / 111_320.0
+    d_lon = _HAVARIST_NAH_M / (111_320.0 * max(math.cos(math.radians(lat)), 0.01))
+    hoechstens_ft = rd.grund_ft(ev) + _HAVARIST_NAH_M / 0.3048
+    zeilen = conn.execute(
+        "SELECT latitude, longitude, ts FROM position_history "
+        "WHERE ts > ? AND ts <= ? AND latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ? "
+        "  AND altitude <= ? "
+        "UNION ALL "
+        "SELECT lat, lon, ts FROM bruegge_spur "
+        "WHERE ts > ? AND ts <= ? AND lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? "
+        "  AND COALESCE(alt_msl_ft, 0) <= ?",
+        (ab, bis, lat - d_lat, lat + d_lat, lon - d_lon, lon + d_lon, hoechstens_ft) * 2
+    ).fetchall()
+    nah = [ts for plat, plon, ts in zeilen
+           if haversine(float(plat), float(plon), lat, lon) * 1000.0 <= _HAVARIST_NAH_M]
+    return max(nah) if nah else None
+
+
 def _art_je_simulator(conn: sqlite3.Connection, art: str) -> dict[str, str | None]:
     """Welche Art ist in welchem Simulator setzbar? ``None`` = dort gibt es keine."""
     ergebnis: dict[str, str | None] = {}

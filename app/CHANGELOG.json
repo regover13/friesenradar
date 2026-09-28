@@ -1,5 +1,14 @@
 [
   {
+    "version": "15.29.1",
+    "date": "2026-09-28",
+    "highlight": false,
+    "title": "Reddung: Zellen-Fackel erst, wenn niemand mehr in Sichtweite ist",
+    "items": [
+      "🔵 **Die blaue Fackel über der abgesuchten Zelle wartet jetzt, bis niemand mehr in Sichtweite des Wracks ist**, und zündet 30 Sekunden danach. Wer das Wrack gesehen hat und darum kreist, entdeckt es selbst."
+    ]
+  },
+  {
     "version": "15.29.0",
     "date": "2026-09-28",
     "highlight": false,

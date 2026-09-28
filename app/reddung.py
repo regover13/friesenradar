@@ -185,14 +185,21 @@ def havarist_zelle(ev: dict) -> str | None:
     return f"z{i}_{j}"
 
 
-#: So lange nach dem Absuchen der Havarist-Zelle steigt die blaue Fackel auf (Nutzer, 28.09.2026).
+#: So lange, nachdem niemand mehr in Sichtweite des Wracks ist, steigt die blaue Fackel auf.
 SIGNAL_NACH_ZELLE_S = 30
 
 
-def signal_nach_zelle(abgedeckt_ts: str) -> str:
-    """Zündzeitpunkt der blauen Fackel: 30 s nachdem die Havarist-Zelle abgesucht war."""
+def signal_nach_zelle(abgedeckt_ts: str, letzte_naehe_ts: str | None = None) -> str:
+    """Zündzeitpunkt der blauen Fackel über der abgesuchten Havarist-Zelle.
+
+    Nicht 30 s nach dem Absuchen, sondern 30 s nachdem zuletzt jemand in Sichtweite war
+    (Nutzer, 28.09.2026): Wer das Wrack gesehen hat und kreist, um den Fund auszulösen, soll
+    selbst entdecken -- die Fackel ist für den, der knapp daneben war und weiterflog. Wer nur
+    VOR dem Absuchen nah war, verschiebt nichts.
+    """
     from datetime import datetime, timedelta
-    t = datetime.strptime(abgedeckt_ts, "%Y-%m-%dT%H:%M:%SZ")
+    ab = max(abgedeckt_ts, letzte_naehe_ts or abgedeckt_ts)
+    t = datetime.strptime(ab, "%Y-%m-%dT%H:%M:%SZ")
     return (t + timedelta(seconds=SIGNAL_NACH_ZELLE_S)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 

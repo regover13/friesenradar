@@ -728,8 +728,13 @@ def test_die_zelle_des_havaristen_ist_die_in_der_er_liegt():
     assert rd.havarist_zelle({**ev, "havarist_lat": None}) is None
 
 
-def test_der_zuendzeitpunkt_liegt_dreissig_sekunden_nach_der_abdeckung():
+def test_der_zuendzeitpunkt_liegt_dreissig_sekunden_nach_dem_letzten_in_der_naehe():
+    """Nutzer, 28.09.2026: nicht 30 s nach dem Absuchen, sondern 30 s nachdem niemand mehr in
+    Sichtweite des Wracks ist -- wer es gesehen hat und kreist, soll selbst entdecken."""
     assert rd.signal_nach_zelle("2026-09-28T18:00:00Z") == "2026-09-28T18:00:30Z"
+    assert rd.signal_nach_zelle("2026-09-28T18:00:00Z", "2026-09-28T18:04:10Z") == "2026-09-28T18:04:40Z"
+    # Wer nur VOR dem Absuchen nah war, zählt nicht.
+    assert rd.signal_nach_zelle("2026-09-28T18:00:00Z", "2026-09-28T17:59:00Z") == "2026-09-28T18:00:30Z"
 
 
 def _treffer_der_havarist_zelle(pfad, eid):
@@ -751,7 +756,13 @@ def test_mit_haken_zuendet_die_abgesuchte_zelle_die_fackel(db):
     assert ev["gefunden_am"] is None
     t = _treffer_der_havarist_zelle(db, eid)
     assert t, "die Zelle über dem Havaristen muss abgesucht sein"
-    assert ev["signal_am"] == rd.signal_nach_zelle(t[1])
+    c = get_connection(db)
+    try:
+        naehe = reddung_letzte_naehe(c, get_reddung_event(c, eid), t[1], _iso(JETZT))
+    finally:
+        c.close()
+    assert naehe, "der Überflug führt direkt über das Wrack"
+    assert ev["signal_am"] == rd.signal_nach_zelle(t[1], naehe)
     assert _fackel(db, eid) == "rauch_navy"
 
 
@@ -771,3 +782,68 @@ def test_eine_andere_zelle_zuendet_nichts(db):
     _punkte(db, 111, neben, alt=2000)
     _lauf(db)
     assert _ev(db, eid)["signal_am"] is None
+
+
+
+from app.database import reddung_letzte_naehe
+
+
+def _kreis(vor_min_von: float, vor_min_bis: float, radius_km: float = 0.3, bis=None):
+    """Kreisen ums Wrack im Abstand ``radius_km``, alle 15 s -- bis ``bis`` oder bis
+    ``vor_min_bis`` Minuten vor JETZT.
+
+    ⚠ ``JETZT`` steht beim Laden der Datei fest, der Poller nimmt die echte Uhr. Im langen
+    Gesamtlauf liegen dazwischen mehr als 30 s -- wer „bis jetzt kreist", muss deshalb bis zur
+    echten Uhr kreisen, sonst gilt er als längst weg und die Fackel zündet.
+    """
+    punkte, t = [], JETZT - timedelta(minutes=vor_min_von)
+    ende = bis or (JETZT - timedelta(minutes=vor_min_bis))
+    k = 0
+    while t <= ende:
+        w = math.radians(k * 30)
+        punkte.append((LAT + radius_km * G_LAT * math.sin(w),
+                       LON + radius_km * G_LON * math.cos(w), _iso(t)))
+        t += timedelta(seconds=15)
+        k += 1
+    return punkte
+
+
+def test_wer_ums_wrack_kreist_haelt_die_fackel_aus(db):
+    """Der Fall, um den es geht: gesehen, und jetzt kreist er, um den Fund auszulösen."""
+    _arten(db)
+    eid = _event(db, signal_bei_zelle=1)
+    bis_jetzt = datetime.now(timezone.utc) + timedelta(minutes=1)
+    _punkte(db, 111, _quer(60) + _kreis(58, 0, bis=bis_jetzt), alt=2000)  # zu hoch zum Finden, aber nah
+    _lauf(db)
+    ev = _ev(db, eid)
+    assert _treffer_der_havarist_zelle(db, eid), "die Zelle ist abgesucht"
+    assert ev["gefunden_am"] is None and ev["signal_am"] is None
+
+
+def test_wer_sich_entfernt_bekommt_die_fackel_dreissig_sekunden_danach(db):
+    _arten(db)
+    eid = _event(db, signal_bei_zelle=1)
+    weg = [(LAT + 5 * G_LAT, LON, _iso(JETZT - timedelta(minutes=19)))]
+    _punkte(db, 111, _quer(60) + _kreis(58, 20) + weg, alt=2000)
+    _lauf(db)
+    ev = _ev(db, eid)
+    letzter_naher = _kreis(58, 20)[-1][2]
+    assert ev["signal_am"] == rd.signal_nach_zelle(_treffer_der_havarist_zelle(db, eid)[1],
+                                                   letzter_naher)
+
+
+def test_nah_heisst_wie_beim_einblenden_des_wracks(db):
+    """1000 m seitlich UND höchstens 1000 m über Grund -- wer hoch darüber fliegt, dem wird das
+    Wrack gar nicht eingeblendet, er sieht es also nicht."""
+    eid = _event(db)
+    t0 = JETZT - timedelta(minutes=30)
+    _punkte(db, 111, [(LAT + 0.9 * G_LAT, LON, _iso(t0))], alt=900)                   # 900 m daneben
+    _punkte(db, 112, [(LAT, LON, _iso(t0 + timedelta(minutes=1)))], alt=10 + 3400)    # 1036 m drüber
+    _punkte(db, 113, [(LAT + 1.2 * G_LAT, LON, _iso(t0 + timedelta(minutes=2)))], alt=900)  # 1200 m
+    c = get_connection(db)
+    try:
+        ev = get_reddung_event(c, eid)
+        assert reddung_letzte_naehe(c, ev, _iso(t0 - timedelta(seconds=1)), _iso(JETZT)) == _iso(t0)
+        assert reddung_letzte_naehe(c, ev, _iso(t0), _iso(JETZT)) is None, "ab ist exklusiv"
+    finally:
+        c.close()
