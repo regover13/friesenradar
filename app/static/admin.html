@@ -3245,23 +3245,16 @@
                        '</td></tr>';
               }).join('')
             : '<tr><td colspan="6" class="empty-hint">Nichts angefordert.</td></tr>';
-          // Loeschen nur mit Passwort (Nutzer, 28.09.2026) -- bis dahin nahm EIN Klick ein
-          // Objekt aus allen Simulatoren, auch ein Wrack mitten im Event, ohne jede Nachfrage.
-          // `api()` holt die Passwortabfrage nach, ein nacktes fetch bekaeme nur 403.
+          // EIN Klick, ohne Nachfrage und ohne Passwort -- bewusst (Nutzer, 28.09.2026): Das nimmt
+          // nur ein angefordertes Objekt zurueck, es loescht keine gespeicherten Daten.
           sb.querySelectorAll('.bg-weg').forEach(function (b) {
             b.addEventListener('click', async function () {
-              const ok = await confirmCritical('Objekt zurücknehmen?',
-                'Die FriesenBrügge nimmt es beim nächsten Takt aus dem Simulator.', 'Zurücknehmen', true);
-              if (!ok) return;
               await api('DELETE', '/api/admin/bruegge/soll/' + encodeURIComponent(b.dataset.id));
               bgLaden();
             });
           });
           sb.querySelectorAll('.bg-weg-gruppe').forEach(function (b) {
             b.addEventListener('click', async function () {
-              const ok = await confirmCritical('Ganze Gruppe zurücknehmen?',
-                'Alle Objekte dieser Gruppe verschwinden aus dem Simulator.', 'Zurücknehmen', true);
-              if (!ok) return;
               await api('DELETE', '/api/admin/bruegge/soll/' + encodeURIComponent(b.dataset.id) + '?gruppe=true');
               bgLaden();
             });

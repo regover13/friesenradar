@@ -14,7 +14,7 @@
     "highlight": false,
     "title": "Admin: Löschen nur mit Passwort",
     "items": [
-      "🔐 **Jedes Löschen im Admin verlangt jetzt das Passwort**, auch bei FriesenBrügge, Messeverkehr und Reddung: Objekt zurücknehmen, FriesenBrügge vergessen, CID von der Messe-Liste nehmen, Aufnahme freigeben, Bummel-Ergebnis verbergen, Korrekturen und DFS-Karten löschen, ein Feld dem Kalender zurückgeben. Das Zurücknehmen eines Objekts fragt jetzt überhaupt erst nach."
+      "🔐 **Was im Admin dauerhaft gelöscht wird, verlangt jetzt immer das Passwort**: FriesenBrügge vergessen, CID von der Messe-Liste nehmen, Bummel-Ergebnis verbergen, Korrekturen, DFS-Karten und Flugplatz-Links löschen. Was nur etwas zurücknimmt, etwa ein Objekt aus dem Simulator, bleibt ein Klick."
     ]
   },
   {
