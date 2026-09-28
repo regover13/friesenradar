@@ -354,9 +354,22 @@ def test_auch_verwerfen_zieht_den_gesehener_hash_nach(client):
 
 
 # --------------------------------------------------------------------------- Loeschen
+def _mit_passwort(c):
+    """Loeschen nur mit Passwort (Nutzer, 28.09.2026): das Step-up-Token setzen."""
+    c.cookies.set(CONFIRM_COOKIE, make_confirm_token(SECRET, PW, int(time.time()) + 300))
+
+
+def test_delete_ohne_passwort_wird_abgelehnt(client):
+    c, db, _tmp = client
+    _karte(db, "EDDL", "sichtflug")
+    r = c.delete("/api/admin/aip-charts-dfs/EDDL/sichtflug")
+    assert r.status_code == 403 and r.json()["detail"] == "confirm_required"
+
+
 def test_delete_entfernt_die_karte(client):
     c, db, _tmp = client
     _karte(db, "EDDL", "sichtflug")
+    _mit_passwort(c)
     assert c.delete("/api/admin/aip-charts-dfs/EDDL/sichtflug").status_code == 200
     conn = get_connection(db)
     try:
@@ -367,6 +380,7 @@ def test_delete_entfernt_die_karte(client):
 
 def test_delete_unbekannter_karte_ist_404(client):
     c, _db, _tmp = client
+    _mit_passwort(c)
     assert c.delete("/api/admin/aip-charts-dfs/EDZZ/sichtflug").status_code == 404
 
 

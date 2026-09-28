@@ -1,5 +1,14 @@
 [
   {
+    "version": "15.27.2",
+    "date": "2026-09-28",
+    "highlight": false,
+    "title": "Admin: Löschen nur mit Passwort",
+    "items": [
+      "🔐 **Jedes Löschen im Admin verlangt jetzt das Passwort**, auch bei FriesenBrügge, Messeverkehr und Reddung: Objekt zurücknehmen, FriesenBrügge vergessen, CID von der Messe-Liste nehmen, Aufnahme freigeben, Bummel-Ergebnis verbergen, Korrekturen und DFS-Karten löschen, ein Feld dem Kalender zurückgeben. Das Zurücknehmen eines Objekts fragt jetzt überhaupt erst nach."
+    ]
+  },
+  {
     "version": "15.27.1",
     "date": "2026-09-28",
     "highlight": false,

@@ -81,6 +81,21 @@ Datei nicht gelesen, weil nichts auf sie zeigte — während parallel am selben 
 gearbeitet wurde. Eine Koordinationsdatei, die man erst findet, wenn man ohnehin `ls` tippt,
 koordiniert nicht.
 
+## Löschen im Admin nur mit Passwort (stehende Regel, 28.09.2026)
+
+**Jede Aktion im Admin, die etwas unwiederbringlich entfernt oder zurücksetzt, verlangt das
+Passwort erneut** — `require_admin(request)` und direkt danach `require_confirm(request)`. Das
+gilt für jede `DELETE`-Route und ebenso für Löschaktionen, die als `POST` daherkommen
+(vergessen, freigeben, verbergen, dem Kalender zurückgeben). Nutzer: *„Löschen unter Admin
+immer nur mit Passwort!"* Am 28.09.2026 liefen elf solche Endpunkte ohne, in den damals neuen
+Bereichen FriesenBrügge, Messeverkehr und Reddung, dazu ältere bei Bummel und Karten — einer
+nahm ein Objekt auf einen einzigen Klick aus allen Simulatoren.
+
+In der Oberfläche **immer über `api()`**, nie über ein nacktes `fetch`: `api()` fängt
+`403 confirm_required` ab, fragt das Passwort und wiederholt die Aktion. Vorher `confirmCritical`
+für die Frage, *was* gelöscht wird. `tests/test_admin_loeschen_mit_passwort.py` bewacht jede
+`DELETE`-Route automatisch; eine neue destruktive `POST`-Aktion gehört dort in die Liste.
+
 ## `"highlight": false` — „GROSSES UPDATE" vergibt allein der Nutzer (stehende Regel)
 
 Jeder neue Changelog-Eintrag bekommt **`"highlight": false`**. Ohne Ausnahme, egal wie groß die
