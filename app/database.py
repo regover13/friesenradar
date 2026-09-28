@@ -390,7 +390,13 @@ CREATE TABLE IF NOT EXISTS reddung_events (
     -- Oeffentlich -- wie viel sie verraet, entscheidet, wer sie schreibt.
     lagetext        TEXT,
     -- Wie weit vom Wrack aufgenommen werden darf (m). NULL = Vorgabe in app/reddung.py.
-    aufnahme_radius_m REAL
+    aufnahme_radius_m REAL,
+    -- Eingrenzung (28.09.2026): ein Rechteck IM Sektor, wenn das Wrack uebersehen wurde. Der
+    -- Sektor selbst bleibt -- sonst entstuende ein neues Raster, und abgesuchte Zellen,
+    -- Anteile und Badges ausserhalb gingen verloren. Alle vier NULL = keine Eingrenzung.
+    eng_sued REAL, eng_west REAL, eng_nord REAL, eng_ost REAL,
+    -- Fruehe Rauchfackel per Admin-Knopf (Friesen-Dunkelblau), bis der Fund sie ersetzt.
+    signal_am TEXT
 );
 
 CREATE TABLE IF NOT EXISTS aircraft_payloads (
@@ -1134,6 +1140,12 @@ _BRUEGGE_SOLL_MIGRATIONS = [
     "ALTER TABLE reddung_events ADD COLUMN lagetext TEXT",
     # Eigener Radius fuers Aufnehmen, getrennt vom Fundradius (28.09.2026).
     "ALTER TABLE reddung_events ADD COLUMN aufnahme_radius_m REAL",
+    # Eingrenzung und fruehe Rauchfackel (28.09.2026).
+    "ALTER TABLE reddung_events ADD COLUMN eng_sued REAL",
+    "ALTER TABLE reddung_events ADD COLUMN eng_west REAL",
+    "ALTER TABLE reddung_events ADD COLUMN eng_nord REAL",
+    "ALTER TABLE reddung_events ADD COLUMN eng_ost REAL",
+    "ALTER TABLE reddung_events ADD COLUMN signal_am TEXT",
 ]
 
 _PANEL_DIAG_MIGRATIONS = [
@@ -9836,6 +9848,7 @@ _REDDUNG_FELDER = {
     "havarist_grund_ft", "havarist_grund_quelle", "aufnehmen_noetig", "landung_noetig",
     "aufnahme_verfaellt", "source", "calendar_uid", "push_enabled", "badge_name",
     "manual_fields", "lagetext", "aufnahme_radius_m",
+    "eng_sued", "eng_west", "eng_nord", "eng_ost", "signal_am",
 }
 
 #: Rangfolge der Quellen für ``havarist_grund_ft`` — eine Messung schlägt jede Schätzung.
@@ -10486,7 +10499,16 @@ def reddung_raster(conn: sqlite3.Connection, ev: dict) -> dict:
         "abgedeckt": stand["zellen_abgedeckt"],
         "anteil": stand["anteil"],
         "aufgeloest": bool(ev.get("aufgeloest_am")),
+        "eingrenzung": reddung_eingrenzung(ev),
     }
+
+
+def reddung_eingrenzung(ev: dict) -> dict | None:
+    """Das eingegrenzte Suchgebiet als ``{sued, west, nord, ost}`` -- oder ``None``."""
+    werte = [ev.get(k) for k in ("eng_sued", "eng_west", "eng_nord", "eng_ost")]
+    if any(w is None for w in werte):
+        return None
+    return dict(zip(("sued", "west", "nord", "ost"), (float(w) for w in werte)))
 
 
 #: Die drei Simulatoren, für die ein Havarist gesetzt werden kann.
@@ -10611,9 +10633,11 @@ def reddung_objekte_abgleichen(conn: sqlite3.Connection, ev: dict,
         for sim in _REDDUNG_SIMULATOREN:
             bruegge_soll_loeschen(conn, f"{basis_id}-{sim}")
 
+    licht_id = f"{basis}-licht"
     if weg or ev.get("havarist_lat") is None or ev.get("havarist_lon") is None:
         raeumen(hav_id)
         raeumen(fackel_id)
+        raeumen(licht_id)
         return []
 
     lat, lon = float(ev["havarist_lat"]), float(ev["havarist_lon"])
@@ -10629,6 +10653,10 @@ def reddung_objekte_abgleichen(conn: sqlite3.Connection, ev: dict,
     #               markiert damit die Stelle, auch fuer einen Abend, an dem niemand fand.
     #   hellblau -- aufgenommen, unterwegs zum Platz.
     #   orange   -- gefunden, noch nicht gerettet.
+    #   navy     -- noch nicht gefunden, aber der Veranstalter hat per Knopf eine Rauchfackel
+    #               gezuendet (28.09.2026) -- etwa, wenn das Wrack im Wald liegt. Dieselbe
+    #               Stelle und dieselbe ID wie die spaeteren: Der Fund ersetzt sie an Ort und
+    #               Stelle durch die orange. Fuer ALLE sichtbar, wie jede Fackel.
     fackel = None
     if ev.get("aufgeloest_am"):
         fackel = "rauch_signalrot"
@@ -10636,11 +10664,18 @@ def reddung_objekte_abgleichen(conn: sqlite3.Connection, ev: dict,
         fackel = "rauch_hellblau"
     elif ev.get("gefunden_am"):
         fackel = "rauch_signalorange"
+    elif ev.get("signal_am"):
+        fackel = "rauch_navy"
     if fackel:
         ids += _reddung_soll_setzen(conn, fackel_id, fackel,
                                     lat + _FACKEL_VERSATZ_GRAD, lon, gilt_bis)
+        # Ein Licht am Fuss JEDER Fackel, exakt an derselben Stelle -- fuer die Nacht, und
+        # immer, statt die Uhrzeit im Simulator auszuwerten (Nutzer, 28.09.2026).
+        ids += _reddung_soll_setzen(conn, licht_id, "licht",
+                                    lat + _FACKEL_VERSATZ_GRAD, lon, gilt_bis)
     else:
         raeumen(fackel_id)
+        raeumen(licht_id)
     return ids
 
 

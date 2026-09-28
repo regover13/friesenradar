@@ -381,6 +381,15 @@ vorbereiten kannst, und steht während der Suche auch im Reddung-Block im Live-T
 Ein Abend kann auch mit dem Fund enden — das entscheidet der Veranstalter beim Anlegen, so wie
 er festlegt, ob zum Aufnehmen gelandet werden muss.
 
+**Wenn das Wrack übersehen wird**, kann der Veranstalter nachhelfen, und du siehst es auf der
+Karte, im Kniebrett und im Reddung-Block:
+- Ein **gelbes Rechteck** grenzt das Suchgebiet ein. Der Sektor bleibt dabei, wie er war — was
+  du schon abgesucht hast, zählt weiter. Beim Eingrenzen bekommen alle eine Push-Nachricht.
+- Eine **dunkelblaue Rauchfackel** steigt am Wrack auf, etwa wenn es im Wald liegt. Mit dem
+  Fund wird sie zur orangen.
+
+Am Fuß jeder Rauchfackel brennt ein **Licht**, damit man die Stelle auch nachts findet.
+
 **Findet niemand, endet der Abend ehrlich:** Zum Eventende wird die Lage des Havaristen
 veröffentlicht — die rote Fackel markiert die Stelle —, und die Bilanz nennt, wie viel vom
 Sektor abgeflogen war.
@@ -508,6 +517,16 @@ Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, St
   ergeben ein lückenloses Raster. **Die Kante sollte nie größer sein als der Korridor:** Sonst
   gilt ein großes Feld als komplett abgeflogen, obwohl nur ein schmaler Streifen durch seine
   Mitte führte.
+- **Eingrenzung** — wird das Wrack übersehen, ziehst du auf der Karte mit „Eingrenzung 1/2“
+  ein Rechteck im Sektor und speicherst. Der Sektor bleibt, wie er ist: abgesuchte Zellen,
+  Anteile und Badges bleiben stehen. Die Eingrenzung muss im Sektor liegen und den Havaristen
+  enthalten; während eines laufenden Events geht beim Speichern ein Push an alle. „Eingrenzung
+  aufheben“ und Speichern nimmt sie wieder weg. Den Havaristen außerhalb des Sektors nimmt der
+  Admin gar nicht erst an.
+- **🔵 Rauchfackel zünden** — ein Knopf in der Event-Zeile, solange das Event läuft und noch
+  nicht gefunden ist: Am Wrack steigt dunkelblauer Rauch auf, für alle sichtbar, bis der Fund
+  ihn durch den orangen ersetzt. Vor dem Start geht das bewusst nicht — die Fackel verriete die
+  Stelle, bevor gesucht wird.
 - **Aufnahme-Radius** (Vorgabe 100 m) — so weit vom Wrack darf zum Aufnehmen gelandet oder
   geschwebt werden. Er ist unabhängig vom Fundradius: Liegt das Wrack im Wald, macht man ihn
   größer, damit die Wiese daneben reicht, ohne dass das Finden leichter wird.

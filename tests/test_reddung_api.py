@@ -741,8 +741,9 @@ def test_raster_endpunkt_liefert_geometrie_und_zellen(db):
     eid = _anlegen()
     d = main.reddung_raster_endpunkt(eid)
     assert d["id"] == eid and d["name"] == "Reddung Probe"
+    # `eingrenzung` (28.09.2026) ist das Rechteck des Veranstalters, nicht der Ort des Wracks.
     assert set(d) == {"id", "name", "dtstart", "dtend", "sektor", "raster", "zellen",
-                      "abgedeckt", "anteil", "aufgeloest"}
+                      "abgedeckt", "anteil", "aufgeloest", "eingrenzung"}
     assert d["zellen"] == d["raster"]["zeilen"] * d["raster"]["spalten"]
     assert d["abgedeckt"] == []
 

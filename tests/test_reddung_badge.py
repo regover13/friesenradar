@@ -207,7 +207,7 @@ def _node(quelltext: str, ausdruck: str):
 
 
 def _bilanz(vorbei: bool) -> str:
-    quelle = ("function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\nfunction _reddungLageHtml(){return '';}\nfunction icon(){return '';}\n"
+    quelle = ("function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\nfunction _reddungLageHtml(){return '';}\nfunction _reddungHinweiseHtml(){return '';}\nfunction icon(){return '';}\n"
               "function _fmtMin(m){return m+' min';}\n"
               + "".join(_funktion(n) for n in (
                   "_reddungZeitfenster", "_reddungBalken", "_reddungMarkenHtml",

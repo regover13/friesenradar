@@ -226,7 +226,8 @@ def test_nach_der_aufloesung_bleibt_alles_stehen(conn):
     set_reddung_aufgeloest(conn, ev["id"], "2026-09-25T17:30:00Z")
     reddung_objekte_abgleichen(conn, get_reddung_event(conn, ev["id"]))
     zeilen = conn.execute("SELECT art, gilt_bis FROM bruegge_soll ORDER BY art").fetchall()
-    assert [r[0] for r in zeilen] == ["flugzeug_echo", "rauch_signalrot"]
+    # Seit 28.09.2026 steht am Fuss jeder Fackel ein Licht -- auch das laeuft mit dtend ab.
+    assert [r[0] for r in zeilen] == ["flugzeug_echo", "licht", "rauch_signalrot"]
     assert all(r[1] == "2026-09-25T22:00:00Z" for r in zeilen), "laufen mit dtend ab"
 
 
@@ -387,4 +388,5 @@ def test_der_riegel_faellt_mit_dem_fund(conn):
     set_reddung_gefunden(conn, ev["id"], "2026-09-25T17:30:00Z", 111)
     reddung_objekte_abgleichen(conn, get_reddung_event(conn, ev["id"]))
     werte = [r[0] for r in conn.execute("SELECT nur_nah_m FROM bruegge_soll").fetchall()]
-    assert werte == [None, None], "nach dem Fund kein Riegel mehr"
+    # Wrack, Fackel und (seit 28.09.2026) das Licht am Fuss der Fackel.
+    assert werte == [None, None, None], "nach dem Fund kein Riegel mehr"

@@ -1303,6 +1303,10 @@
                   <input type="radio" name="rd-ziel" value="2"> Ecke 2</label>
                 <label style="display:flex;gap:4px;align-items:center;font-size:0.82rem;cursor:pointer;">
                   <input type="radio" name="rd-ziel" value="h"> 🚨 Havarist</label>
+                <label style="display:flex;gap:4px;align-items:center;font-size:0.82rem;cursor:pointer;">
+                  <input type="radio" name="rd-ziel" value="e1"> 🎯 Eingrenzung 1</label>
+                <label style="display:flex;gap:4px;align-items:center;font-size:0.82rem;cursor:pointer;">
+                  <input type="radio" name="rd-ziel" value="e2"> 🎯 Eingrenzung 2</label>
                 <span class="hint" id="rd-karte-hinweis"></span>
               </div>
               <div id="rd-karte" style="height:340px;border-radius:6px;margin-bottom:10px;"></div>
@@ -1336,6 +1340,33 @@
                   Die Lage des Havaristen setzt du <b>von Hand</b>: Ob dort Wasser liegt und ob
                   jemand landen kann, sieht nur ein Mensch — und über die Entfernung zum Platz
                   bestimmst du gleich mit, wie lang der Abend wird.
+                </p>
+              </div>
+
+              <div class="form-section-title">Eingrenzung — wenn das Wrack übersehen wurde</div>
+              <div class="form-grid" style="margin-bottom:6px;">
+                <div class="form-group">
+                  <label for="rd-eng-sued">Süd (Breite)</label>
+                  <input type="number" step="0.0001" id="rd-eng-sued" />
+                </div>
+                <div class="form-group">
+                  <label for="rd-eng-nord">Nord (Breite)</label>
+                  <input type="number" step="0.0001" id="rd-eng-nord" />
+                </div>
+                <div class="form-group">
+                  <label for="rd-eng-west">West (Länge)</label>
+                  <input type="number" step="0.0001" id="rd-eng-west" />
+                </div>
+                <div class="form-group">
+                  <label for="rd-eng-ost">Ost (Länge)</label>
+                  <input type="number" step="0.0001" id="rd-eng-ost" />
+                </div>
+                <p class="form-hint" style="grid-column:1/-1;margin:0;">
+                  <b>Ein Rechteck im Sektor, gelb auf Karte und Kniebrett.</b> Der Sektor bleibt,
+                  wie er ist — abgesuchte Zellen, Anteile und Badges bleiben stehen. Auf der Karte
+                  mit „Eingrenzung 1/2“ zwei Ecken klicken. Der Havarist muss darin liegen.
+                  Während eines laufenden Events geht beim Speichern ein Push an alle.
+                  <button type="button" class="btn btn-sm" onclick="rdEingrenzungAufheben()">Eingrenzung aufheben</button>
                 </p>
               </div>
 
@@ -6795,6 +6826,11 @@
       return isFinite(v) ? v : vorgabe;
     }
 
+    // Leeres Feld = null -- fuer Werte, deren Fehlen etwas bedeutet (keine Eingrenzung).
+    function _rdZahlOderNull(id) {
+      return _rdZahl(id, null);
+    }
+
     /** Fundradius und erwartete Suchdauer -- beides gerechnet, beides nur Anzeige. */
     function _rdRechnung() {
       const el = document.getElementById('rd-rechnung');
@@ -6841,7 +6877,8 @@
 
     const _RD_GRUPPEN = ['Flugzeuge und Hubschrauber', 'Boote und Schiffe', 'Andere Objekte'];
 
-    let _rdKarte = null, _rdRechteck = null, _rdMarke = null;
+    let _rdKarte = null, _rdRechteck = null, _rdMarke = null, _rdEngRechteck = null;
+    let _rdEngEcken = [null, null];
 
     function _rdZiel() {
       const r = document.querySelector('input[name="rd-ziel"]:checked');
@@ -6874,6 +6911,14 @@
       if (isFinite(sued) && isFinite(nord) && isFinite(west) && isFinite(ost)) {
         _rdRechteck = L.rectangle([[sued, west], [nord, ost]], {
           color: '#4da3ff', weight: 2, fillColor: '#4da3ff', fillOpacity: 0.08,
+        }).addTo(_rdKarte);
+      }
+      const es = _rdZahl('rd-eng-sued', NaN), en = _rdZahl('rd-eng-nord', NaN);
+      const ew = _rdZahl('rd-eng-west', NaN), eo = _rdZahl('rd-eng-ost', NaN);
+      if (_rdEngRechteck) { _rdKarte.removeLayer(_rdEngRechteck); _rdEngRechteck = null; }
+      if (isFinite(es) && isFinite(en) && isFinite(ew) && isFinite(eo)) {
+        _rdEngRechteck = L.rectangle([[es, ew], [en, eo]], {
+          color: '#f5c542', weight: 3, fillColor: '#f5c542', fillOpacity: 0.08,
         }).addTo(_rdKarte);
       }
       const hlat = _rdZahl('rd-hav-lat', NaN), hlon = _rdZahl('rd-hav-lon', NaN);
@@ -6909,6 +6954,22 @@
           document.getElementById('rd-hav-lat').value = e.latlng.lat.toFixed(4);
           document.getElementById('rd-hav-lon').value = e.latlng.lng.toFixed(4);
           if (hinweis) hinweis.textContent = 'Havarist gesetzt.';
+        } else if (ziel === 'e1' || ziel === 'e2') {
+          // Eingrenzung: zwei Ecken wie beim Sektor, danach bleibt die Auswahl hier stehen.
+          const n = ziel === 'e1' ? 0 : 1;
+          _rdEngEcken[n] = e.latlng;
+          const [a, b] = _rdEngEcken;
+          if (a && b) {
+            document.getElementById('rd-eng-sued').value = Math.min(a.lat, b.lat).toFixed(4);
+            document.getElementById('rd-eng-nord').value = Math.max(a.lat, b.lat).toFixed(4);
+            document.getElementById('rd-eng-west').value = Math.min(a.lng, b.lng).toFixed(4);
+            document.getElementById('rd-eng-ost').value = Math.max(a.lng, b.lng).toFixed(4);
+          }
+          if (hinweis) {
+            hinweis.textContent = (a && b) ? 'Eingrenzung gesetzt — speichern nicht vergessen.'
+              : 'Eingrenzung Ecke ' + (n + 1) + ' gesetzt — jetzt die zweite.';
+          }
+          _rdZielSetzen(n === 0 ? 'e2' : 'e1');
         } else {
           const n = parseInt(ziel, 10);
           _rdEcken[n - 1] = e.latlng;
@@ -7131,6 +7192,12 @@
           // Fall ist weder eingeliefert noch abgeschlossen. Ohne diese Bedingung leert ein
           // Klick den Latch eines fertigen Events -- Einlieferung ohne Aufnahme, eine
           // Reihenfolge, die es nicht geben kann (passiert am 20.09.2026).
+          // Fruehe Rauchfackel: nur, solange noch nicht gefunden ist.
+          + (ev.havarist_lat != null && !ev.gefunden_am && !ev.aufgeloest_am
+             ? (ev.signal_am
+                ? '<span class="hint">🔵 Rauchfackel brennt seit ' + escH(ev.signal_am.slice(11, 16)) + ' UTC</span> '
+                : '<button class="btn btn-sm" onclick="rdSignal(' + ev.id + ')">🔵 Rauchfackel zünden</button> ')
+             : '')
           + (ev.aufgenommen_am && !ev.eingeliefert_am && !ev.aufgeloest_am
              ? '<button class="btn btn-sm" onclick="rdFreigeben(' + ev.id + ')">Aufnahme freigeben</button> '
              : '')
@@ -7140,6 +7207,21 @@
           + '<button class="btn btn-sm btn-danger" onclick="rdLoeschen(' + ev.id + ')">Löschen</button>'
           + '</div></div>';
       }).join('');
+    }
+
+    function rdEingrenzungAufheben() {
+      ['rd-eng-sued', 'rd-eng-nord', 'rd-eng-west', 'rd-eng-ost'].forEach(function (f) {
+        const el = document.getElementById(f);
+        if (el) el.value = '';
+      });
+      _rdEngEcken = [null, null];
+      _rdKarteNachziehen();
+    }
+
+    async function rdSignal(id) {
+      if (!confirm('Dunkelblaue Rauchfackel am Wrack zünden? Alle sehen sie — bis zum Fund.')) return;
+      const res = await api('POST', '/api/admin/reddung/events/' + id + '/signal');
+      if (res && res.ok) { toast('Rauchfackel gezündet'); loadReddung(); }
     }
 
     async function rdFreigeben(id) {
@@ -7183,6 +7265,9 @@
         gs_max_kt: _rdZahl('rd-gsmax', 140), gs_min_kt: _rdZahl('rd-gsmin', 30),
         fund_radius_m: _rdZahl('rd-fund-radius', 150),
         aufnahme_radius_m: _rdZahl('rd-aufnahme-radius', 100),
+        // Leere Felder schicken null -- so hebt Speichern eine Eingrenzung auch wieder auf.
+        eng_sued: _rdZahlOderNull('rd-eng-sued'), eng_west: _rdZahlOderNull('rd-eng-west'),
+        eng_nord: _rdZahlOderNull('rd-eng-nord'), eng_ost: _rdZahlOderNull('rd-eng-ost'),
         fund_hoehe_ft: _rdZahl('rd-fund-hoehe', 1000),
         aufnehmen_noetig: document.getElementById('rd-aufnehmen-noetig').checked ? 1 : 0,
         landung_noetig: document.getElementById('rd-landung-noetig').checked ? 1 : 0,
@@ -7214,6 +7299,9 @@
       document.getElementById('rd-form').classList.add('hidden');
       _rdEditingId = null;
       _rdEcken = [null, null];
+      // Die Eingrenzung gehoert zu EINEM Abend -- sie darf nicht als Vorlage ins naechste neue
+      // Event wandern wie Name oder Radien.
+      rdEingrenzungAufheben();
       const t = document.getElementById('rd-form-title');
       if (t) t.textContent = 'Neues Event anlegen';
     }
@@ -7222,6 +7310,9 @@
       const ev = _rdEvents.find(function (x) { return x.id === id; });
       if (!ev) return;
       _rdEditingId = id;
+      // Halb geklickte Ecken eines anderen Events duerfen nicht in dieses wandern (Fable 10).
+      _rdEcken = [null, null];
+      _rdEngEcken = [null, null];
       const setz = function (feld, wert) {
         const el = document.getElementById(feld);
         if (el) el.value = (wert === null || wert === undefined) ? '' : wert;
@@ -7239,6 +7330,8 @@
       // Aeltere Events haben keinen eigenen Wert -- dann gilt die Vorgabe des Servers.
       setz('rd-aufnahme-radius', ev.aufnahme_radius_m == null ? 100 : ev.aufnahme_radius_m);
       setz('rd-hav-lat', ev.havarist_lat); setz('rd-hav-lon', ev.havarist_lon);
+      setz('rd-eng-sued', ev.eng_sued); setz('rd-eng-nord', ev.eng_nord);
+      setz('rd-eng-west', ev.eng_west); setz('rd-eng-ost', ev.eng_ost);
       const art = document.getElementById('rd-art');
       if (art) {
         // ⚠ Steht die gespeicherte Art nicht (mehr) in der gefilterten Liste, faellt `value`

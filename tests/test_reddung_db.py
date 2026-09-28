@@ -605,7 +605,9 @@ def test_das_raster_nennt_die_abgedeckten_zellen(conn):
     assert r["abgedeckt"] and set(r["abgedeckt"]) <= alle
     assert r["zellen"] == r["raster"]["zeilen"] * r["raster"]["spalten"] == len(alle)
     assert r["abgedeckt"] == sorted(r["abgedeckt"])
-    assert set(r) == {"sektor", "raster", "zellen", "abgedeckt", "anteil", "aufgeloest"}
+    # `eingrenzung` (28.09.2026) ist das Rechteck des Veranstalters, nicht der Ort des Wracks.
+    assert set(r) == {"sektor", "raster", "zellen", "abgedeckt", "anteil", "aufgeloest",
+                      "eingrenzung"}
 
 
 def test_ein_leerer_sektor_hat_ein_raster_ohne_zellen(conn):

@@ -113,7 +113,7 @@ from app.database import (
     bruegge_soll_fuer,
     clear_reddung_aufnahme,
     compute_reddung_stand, reddung_fundort,
-    reddung_raster,
+    reddung_raster, reddung_eingrenzung,
     create_reddung_event,
     delete_reddung_event,
     get_reddung_event,
@@ -6637,6 +6637,10 @@ def reddung_events():
                 "landung_noetig": ev.get("landung_noetig"),
                 # Was gesucht wird -- vom Veranstalter geschrieben, auch vor dem Start.
                 "lagetext": ev.get("lagetext"),
+                # Eingegrenztes Suchgebiet und fruehe Rauchfackel (28.09.2026). Beides
+                # verraet genau so viel, wie der Veranstalter verraten will.
+                "eingrenzung": reddung_eingrenzung(ev),
+                "signal_am": ev.get("signal_am"),
                 "stand": stand,
                 "fundort": reddung_fundort(conn, ev, now),
             })
@@ -7090,6 +7094,10 @@ _REDDUNG_BEREICHE = {
     "gs_min_kt":       (0.0, 1000.0, False),
     "fund_radius_m":   (1.0, 50000.0, False),
     "aufnahme_radius_m": (1.0, 50000.0, False),
+    "eng_sued":        (-90.0, 90.0, False),
+    "eng_nord":        (-90.0, 90.0, False),
+    "eng_west":        (-180.0, 180.0, False),
+    "eng_ost":         (-180.0, 180.0, False),
     "fund_hoehe_ft":   (1.0, 60000.0, False),
     "havarist_lat":    (-90.0, 90.0, False),
     "havarist_lon":    (-180.0, 180.0, False),
@@ -7131,6 +7139,53 @@ def _validate_reddung_felder(body: dict) -> str | None:
     return None
 
 
+def _validate_reddung_havarist(body: dict) -> str | None:
+    """Liegt der Havarist im Sektor? ``None`` heisst ja -- oder: noch keiner gesetzt.
+
+    Nutzer, 28.09.2026: Wird der Sektor waehrend des Abends eingegrenzt, weil das Wrack
+    uebersehen wurde, darf die Eingrenzung nicht daneben liegen. Sonst sucht die Gruppe den
+    Rest des Abends ein Gebiet ab, in dem nichts liegt, und niemand merkt es.
+    """
+    lat, lon = body.get("havarist_lat"), body.get("havarist_lon")
+    if lat is None or lon is None:
+        return None
+    try:
+        sued, nord = sorted((float(body["sued"]), float(body["nord"])))
+        west, ost = sorted((float(body["west"]), float(body["ost"])))
+    except (KeyError, TypeError, ValueError):
+        return None                     # das meldet schon die Sektorpruefung
+    if not (sued <= float(lat) <= nord and west <= float(lon) <= ost):
+        return "Der Havarist liegt außerhalb des Sektors — so fände ihn niemand."
+    return None
+
+
+_ENG = ("eng_sued", "eng_west", "eng_nord", "eng_ost")
+
+
+def _validate_reddung_eingrenzung(body: dict) -> str | None:
+    """Die Eingrenzung: alle vier Kanten oder keine, im Sektor, und der Havarist darin."""
+    werte = [body.get(k) for k in _ENG]
+    if all(w is None for w in werte):
+        return None
+    if any(w is None for w in werte):
+        return "Eingrenzung unvollständig (sued/west/nord/ost)"
+    es, ew, en, eo = (float(w) for w in werte)
+    if es >= en or ew >= eo:
+        return "Eingrenzung verdreht: nord muss über sued und ost über west liegen"
+    try:
+        sued, nord = sorted((float(body["sued"]), float(body["nord"])))
+        west, ost = sorted((float(body["west"]), float(body["ost"])))
+    except (KeyError, TypeError, ValueError):
+        return None                     # das meldet schon die Sektorpruefung
+    if es < sued or en > nord or ew < west or eo > ost:
+        return "Die Eingrenzung muss innerhalb des Sektors liegen."
+    lat, lon = body.get("havarist_lat"), body.get("havarist_lon")
+    if lat is not None and lon is not None \
+            and not (es <= float(lat) <= en and ew <= float(lon) <= eo):
+        return "Der Havarist liegt außerhalb der Eingrenzung — so fände ihn niemand."
+    return None
+
+
 #: Die Lage ist ein Absatz, kein Roman -- sie steht im Live-Block ueber der Karte.
 _REDDUNG_LAGE_MAX = 2000
 
@@ -7144,7 +7199,12 @@ def _reddung_lage_putzen(body: dict) -> None:
 #: Felder, die in den fortgeschriebenen Stand NICHT eingehen. Aendert sich nur eines davon,
 #: bleibt der Stand stehen -- s. ``_reddung_rechnung_geaendert``.
 _REDDUNG_OHNE_RECHNUNG = {"name", "lagetext", "badge_name", "push_enabled", "manual_fields",
-                          "source", "calendar_uid", "aufnahme_radius_m"}
+                          "source", "calendar_uid", "aufnahme_radius_m",
+                          # Die Eingrenzung ist eine Anzeige ueber dem Sektor, keine Rechnung --
+                          # genau deshalb bleiben abgesuchte Zellen stehen (Nutzer, 28.09.2026).
+                          "eng_sued", "eng_west", "eng_nord", "eng_ost",
+                          # Die fruehe Fackel steht im Simulator, sie rechnet nichts (Fable 4).
+                          "signal_am"}
 
 
 #: Höhenmodell für die Geländehöhe am Havaristen (Copernicus-DEM 90 m, ohne Schlüssel).
@@ -7214,6 +7274,7 @@ _REDDUNG_KOERPER = (
     "havarist_lat", "havarist_lon", "havarist_art", "havarist_grund_ft",
     "havarist_grund_quelle", "aufnehmen_noetig", "landung_noetig", "aufnahme_verfaellt",
     "badge_name", "lagetext", "aufnahme_radius_m",
+    "eng_sued", "eng_west", "eng_nord", "eng_ost",
 )
 
 
@@ -7248,7 +7309,8 @@ async def admin_create_reddung_event(request: Request):
     ferr = _validate_reddung_felder(body)
     if ferr:
         raise HTTPException(status_code=400, detail=ferr)
-    serr = _validate_reddung_sektor(body)
+    serr = (_validate_reddung_sektor(body) or _validate_reddung_havarist(body)
+            or _validate_reddung_eingrenzung(body))
     if serr:
         raise HTTPException(status_code=400, detail=serr)
     _reddung_lage_putzen(body)
@@ -7282,53 +7344,78 @@ async def admin_update_reddung_event(request: Request, event_id: int):
     body = await request.json()
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="Objekt erwartet")
+    # ⚠ ZWEI VERBINDUNGEN mit dem Netzabruf der Gelaendehoehe DAZWISCHEN: erst lesen und
+    # schliessen, dann fragen, dann zum Schreiben neu oeffnen -- keine Verbindung ueber einen
+    # Netzabruf (CLAUDE.md, Datenbank; Muster `_gen_flight_quip`, Fable-Befund 28.09.2026).
     conn = get_connection(get_settings().DB_PATH)
     try:
         alt = get_reddung_event(conn, event_id)
-        if alt is None:
-            raise HTTPException(status_code=404, detail="unbekannt")
-        # ⚠ GEGEN DEN GESPEICHERTEN STAND pruefen, nicht gegen den Koerper allein.
-        #
-        # Vorher griff die Sektorpruefung nur, wenn alle vier Ecken mitkamen, und die
-        # Zeitpruefung nur mit beiden Zeiten. Ein Teil-Update ging also ungeprueft durch:
-        # `{"nord": 53.0}` (unter `sued`) ergab einen verdrehten Sektor, `{"nord": 60}` rund
-        # 26.000 Zellen, und `{"dtend": …}` allein ein Ende vor dem Start -- worauf der Poller
-        # das Event sofort aufloeste. Gefunden am 21.09.2026.
-        zusammen = {**{k: alt[k] for k in
-                       ("sued", "west", "nord", "ost", "kante_km", "dtstart", "dtend")
-                       if k in alt.keys()},
-                    **body}
-        ferr = _validate_reddung_felder(body)
-        if ferr:
-            raise HTTPException(status_code=400, detail=ferr)
-        terr = _validate_event_times(zusammen.get("dtstart"), zusammen.get("dtend"))
-        if terr:
-            raise HTTPException(status_code=400, detail=terr)
-        serr = _validate_reddung_sektor(zusammen)
-        if serr:
-            raise HTTPException(status_code=400, detail=serr)
-        _reddung_lage_putzen(body)
-        neu_rechnen = _reddung_rechnung_geaendert(dict(alt), body)
-        # Geländehöhe am Havaristen: neu holen, wenn er verschoben wurde (eine Messung gehört zur
-        # alten Stelle), oder nachholen, wenn sie fehlt -- aber nie für ein vergangenes Event,
-        # dessen Bilanz mit der damaligen Schranke gerechnet ist. Noch VOR jedem Schreiben.
-        lat = zusammen.get("havarist_lat", alt["havarist_lat"])
-        lon = zusammen.get("havarist_lon", alt["havarist_lon"])
-        verschoben = lat is not None and lon is not None and (
-            alt["havarist_lat"] is None or alt["havarist_lon"] is None
-            or abs(float(lat) - float(alt["havarist_lat"])) > 1e-9
-            or abs(float(lon) - float(alt["havarist_lon"])) > 1e-9)
-        fehlt = lat is not None and lon is not None and alt["havarist_grund_ft"] is None \
-            and (zusammen.get("dtend") or "") > _now_iso()
-        if (verschoben or fehlt) and body.get("havarist_grund_ft") is None:
-            hoehe = await _gelaende_ft(float(lat), float(lon))
-            if hoehe is not None:
-                body["havarist_grund_ft"] = hoehe
-                body["havarist_grund_quelle"] = "karte"
-                neu_rechnen = True
-            elif verschoben:
-                body["havarist_grund_ft"] = None
-                body["havarist_grund_quelle"] = None
+    finally:
+        conn.close()
+    if alt is None:
+        raise HTTPException(status_code=404, detail="unbekannt")
+
+    # ⚠ GEGEN DEN GESPEICHERTEN STAND pruefen, nicht gegen den Koerper allein.
+    #
+    # Vorher griff die Sektorpruefung nur, wenn alle vier Ecken mitkamen, und die
+    # Zeitpruefung nur mit beiden Zeiten. Ein Teil-Update ging also ungeprueft durch:
+    # `{"nord": 53.0}` (unter `sued`) ergab einen verdrehten Sektor, `{"nord": 60}` rund
+    # 26.000 Zellen, und `{"dtend": …}` allein ein Ende vor dem Start -- worauf der Poller
+    # das Event sofort aufloeste. Gefunden am 21.09.2026.
+    zusammen = {**{k: alt[k] for k in
+                   ("sued", "west", "nord", "ost", "kante_km", "dtstart", "dtend",
+                    "havarist_lat", "havarist_lon", *_ENG)
+                   if k in alt.keys()},
+                **body}
+    ferr = _validate_reddung_felder(body)
+    if ferr:
+        raise HTTPException(status_code=400, detail=ferr)
+    terr = _validate_event_times(zusammen.get("dtstart"), zusammen.get("dtend"))
+    if terr:
+        raise HTTPException(status_code=400, detail=terr)
+    serr = (_validate_reddung_sektor(zusammen) or _validate_reddung_havarist(zusammen)
+            or _validate_reddung_eingrenzung(zusammen))
+    if serr:
+        raise HTTPException(status_code=400, detail=serr)
+    _reddung_lage_putzen(body)
+    neu_rechnen = _reddung_rechnung_geaendert(dict(alt), body)
+
+    # Geländehöhe am Havaristen: neu holen, wenn er verschoben wurde (eine Messung gehört zur
+    # alten Stelle), oder nachholen, wenn sie fehlt -- aber NIE für ein vergangenes Event:
+    # Seine Bilanz ist mit der damaligen Schranke gerechnet, und ein fehlgeschlagener Abruf
+    # löschte sonst eine echte Messung (Fable-Befund 8).
+    lat = zusammen.get("havarist_lat")
+    lon = zusammen.get("havarist_lon")
+    vergangen = (zusammen.get("dtend") or "") <= _now_iso()
+    verschoben = lat is not None and lon is not None and (
+        alt["havarist_lat"] is None or alt["havarist_lon"] is None
+        or abs(float(lat) - float(alt["havarist_lat"])) > 1e-9
+        or abs(float(lon) - float(alt["havarist_lon"])) > 1e-9)
+    fehlt = lat is not None and lon is not None and alt["havarist_grund_ft"] is None
+    if not vergangen and (verschoben or fehlt) and body.get("havarist_grund_ft") is None:
+        hoehe = await _gelaende_ft(float(lat), float(lon))
+        if hoehe is not None:
+            body["havarist_grund_ft"] = hoehe
+            body["havarist_grund_quelle"] = "karte"
+            neu_rechnen = True
+        elif verschoben:
+            body["havarist_grund_ft"] = None
+            body["havarist_grund_quelle"] = None
+
+    # Die Gruppe erfaehrt von einer Aenderung des Suchgebiets (Nutzer, 28.09.2026) -- aber nur,
+    # solange gesucht wird, und nicht, wenn Pushes fuer dieses Event abgeschaltet sind.
+    sektor_neu = any(k in body and abs(float(body[k]) - float(alt[k])) > 1e-9
+                     for k in ("sued", "west", "nord", "ost"))
+    # Eine NEUE oder verschobene Eingrenzung -- das Aufheben ist keine Eingrenzung.
+    eng_neu = all(zusammen.get(k) is not None for k in _ENG) and any(
+        k in body and (alt[k] is None or abs(float(body[k]) - float(alt[k])) > 1e-9)
+        for k in _ENG)
+    jetzt = _now_iso()
+    melden = ((sektor_neu or eng_neu) and alt["push_enabled"]
+              and (alt["dtstart"] or "") <= jetzt <= (alt["dtend"] or ""))
+
+    conn = get_connection(get_settings().DB_PATH)
+    try:
         try:
             update_reddung_event(conn, event_id, **body)
         except ValueError as e:
@@ -7341,10 +7428,25 @@ async def admin_update_reddung_event(request: Request, event_id: int):
         if neu_rechnen:
             delete_progress_snapshot(conn, "reddung", event_id)
         reddung_objekte_abgleichen(conn, get_reddung_event(conn, event_id))
+        abos = get_push_subscriptions_for_events(conn) if melden else []
         conn.commit()
-        return {"status": "ok"}
     finally:
         conn.close()
+
+    if melden:
+        # Ein neuer Sektor ist keine Eingrenzung -- er kann auch groesser sein (Fable-Befund 2).
+        text = ("Das Suchgebiet wurde eingegrenzt — sieh auf die Karte. \U0001f6a8" if eng_neu
+                else "Der Suchsektor wurde geändert — sieh auf die Karte. \U0001f6a8")
+        nachricht = {"title": alt["name"] or "FriesenReddung", "body": text, "url": "/"}
+        poller = getattr(request.app.state, "poller", None)
+        if poller is not None:
+            poller.broadcast_notify("events", None, nachricht)
+        einst = get_settings()
+        if abos and einst.VAPID_PRIVATE_KEY:
+            asyncio.create_task(send_web_push(
+                einst.VAPID_PRIVATE_KEY, einst.VAPID_CONTACT_EMAIL, einst.DB_PATH,
+                abos, nachricht, label="Reddung"))
+    return {"status": "ok"}
 
 
 @app.delete("/api/admin/reddung/events/{event_id}")
@@ -7381,6 +7483,42 @@ async def admin_reddung_push(request: Request, event_id: int):
         update_reddung_event(conn, event_id, push_enabled=1 if an else 0)
         conn.commit()
         return {"status": "ok", "push_enabled": an}
+    finally:
+        conn.close()
+
+
+@app.post("/api/admin/reddung/events/{event_id}/signal")
+async def admin_reddung_signal(request: Request, event_id: int):
+    """Die fruehe Rauchfackel zuenden -- Friesen-Dunkelblau, am Wrack, fuer alle sichtbar.
+
+    Nutzer, 28.09.2026: gedacht fuer den Abend, an dem das Wrack im Wald liegt und keiner es
+    sieht. Der Fund ersetzt sie durch die orange (``reddung_objekte_abgleichen``). Zweimal
+    zuenden aendert nichts: Die Zeit bleibt die des ersten Mals.
+    """
+    require_admin(request)
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        ev = get_reddung_event(conn, event_id)
+        if ev is None:
+            raise HTTPException(status_code=404, detail="unbekannt")
+        if ev.get("havarist_lat") is None or ev.get("havarist_lon") is None:
+            raise HTTPException(status_code=400, detail="Erst den Havaristen setzen.")
+        if ev.get("gefunden_am"):
+            raise HTTPException(status_code=400,
+                                detail="Schon gefunden — dort brennt bereits die orange Fackel.")
+        if ev.get("aufgeloest_am"):
+            raise HTTPException(status_code=400, detail="Der Fall ist abgeschlossen.")
+        # ⚠ Nur waehrend des Events: Vor dem Start haette die Fackel die Stelle allen verraten,
+        # bevor gesucht wird (Fable-Befund 6).
+        jetzt = _now_iso()
+        if not ((ev.get("dtstart") or "") <= jetzt <= (ev.get("dtend") or "")):
+            raise HTTPException(status_code=400,
+                                detail="Die Rauchfackel geht nur, solange das Event läuft.")
+        if not ev.get("signal_am"):
+            update_reddung_event(conn, event_id, signal_am=_now_iso())
+            reddung_objekte_abgleichen(conn, get_reddung_event(conn, event_id))
+        conn.commit()
+        return {"status": "ok"}
     finally:
         conn.close()
 

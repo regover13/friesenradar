@@ -1,5 +1,17 @@
 [
   {
+    "version": "15.27.0",
+    "date": "2026-09-28",
+    "highlight": false,
+    "title": "Reddung: Eingrenzung, frühe Rauchfackel und Licht",
+    "items": [
+      "🎯 **Wird das Wrack übersehen, kann der Veranstalter das Suchgebiet eingrenzen.** Ein gelbes Rechteck auf Karte und Kniebrett zeigt, wo weitergesucht wird. Der Sektor bleibt, wie er war, und alles schon Abgesuchte zählt weiter. Beim Eingrenzen bekommen alle eine Push-Nachricht.",
+      "🔵 **Eine dunkelblaue Rauchfackel am Wrack** kann der Veranstalter während der Suche zünden, etwa wenn es im Wald liegt. Mit dem Fund wird sie zur orangen.",
+      "💡 **Am Fuß jeder Rauchfackel brennt jetzt ein Licht**, damit man die Stelle auch nachts findet.",
+      "🛡️ **Der Havarist muss im Sektor liegen.** Der Admin nimmt einen Sektor oder eine Eingrenzung daneben nicht mehr an."
+    ]
+  },
+  {
     "version": "15.26.0",
     "date": "2026-09-28",
     "highlight": false,
