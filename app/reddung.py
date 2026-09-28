@@ -166,6 +166,36 @@ def havarist_ziel(ev: dict) -> Ziel | None:
     return (HAVARIST, float(lat), float(lon), fund_radius_km(ev))
 
 
+def havarist_zelle(ev: dict) -> str | None:
+    """Der Schlüssel ``z{i}_{j}`` der Rasterzelle, in der der Havarist liegt -- oder ``None``.
+
+    Dieselbe Geometrie wie ``abdeckung.raster_masse`` (sortierte Ecken, Zeile von Süd, Spalte
+    von West); ein Havarist auf dem Nord- oder Ostrand gehört zur letzten Zelle.
+    """
+    import math
+    from app.abdeckung import raster_masse
+    lat, lon = ev.get("havarist_lat"), ev.get("havarist_lon")
+    if lat is None or lon is None:
+        return None
+    sued, nord = sorted((float(ev["sued"]), float(ev["nord"])))
+    west, ost = sorted((float(ev["west"]), float(ev["ost"])))
+    zeilen, spalten, d_lat, d_lon = raster_masse(sued, west, nord, ost, kante_km(ev))
+    i = min(max(int(math.floor((float(lat) - sued) / d_lat)), 0), zeilen - 1)
+    j = min(max(int(math.floor((float(lon) - west) / d_lon)), 0), spalten - 1)
+    return f"z{i}_{j}"
+
+
+#: So lange nach dem Absuchen der Havarist-Zelle steigt die blaue Fackel auf (Nutzer, 28.09.2026).
+SIGNAL_NACH_ZELLE_S = 30
+
+
+def signal_nach_zelle(abgedeckt_ts: str) -> str:
+    """Zündzeitpunkt der blauen Fackel: 30 s nachdem die Havarist-Zelle abgesucht war."""
+    from datetime import datetime, timedelta
+    t = datetime.strptime(abgedeckt_ts, "%Y-%m-%dT%H:%M:%SZ")
+    return (t + timedelta(seconds=SIGNAL_NACH_ZELLE_S)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def aufnahme_ziel(ev: dict) -> Ziel | None:
     """Der Havarist als Kreisziel fürs AUFNEHMEN -- mit dem Aufnahme-Radius."""
     lat, lon = ev.get("havarist_lat"), ev.get("havarist_lon")

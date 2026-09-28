@@ -515,7 +515,7 @@ def test_der_haken_steht_im_formular_und_ist_vorgabe_aus():
     assert "getElementById('rd-signal-ab-start').checked = !!ev.signal_ab_start" in _ADMIN
     # Ein neues Event beginnt wieder ohne Haken.
     schliessen = _admin_js("_rdFormSchliessen")
-    assert "getElementById('rd-signal-ab-start')" in schliessen and ".checked = false" in schliessen
+    assert "'rd-signal-ab-start'" in schliessen and ".checked = false" in schliessen
 
 
 def test_der_haken_verwirft_die_bilanz_nicht_und_wird_gespeichert(db):
@@ -524,3 +524,13 @@ def test_der_haken_verwirft_die_bilanz_nicht_und_wird_gespeichert(db):
     assert _ev(db, eid)["signal_ab_start"] == 1
     with pytest.raises(HTTPException):
         _aendern(eid, {"signal_ab_start": 5})
+
+
+def test_der_zellen_haken_steht_im_formular_und_ist_vorgabe_aus(db):
+    assert re.search(r'<input type="checkbox" id="rd-signal-bei-zelle"(?![^>]*checked)[^>]*>', _ADMIN)
+    assert "signal_bei_zelle: document.getElementById('rd-signal-bei-zelle').checked ? 1 : 0" in _ADMIN
+    assert "getElementById('rd-signal-bei-zelle').checked = !!ev.signal_bei_zelle" in _ADMIN
+    assert "rd-signal-bei-zelle" in _admin_js("_rdFormSchliessen")
+    assert "signal_bei_zelle" in main._REDDUNG_OHNE_RECHNUNG
+    eid = _anlegen(signal_bei_zelle=1)
+    assert _ev(db, eid)["signal_bei_zelle"] == 1

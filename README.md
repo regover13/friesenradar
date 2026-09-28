@@ -526,6 +526,10 @@ Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, St
   Admin gar nicht erst an.
 - **Direkt mit dunkelblauem Rauchsignal starten** — ein Haken im Formular, Vorgabe aus: Die
   Fackel steigt dann zum Start von selbst am Wrack auf, vorher nicht.
+- **Blaue Rauchfackel zünden, sobald die Zelle über dem Havaristen abgesucht ist** — ein zweiter
+  Haken, Vorgabe aus: 30 Sekunden nachdem jemand die Zelle abgesucht hat, in der das Wrack
+  liegt, steigt die Fackel von selbst auf — ein Hinweis für den, der knapp daneben war. Der
+  Poller prüft alle 30 Sekunden, die Fackel kommt also 30 bis 60 Sekunden danach.
 - **🔵 Rauchfackel zünden** — ein Knopf in der Event-Zeile, solange das Event läuft und noch
   nicht gefunden ist: Am Wrack steigt dunkelblauer Rauch auf, für alle sichtbar, bis der Fund
   ihn durch den orangen ersetzt. Vor dem Start geht das bewusst nicht — die Fackel verriete die

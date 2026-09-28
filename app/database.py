@@ -398,7 +398,9 @@ CREATE TABLE IF NOT EXISTS reddung_events (
     -- Fruehe Rauchfackel per Admin-Knopf (Friesen-Dunkelblau), bis der Fund sie ersetzt.
     signal_am TEXT,
     -- 1 = die Fackel brennt ab dem Start von selbst (Poller setzt signal_am = dtstart).
-    signal_ab_start INTEGER DEFAULT 0
+    signal_ab_start INTEGER DEFAULT 0,
+    -- 1 = die Fackel steigt 30 s nachdem die Zelle ueber dem Havaristen abgesucht ist auf.
+    signal_bei_zelle INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS aircraft_payloads (
@@ -1154,6 +1156,8 @@ _BRUEGGE_SOLL_MIGRATIONS = [
     "ALTER TABLE reddung_events ADD COLUMN signal_am TEXT",
     # Direkt mit dunkelblauem Rauchsignal starten (Admin-Haken, 28.09.2026).
     "ALTER TABLE reddung_events ADD COLUMN signal_ab_start INTEGER DEFAULT 0",
+    # Blaue Fackel, sobald die Havarist-Zelle abgesucht ist (Admin-Haken, 28.09.2026).
+    "ALTER TABLE reddung_events ADD COLUMN signal_bei_zelle INTEGER DEFAULT 0",
 ]
 
 _PANEL_DIAG_MIGRATIONS = [
@@ -9857,6 +9861,7 @@ _REDDUNG_FELDER = {
     "aufnahme_verfaellt", "source", "calendar_uid", "push_enabled", "badge_name",
     "manual_fields", "lagetext", "aufnahme_radius_m",
     "eng_sued", "eng_west", "eng_nord", "eng_ost", "signal_am", "signal_ab_start",
+    "signal_bei_zelle",
 }
 
 #: Rangfolge der Quellen für ``havarist_grund_ft`` — eine Messung schlägt jede Schätzung.
@@ -10359,6 +10364,9 @@ def reddung_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> di
         "je_pilot": je_pilot,
         "fund": fund,
         "bis": von,
+        # Wer welche Zelle wann zuerst abgedeckt hat -- intern, fuer die blaue Fackel ueber der
+        # Havarist-Zelle (Poller). Keine Koordinate; compute_reddung_stand reicht es nicht weiter.
+        "treffer": treffer,
     }
 
 

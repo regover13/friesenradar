@@ -2867,6 +2867,18 @@ class VatsimPoller:
                                                    "body": "Der Havarist ist gefunden! \U0001f6a8",
                                                    "url": "/"})
 
+                        # 1b -- Blaue Fackel ueber der abgesuchten Havarist-Zelle (Admin-Haken,
+                        # 28.09.2026): 30 s nachdem die Zelle als abgesucht gilt -- also erst,
+                        # wenn jemand darueber gesucht hat, und nie vor dem Fund ueberfluessig.
+                        if (ev.get("signal_bei_zelle") and not ev.get("signal_am")
+                                and not ev.get("gefunden_am")):
+                            t = (stand.get("treffer") or {}).get(rd.havarist_zelle(ev))
+                            if t:
+                                zuend = rd.signal_nach_zelle(t[1])
+                                if now >= zuend:
+                                    update_reddung_event(conn, ev["id"], signal_am=zuend)
+                                    ev = get_reddung_event(conn, ev["id"])
+
                         # 2 -- Aufnehmen, nur mit Punkten NACH dem Fund
                         if ev.get("gefunden_am") and ev.get("aufnehmen_noetig") \
                                 and not ev.get("aufgenommen_am"):

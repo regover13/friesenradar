@@ -1,5 +1,14 @@
 [
   {
+    "version": "15.29.0",
+    "date": "2026-09-28",
+    "highlight": false,
+    "title": "Reddung: blaue Rauchfackel über der abgesuchten Zelle",
+    "items": [
+      "🔵 **Die blaue Rauchfackel kann jetzt von selbst aufsteigen, sobald die Zelle über dem Havaristen abgesucht ist**, 30 Sekunden später. Ein zweiter Haken im Admin, Vorgabe aus."
+    ]
+  },
+  {
     "version": "15.28.0",
     "date": "2026-09-28",
     "highlight": false,

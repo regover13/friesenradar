@@ -708,3 +708,66 @@ def test_ohne_haken_zuendet_niemand(db):
     eid = _event(db)
     _lauf(db)
     assert _ev(db, eid)["signal_am"] is None
+
+
+# --- Blaue Fackel, sobald die Zelle über dem Havaristen abgesucht ist (Nutzer, 28.09.2026) ---
+
+from app import reddung as rd
+from app.database import get_progress_snapshot
+
+
+def test_die_zelle_des_havaristen_ist_die_in_der_er_liegt():
+    ev = {"sued": 50.0, "west": 6.0, "nord": 50.1, "ost": 6.2, "kante_km": 1.0,
+          "havarist_lat": 50.0501, "havarist_lon": 6.1001}
+    k = rd.havarist_zelle(ev)
+    alle = {z[0]: z for z in rd.zellen_fuer(ev)}
+    assert k in alle
+    # Ihr Mittelpunkt liegt näher am Havaristen als der jeder anderen Zelle.
+    abst = {kk: (z[1] - 50.0501) ** 2 + (z[2] - 6.1001) ** 2 for kk, z in alle.items()}
+    assert min(abst, key=abst.get) == k
+    assert rd.havarist_zelle({**ev, "havarist_lat": None}) is None
+
+
+def test_der_zuendzeitpunkt_liegt_dreissig_sekunden_nach_der_abdeckung():
+    assert rd.signal_nach_zelle("2026-09-28T18:00:00Z") == "2026-09-28T18:00:30Z"
+
+
+def _treffer_der_havarist_zelle(pfad, eid):
+    c = get_connection(pfad)
+    try:
+        ev = get_reddung_event(c, eid)
+        snap = get_progress_snapshot(c, "reddung", eid) or {}
+        return (snap.get("treffer") or {}).get(rd.havarist_zelle(ev))
+    finally:
+        c.close()
+
+
+def test_mit_haken_zuendet_die_abgesuchte_zelle_die_fackel(db):
+    _arten(db)
+    eid = _event(db, signal_bei_zelle=1)
+    _punkte(db, 111, _quer(60), alt=2000)          # sucht, findet aber nicht (zu hoch)
+    _lauf(db)
+    ev = _ev(db, eid)
+    assert ev["gefunden_am"] is None
+    t = _treffer_der_havarist_zelle(db, eid)
+    assert t, "die Zelle über dem Havaristen muss abgesucht sein"
+    assert ev["signal_am"] == rd.signal_nach_zelle(t[1])
+    assert _fackel(db, eid) == "rauch_navy"
+
+
+def test_ohne_haken_zuendet_die_zelle_nichts(db):
+    _arten(db)
+    eid = _event(db)
+    _punkte(db, 111, _quer(60), alt=2000)
+    _lauf(db)
+    assert _ev(db, eid)["signal_am"] is None
+
+
+def test_eine_andere_zelle_zuendet_nichts(db):
+    """Abgesucht, aber weit neben dem Havaristen."""
+    _arten(db)
+    eid = _event(db, signal_bei_zelle=1)
+    neben = [(p[0] + 1.5 * G_LAT, p[1], p[2]) for p in _quer(60)]
+    _punkte(db, 111, neben, alt=2000)
+    _lauf(db)
+    assert _ev(db, eid)["signal_am"] is None
