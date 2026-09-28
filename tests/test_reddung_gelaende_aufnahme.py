@@ -163,10 +163,11 @@ def test_aufnahme_und_fund_haben_je_einen_radius():
     assert rd.aufnahme_ziel(ev)[3] == pytest.approx(0.400)
 
 
-def test_der_aufnahme_radius_steht_auf_100_m_vor():
+def test_der_aufnahme_radius_steht_auf_150_m_vor():
+    """150 m (Nutzer, 28.09.2026) -- zuerst 100 m; das Nachspiel des 27.09. zeigte, wie eng das ist."""
     ev = {"havarist_lat": 50.0, "havarist_lon": 6.0}
-    assert rd.aufnahme_radius_m(ev) == 100.0
-    assert rd.aufnahme_ziel(ev)[3] == pytest.approx(0.100)
+    assert rd.aufnahme_radius_m(ev) == 150.0
+    assert rd.aufnahme_ziel(ev)[3] == pytest.approx(0.150)
     assert rd.aufnahme_ziel({}) is None
 
 
@@ -191,9 +192,9 @@ def test_der_aufnahme_radius_verwirft_die_bilanz_nicht():
 
 
 def test_der_admin_hat_ein_feld_fuer_den_aufnahme_radius():
-    assert re.search(r'<input type="number"[^>]*id="rd-aufnahme-radius" value="100"', _ADMIN)
-    assert "aufnahme_radius_m: _rdZahl('rd-aufnahme-radius', 100)" in _ADMIN
-    assert "setz('rd-aufnahme-radius', ev.aufnahme_radius_m" in _ADMIN
+    assert re.search(r'<input type="number"[^>]*id="rd-aufnahme-radius" value="150"', _ADMIN)
+    assert "aufnahme_radius_m: _rdZahl('rd-aufnahme-radius', 150)" in _ADMIN
+    assert "setz('rd-aufnahme-radius', ev.aufnahme_radius_m == null ? 150" in _ADMIN
 
 
 def test_der_echte_abruf_fragt_das_hoehenmodell_und_rechnet_um(monkeypatch):

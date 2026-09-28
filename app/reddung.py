@@ -16,7 +16,7 @@ Finden  ``fund_radius_m``     ``fund_hoehe_ft``   die Rauchfackel — dicht und 
         150 m                 1.000 ft
 ======  ====================  ==================  ==========================================
 
-**Aufnehmen hat seinen eigenen Radius** (``aufnahme_radius_m``, Vorgabe 100 m, seit 28.09.2026).
+**Aufnehmen hat seinen eigenen Radius** (``aufnahme_radius_m``, Vorgabe 150 m, seit 28.09.2026).
 Bis dahin galt der Fundradius auch fürs Landen am Wrack -- wer ihn vergrößerte, damit auf einer
 freien Wiese daneben gelandet werden kann, machte zugleich das Finden leichter.
 
@@ -109,7 +109,9 @@ def fund_radius_km(ev: dict) -> float:
 
 
 #: Wie weit vom Wrack gelandet (oder geschwebt) werden darf, um aufzunehmen.
-_VORGABE_AUFNAHME_RADIUS_M = 100.0
+# 150 m (Nutzer, 28.09.2026) -- zuerst 100 m. Im Nachspiel des 27.09. landete der Retter 236 m
+# neben dem Wrack; das ist bewusst NICHT die Vorgabe, wer eine weite Wiese braucht, stellt es ein.
+_VORGABE_AUFNAHME_RADIUS_M = 150.0
 
 
 def aufnahme_radius_m(ev: dict) -> float:

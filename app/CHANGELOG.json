@@ -5,7 +5,8 @@
     "highlight": false,
     "title": "Reddung: Zellen-Fackel erst, wenn niemand mehr in Sichtweite ist",
     "items": [
-      "🔵 **Die blaue Fackel über der abgesuchten Zelle wartet jetzt, bis niemand mehr in Sichtweite des Wracks ist**, und zündet 30 Sekunden danach. Wer das Wrack gesehen hat und darum kreist, entdeckt es selbst."
+      "🔵 **Die blaue Fackel über der abgesuchten Zelle wartet jetzt, bis niemand mehr in Sichtweite des Wracks ist**, und zündet 30 Sekunden danach. Wer das Wrack gesehen hat und darum kreist, entdeckt es selbst.",
+      "🚁 **Der Aufnahme-Radius steht jetzt standardmäßig auf 150 m** statt 100 m. Im Admin lässt er sich je Event weiter anpassen."
     ]
   },
   {

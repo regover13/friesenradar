@@ -1415,7 +1415,7 @@
                 </div>
                 <div class="form-group">
                   <label for="rd-aufnahme-radius">Aufnahme-Radius (m, seitlich)</label>
-                  <input type="number" step="10" id="rd-aufnahme-radius" value="100" />
+                  <input type="number" step="10" id="rd-aufnahme-radius" value="150" />
                 </div>
                 <p class="form-hint" style="grid-column:1/-1;margin:0;">
                   <b>So weit vom Wrack darf zum Aufnehmen gelandet oder geschwebt werden.</b>
@@ -7293,7 +7293,7 @@
         hoehe_max_ft: _rdZahl('rd-hoehe', 2000),
         gs_max_kt: _rdZahl('rd-gsmax', 140), gs_min_kt: _rdZahl('rd-gsmin', 30),
         fund_radius_m: _rdZahl('rd-fund-radius', 150),
-        aufnahme_radius_m: _rdZahl('rd-aufnahme-radius', 100),
+        aufnahme_radius_m: _rdZahl('rd-aufnahme-radius', 150),
         // Leere Felder schicken null -- so hebt Speichern eine Eingrenzung auch wieder auf.
         eng_sued: _rdZahlOderNull('rd-eng-sued'), eng_west: _rdZahlOderNull('rd-eng-west'),
         eng_nord: _rdZahlOderNull('rd-eng-nord'), eng_ost: _rdZahlOderNull('rd-eng-ost'),
@@ -7373,7 +7373,7 @@
       setz('rd-gsmax', ev.gs_max_kt); setz('rd-gsmin', ev.gs_min_kt);
       setz('rd-fund-radius', ev.fund_radius_m); setz('rd-fund-hoehe', ev.fund_hoehe_ft);
       // Aeltere Events haben keinen eigenen Wert -- dann gilt die Vorgabe des Servers.
-      setz('rd-aufnahme-radius', ev.aufnahme_radius_m == null ? 100 : ev.aufnahme_radius_m);
+      setz('rd-aufnahme-radius', ev.aufnahme_radius_m == null ? 150 : ev.aufnahme_radius_m);
       setz('rd-hav-lat', ev.havarist_lat); setz('rd-hav-lon', ev.havarist_lon);
       setz('rd-eng-sued', ev.eng_sued); setz('rd-eng-nord', ev.eng_nord);
       setz('rd-eng-west', ev.eng_west); setz('rd-eng-ost', ev.eng_ost);

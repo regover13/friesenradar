@@ -536,7 +536,7 @@ Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, St
   nicht gefunden ist: Am Wrack steigt dunkelblauer Rauch auf, für alle sichtbar, bis der Fund
   ihn durch den orangen ersetzt. Vor dem Start geht das bewusst nicht — die Fackel verriete die
   Stelle, bevor gesucht wird.
-- **Aufnahme-Radius** (Vorgabe 100 m) — so weit vom Wrack darf zum Aufnehmen gelandet oder
+- **Aufnahme-Radius** (Vorgabe 150 m) — so weit vom Wrack darf zum Aufnehmen gelandet oder
   geschwebt werden. Er ist unabhängig vom Fundradius: Liegt das Wrack im Wald, macht man ihn
   größer, damit die Wiese daneben reicht, ohne dass das Finden leichter wird.
 - **Suchen und Finden sind zwei getrennte Fenster**, und das ist der Kern: Das **Suchen** darf
