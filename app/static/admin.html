@@ -7246,6 +7246,17 @@
       if (res && res.ok) { toast('Gelöscht'); loadReddung(); }
     }
 
+    // Wird mit diesem Speichern eine Eingrenzung NEU gesetzt oder verschoben? Aufheben und
+    // unveraendertes Speichern zaehlen nicht -- dort gibt es nichts zu bestaetigen.
+    function _rdEngNeu(ev, werte) {
+      if (werte.some(function (w) { return w === null; })) return false;
+      if (!ev) return true;
+      const alt = [ev.eng_sued, ev.eng_west, ev.eng_nord, ev.eng_ost];
+      return werte.some(function (w, i) {
+        return alt[i] === null || alt[i] === undefined || Math.abs(w - alt[i]) > 1e-9;
+      });
+    }
+
     async function rdSpeichern() {
       const dtstart = document.getElementById('rd-dtstart').value;
       const dtend = document.getElementById('rd-dtend').value;
@@ -7281,6 +7292,16 @@
       if (isFinite(lat) && isFinite(lon)) {
         koerper.havarist_lat = lat;
         koerper.havarist_lon = lon;
+      }
+      // Sicherheitsabfrage (Nutzer, 28.09.2026): Eine Eingrenzung sehen alle sofort -- sie soll
+      // nicht versehentlich mitgespeichert werden, etwa aus einem halb geklickten Rechteck.
+      const altEv = _rdEditingId ? _rdEvents.find(function (x) { return x.id === _rdEditingId; }) : null;
+      if (_rdEngNeu(altEv, [koerper.eng_sued, koerper.eng_west, koerper.eng_nord, koerper.eng_ost])) {
+        const vorStart = Date.parse(koerper.dtstart) > Date.now();
+        const frage = 'Eingrenzung jetzt setzen? Alle Piloten sehen sie sofort als gelbes Rechteck'
+          + (vorStart ? ' — obwohl das Event noch nicht begonnen hat.'
+                      : ', und es geht eine Push-Nachricht an alle.');
+        if (!confirm(frage)) return;
       }
       const pfad = _rdEditingId
         ? '/api/admin/reddung/events/' + _rdEditingId

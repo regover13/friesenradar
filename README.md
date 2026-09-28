@@ -520,7 +520,8 @@ Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, St
 - **Eingrenzung** — wird das Wrack übersehen, ziehst du auf der Karte mit „Eingrenzung 1/2“
   ein Rechteck im Sektor und speicherst. Der Sektor bleibt, wie er ist: abgesuchte Zellen,
   Anteile und Badges bleiben stehen. Die Eingrenzung muss im Sektor liegen und den Havaristen
-  enthalten; während eines laufenden Events geht beim Speichern ein Push an alle. „Eingrenzung
+  enthalten; vor dem Speichern fragt der Admin nach, ob sie wirklich jetzt gesetzt werden soll,
+  und während eines laufenden Events geht dann ein Push an alle. „Eingrenzung
   aufheben“ und Speichern nimmt sie wieder weg. Den Havaristen außerhalb des Sektors nimmt der
   Admin gar nicht erst an.
 - **🔵 Rauchfackel zünden** — ein Knopf in der Event-Zeile, solange das Event läuft und noch

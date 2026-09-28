@@ -465,3 +465,44 @@ def test_ein_titel_nur_im_2024er_bestand_gilt_auch_fuer_msfs_2020(tmp_path):
             "simulator NULL = für alle drei, auch MSFS 2020"
     finally:
         c.close()
+
+
+# === Sicherheitsabfrage vor dem Setzen einer Eingrenzung (Nutzer, 28.09.2026) ================
+
+import shutil
+import subprocess
+
+_NODE = shutil.which("node")
+
+
+def _admin_js(name):
+    m = re.search(rf"^    (async )?function {re.escape(name)}\(", _ADMIN, flags=re.M)
+    assert m, name
+    return _ADMIN[m.start():_ADMIN.index("\n    }\n", m.start()) + 7]
+
+
+@pytest.mark.skipif(not _NODE, reason="node fehlt")
+def test_gefragt_wird_nur_bei_einer_neuen_oder_verschobenen_eingrenzung():
+    js = _admin_js("_rdEngNeu") + """
+      const ev = {eng_sued: 53.65, eng_west: 7.10, eng_nord: 53.80, eng_ost: 7.40};
+      const leer = {eng_sued: null, eng_west: null, eng_nord: null, eng_ost: null};
+      console.log(JSON.stringify([
+        _rdEngNeu(null, [53.65, 7.10, 53.80, 7.40]),   // neues Event mit Eingrenzung
+        _rdEngNeu(leer, [53.65, 7.10, 53.80, 7.40]),   // erstmals gesetzt
+        _rdEngNeu(ev,   [53.65, 7.10, 53.80, 7.40]),   // unverändert gespeichert
+        _rdEngNeu(ev,   [53.66, 7.10, 53.80, 7.40]),   // verschoben
+        _rdEngNeu(ev,   [null, null, null, null]),     // aufgehoben
+        _rdEngNeu(null, [null, null, null, null]),     // keine
+      ]));
+    """
+    erg = subprocess.run([_NODE, "-e", js], capture_output=True, text=True, timeout=20)
+    assert erg.returncode == 0, erg.stderr
+    assert json.loads(erg.stdout.strip().splitlines()[-1]) == [True, True, False, True, False, False]
+
+
+def test_speichern_fragt_vorher_nach():
+    speichern = _admin_js("rdSpeichern")
+    frage = speichern.index("_rdEngNeu(")
+    assert "confirm(" in speichern[frage:]
+    assert frage < speichern.index("await api('POST', pfad, koerper)"), "vor dem Absenden"
+    assert "noch nicht begonnen" in speichern

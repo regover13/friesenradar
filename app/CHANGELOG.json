@@ -1,5 +1,14 @@
 [
   {
+    "version": "15.27.1",
+    "date": "2026-09-28",
+    "highlight": false,
+    "title": "Reddung: Nachfrage vor dem Eingrenzen",
+    "items": [
+      "✋ **Bevor eine Eingrenzung gespeichert wird, fragt der Admin nach**, ob sie wirklich jetzt gesetzt werden soll. Vor dem Start sagt er dazu, dass das Event noch nicht begonnen hat. Aufheben und unverändertes Speichern fragen nicht."
+    ]
+  },
+  {
     "version": "15.27.0",
     "date": "2026-09-28",
     "highlight": false,
