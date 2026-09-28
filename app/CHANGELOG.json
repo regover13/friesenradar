@@ -1,5 +1,14 @@
 [
   {
+    "version": "15.31.1",
+    "date": "2026-09-28",
+    "highlight": false,
+    "title": "Admin: Reddung-Formular nennt die Suchgrenze der Piloten",
+    "items": [
+      "📝 **Unter den Suchfeldern im Reddung-Formular steht jetzt, welche Suchgrenze in ft MSL die Piloten sehen**, und sie ändert sich beim Tippen mit. Das Feld selbst bleibt die Höhe über dem Gelände am Wrack. Der Hinweistext dazu ist auf dem neuen Stand."
+    ]
+  },
+  {
     "version": "15.31.0",
     "date": "2026-09-28",
     "highlight": false,

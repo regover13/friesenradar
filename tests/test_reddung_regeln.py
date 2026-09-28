@@ -138,3 +138,15 @@ def test_das_hoehenschild_zeigt_msl_wenn_bekannt():
 def test_der_admin_zeigt_die_suchgrenze_wie_die_piloten_sie_sehen():
     admin = (Path(__file__).resolve().parents[1] / "app" / "static" / "admin.html").read_text(encoding="utf-8")
     assert "Math.ceil((ev.havarist_grund_ft + (ev.hoehe_max_ft || 2000)) / 500) * 500" in admin
+
+
+def test_das_formular_sagt_was_die_piloten_sehen():
+    """Nutzer, 28.09.2026: „Ist das live? Ich habe immer noch AGL" -- das Eingabefeld bleibt AGL,
+    aber unter den Feldern steht mit, welche MSL-Grenze auf dem Schild erscheint."""
+    admin = (Path(__file__).resolve().parents[1] / "app" / "static" / "admin.html").read_text(encoding="utf-8")
+    rechnung = admin[admin.index("function _rdRechnung()"):admin.index("function _rdHinweise()")]
+    assert "_rdGrund" in rechnung and "ft MSL" in rechnung and "/ 500) * 500" in rechnung
+    assert "_rdGrund = ev.havarist_grund_ft" in admin[admin.index("function rdEdit("):]
+    assert "'rd-hoehe'" in admin[admin.index("['rd-kante', 'rd-korridor'"):][:120]
+    assert "Rückmeldung der FriesenBrügge, die das\n                  Wrack" not in admin
+    assert "Höhenmodell" in admin[admin.index('id="rd-gsmin"'):admin.index('id="rd-rechnung"')]

@@ -1398,9 +1398,11 @@
                   breit — bei 1,0 km fliegt man Bahnen im 2-km-Abstand.
                   <b>Zellkante</b> ist nur die Feinheit der Buchhaltung und sollte den Korridor
                   nicht überschreiten; gröber übertreibt den Balken.<br>
-                  Die <b>Höhe ist nicht MSL</b>: Der Server kennt die Geländehöhe an der
-                  Unglücksstelle — aus der Rückmeldung der FriesenBrügge, die das Wrack
-                  hinstellt — und rechnet sie dazu. Die Mindestgeschwindigkeit verhindert, dass
+                  Die <b>Höhe trägst du über dem Gelände am Wrack ein (AGL)</b>. Die Geländehöhe
+                  holt der Server beim Speichern aus dem Höhenmodell, später genauer aus der
+                  FriesenBrügge, und rechnet sie dazu. <b>Die Piloten sehen die Grenze in ft
+                  MSL, auf volle 500 ft aufgerundet</b> — gewertet wird genau bis dahin; die
+                  genaue Zahl verriete, wie hoch das Wrack liegt. Die Mindestgeschwindigkeit verhindert, dass
                   ein geparktes Flugzeug seine Zelle den ganzen Abend abdeckt. Für den Fund
                   gilt sie nicht — wer langsam ans Wrack herankommt, hat es gefunden.
                 </p>
@@ -6850,6 +6852,9 @@
     }
 
     /** Fundradius und erwartete Suchdauer -- beides gerechnet, beides nur Anzeige. */
+    // Gelaendehoehe des gerade bearbeiteten Events -- fuer die Suchgrenze in der Rechnung.
+    let _rdGrund = null;
+
     function _rdRechnung() {
       const el = document.getElementById('rd-rechnung');
       if (!el) return;
@@ -6867,9 +6872,15 @@
         dauer = ' · Sektor ' + hoch.toFixed(0) + ' × ' + breit.toFixed(0)
           + ' km, mit fünf Piloten bei 110 kt etwa ' + minuten.toFixed(0) + ' Min zum Absuchen';
       }
+      // Was auf dem Schild der Piloten steht -- dieselbe Rechnung wie rd.hoehe_schranke_msl.
+      const hoehe = _rdZahl('rd-hoehe', 2000);
+      const grenze = (_rdGrund != null)
+        ? ' · Piloten sehen als Suchgrenze <strong>'
+          + (Math.ceil((_rdGrund + hoehe) / 500) * 500) + ' ft MSL</strong>'
+        : ' · die Suchgrenze in ft MSL steht nach dem Speichern in der Event-Zeile';
       el.innerHTML = 'Suchstreifen <strong>' + (korridor * 2).toFixed(1)
         + ' km</strong> je Bahn · Fund ab <strong id="rd-fundradius">'
-        + Math.round(fundR) + ' m</strong> seitlich' + dauer;
+        + Math.round(fundR) + ' m</strong> seitlich' + grenze + dauer;
     }
 
     /** Der aeussere Haken sperrt den inneren, und der Hinweis wechselt mit ihm. */
@@ -7343,6 +7354,7 @@
     function _rdFormSchliessen() {
       document.getElementById('rd-form').classList.add('hidden');
       _rdEditingId = null;
+      _rdGrund = null;
       _rdEcken = [null, null];
       // Die Eingrenzung gehoert zu EINEM Abend -- sie darf nicht als Vorlage ins naechste neue
       // Event wandern wie Name oder Radien. Ebenso der Rauchsignal-Haken: Vorgabe ist AUS.
@@ -7359,6 +7371,7 @@
       const ev = _rdEvents.find(function (x) { return x.id === id; });
       if (!ev) return;
       _rdEditingId = id;
+      _rdGrund = ev.havarist_grund_ft == null ? null : Number(ev.havarist_grund_ft);
       // Halb geklickte Ecken eines anderen Events duerfen nicht in dieses wandern (Fable 10).
       _rdEcken = [null, null];
       _rdEngEcken = [null, null];
@@ -7520,7 +7533,7 @@
     });
     // FriesenReddung: Rechnung und Hinweise haengen an den Eingaben, nicht am Speichern --
     // der Veranstalter soll sehen, was seine Werte bedeuten, BEVOR er ein Event anlegt.
-    ['rd-kante', 'rd-korridor', 'rd-fund-radius'].forEach(function (id) {
+    ['rd-kante', 'rd-korridor', 'rd-fund-radius', 'rd-hoehe'].forEach(function (id) {
       const el = document.getElementById(id);
       if (el) el.addEventListener('input', _rdRechnung);
     });
