@@ -433,3 +433,35 @@ def test_bearbeiten_beginnt_ohne_geklickte_ecken():
     bearbeiten = _ADMIN[_ADMIN.index("function rdEdit("):_ADMIN.index("async function rdCopyLink")]
     assert "_rdEcken = [null, null]" in bearbeiten
     assert "_rdEngEcken = [null, null]" in bearbeiten
+
+
+def test_ein_titel_nur_im_2024er_bestand_gilt_auch_fuer_msfs_2020(tmp_path):
+    """Die Katalog-Spalte `simulator` nennt, WO ein Titel gefunden wurde -- nicht, wo er läuft.
+    MSFS 2020 und 2024 schöpfen aus einem Vorrat (`bruegge_titel_fuer`).
+
+    Am 28.09.2026 las eine Prüfung aus „FrsLicht_Warm steht nur bei msfs2024", MSFS-2020-Piloten
+    sähen weder Fackel noch Licht -- und das ging ungeprüft an den Nutzer weiter. Hier genau
+    dieser Stand: Licht und Fackel nur mit msfs2024- und xplane12-Zeilen, und trotzdem EINE
+    Zeile für alle Simulatoren."""
+    p = str(tmp_path / "k.db")
+    init_db(p)
+    c = get_connection(p)
+    try:
+        for art in ("flugzeug_echo", "rauch_navy", "licht"):
+            c.execute("INSERT OR REPLACE INTO bruegge_art (art, bedeutung, status, angelegt_am) "
+                      "VALUES (?,?,'aktiv','2026-09-20T00:00:00Z')", (art, art))
+            for sim in ("msfs2024", "xplane12"):            # KEINE msfs2020-Zeile
+                c.execute("INSERT OR REPLACE INTO bruegge_katalog (simulator, titel, art, rang, "
+                          "status, quelle) VALUES (?,?,?,1,'aktiv','community')",
+                          (sim, f"{art}-{sim}", art))
+        from app.database import _art_je_simulator
+        assert _art_je_simulator(c, "licht")["msfs2020"] == "licht"
+        ev = _probe(c, signal_am="2026-09-25T18:00:00Z")
+        reddung_objekte_abgleichen(c, ev)
+        zeilen = c.execute("SELECT id, simulator FROM bruegge_soll WHERE art IN "
+                           "('licht','rauch_navy')").fetchall()
+        assert sorted(tuple(z) for z in zeilen) == [(f"reddung-{ev['id']}-fackel", None),
+                                  (f"reddung-{ev['id']}-licht", None)], \
+            "simulator NULL = für alle drei, auch MSFS 2020"
+    finally:
+        c.close()

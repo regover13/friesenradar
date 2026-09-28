@@ -951,6 +951,10 @@ CREATE INDEX IF NOT EXISTS idx_bruegge_steht_id ON bruegge_steht(id);
 -- Abwesenheit eines Versuchs (dieselbe Unterscheidung wie bei `nicht_gefunden` in den
 -- AIP-Blaettern). Nur so laesst sich eine Arbeitsliste abarbeiten.
 CREATE TABLE IF NOT EXISTS bruegge_katalog (
+    -- ⚠ WO der Titel GEFUNDEN wurde, nicht wo er LAEUFT. MSFS 2020 und 2024 schoepfen aus
+    -- einem Vorrat (`_BRUEGGE_TOPF`, `bruegge_titel_fuer`): Ein Titel nur mit `msfs2024` gilt
+    -- auch fuer MSFS 2020. Wer wissen will, ob ein Simulator eine Art setzen kann, fragt
+    -- `_art_je_simulator` -- nicht diese Spalte (am 28.09.2026 falsch gelesen, s. CLAUDE.md).
     simulator    TEXT NOT NULL,     -- msfs2020 | msfs2024 | xplane12
     titel        TEXT NOT NULL,     -- Container-Titel (MSFS) bzw. OBJ-Pfad (X-Plane)
     paket        TEXT,              -- Paketordner, in dem der Titel gefunden wurde

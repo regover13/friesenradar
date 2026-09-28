@@ -470,6 +470,15 @@ Widerspruch) stehen je These in `app/bruegge_bindung.py`, der Beschluss in
   trägt es die Geschichte des Events. **Die Spec-Notation `wilga (1/1/1)` heisst „je ein
   Titel", nicht „dieselbe Maschine"** — genau so ist sie am 20.09.2026 falsch gelesen und als
   Havarist empfohlen worden.
+- **Die Spalte `simulator` in `bruegge_katalog` ist der FUNDORT eines Titels, nicht seine
+  Lauffähigkeit.** MSFS 2020 und 2024 schöpfen aus einem Vorrat (`_BRUEGGE_TOPF`): Ein Titel,
+  der nur mit `msfs2024` eingetragen ist, geht auch an MSFS-2020-Brüggen. Am 28.09.2026 las eine
+  Prüfung aus „`FrsLicht_Warm` steht nur bei msfs2024“, MSFS-2020-Piloten sähen weder Fackel
+  noch Licht — falsch, und es ging ungeprüft an den Nutzer. **Ob ein Simulator eine Art setzen
+  kann, beantwortet `_art_je_simulator(conn, art)`** (bzw. `bruegge_titel_fuer`), nie ein
+  `SELECT simulator FROM bruegge_katalog`. Ausgeschlossen ist ein Titel nur durch ein Urteil
+  `fehlgeschlagen` in `bruegge_titel_lauf` für genau diesen Simulator.
+  `test_ein_titel_nur_im_2024er_bestand_gilt_auch_fuer_msfs_2020` hält es fest.
 - **Eine Verneinung ist nur so gut wie das Suchmuster.** „X-Plane hat kein …" war schon
   dreimal falsch: bei den Windrädern (`WindTbn2m5_100.obj` — weder `turbine` noch `windmill`
   trifft), bei den Fahrzeugen (300 Stück, nur in einem ungesuchten Zweig) und bei den großen
