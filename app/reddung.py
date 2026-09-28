@@ -172,7 +172,9 @@ def regeln(ev: dict) -> dict:
     """Die Regeln des Abends für die Anzeige -- „wie schnell, wie hoch darf ich?" (28.09.2026).
 
     Dieselben Zahlen, mit denen gerechnet wird, samt Vorgaben. **Nur AGL-Werte, nie die
-    Geländehöhe am Wrack** -- aus ihr ließe sich die Lage eingrenzen.
+    Geländehöhe am Wrack** -- aus ihr ließe sich die Lage eingrenzen. **Und auch keine
+    MSL-Werte:** MSL minus AGL ergäbe genau diese Höhe. Am 28.09.2026 kurz eingebaut und vor
+    dem Deploy zurückgenommen (Nutzer: „Die Angabe verrät die Höhe des Wracks!").
     """
     from app.gps_legs import _GPS_GROUND_AGL_FT
     return {

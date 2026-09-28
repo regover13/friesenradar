@@ -111,3 +111,13 @@ def test_live_block_und_reddung_ansicht_zeigen_die_regeln():
     assert "if (!fertig) html += _reddungRegelnHtml(r)" in block
     bilanz = _funktion("_reddungBilanzHtml")
     assert "if (!vorbei) html += _reddungRegelnHtml(r)" in bilanz
+
+
+
+def test_die_regeln_tragen_keine_msl_hoehe():
+    """MSL minus AGL ergäbe die Geländehöhe am Wrack -- und die verrät die Lage (Nutzer,
+    28.09.2026: „Doch ohne MSL. Die Angabe verrät die Höhe des Wracks!"). Auch nicht, wenn
+    das Gelände bekannt ist."""
+    r = rd.regeln({"havarist_grund_ft": 1864.3, "hoehe_max_ft": 2000, "fund_hoehe_ft": 1000})
+    assert not [k for k in r if "msl" in k.lower()], r
+    assert 1864.3 + 2000 not in r.values() and 1864.3 + 1000 not in r.values()
