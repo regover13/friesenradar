@@ -381,6 +381,13 @@ vorbereiten kannst, und steht während der Suche auch im Reddung-Block im Live-T
 Ein Abend kann auch mit dem Fund enden — das entscheidet der Veranstalter beim Anlegen, so wie
 er festlegt, ob zum Aufnehmen gelandet werden muss.
 
+**Wie schnell und wie hoch?** Das zeigen zwei Schilder im Reddung-Block, wie auf der
+Autobahn: die Höchstgeschwindigkeit fürs Suchen (Vorgabe 140 kt, darunter „ab 30 kt“) und die
+Höchsthöhe (Vorgabe 2000 ft AGL, gemessen über dem Gelände am Wrack). Klein darunter steht, was
+fürs Finden gilt (Fundradius und Fundhöhe) und fürs Aufnehmen — Landung mit Full Stop oder
+Schwebeflug unter 30 kt über Wasser, und wie weit vom Wrack. Die Zahlen sind die des Abends,
+also genau die, nach denen gewertet wird.
+
 **Wenn das Wrack übersehen wird**, kann der Veranstalter nachhelfen, und du siehst es auf der
 Karte, im Kniebrett und im Reddung-Block:
 - Ein **gelbes Rechteck** grenzt das Suchgebiet ein. Der Sektor bleibt dabei, wie er war — was

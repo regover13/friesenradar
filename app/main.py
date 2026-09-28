@@ -6641,6 +6641,8 @@ def reddung_events():
                 # verraet genau so viel, wie der Veranstalter verraten will.
                 "eingrenzung": reddung_eingrenzung(ev),
                 "signal_am": ev.get("signal_am"),
+                # Wie schnell, wie hoch -- fuer die Schilder im Reddung-Block (28.09.2026).
+                "regeln": _rd_regeln(ev),
                 "stand": stand,
                 "fundort": reddung_fundort(conn, ev, now),
             })
@@ -7162,6 +7164,11 @@ def _validate_reddung_havarist(body: dict) -> str | None:
 
 
 _ENG = ("eng_sued", "eng_west", "eng_nord", "eng_ost")
+
+
+def _rd_regeln(ev: dict) -> dict:
+    from app import reddung as _rd
+    return _rd.regeln(ev)
 
 
 def _validate_reddung_eingrenzung(body: dict) -> str | None:

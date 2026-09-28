@@ -1,5 +1,14 @@
 [
   {
+    "version": "15.30.0",
+    "date": "2026-09-28",
+    "highlight": false,
+    "title": "Reddung: Schilder für Tempo und Höhe",
+    "items": [
+      "🚦 **Wie schnell, wie hoch? Der Reddung-Block zeigt es jetzt mit zwei Schildern wie auf der Autobahn**: Höchstgeschwindigkeit und Höchsthöhe fürs Suchen. Klein darunter stehen die Regeln fürs Finden und fürs Aufnehmen, mit Landung und Full Stop oder schwebend unter 30 kt. Die Zahlen sind die des Abends. Auch in der Reddung-Ansicht unter Events, solange das Event nicht vorbei ist."
+    ]
+  },
+  {
     "version": "15.29.1",
     "date": "2026-09-28",
     "highlight": false,

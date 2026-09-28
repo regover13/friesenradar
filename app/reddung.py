@@ -168,6 +168,27 @@ def havarist_ziel(ev: dict) -> Ziel | None:
     return (HAVARIST, float(lat), float(lon), fund_radius_km(ev))
 
 
+def regeln(ev: dict) -> dict:
+    """Die Regeln des Abends für die Anzeige -- „wie schnell, wie hoch darf ich?" (28.09.2026).
+
+    Dieselben Zahlen, mit denen gerechnet wird, samt Vorgaben. **Nur AGL-Werte, nie die
+    Geländehöhe am Wrack** -- aus ihr ließe sich die Lage eingrenzen.
+    """
+    from app.gps_legs import _GPS_GROUND_AGL_FT
+    return {
+        "gs_max_kt": _zahl(ev, "gs_max_kt", _VORGABE_GS_MAX_KT),
+        "gs_min_kt": _zahl(ev, "gs_min_kt", _VORGABE_GS_MIN_KT),
+        "hoehe_max_ft": _zahl(ev, "hoehe_max_ft", _VORGABE_HOEHE_FT),
+        "fund_radius_m": fund_radius_m(ev),
+        "fund_hoehe_ft": _zahl(ev, "fund_hoehe_ft", _VORGABE_FUND_HOEHE_FT),
+        "aufnahme_radius_m": aufnahme_radius_m(ev),
+        "aufnehmen_noetig": bool(ev.get("aufnehmen_noetig", 1)),
+        "landung_noetig": bool(ev.get("landung_noetig", 1)),
+        "schwebe_gs_kt": SCHWEBE_GS_KT,
+        "boden_agl_ft": _GPS_GROUND_AGL_FT,
+    }
+
+
 def havarist_zelle(ev: dict) -> str | None:
     """Der Schlüssel ``z{i}_{j}`` der Rasterzelle, in der der Havarist liegt -- oder ``None``.
 
