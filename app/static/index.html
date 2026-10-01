@@ -13,6 +13,21 @@
         document.documentElement.classList.add('vr-panel');
       }
 
+      // HELLES DESIGN (Spec 2026-10-01): VOR dem <style>-Block, sonst blitzt auf der Website
+      // beim Laden das dunkle Design auf. Liest dasselbe Merker-Cookie wie _prefLies weiter
+      // unten (fs_karte, JSON). Im Kniebrett ist das Cookie nach einem Sim-Neustart leer --
+      // dort setzt erst die Serverantwort den Wert (bewusst in Kauf genommen, Spec Punkt 4).
+      try {
+        var teile = String(document.cookie || '').split('; ');
+        for (var ti = 0; ti < teile.length; ti++) {
+          if (teile[ti].indexOf('fs_karte=') !== 0) continue;
+          var merker = JSON.parse(decodeURIComponent(teile[ti].slice(9)));
+          if (merker && merker.friesenspy_theme === 'hell') {
+            document.documentElement.classList.add('hell');
+          }
+        }
+      } catch (e) {}
+
       // ===================================================================
       //  ZOOM NACH DER FLAECHE -- nur nach UNTEN (Nutzerwunsch 03.09.2026)
       // ===================================================================
@@ -5337,6 +5352,39 @@ function _prefVomServerHolen() {
     return Promise.resolve(_prefLaden());
   }
 }
+
+// ===================================================================
+//  HELLES DESIGN (Spec docs/superpowers/specs/2026-10-01-helles-design-design.md)
+// ===================================================================
+// Getrennt je Kontext gespeichert (web/panel), wie jeder Merker. Standard ist Dunkel; nur
+// der exakte Wert 'hell' schaltet um -- ein kaputter Merker darf nie zu einer halb hellen
+// Seite fuehren.
+const _DESIGN_KEY = 'friesenspy_theme';
+const _DESIGN_META = { dunkel: '#04080f', hell: '#9FC7F8' };
+const _designHaken = [];      // Wer beim Umschalten neu zeichnen muss (Statistik, Schalter)
+let _designBeruehrt = false;  // Hat der Nutzer in dieser Sitzung selbst umgeschaltet?
+
+function _designNormal(wert) {
+  return wert === 'hell' ? 'hell' : 'dunkel';
+}
+
+function _designAnwenden(wert) {
+  const d = _designNormal(wert);
+  document.documentElement.classList.toggle('hell', d === 'hell');
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', _DESIGN_META[d]);
+  for (let i = 0; i < _designHaken.length; i++) {
+    try { _designHaken[i](d); } catch (e) {}
+  }
+}
+
+function _designSetzen(wert) {
+  _designBeruehrt = true;
+  const d = _designNormal(wert);
+  _prefSchreib(_DESIGN_KEY, d);
+  _designAnwenden(d);
+}
+// ENDE DESIGN-ABSCHNITT (Anker fuer tests/test_design_merker.py -- Neues zum Design davor)
 
 // --- In welchem Zustand war das Kniebrett? -------------------------------------------------
 //
@@ -16529,6 +16577,20 @@ const _prefsPromise = _prefVomServerHolen().then(function () {
   if (!_naviBeruehrt) {
     _trackUp   = _naviLies(_NAVI_TRACKUP_KEY);
     _movingMap = _naviLies(_NAVI_MOVING_KEY);
+  }
+}).catch(() => {});
+
+// Das Kopfskript hat auf der Website schon aus dem Cookie gemalt; hier gewinnt der Server
+// (wie bei allen Merkern) -- ausser der Nutzer hat vor der Antwort selbst umgeschaltet.
+// (Diese Kommentarzeile ist der Anker von test_serverantwort_und_eigene_wahl.)
+_prefsPromise.then(function () {
+  if (!_designBeruehrt) {
+    _designAnwenden(_prefLies(_DESIGN_KEY));
+  } else {
+    // Vor der Antwort umgeschaltet: _prefVomServerHolen hat den lokalen Merker eben mit dem
+    // alten Serverwert ueberschrieben. Die bewusste Wahl zurueckschreiben -- jetzt geht der
+    // PUT auch hinaus (_prefVomServer ist gesetzt).
+    _prefSchreib(_DESIGN_KEY, document.documentElement.classList.contains('hell') ? 'hell' : 'dunkel');
   }
 }).catch(() => {});
 
