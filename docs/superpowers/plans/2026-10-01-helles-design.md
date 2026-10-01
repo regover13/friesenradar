@@ -22,7 +22,7 @@ Playwright/Chromium nur für Screenshots.
 
 - **Dunkles Design unverändert:** Jede Variable trägt im dunklen Design exakt den Wert, der vorher an der Stelle stand. Keine Vereinheitlichung ähnlicher Töne, keine zusammengelegten Transparenzstufen.
 - Die undefinierten Variablen `--text-dim`, `--text`, `--color-label` werden **nicht** definiert (wie Spec) — heute fällt die Eigenschaft dort auf den geerbten Wert zurück; eine Definition änderte das dunkle Design. `var(--blue, #2d9cdb)` wird zu `var(--green)` (identischer dunkler Wert).
-- Helle Palette ausschließlich aus der Spec-Tabelle (Forumsfarben); Friesenrot `#D31141` in beiden Designs; nie Friesenrot direkt auf `#9FC7F8`. **Einzige Ausnahme, vom Nutzer am 01.10.2026 freigegeben:** `--amber #8f5f00` — das Forum hat keinen lesbaren Bernsteinton. Rot im Hellen ist das Forumsrot `#BC2A4D`.
+- Helle Palette ausschließlich aus der Spec-Tabelle (Forumsfarben und die Repaint-Kit-Palette: Navy `#191D53` für Klickbares, Orange `#D75F28`); Friesenrot `#D31141` in beiden Designs; nie Friesenrot direkt auf `#9FC7F8`. `--amber` ist im Hellen das **FriesenOrange `#D75F28`** (Repaint-Kit-Palette, `_FF_ORANGE` in `app/main.py`, Nutzerentscheidung 01.10.2026) — 3,6:1 auf Weiß, deshalb gilt für `--amber` im Kontrasttest 3:1 statt 4,5:1; sind „LIVE"-Abzeichen oder Hinweise in der Probe zu blass, werden diese fett. Rot im Hellen ist das Forumsrot `#BC2A4D`.
 - Fest bleiben: alles, was die Karte zeichnet (Linien, Marker, Platzrunden, Kutter, Reddung, Kompass), Tempo-/Höhenschilder, Emoji/Bilder.
 - Kein `?.`/`??`, keine Checkbox, kein per `innerHTML` eingesetztes `<svg>` (Coherent GT).
 - Merker: Schlüssel `friesenspy_theme`, Werte `dunkel` | `hell`, alles andere = `dunkel`.
@@ -38,7 +38,7 @@ Playwright/Chromium nur für Screenshots.
 - **Die Karte schaltet nicht mit — über die Kartenebenen, nicht über Einzelregeln.** Vorhandene `var()`-Nutzungen in Kartenelementen (`.aircraft-marker { color: var(--green) }` Z. 2667, `.fse-platz-label { color: var(--text-label) }` Z. 2865) würden sonst umschalten. Eine Gegenregel je Selektor wäre falsch: `html.hell .aircraft-marker` (Spezifität 0,2,1) schlüge `.aircraft-marker-fremd`/`-bruegge` (0,1,0) und färbte fremde Flugzeuge blau. Stattdessen setzt **ein** Block die dunklen Variablenwerte auf den Leaflet-Ebenen zurück, die die Karte zeichnen (Task 4 Step 3). Literale in Kartenselektoren werden nie ersetzt (Task 4 Step 4).
 - **Kopfzeile und Tab-Leiste haben keinen eigenen Hintergrund** — ihr Text stünde im Hellen direkt auf Himmelblau (`.tab-btn`, `.utc-clock`, `.help-btn` mit `--text-label` 3,4:1; `#userName` inline `#fff`). Im Hellen bekommen beide die Panelfläche `#FBFBFB` wie die Navigationsleiste des Forums (Task 4 Step 4).
 - **Bewusst nicht umgestellt:** `manifest.webmanifest` (`theme_color`/`background_color`, gilt je Installation, nicht je Nutzer) und `apple-mobile-web-app-status-bar-style` (iOS liest es nur beim Start der installierten App).
-- **Text direkt auf `--bg-body` (`#9FC7F8`)** nur in `--text-bright` (6,3:1) oder `--green` (4,6:1); `--text-label`, `--amber`, `--red`, `--cyan` erreichen dort nur ~3:1 und gehören auf eine Panelfläche.
+- **Text direkt auf `--bg-body` (`#9FC7F8`)** nur in `--text-bright` (6,3:1) oder `--green` (Navy, 8,9:1); `--text-label`, `--amber`, `--red`, `--cyan` erreichen dort nur ~3:1 und gehören auf eine Panelfläche.
 - **Parallele Sitzungen:** Vor jedem Push `git fetch` + Rebase auf `origin/main` (CLAUDE.md → `COORDINATION.md`); am Ende ein Eintrag in `COORDINATION.md` (Task 7).
 
 ## Review Focus
@@ -847,7 +847,7 @@ DUNKEL = _block(":root")
 HELL_EIGEN = _block("html.hell")
 HELL = {**DUNKEL, **HELL_EIGEN}
 
-TEXT = ("--text-bright", "--text-label", "--green", "--cyan", "--amber", "--red")
+TEXT = ("--text-bright", "--text-label", "--green", "--cyan", "--red")
 FLAECHEN = ("--bg-panel", "--bg-panel-2")
 
 
@@ -857,17 +857,25 @@ def test_hell_ist_lesbar(text, flaeche):
     assert _kontrast(HELL[text], HELL[flaeche]) >= 4.5, (text, flaeche)
 
 
+@pytest.mark.parametrize("flaeche", FLAECHEN)
+def test_friesenorange_reicht_fuer_hervorhebungen(flaeche):
+    # FriesenOrange #D75F28 hat auf Weiss 3,6:1 -- unter 4,5:1 fuer Fliesstext, ueber 3:1
+    # fuer Hervorhebungen. --amber ist nur Hervorhebung (Zeit, Rang 1, LIVE, Hinweise);
+    # Nutzerentscheidung 01.10.2026: Markenfarbe vor erfundenem Dunkelorange.
+    assert _kontrast(HELL["--amber"], HELL[flaeche]) >= 3.0
+
+
 def test_hell_palette_ist_die_des_forums():
     assert HELL["--bg-body"].upper() == "#9FC7F8"
     assert HELL["--bg-panel"].upper() == "#FBFBFB"
     assert HELL["--bg-panel-2"].upper() == "#F1F8FF"
     assert HELL["--text-bright"].upper() == "#2B3C5A"
     assert HELL["--text-label"].upper() == "#536482"
-    assert HELL["--green"].upper() == "#105289"
+    assert HELL["--green"].upper() == "#191D53"   # Friesen-Navy, Nutzerentscheidung 01.10.2026
     assert HELL["--cyan"].upper() == "#D31141"
     assert HELL["--red"].upper() == "#BC2A4D"
-    assert HELL["--amber"].lower() == "#8f5f00"   # freigegebene Ausnahme, s. Global Constraints
-    assert HELL["--green-rgb"].replace(" ", "") == "16,82,137"
+    assert HELL["--amber"].upper() == "#D75F28"   # FriesenOrange, s. Global Constraints
+    assert HELL["--green-rgb"].replace(" ", "") == "25,29,83"
 
 
 @pytest.mark.parametrize("text", ("--text-bright", "--green"))
@@ -931,14 +939,14 @@ Hinweis: Im dunklen Design wird bewusst **nicht** auf 4,5:1 geprüft — es blei
       --bg-body:      #9FC7F8;
       --bg-panel:     #FBFBFB;
       --bg-panel-2:   #F1F8FF;
-      --green:        #105289;
-      --green-rgb:    16,82,137;
-      --green-dim:    rgba(16,82,137,0.3);
-      --green-glow:   rgba(16,82,137,0.2);
-      --green-faint:  rgba(16,82,137,0.08);
-      --green-grid:   rgba(16,82,137,0.05);
+      --green:        #191D53;   /* Friesen-Navy (_FF_NAVY), klickbar */
+      --green-rgb:    25,29,83;
+      --green-dim:    rgba(25,29,83,0.3);
+      --green-glow:   rgba(25,29,83,0.2);
+      --green-faint:  rgba(25,29,83,0.08);
+      --green-grid:   rgba(25,29,83,0.05);
       --cyan:         #D31141;
-      --amber:        #8f5f00;
+      --amber:        #D75F28;
       --red:          #BC2A4D;
       --text-bright:  #2B3C5A;
       --text-label:   #536482;
@@ -1120,9 +1128,9 @@ awk '/^  <style>$/{a=1;next} /^  <\/style>$/{a=0} a{print NR": "$0}' app/static/
   - Commit `"Helles Design: CSS Zeilen A–B auf Variablen"`
 
 - [ ] **Step 2b: Sonderfälle**
-  - **Data-URL-SVGs** (z. B. Ebenen-Umschalter Z. 1522, `fill='%232d9cdb'`): In `url()` wird `var()` nicht eingesetzt. Dunkel bleibt; im Hellen eine `html.hell`-Regel mit derselben Data-URL, Farbe umkodiert (`%23105289`).
+  - **Data-URL-SVGs** (z. B. Ebenen-Umschalter Z. 1522, `fill='%232d9cdb'`): In `url()` wird `var()` nicht eingesetzt. Dunkel bleibt; im Hellen eine `html.hell`-Regel mit derselben Data-URL, Farbe umkodiert (`%23191D53`).
   - **`@keyframes`** (`rowHighlight` Z. 1370, `pulse`): genauso umstellen wie Regeln — das Werkzeug vergleicht sie mit.
-  - **Kompass `.navi-bar.navi-an .kompass-sued`** (fest `#04080f`) sitzt in einem Bedienknopf, dessen Hintergrund mitschaltet. Bleibt fest; in der Probe nach Task 5 ansehen, ob die Südhälfte auf `#105289` noch erkennbar ist, sonst mit dem Nutzer entscheiden.
+  - **Kompass `.navi-bar.navi-an .kompass-sued`** (fest `#04080f`) sitzt in einem Bedienknopf, dessen Hintergrund mitschaltet. Bleibt fest; in der Probe nach Task 5 ansehen, ob die Südhälfte (`#04080f`) auf Navy `#191D53` noch erkennbar ist, sonst mit dem Nutzer entscheiden.
 
 - [ ] **Step 3: Undefinierte Variablen** — `var(--blue, #2d9cdb)` (3 Stellen) → `var(--green)`; `--text-dim`, `--text`, `--color-label` unangetastet lassen (Global Constraints). Dunkel-Vergleich muss grün bleiben.
 
@@ -1181,7 +1189,7 @@ def test_umschalten_zeichnet_neu():
     assert "_designHaken.push(_aktivitaetNeuZeichnen);" in INDEX
 ```
 
-  Datenlinien (Abweichung von der ersten Planfassung, auf Hinweis beider Reviews): Piloten `#2d9cdb` → `--green`, Stunden `#f0a500` → `--amber`, Dauer `#D31141` bleibt, Flüge `#00d4e0` → neue Variable `--chart-fluege` (dunkel `#00d4e0`, hell `#368AD2` — das Link-Blau der Forumsbeiträge; ist es neben `--green #105289` zu ähnlich, in der Probe mit dem Nutzer entscheiden). `--chart-fluege` kommt in `:root`, `html.hell` **und** den Rückstellblock der Karte (der Test aus Task 4 verlangt es).
+  Datenlinien (Abweichung von der ersten Planfassung, auf Hinweis beider Reviews): Piloten `#2d9cdb` → `--green`, Stunden `#f0a500` → `--amber`, Dauer `#D31141` bleibt, Flüge `#00d4e0` → neue Variable `--chart-fluege` (dunkel `#00d4e0`, hell `#368AD2` — das Link-Blau der Forumsbeiträge; ist es neben `--green` (Navy) zu ähnlich, in der Probe mit dem Nutzer entscheiden). `--chart-fluege` kommt in `:root`, `html.hell` **und** den Rückstellblock der Karte (der Test aus Task 4 verlangt es).
 
 - [ ] **Step 2: Laufen lassen, muss scheitern.**
 

@@ -29,7 +29,8 @@ Tageszeit oder `prefers-color-scheme`.
    das darf der Umbau nicht.)
 7. **Die Friesenfarben bleiben.** Die helle Palette stammt aus dem Forum
    (`board.friesenflieger.de`, Stil `Friesen.new/theme/colours.css`) und deckt sich mit der
-   Website (`#9ec7f8`, `#053080`) und dem FriesenSpy-Forum-Widget (`#d0e0f0`, `#053080`). Keine
+   Website (`#9ec7f8`, `#053080`) und dem FriesenSpy-Forum-Widget (`#d0e0f0`, `#053080`); dazu Navy `#191D53` und Orange
+   `#D75F28` aus der Repaint-Kit-Palette (`_FF_NAVY`/`_FF_ORANGE` in `app/main.py`). Keine
    eigene Palette erfinden.
 
 ## Umfang
@@ -82,18 +83,18 @@ getrennte Stylesheets (jede Änderung doppelt).
 
 ### Palette
 
-| Variable | Dunkel (unverändert) | Hell (Forum) | Kontrast auf `#FBFBFB` |
+| Variable | Dunkel (unverändert) | Hell (Forum / Repaint-Kit) | Kontrast auf `#FBFBFB` |
 |---|---|---|---|
 | `--bg-body` | `#04080f` | `#9FC7F8` Himmelblau | – |
 | `--bg-panel` | `#071525` | `#FBFBFB` | – |
 | `--bg-panel-2` | `#091b30` | `#F1F8FF` | – |
 | `--text-bright` | `#d4e8f5` | `#2B3C5A` | 10,7:1 |
 | `--text-label` | `#6b9ab8` | `#536482` | 5,8:1 |
-| `--green` (Blau, klickbar) | `#2d9cdb` | `#105289` | 7,8:1 |
-| `--green-rgb` (neu, Kanalwerte) | `45,156,219` | `16,82,137` | – |
-| `--green-dim/-glow/-faint/-grid` | unverändert | rgba von `#105289` | – |
+| `--green` (Blau, klickbar) | `#2d9cdb` | `#191D53` Friesen-Navy | 15,1:1 |
+| `--green-rgb` (neu, Kanalwerte) | `45,156,219` | `25,29,83` | – |
+| `--green-dim/-glow/-faint/-grid` | unverändert | rgba von `#191D53` | – |
 | `--cyan` (Friesenrot) | `#D31141` | `#D31141` | 5,2:1 |
-| `--amber` | `#f0a500` | `#8f5f00` (Ausnahme, s. u.) | 5,3:1 |
+| `--amber` | `#f0a500` | `#D75F28` FriesenOrange | 3,6:1 (s. u.) |
 | `--red` | `#ff5555` | `#BC2A4D` (Forumsrot) | 5,5:1 |
 | `--chart-fluege` (neu) | `#00d4e0` | `#368AD2` (Forums-Linkblau) | Grafik |
 | `--schleier-rgb` (neu) | `4,8,15` | `251,251,251` | – |
@@ -108,8 +109,14 @@ im Sim bestätigt, bevor der Rest darauf aufbaut. Wo ein Rahmen im hellen Design
 Forumsfarbe `#CADCEB` statt eines getönten Blaus braucht, bekommt er eine eigene Variable, deren
 dunkler Wert der bisherige Originalwert ist.
 
-**Einzige Farbe nicht aus dem Forum: `--amber`.** Das Forum hat keinen lesbaren Bernsteinton
-(nur `#FF6600`, 2,7:1). `#8f5f00` hat der Nutzer am 01.10.2026 mit der Palette freigegeben.
+**Klickbares ist im Hellen Friesen-Navy `#191D53`** (Repaint-Kit, `_FF_NAVY`; Nutzerentscheidung
+01.10.2026, statt des Forum-Linkblaus `#105289`): Navy ist die kräftigste Friesenfarbe und hebt
+Links vom ruhigeren Schieferblau des Fließtexts ab.
+
+**`--amber` ist im Hellen das FriesenOrange `#D75F28`** (Repaint-Kit-Palette, `_FF_ORANGE` in
+`app/main.py`; Nutzerentscheidung 01.10.2026). Es wird nur für Hervorhebungen benutzt (Zeit,
+Rang 1, „LIVE", Hinweise) und erreicht 3,6:1 – unter 4,5:1 für Fließtext, über 3:1 für
+Hervorhebungen. Sind die kleinsten Stellen in der Probe zu blass, werden sie fett.
 
 **Regel aus dem Forum:** Friesenrot steht nie direkt auf Himmelblau (3,1:1), nur auf den hellen
 Inhaltsflächen.
