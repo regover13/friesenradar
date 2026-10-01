@@ -4213,6 +4213,10 @@
     html.hell .btn-primary:hover,
     html.hell .install-banner-btn:hover { background: #368AD2; }
 
+    /* Leuchtschein und Scanlinie sind Effekte fuer dunklen Grund -- im Hellen aus. */
+    html.hell .logo { text-shadow: none; }
+    html.hell .scanline { display: none; }
+
     /* Ebenen-Symbol: Farbe steckt in der Data-URL, dort greift kein var() -- Navy im Hellen. */
     html.hell .leaflet-control-layers-toggle {
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2 22 8 12 14 2 8z' fill='%23191D53'/%3E%3Cpath d='M12 16.4 4.4 11.9 2 13.2l10 5.9 10-5.9-2.4-1.3z' fill='%23191D53' opacity='.6'/%3E%3C/svg%3E") !important;

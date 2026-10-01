@@ -128,3 +128,10 @@ def test_helle_schrift_hat_im_hellen_eine_gegenregel():
                     if "html.hell " + glied.strip() not in hell:
                         offen.append((glied.strip(), farbe))
     assert offen == [], offen
+
+
+def test_leuchteffekte_sind_im_hellen_aus():
+    # Leuchtschein und Scanlinie sind Effekte fuer dunklen Grund; auf Weiss wird aus dem
+    # Leuchten ein dunkler Schmier und aus der Scanlinie eine wandernde graue Linie.
+    assert re.search(r"html\.hell \.logo \{[^}]*text-shadow: none", INDEX)
+    assert re.search(r"html\.hell \.scanline \{[^}]*display: none", INDEX)
