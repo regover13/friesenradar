@@ -6,6 +6,22 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-01 — Helles Design (15.32.0)
+
+**Angefasst:** `app/static/index.html` (Kopfskript, `:root`, neuer Block `html.hell`, Rückstellblock
+für die Kartenebenen, Gegenregeln am Ende des Stylesheets, Einstellungsmenü, Statistik),
+`README.md`, neue Tests `test_design_*.py`, `test_einstellungsmenue.py`, `test_dunkel_vergleich.py`,
+Werkzeug `scripts/dunkel_vergleich.py`.
+
+**Für parallele Sitzungen:** Neue Farben in `index.html` nur noch als Variable — dunkler Wert in
+`:root` = bisheriges Literal, heller Wert in `html.hell`. Jede Variable, die `html.hell` umstellt,
+gehört auch in den Rückstellblock der Kartenebenen (`test_karte_schaltet_nicht_mit` verlangt es).
+Helle Schriftfarben (`#cfe3f0` u. ä.) in Oberflächen-Regeln brauchen eine `html.hell`-Gegenregel
+(`test_helle_schrift_hat_im_hellen_eine_gegenregel`). Vor jedem Commit an CSS:
+`python -m scripts.dunkel_vergleich` (gegen `HEAD`) — belegt, dass das Dunkle unverändert bleibt.
+
+---
+
 ## 2026-09-26 (abends) — #46/#47 auf dem Simulator-Rechner umgesetzt und im Flug bestanden
 
 **Stand:** MSFS-FriesenBrügge **1.18.1** (Kennung in `\work` per `fopen`, Protokoll 3, Kollisionskennung

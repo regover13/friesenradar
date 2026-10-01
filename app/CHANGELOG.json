@@ -1,5 +1,17 @@
 [
   {
+    "version": "15.32.0",
+    "date": "2026-10-01",
+    "highlight": false,
+    "title": "Helles Design",
+    "items": [
+      "🌗 **Neu: ein helles Design in den Farben des Forums.** Umschalten über das Zahnrad oben rechts → Einstellungen → Anzeige → Design. Die Seite wechselt sofort, ohne neu zu laden.",
+      "💾 **Die Wahl wird gemerkt**, auf der Website und im Kniebrett getrennt. Mit Forum-Anmeldung hängt sie an deinem Konto.",
+      "🗺️ **Die Karte bleibt, wie sie ist.** Flugzeuge, Spuren und Beschriftungen behalten ihre Farben; die Grundkarte wählst du wie gewohnt selbst.",
+      "⚙️ **Auf der Website ersetzt das Zahnrad die Glocke.** Die Benachrichtigungen stehen im selben Menü unter „Benachrichtigungen“."
+    ]
+  },
+  {
     "version": "15.31.2",
     "date": "2026-10-01",
     "highlight": false,
