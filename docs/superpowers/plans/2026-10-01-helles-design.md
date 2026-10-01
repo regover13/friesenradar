@@ -32,11 +32,15 @@ Playwright/Chromium nur für Screenshots.
 - Tests: `/home/claude/.venv-friesenspy/bin/python -m pytest -n 4 tests/` (rund 1 min).
 - Deploy = Push auf `main` (außer `docs/**`, `**.md`). Vor jedem Push, der Code enthält, beim Nutzer nachfragen, ob gerade geflogen wird (nginx-Log `/panel`, `/api/live`).
 - Basis für den Dunkel-Vergleich: Commit **`18f0c15`** (letzter Stand vor dem Umbau).
+- **Das Vergleichswerkzeug sieht nur den `<style>`-Block.** Inline-`style=`-Attribute (Z. 4265 `#fff`, Z. 4378 `rgba(45,156,219,0.2)`) und JS-Farben erfasst es nicht; die sichern Task 5 Step 1 (Markup) und Task 6 (JS) von Hand ab.
+- **Vorhandene `var()`-Nutzungen in Kartenelementen schalten sonst mit:** `.aircraft-marker { color: var(--green) }` (Z. 2667) würde im Hellen dunkelblau. Jede solche Stelle bekommt eine `html.hell`-Gegenregel mit dem dunklen Literal (Task 4 Step 3); der Test `test_karte_schaltet_nicht_mit` wacht darüber.
+- **Text direkt auf `--bg-body` (`#9FC7F8`)** nur in `--text-bright` (6,3:1) oder `--green` (4,6:1); `--text-label`, `--amber`, `--red`, `--cyan` erreichen dort nur ~3:1 und gehören auf eine Panelfläche.
+- **Parallele Sitzungen:** Vor jedem Push `git fetch` + Rebase auf `origin/main` (CLAUDE.md → `COORDINATION.md`); am Ende ein Eintrag in `COORDINATION.md` (Task 7).
 
 ## Review Focus
 
 1. **Cookie `fs_karte` beschädigt oder ohne `friesenspy_theme`** → Seite startet dunkel, kein Skriptfehler im Kopfskript (Test in Task 2).
-2. **Umschalten, bevor der Server geantwortet hat** (Kniebrett) → die Wahl darf von der späten Serverantwort nicht still zurückgedreht werden, solange der Server nichts anderes gespeichert hat; spätere Antwort mit gespeichertem Wert gewinnt wie bei allen Merkern (Test in Task 2).
+2. **Umschalten, bevor der Server geantwortet hat** (Kniebrett) → die bewusste Wahl gewinnt und wird danach auch gespeichert; Anzeige, Schalter und gespeicherter Wert laufen nicht auseinander (Test in Task 2).
 3. **Statistik offen beim Umschalten** → Diagramm wird in den neuen Farben neu gezeichnet, nicht erst beim nächsten Datenabruf (Test in Task 6).
 4. **Website ohne VAPID-Schlüssel** → Zahnrad sichtbar, Menü zeigt „Anzeige", der Abschnitt „Benachrichtigungen" fehlt (Test in Task 3).
 5. **Kniebrett zeigt „Anzeige" nur einmal** → Design, Größe, Kartenhelligkeit unter einer Überschrift, nicht zwei Überschriften „Anzeige" (Test in Task 3).
@@ -54,7 +58,7 @@ Umbauschritt ausgeführt; seine eigene Logik sichert ein kleiner Test ab.
 - Test: `tests/test_dunkel_vergleich.py`
 
 **Interfaces:**
-- Produces: `vergleiche(alt_html: str, neu_html: str) -> dict` mit Schlüsseln `geaendert: list[str]`, `entfernt: list[str]`, `neu: list[str]`; CLI `python -m scripts.dunkel_vergleich [--basis 18f0c15]` (Exit 1 bei `geaendert` oder `entfernt`).
+- Produces: `vergleiche(alt_html: str, neu_html: str) -> dict` mit Schlüsseln `geaendert`, `entfernt`, `neu`, `neu_unerwartet` (je `list[str]`); `NEU_ERLAUBT` (Liste von Regex-Mustern für gewollt neue Selektoren); CLI `python -m scripts.dunkel_vergleich [--basis 18f0c15]` (Exit 1 bei `geaendert`, `entfernt` oder `neu_unerwartet`).
 
 - [ ] **Step 1: Failing test schreiben**
 
@@ -64,7 +68,8 @@ from scripts.dunkel_vergleich import vergleiche
 
 
 def _seite(css):
-    return "<html><head><style>\n" + css + "\n</style></head><body></body></html>"
+    # <style> auf eigener Zeile wie in index.html (Z. 679/4054) -- das Werkzeug liest nur solche.
+    return "<html><head>\n  <style>\n" + css + "\n  </style>\n</head><body></body></html>"
 
 
 ALT = _seite("""
@@ -113,7 +118,24 @@ html.hell .a { color: blue; }
 """)
     e = vergleiche(ALT, neu)
     assert e["geaendert"] == [] and e["entfernt"] == []
-    assert e["neu"] == [".design-knopf"]
+    assert e["neu"] == [".design-knopf"] and e["neu_unerwartet"] == []
+
+
+def test_unerwartete_neue_regel_faellt_auf():
+    # Ein neuer Selektor auf dieselben Elemente aenderte das Dunkle, ohne unter
+    # "geaendert" zu erscheinen -- deshalb gilt Neues nur, wenn es angemeldet ist.
+    neu = _seite(ALT[ALT.index(":root"):ALT.index("  </style>")] + "\nheader .a { color: red; }")
+    assert vergleiche(ALT, neu)["neu_unerwartet"] == ["header .a"]
+
+
+def test_style_im_skriptkommentar_wird_nicht_als_css_gelesen():
+    # index.html Z. 9: "Muss VOR dem <style>-Block laufen" steht in einem JS-Kommentar.
+    html = ("<html><head><script>// VOR dem <style>-Block\nvar o = { t: 1 };</script>\n"
+            "  <style>\n.a { color: #2d9cdb; }\n  </style></head></html>")
+    e = vergleiche(html, html)
+    assert e == {"geaendert": [], "entfernt": [], "neu": [], "neu_unerwartet": []}
+    from scripts.dunkel_vergleich import _css
+    assert "var o" not in _css(html)
 
 
 def test_entfernte_regel_faellt_auf():
@@ -137,7 +159,7 @@ def test_hex_schreibweise_und_leerzeichen_sind_egal():
 - [ ] **Step 2: Test laufen lassen, muss scheitern**
 
 Run: `cd ~/projects/friesenspy && /home/claude/.venv-friesenspy/bin/python -m pytest tests/test_dunkel_vergleich.py -v`
-Expected: FAIL mit `ModuleNotFoundError: No module named 'scripts.dunkel_vergleich'`
+Expected: FAIL mit `ModuleNotFoundError: No module named 'scripts.dunkel_vergleich'` (9 Tests)
 
 - [ ] **Step 3: Implementieren**
 
@@ -161,12 +183,21 @@ from pathlib import Path
 
 DATEI = "app/static/index.html"
 
+# Selektoren, die der Umbau gewollt NEU einfuehrt. Alles andere Neue ist verdaechtig: Ein neuer
+# Selektor auf bereits gestylte Elemente aendert das Dunkle, ohne unter "geaendert" zu stehen.
+NEU_ERLAUBT = [
+    r"design-knopf", r"#einst-design", r"#notif-web-titel", r"mit-push",
+    r"^\.notif-zahnrad-panel$", r"#panel-anzeige \.panel-einst-name",
+]
+
 _KOMMENTAR = re.compile(r"/\*.*?\*/", re.S)
 _VAR = re.compile(r"var\(\s*(--[\w-]+)\s*(?:,\s*([^()]*(?:\([^()]*\)[^()]*)*))?\)")
 
 
 def _css(html: str) -> str:
-    teile = re.findall(r"<style[^>]*>(.*?)</style>", html, re.S)
+    # Nur echte <style>-Zeilen: In index.html Z. 9 steht "<style>-Block" in einem
+    # JS-Kommentar -- eine lose Suche laese das ganze Kopfskript als CSS.
+    teile = re.findall(r"^\s*<style[^>]*>\s*$(.*?)^\s*</style>", html, re.S | re.M)
     return _KOMMENTAR.sub("", "\n".join(teile))
 
 
@@ -257,10 +288,13 @@ def _aufgeloest(html: str) -> dict[str, list[tuple[str, str]]]:
 
 def vergleiche(alt_html: str, neu_html: str) -> dict:
     alt, neu = _aufgeloest(alt_html), _aufgeloest(neu_html)
+    frisch = [s for s in neu if s not in alt]
     return {
         "geaendert": [s for s in alt if s in neu and alt[s] != neu[s]],
         "entfernt": [s for s in alt if s not in neu],
-        "neu": [s for s in neu if s not in alt],
+        "neu": frisch,
+        "neu_unerwartet": [s for s in frisch
+                           if not any(re.search(m, s.split(" || ")[-1]) for m in NEU_ERLAUBT)],
     }
 
 
@@ -272,11 +306,11 @@ def main() -> int:
                          text=True, check=True).stdout
     neu = Path(DATEI).read_text(encoding="utf-8")
     e = vergleiche(alt, neu)
-    for art in ("geaendert", "entfernt", "neu"):
+    for art in ("geaendert", "entfernt", "neu", "neu_unerwartet"):
         print(f"{art}: {len(e[art])}")
         for s in e[art]:
             print("   ", s)
-    return 1 if (e["geaendert"] or e["entfernt"]) else 0
+    return 1 if (e["geaendert"] or e["entfernt"] or e["neu_unerwartet"]) else 0
 
 
 if __name__ == "__main__":
@@ -285,10 +319,10 @@ if __name__ == "__main__":
 
 - [ ] **Step 4: Tests grün**
 
-Run: `/home/claude/.venv-friesenspy/bin/python -m pytest tests/test_dunkel_vergleich.py -v` → 7 passed.
+Run: `/home/claude/.venv-friesenspy/bin/python -m pytest tests/test_dunkel_vergleich.py -v` → 9 passed.
 Dann gegen den echten Stand: `cd ~/projects/friesenspy && /home/claude/.venv-friesenspy/bin/python -m scripts.dunkel_vergleich` → `geaendert: 0`, `entfernt: 0`, `neu: 0`, Exit 0. Liefert es hier schon Abweichungen, ist der Parser falsch (doppelte Selektoren, `@media`) — erst reparieren, dann weiter.
 
-- [ ] **Step 5: Gegenprobe** — in einer Kopie von `index.html` einen Wert `rgba(45,156,219,0.3)` auf `0.31` ändern, Skript per `vergleiche()` darauf laufen lassen: muss den Selektor unter `geaendert` nennen. Kopie verwerfen.
+- [ ] **Step 5: Gegenprobe** — in einer Kopie von `index.html` in der Regel `.panel-zoom-knopf` (Z. 3521) `border: 1px solid rgba(45,156,219,0.3)` auf `0.31` ändern (nicht den ersten Treffer nehmen — der steht in `:root` und zieht 50 Selektoren mit), `vergleiche()` darauf laufen lassen: muss genau `.panel-zoom-knopf` unter `geaendert` nennen. Kopie verwerfen.
 
 - [ ] **Step 6: Commit**
 
@@ -296,6 +330,25 @@ Dann gegen den echten Stand: `cd ~/projects/friesenspy && /home/claude/.venv-fri
 git add scripts/dunkel_vergleich.py tests/test_dunkel_vergleich.py
 git commit -m "Werkzeug: Dunkel-Vergleich fuer den Variablen-Umbau (helles Design)"
 ```
+
+---
+
+### Task 1b: Sim-Probe `rgba(var(--x-rgb), a)` in Coherent GT (Patch 15.31.2)
+
+Coherent GT ist Chrome 49; `var()` innerhalb von `rgba()` wird im Projekt bisher nirgends
+benutzt. Bevor rund 200 Stellen darauf bauen, wird es an **einer** sichtbaren Stelle im Kniebrett
+geprüft — mit unverändertem dunklem Aussehen, als eigener kleiner Release. Kein halbfertiges
+Helles geht dabei live.
+
+**Files:**
+- Modify: `app/static/index.html` (`:root` Z. 775–792, `.panel-zoom-knopf` Z. 3521), `app/CHANGELOG.json`
+
+- [ ] **Step 1:** In `:root` nach `--text-label` einfügen: `--green-rgb:    45,156,219;` (mit Kommentar: „Kanalwerte fuer rgba(var(--green-rgb), deckkraft) -- helles Design, Spec 2026-10-01"). In `.panel-zoom-knopf` `border: 1px solid rgba(45,156,219,0.3);` → `border: 1px solid rgba(var(--green-rgb),0.3);` (vorher `assert s.count(alt) == 1` für den Regelblock).
+- [ ] **Step 2:** `python -m scripts.dunkel_vergleich` → alle vier Listen leer, Exit 0. `pytest -n 4 tests/` grün.
+- [ ] **Step 3:** CHANGELOG-Eintrag (erst wenn keine Suite läuft), `"date"` im ISO-Format wie die übrigen:
+  `{"version": "15.31.2", "date": "JJJJ-MM-TT", "highlight": false, "title": "Kniebrett: Vorarbeit fuer ein helles Design", "items": ["Keine sichtbare Aenderung – eine Farbangabe der Minus/Plus-Knoepfe unter Einstellungen wird probeweise anders geschrieben"]}`
+- [ ] **Step 4:** Commit, Nutzer fragen, ob geflogen wird; nach Freigabe `git fetch && git rebase origin/main && git push origin main`.
+- [ ] **Step 5:** Nutzer bitten: Kniebrett → Zahnrad → Anzeige. Haben die Knöpfe `−`/`+` bei Größe und Kartenhelligkeit weiterhin ihren blauen Rahmen? **Ja** → weiter. **Rahmen fehlt** → `var()` in `rgba()` trägt nicht; Plan anhalten, Ausweg besprechen (je Deckkraftstufe eine eigene Variable mit fertigem `rgba(...)`-Wert), Änderung zurücknehmen.
 
 ---
 
@@ -356,6 +409,8 @@ global.document = {
 global.location = { pathname: '/', search: '' };
 global.URLSearchParams = URLSearchParams;
 global.window = global; global.matchMedia = () => ({ matches: false });
+// Das Kopfskript meldet vor seinem Website-return (Z. 89) noch einen resize-Lauscher an (Z. 75).
+global.addEventListener = () => {};
 """
 
 
@@ -387,11 +442,36 @@ console.log(JSON.stringify([_designNormal('hell'), _designNormal('dunkel'), _des
     assert _lauf(js) == ["hell", "dunkel", "dunkel", "dunkel", "dunkel"]
 
 
-def test_serverantwort_ueberstimmt_eine_beruehrte_wahl_nicht():
-    # Review Focus 2: Wer vor der Serverantwort umschaltet, behaelt seine Wahl.
-    m = re.search(r"_prefsPromise\.then\(function \(\) \{\s*if \(!_designBeruehrt\) _designAnwenden\(_prefLies\(_DESIGN_KEY\)\);", INDEX)
-    assert m, "Nach der Serverantwort nur anwenden, wenn niemand selbst umgeschaltet hat"
-    assert "_designBeruehrt = true;" in _ausschnitt("function _designSetzen(", "function _designSetzen(")
+@ohne_node
+@pytest.mark.parametrize("server,beruehrt,erwartet", [
+    ({"friesenspy_theme": "hell"}, None, ("hell", None)),      # nur angezeigt, nichts hochgeschickt
+    ({}, None, ("dunkel", None)),
+    # Review Focus 2: vor der Antwort auf Hell geschaltet, Server kennt noch "dunkel" --
+    # die Wahl gewinnt und wird gespeichert, statt nur angezeigt.
+    ({"friesenspy_theme": "dunkel"}, "hell", ("hell", "hell")),
+])
+def test_serverantwort_und_eigene_wahl(server, beruehrt, erwartet):
+    pref = INDEX[INDEX.index("const _PREF_COOKIE"):INDEX.index("\n}", INDEX.index("function _prefVomServerHolen(")) + 2]
+    design = INDEX[INDEX.index("const _DESIGN_KEY"):INDEX.index("_designHaken.push(_designSchalterAnzeigen);")]
+    nach = INDEX[INDEX.index("// Das Kopfskript hat auf der Website schon aus dem Cookie gemalt"):]
+    nach = nach[:nach.index("}).catch(() => {});") + len("}).catch(() => {});")]
+    js = (_DOC % "''") + """
+global.localStorage = { getItem: () => null, setItem: () => {} };
+const puts = [];
+global.fetch = (url, opt) => {
+  if (opt && opt.method === 'PUT') { puts.push(JSON.parse(opt.body).prefs); return Promise.resolve({ ok: true }); }
+  return Promise.resolve({ ok: true, json: () => Promise.resolve({ prefs: %s }) });
+};
+global.setTimeout = (f) => f();
+""" % json.dumps(server) + pref + "\n" + design + "\nfunction _designSchalterAnzeigen() {}\n" + """
+const _prefsPromise = _prefVomServerHolen();
+%s
+""" % ("_designSetzen('%s');" % beruehrt if beruehrt else "") + nach + """
+_prefsPromise.then(() => new Promise(r => r())).then(() => {
+  const letzter = puts.length ? puts[puts.length - 1].friesenspy_theme || null : null;
+  console.log(JSON.stringify([klassen.has('hell') ? 'hell' : 'dunkel', letzter]));
+});"""
+    assert _lauf(js) == list(erwartet)
 
 
 def test_theme_color_folgt_dem_design():
@@ -463,14 +543,22 @@ function _designSetzen(wert) {
 ```js
 // Das Kopfskript hat auf der Website schon aus dem Cookie gemalt; hier gewinnt der Server
 // (wie bei allen Merkern) -- ausser der Nutzer hat vor der Antwort selbst umgeschaltet.
+// (Diese Kommentarzeile ist der Anker von test_serverantwort_und_eigene_wahl.)
 _prefsPromise.then(function () {
-  if (!_designBeruehrt) _designAnwenden(_prefLies(_DESIGN_KEY));
+  if (!_designBeruehrt) {
+    _designAnwenden(_prefLies(_DESIGN_KEY));
+  } else {
+    // Vor der Antwort umgeschaltet: _prefVomServerHolen hat den lokalen Merker eben mit dem
+    // alten Serverwert ueberschrieben. Die bewusste Wahl zurueckschreiben -- jetzt geht der
+    // PUT auch hinaus (_prefVomServer ist gesetzt).
+    _prefSchreib(_DESIGN_KEY, document.documentElement.classList.contains('hell') ? 'hell' : 'dunkel');
+  }
 }).catch(() => {});
 ```
 
 - [ ] **Step 6: Tests grün**
 
-Run: `/home/claude/.venv-friesenspy/bin/python -m pytest tests/test_design_merker.py tests/test_karte_merker.py -v` → alle grün. Dann `python -m scripts.dunkel_vergleich` → Exit 0 (kein CSS geändert).
+Run: `/home/claude/.venv-friesenspy/bin/python -m pytest tests/test_design_merker.py tests/test_karte_merker.py -v` → alle grün. Der Harness von `test_serverantwort_und_eigene_wahl` ist der aufwendigste des Plans: Scheitert er an einer fehlenden Attrappe (nicht am Verhalten), die Attrappe ergänzen, nicht den Test abschwächen; **Gegenprobe:** den `else`-Zweig aus Step 5 entfernen → der dritte Fall muss rot werden. Dann `python -m scripts.dunkel_vergleich` → Exit 0 (kein CSS geändert).
 
 - [ ] **Step 7: Commit**
 
@@ -507,7 +595,7 @@ def _knopf():
 
 
 def test_zahnrad_auf_der_website_statt_glocke():
-    assert "notif-glocke-web" not in INDEX
+    assert 'class="emoji-icon notif-glocke-web"' not in INDEX
     assert re.search(r"(?m)^\s*\.notif-zahnrad-panel \{[^}]*display: inline-block", INDEX)
     assert 'title="Einstellungen"' in _knopf()
 
@@ -537,7 +625,11 @@ def test_anzeige_nur_einmal_ueberschrieben():
 
 def test_benachrichtigungen_ueberschrift_nur_mit_push():
     assert 'id="notif-web-titel"' in INDEX
-    assert re.search(r"\.notif-panel:not\(\.mit-push\) #notif-web-titel", INDEX)
+    # Dieselben sieben wie in der html.vr-panel-Liste (Z. 819-825) plus die Ueberschrift.
+    for teil in ("#notif-web-titel", "#notif-enabled-row", "#notif-filter", "#notif-ios-hint",
+                 "#notif-blocked-hint", "#notif-install-btn", "#notif-reset-btn",
+                 "#visibility-section"):
+        assert re.search(r"\.notif-panel:not\(\.mit-push\) " + re.escape(teil) + r"\b", INDEX), teil
     assert "classList.add('mit-push')" in INDEX
     assert "html.vr-panel #notif-web-titel" in INDEX
 
@@ -551,8 +643,19 @@ def test_schalter_folgt_dem_design():
 
 - [ ] **Step 3: Knopf** (Z. 4286): `title="Benachrichtigungen" hidden` → `title="Einstellungen"`; das `<img class="emoji-icon notif-glocke-web" … />` entfernen. Die beiden `<svg>` bleiben unverändert.
 
-- [ ] **Step 4: Symbol-CSS** (Z. 759–773): Die Regel `html.vr-panel .notif-zahnrad-panel { display: inline-block; fill: currentColor; fill-rule: evenodd; }` wird zu `.notif-zahnrad-panel { … }` ohne `html.vr-panel`, nach der Zeile `.notif-glocke-panel, .notif-zahnrad-panel { display: none; }`; die Zeile `html.vr-panel .notif-glocke-web { display: none; }` entfällt. Kommentar darüber um einen Satz ergänzen: „Seit 15.32.0 auch auf der Website: das Menü enthält dort das Design."
-  Achtung Dunkel-Vergleich: Das ändert den Selektor → erscheint als `entfernt`/`neu`. Das ist die gewollte sichtbare Änderung; im Vergleichslauf von Task 3 genau diese zwei Selektoren (`html.vr-panel .notif-zahnrad-panel`, `html.vr-panel .notif-glocke-web`) als erwartet notieren und sonst nichts.
+- [ ] **Step 4: Symbol-CSS** (Z. 759–773): Die bestehenden Regeln **bleiben unverändert stehen** (sonst meldet das Vergleichswerkzeug ab hier dauerhaft `entfernt`). Direkt hinter `.notif-glocke-panel, .notif-zahnrad-panel { display: none; }` eine neue Regel einfügen:
+
+```css
+    /* Seit 15.32.0 auch auf der Website: Das Menue enthaelt dort das Design (helles Design,
+       Spec 2026-10-01). Die html.vr-panel-Regel darunter bleibt und wiederholt nur. */
+    .notif-zahnrad-panel {
+      display: inline-block;
+      fill: currentColor;
+      fill-rule: evenodd;
+    }
+```
+
+  `html.vr-panel .notif-glocke-web { display: none; }` bleibt als nun wirkungslose Regel stehen (das `<img>` ist weg); Kommentar dazu: „trifft seit 15.32.0 nichts mehr".
 
 - [ ] **Step 5: Menü-Markup** — Z. 4298 `Benachrichtigungen` → `Einstellungen`. Direkt vor `<div id="panel-anzeige" hidden>` einfügen:
 
@@ -591,12 +694,21 @@ def test_schalter_folgt_dem_design():
       border-color: var(--green);
       color: var(--bg-panel);
     }
+    /* Ohne VAPID-Schluessel war der Knopf frueher gar nicht sichtbar; jetzt oeffnet er das Menue
+       trotzdem (Anzeige). Alles, was am Web-Push haengt, fehlt dann -- dieselbe Liste wie im
+       Kniebrett (html.vr-panel-Block oben), plus die Ueberschrift. */
     .notif-panel:not(.mit-push) #notif-web-titel,
     .notif-panel:not(.mit-push) #notif-enabled-row,
     .notif-panel:not(.mit-push) #notif-filter,
+    .notif-panel:not(.mit-push) #notif-ios-hint,
+    .notif-panel:not(.mit-push) #notif-blocked-hint,
     .notif-panel:not(.mit-push) #notif-install-btn,
-    .notif-panel:not(.mit-push) #notif-reset-btn { display: none !important; }
+    .notif-panel:not(.mit-push) #notif-reset-btn,
+    .notif-panel:not(.mit-push) #visibility-section { display: none !important; }
     html.vr-panel #notif-web-titel { display: none !important; }
+    /* "Groesse" ist seit dem Herausnehmen der Ueberschrift das erste .panel-einst-name in
+       #panel-anzeige; ohne diese Regel rueckte es von 14px auf 6px Abstand (Zeile ~3559). */
+    #panel-anzeige .panel-einst-name:first-of-type { margin-top: 14px; }
 ```
 
   Und die bestehende Regel `html:not(.vr-panel) #panel-anzeige { display: none !important; }` bleibt.
@@ -622,9 +734,9 @@ function _designSchalterAnzeigen(d) {
 _designHaken.push(_designSchalterAnzeigen);
 ```
 
-- [ ] **Step 8: Bestehende Tests anpassen** — `tests/test_vr_panel.py:928-929`: die beiden Asserts auf `notif-glocke-web` ersetzen durch `assert "notif-glocke-web" not in INDEX` mit Kommentar „Seit 15.32.0 Zahnrad auch auf der Website (helles Design)"; Z. 934 `html\.vr-panel \.notif-zahnrad-panel` → `\.notif-zahnrad-panel`. `test_die_einstellungsansicht_traegt_beide_themen` (Z. ~3500): `"titel.textContent = 'Einstellungen';"` → `'<div class="notif-panel-title">Einstellungen</div>'`. Übrige Fehlschläge der Suite lesen, nicht blind anpassen.
+- [ ] **Step 8: Bestehende Tests anpassen** — `tests/test_vr_panel.py:928`: `assert 'class="emoji-icon notif-glocke-web"' in INDEX` ersetzen durch `assert "emoji-icon notif-glocke-web" not in INDEX` mit Kommentar „Seit 15.32.0 Zahnrad auch auf der Website (helles Design)"; Z. 929 und 934 bleiben (die Regeln stehen weiter). `test_die_einstellungsansicht_traegt_beide_themen` (Z. ~3500): `"titel.textContent = 'Einstellungen';"` → `'<div class="notif-panel-title">Einstellungen</div>'`. Übrige Fehlschläge der Suite lesen, nicht blind anpassen.
 
-- [ ] **Step 9: Tests grün** — `pytest -n 4 tests/` komplett; `python -m scripts.dunkel_vergleich` → `geaendert: 0`, `entfernt:` nur die zwei in Step 4 genannten, `neu:` Schalter- und Zahnrad-Selektoren.
+- [ ] **Step 9: Tests grün** — `pytest -n 4 tests/` komplett; `python -m scripts.dunkel_vergleich` → Exit 0 (`geaendert: 0`, `entfernt: 0`, `neu_unerwartet: 0`; `neu` listet nur Schalter-, Zahnrad-, `mit-push`- und `#panel-anzeige`-Selektoren).
 
 - [ ] **Step 10: Commit**
 
@@ -699,6 +811,30 @@ def test_hell_palette_ist_die_des_forums():
     assert HELL["--green-rgb"].replace(" ", "") == "16,82,137"
 
 
+@pytest.mark.parametrize("text", ("--text-bright", "--green"))
+def test_hell_text_direkt_auf_dem_grund(text):
+    assert _kontrast(HELL[text], HELL["--bg-body"]) >= 4.5, text
+
+
+# Kartenelemente, die heute schon eine umschaltende Variable nutzen, brauchen eine
+# html.hell-Gegenregel mit dem dunklen Wert -- sonst schaltet die Karte mit (Spec Punkt 2).
+_KARTE = re.compile(r"aircraft-marker|vrp-marke|ground-marke|platzrunde|leaflet-interactive")
+_SCHALTET = re.compile(r"var\(--(green|cyan|amber|red|text-bright|text-label|bg-body|bg-panel)")
+
+
+def test_karte_schaltet_nicht_mit():
+    css = INDEX[INDEX.index("\n  <style>\n"):INDEX.index("\n  </style>\n")]
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    offen = []
+    for sel, rumpf in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        sel = " ".join(sel.split())
+        if "html.hell" in sel or not _KARTE.search(sel) or not _SCHALTET.search(rumpf):
+            continue
+        if not re.search(r"html\.hell " + re.escape(sel) + r"\s*\{", css):
+            offen.append(sel)
+    assert offen == [], offen
+
+
 def test_dunkle_werte_unveraendert():
     assert DUNKEL["--bg-body"] == "#04080f"
     assert DUNKEL["--green"] == "#2d9cdb"
@@ -710,17 +846,18 @@ def test_dunkle_werte_unveraendert():
 Hinweis: Im dunklen Design wird bewusst **nicht** auf 4,5:1 geprüft — es bleibt, wie es ist
 (`--text-label #6b9ab8` auf `#071525` liegt bei rund 6:1, aber das ist nicht Gegenstand).
 
-- [ ] **Step 2: Laufen lassen, muss scheitern** (`html.hell` fehlt).
+- [ ] **Step 2: Laufen lassen, muss scheitern** (`html.hell` fehlt; `test_karte_schaltet_nicht_mit` meldet `.aircraft-marker`).
 
 - [ ] **Step 3: `:root` ergänzen** (nach `--text-label`):
 
 ```css
       /* Kanalwerte fuer rgba(var(--x-rgb), deckkraft): Die Deckkraft bleibt an jeder Stelle,
          wie sie war -- nur der Farbton wechselt mit dem Design (Spec helles Design). */
-      --green-rgb:    45,156,219;
       --schleier-rgb: 4,8,15;
       --schatten-rgb: 0,0,0;
 ```
+
+  (`--green-rgb` steht seit Task 1b schon dort.)
 
   Und direkt nach dem `:root`-Block:
 
@@ -745,6 +882,10 @@ Hinweis: Im dunklen Design wird bewusst **nicht** auf 4,5:1 geprüft — es blei
       --schleier-rgb: 251,251,251;
       --schatten-rgb: 43,60,90;
     }
+    /* Die Karte schaltet nicht mit (Spec Punkt 2): Kartenelemente, die eine umschaltende
+       Variable nutzen, behalten im Hellen ihren dunklen Wert. Waechter:
+       test_karte_schaltet_nicht_mit. */
+    html.hell .aircraft-marker { color: #2d9cdb; }
 ```
 
 - [ ] **Step 4: Hauptflächen umstellen.** Für jeden festen Farbwert in den genannten Regeln nach dieser Tabelle ersetzen (nur exakte Treffer, Deckkraft unverändert übernehmen):
@@ -765,9 +906,12 @@ Hinweis: Im dunklen Design wird bewusst **nicht** auf 4,5:1 geprüft — es blei
 
   Vorgehen je Regel: Selektor mit `grep -n` finden, Literal mit einer Ersetzung ändern, die vorher `assert s.count(alt) == 1` prüft (Memory: Trefferzahl prüfen). Keine Suchen-und-Ersetzen über die ganze Datei.
 
-- [ ] **Step 5: Dunkel-Vergleich** — `python -m scripts.dunkel_vergleich` → `geaendert: 0`, `entfernt:` nur die zwei aus Task 3. Jede Abweichung ist ein Fehler dieser Task, nicht des Werkzeugs.
+- [ ] **Step 5: Dunkel-Vergleich** — `python -m scripts.dunkel_vergleich` → Exit 0. Jede Abweichung ist ein Fehler dieser Task, nicht des Werkzeugs.
 
-- [ ] **Step 6: Tests** — `pytest -n 4 tests/` komplett. Tests, die ein ersetztes Literal wörtlich erwarten (bekannt: `test_vr_panel.py` Z. 342, 915–917, 1286–1301, 2259–2261; `test_vrp.py` 381/413; `test_ground_chart_ui.py` 88; `test_aip_ui.py` 421; `test_mithoeren.py` 56; `test_pilot_links.py`): Assertion auf die Variablenform umstellen (z. B. `"background: var(--bg-panel) !important"`), nie löschen. Nur die tatsächlich roten anfassen.
+- [ ] **Step 6: Tests** — `pytest -n 4 tests/` komplett. Zwei Gruppen, nicht verwechseln:
+  - **Oberfläche — Literal wird Variable, Test wird umgestellt:** `test_vr_panel.py` Z. 342, 915–917, 1286–1301; `test_aip_ui.py` 421; `test_mithoeren.py` 56; `test_pilot_links.py`. Assertion auf die Variablenform umstellen (z. B. `"background: var(--bg-panel) !important"`), nie löschen.
+  - **Karte — bleibt Literal, Test bleibt unverändert:** `test_vrp.py` 381/413 (`.vrp-marke`, Schatten am Flugzeug), `test_ground_chart_ui.py` 88 (`.ground-marke`), `test_vr_panel.py` 2259–2261 (`.aircraft-marker`). Wird einer davon rot, wurde ein Kartenelement umgefärbt — zurücknehmen, nicht den Test anpassen.
+  Nur die tatsächlich roten anfassen.
 
 - [ ] **Step 7: Screenshots vorbereiten** (einmalig)
 
@@ -829,7 +973,7 @@ with sync_playwright() as p:
   (Den Tab-Selektor vorher im Markup nachsehen und anpassen, falls die Tabs nicht `data-tab` tragen.)
 
 - [ ] **Step 8: Probe an den Nutzer** — Screenshots zu einer HTML-Seite zusammenfügen (Bilder als `data:`-URI eingebettet, beide Designs nebeneinander), nach `files.friesenflieger.de/downloads/` legen (Skill `friesenflieger:friesenflieger-dateien`, URL mit 200 prüfen), Link nennen. Den Nutzer ausdrücklich bitten, nur das Helle zu beurteilen — das Dunkle ist per Werkzeug belegt.
-  **STOPP: weiter erst nach seinem OK.** Danach die Datei löschen und 404 prüfen.
+  **STOPP: weiter erst nach seinem OK.** Danach die Datei löschen und 404 prüfen. (Kein Deploy in dieser Task — die Sim-Probe lief schon in Task 1b.)
 
 - [ ] **Step 9: Commit** (erst nach dem OK)
 
@@ -837,8 +981,6 @@ with sync_playwright() as p:
 git add app/static/index.html tests/test_design_kontrast.py tests/
 git commit -m "Helles Design: Palette und Hauptflaechen, Kontrasttest"
 ```
-
-- [ ] **Step 10: Sim-Probe `var()` in `rgba()`** — Coherent GT ist Chrome 49; `rgba(var(--green-rgb),0.3)` muss dort greifen, bevor Task 5 rund 200 weitere Stellen darauf baut. Dafür braucht es einen Deploy: Nutzer fragen, ob geflogen wird; nach Freigabe `git push origin main`; Nutzer bitten, im Kniebrett auf „Hell" zu schalten und zu melden, ob Rahmen und Hover-Flächen blau getönt oder ganz ohne Farbe erscheinen. Dunkel ist davon unberührt (belegt). **Ohne Farbe = Plan anhalten** und Ausweg besprechen (je Deckkraft eine eigene Variable).
 
 ---
 
@@ -851,12 +993,15 @@ git commit -m "Helles Design: Palette und Hauptflaechen, Kontrasttest"
 - [ ] **Step 1: Bestand erzeugen**
 
 ```bash
-cd ~/projects/friesenspy && sed -n '/<style>/,/<\/style>/p' app/static/index.html \
-  | grep -nE '#[0-9a-fA-F]{3,8}\b|rgba?\(' | grep -v 'var(--' > /home/claude/arbeit/helles-design/bestand.txt
+cd ~/projects/friesenspy && awk '/^  <style>$/{a=1;next} /^  <\/style>$/{a=0} a{print NR": "$0}' app/static/index.html \
+  | grep -E '#[0-9a-fA-F]{3,8}\b|rgba?\([0-9]' > /home/claude/arbeit/helles-design/bestand.txt
 wc -l /home/claude/arbeit/helles-design/bestand.txt
+grep -nE 'style="[^"]*(#[0-9a-fA-F]{3,8}|rgba?\()' app/static/index.html   # Markup, u. a. Z. 4265, 4378
 ```
 
-- [ ] **Step 2: In Abschnitten von rund 500 CSS-Zeilen abarbeiten.** Je Abschnitt: jede Zeile aus dem Bestand nach der Tabelle aus Task 4 Step 4 ersetzen oder bewusst fest lassen. Fest bleiben: Selektoren der Karte (Leaflet-Pfade, Marker-Klassen, Platzrunden, Kutter, Reddung, Kompass), Tempo-/Höhenschilder, `--cyan`-Akzent, Warn-Einzelfarben in Chips, sofern sie auf `--bg-panel` stehen und in Hell ≥ 4,5:1 erreichen (sonst Variable mit dunklem Originalwert). Nach jedem Abschnitt:
+  (Nur die echten `<style>`-Zeilen, nicht die Erwähnung im Kopfskript; Zeilen mit Literal **und** `var()` bleiben im Bestand, z. B. `.notif-save-btn:hover { … color: #000; }`.)
+
+- [ ] **Step 2: In Abschnitten von rund 500 CSS-Zeilen abarbeiten.** Je Abschnitt: jede Zeile aus dem Bestand nach der Tabelle aus Task 4 Step 4 ersetzen oder bewusst fest lassen. Fest bleiben: Selektoren der Karte (Leaflet-Pfade, Marker-Klassen, Platzrunden, Kutter, Reddung, Kompass), Tempo-/Höhenschilder, `--cyan`-Akzent, Warn-Einzelfarben in Chips, sofern sie auf `--bg-panel` stehen und in Hell ≥ 4,5:1 erreichen (sonst Variable mit dunklem Originalwert). Text, der direkt auf `--bg-body` steht (Leerzustände, Fußzeile, Zwischenräume), nur in `--text-bright` oder `--green` (Global Constraints). Findet sich ein weiteres Kartenelement mit umschaltender Variable, bekommt es eine `html.hell`-Gegenregel und `_KARTE` im Kontrasttest das Muster. Nach jedem Abschnitt:
   - `python -m scripts.dunkel_vergleich` → `geaendert: 0`
   - `pytest -n 4 tests/` → grün (rote Literal-Asserts auf Variablenform umstellen)
   - Commit `"Helles Design: CSS Zeilen A–B auf Variablen"`
@@ -877,7 +1022,7 @@ wc -l /home/claude/arbeit/helles-design/bestand.txt
 
 **Interfaces:**
 - Consumes: `_designHaken`
-- Produces: `function _themaFarbe(name) -> string` (liest `getComputedStyle(document.documentElement).getPropertyValue(name).trim()`); `let _aktivitaetZuletzt = null` (`{data, grouping}`).
+- Produces: `function _themaFarbe(name) -> string` (liest `getComputedStyle(document.documentElement).getPropertyValue(name).trim()`); `let _aktivitaetZuletzt = null` (`{data, grouping}`); `function _aktivitaetNeuZeichnen()`.
 
 - [ ] **Step 1: Failing tests**
 
@@ -909,8 +1054,10 @@ def test_datenlinien_behalten_ihre_farben():
 
 def test_umschalten_zeichnet_neu():
     assert "_aktivitaetZuletzt = { data: data, grouping: grouping };" in _chart()
-    m = re.search(r"_designHaken\.push\(function \(\) \{(.*?)\n\}\);", INDEX, re.S)
-    assert m and "_activityChart.destroy()" in m.group(1) and "renderActivityChart(" in m.group(1)
+    a = INDEX.index("function _aktivitaetNeuZeichnen(")
+    rumpf = INDEX[a:INDEX.index("\n}", a)]
+    assert "_activityChart.destroy()" in rumpf and "renderActivityChart(" in rumpf
+    assert "_designHaken.push(_aktivitaetNeuZeichnen);" in INDEX
 ```
 
   Die Datenlinien (Piloten `#2d9cdb`, Flüge `#00d4e0`, Stunden `#f0a500`, Dauer `#D31141`) sind Datenfarben wie auf der Karte und bleiben — außer der ersten: `borderColor: '#2d9cdb'` / `backgroundColor: 'rgba(45,156,219,0.08)'` gehen über `--green`/`--green-rgb`, weil `#2d9cdb` auf Weiß nur 2,9:1 hat.
@@ -943,12 +1090,13 @@ let _aktivitaetZuletzt = null;
   Achtung Format: `getPropertyValue` liefert den Wert so, wie er im CSS steht — `--green-rgb: 45,156,219;` ergibt `45,156,219`, also `rgba(45,156,219,0.05)`, identisch zum alten Literal. Nach dem Ende von `renderActivityChart`:
 
 ```js
-_designHaken.push(function () {
+function _aktivitaetNeuZeichnen() {
   if (!_activityChart || !_aktivitaetZuletzt) return;
   _activityChart.destroy();
   _activityChart = null;
   renderActivityChart(_aktivitaetZuletzt.data, _aktivitaetZuletzt.grouping);
-});
+}
+_designHaken.push(_aktivitaetNeuZeichnen);
 ```
 
 - [ ] **Step 4: Übrige JS-Farben** — Bestand:
@@ -960,7 +1108,7 @@ sed -n '/^<script>$/,$p' app/static/index.html | grep -nE "'#[0-9a-fA-F]{3,8}'|r
 
   Je Treffer entscheiden: Karte (Leaflet-Optionen, `PILOT_COLORS`, `_PLATZRUNDEN_FARBE`, Kutter, Reddung, Kompass, Schilder) → fest. Oberfläche außerhalb der Karte (per JS gesetzte Hintergründe/Schrift in Tabellen, Hinweisen) → `_themaFarbe(...)` bzw. besser eine CSS-Klasse statt Inline-Farbe. Ergebnis als kurze Liste in den Commit-Text.
 
-- [ ] **Step 5: Tests** — `pytest -n 4 tests/`, `python -m scripts.dunkel_vergleich`, Screenshot Statistik-Reiter in beiden Designs. Im dunklen Screenshot muss das Diagramm dem Stand vorher gleichen (Vorher-Screenshot aus Task 4 daneben).
+- [ ] **Step 5: Tests** — `pytest -n 4 tests/`, `python -m scripts.dunkel_vergleich`, Screenshot Statistik-Reiter in beiden Designs. Zusätzlich im laufenden Chromium (Screenshot-Skript, dunkles Design) auswerten: `_themaFarbe('--bg-panel') === '#071525'`, `'rgba(' + _themaFarbe('--green-rgb') + ',0.05)' === 'rgba(45,156,219,0.05)'`, `_themaFarbe('--text-label') === '#6b9ab8'` — belegt, dass die Statistik im Dunklen exakt die alten Literale bekommt (Spec Schritt 3, JS-Teil). Im dunklen Screenshot muss das Diagramm dem Stand vorher gleichen (Vorher-Screenshot aus Task 4 daneben).
 
 - [ ] **Step 6: Commit** `"Helles Design: Statistik und JS-Farben ueber Variablen"`
 
@@ -969,18 +1117,18 @@ sed -n '/^<script>$/,$p' app/static/index.html | grep -nE "'#[0-9a-fA-F]{3,8}'|r
 ### Task 7: Handbuch, Hilfetext, Version, Auslieferung
 
 **Files:**
-- Modify: `README.md` (Handbuch-Absatz), Hilfetext hinter dem `?` in `index.html` (Suche: `help-btn` / Hilfe-Inhalt), `app/CHANGELOG.json`
+- Modify: `README.md` (Handbuch-Absatz), `app/CHANGELOG.json`, `COORDINATION.md`
 
 - [ ] **Step 1: README** — im Abschnitt zur Bedienung einen Absatz „Helles Design": Zahnrad oben rechts → Einstellungen → Anzeige → Design Dunkel/Hell; merkt sich die Wahl je Gerät bzw. am Konto (Website und Kniebrett getrennt); Karte bleibt, Grundkarte wie gewohnt wählen; im Kniebrett erscheint beim Start kurz das dunkle Design. Keine Pfade, keine Zählwörter.
 
-- [ ] **Step 2: Hilfetext** — denselben Inhalt in zwei, drei Sätzen hinter dem `?`; der bisherige Text zur Glocke wird auf „Zahnrad" umgestellt (grep nach `Glocke` im Hilfetext und README, jede Fundstelle anpassen).
+- [ ] **Step 2: Hilfe** — Das `? HILFE` in der Kopfzeile (Z. 4267) ist ein Link auf die README; einen eigenen Hilfetext in `index.html` gibt es nicht, Step 1 deckt ihn also ab. `grep -n -i glocke README.md` — jede Fundstelle, die den Knopf meint, auf „Zahnrad" umstellen.
 
 - [ ] **Step 3: CHANGELOG** — erst wenn keine Suite läuft. Neuer erster Eintrag:
 
 ```json
 {
   "version": "15.32.0",
-  "date": "<Tag der Auslieferung, TT.MM.JJJJ wie die übrigen Einträge>",
+  "date": "JJJJ-MM-TT",
   "highlight": false,
   "title": "Helles Design",
   "items": [
@@ -991,12 +1139,13 @@ sed -n '/^<script>$/,$p' app/static/index.html | grep -nE "'#[0-9a-fA-F]{3,8}'|r
 }
 ```
 
-  Datumsformat vorher an den vorhandenen Einträgen ablesen und übernehmen.
+  Datum der Auslieferung im ISO-Format wie die übrigen Einträge (z. B. `"2026-09-28"`).
 
-- [ ] **Step 4: Gesamtprüfung** — `pytest -n 4 tests/` grün; `python -m scripts.dunkel_vergleich` → `geaendert: 0`, `entfernt:` nur die zwei aus Task 3; Kontrasttest grün.
+- [ ] **Step 4: Gesamtprüfung** — `pytest -n 4 tests/` grün; `python -m scripts.dunkel_vergleich` → Exit 0; Kontrasttest grün.
+- [ ] **Step 4b: COORDINATION.md** — Eintrag oben: Datum, „Helles Design 15.32.0", angefasste Dateien (`app/static/index.html` CSS/Kopfskript/Menü, neue Tests, `scripts/dunkel_vergleich.py`), Hinweis für parallele Sitzungen: „Neue Farben in index.html nur als Variable; dunkler Wert = Literal, heller in `html.hell`".
 
 - [ ] **Step 5: Commit** `"Helles Design (15.32.0): Handbuch, Hilfetext, Changelog"`
 
-- [ ] **Step 6: Auslieferung** — Nutzer fragen, ob gerade geflogen wird; nach Freigabe `git push origin main`, melden und weiter (Deploy nicht überwachen). Nutzer um die Sim-Prüfung bitten: Kniebrett öffnen, Zahnrad → Hell, einmal durch alle Reiter; Website: Zahnrad → Hell, Seite neu laden (darf nicht dunkel aufblitzen).
+- [ ] **Step 6: Auslieferung** — Nutzer fragen, ob gerade geflogen wird; nach Freigabe `git fetch && git rebase origin/main && git push origin main`, melden und weiter (Deploy nicht überwachen). Nutzer um die Sim-Prüfung bitten: Kniebrett öffnen, Zahnrad → Hell, einmal durch alle Reiter; Website: Zahnrad → Hell, Seite neu laden (darf nicht dunkel aufblitzen).
 
 - [ ] **Step 7: Aufräumen** — lokale uvicorn-Instanz beenden, `/home/claude/arbeit/helles-design/` bleibt (Arbeitsverzeichnis, wird überschrieben statt gelöscht).

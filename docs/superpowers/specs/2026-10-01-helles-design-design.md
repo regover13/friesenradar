@@ -55,7 +55,8 @@ Tageszeit oder `prefers-color-scheme`.
 - **Wirkt sofort**, ohne Neuladen.
 - **Sichtbarkeit des Knopfes:** Heute erscheint `#notif-btn` auf der Website nur mit gesetztem
   VAPID-Schlüssel. Da das Menü jetzt auch die Anzeige enthält, wird der Knopf **immer** gezeigt;
-  ohne VAPID-Schlüssel fehlt dann nur der Abschnitt „Benachrichtigungen".
+  ohne VAPID-Schlüssel fehlt dann der ganze Abschnitt „Benachrichtigungen" samt Hinweisen und
+  „Wer darf über mich benachrichtigt werden?" (dieselbe Liste, die das Kniebrett ausblendet).
 
 ## Speicherung
 
@@ -99,17 +100,23 @@ getrennte Stylesheets (jede Änderung doppelt).
 `rgba(45,156,219,x)`-, `rgba(4,8,15,x)`- und `rgba(0,0,0,x)`-Werte. Statt sie auf wenige Stufen
 zusammenzulegen (das änderte das dunkle Design), wird nur der Farbkanal zur Variable, die
 Deckkraft bleibt an der Stelle: `rgba(45,156,219,0.15)` → `rgba(var(--green-rgb),0.15)`.
-Coherent GT (Chrome 49) setzt `var()` innerhalb von `rgba()` ein; das wird in der Probe (Schritt
-1) im Sim bestätigt, bevor der Rest darauf aufbaut. Wo ein Rahmen im hellen Design die
+Coherent GT (Chrome 49) setzt `var()` innerhalb von `rgba()` ein; das wird vorab (Schritt 0)
+im Sim bestätigt, bevor der Rest darauf aufbaut. Wo ein Rahmen im hellen Design die
 Forumsfarbe `#CADCEB` statt eines getönten Blaus braucht, bekommt er eine eigene Variable, deren
 dunkler Wert der bisherige Originalwert ist.
 
 **Regel aus dem Forum:** Friesenrot steht nie direkt auf Himmelblau (3,1:1), nur auf den hellen
 Inhaltsflächen.
 
-**Nebenbei repariert:** die heute benutzten, aber nirgends definierten Variablen `--text-dim`
-(11 Stellen), `--blue` (3), `--text` (1) und `--color-label` (1) – sie werden definiert oder auf
-vorhandene Variablen umgestellt.
+**Undefinierte Variablen bleiben undefiniert:** `--text-dim` (11 Stellen), `--text` (1) und
+`--color-label` (1) sind heute nirgends definiert; die Eigenschaft fällt dort auf den geerbten
+Wert zurück. Sie jetzt zu definieren, änderte das dunkle Design (Punkt 6) – deshalb bleiben sie,
+wie sie sind (im Hellen erben sie dann eben die helle Farbe des Elternelements). Nur
+`var(--blue, #2d9cdb)` (3 Stellen) wird zu `var(--green)` – identischer dunkler Wert.
+
+**Kartenelemente mit Variable:** `.aircraft-marker` nutzt schon heute `var(--green)` und würde im
+Hellen dunkelblau. Solche Stellen bekommen eine `html.hell`-Gegenregel mit dem dunklen Wert
+(Punkt 2); ein Test wacht darüber.
 
 ### Umbau der festen Farbwerte
 
@@ -125,33 +132,47 @@ vorhandene Variablen umgestellt.
 
 ## Vorgehen und Prüfung
 
+0. **Sim-Probe vorab (Patch 15.31.2):** `rgba(var(--green-rgb),0.3)` an genau einer Stelle im
+   Kniebrett (Rahmen der Knöpfe `−`/`+` unter Einstellungen), dunkel unverändert, als eigener
+   kleiner Release. Erst wenn der Nutzer im Sim bestätigt, dass der Rahmen noch da ist, baut der
+   Rest darauf. Kein halbfertiges Helles geht dabei live.
 1. **Probe zuerst.** Variablen, Schalter und die Hauptflächen (Kopfzeile, Pilotenliste,
    Seitenleiste, ein Popup, Einstellungsmenü) umstellen. Der Nutzer sieht die Probe als
    Screenshots der echten Seite (Playwright gegen die lokal gestartete App, Website und
    `?vr=1`, beide Designs), abgelegt unter `files.friesenflieger.de/downloads/` und danach wieder
    gelöscht – Dateien im Chat anzeigen geht in dieser Umgebung nicht. Auf dem Server gibt es
-   bisher keinen Browser; Chromium wird dafür einmalig im venv `~/.venv-friesenspy` installiert.
+   bisher keinen Browser; Chromium wird dafür einmalig im venv `~/.venv-friesenspy` installiert
+   (fehlen Systembibliotheken, wird vor einer apt-Installation gefragt). Daten: eine
+   `.backup`-Kopie der Produktions-DB mit abgeschaltetem Board-Login.
    **Weiter erst nach seinem OK.**
 2. **Vollständiger Umbau** der übrigen Farbwerte, danach erneut Screenshots aller Reiter.
-3. **Nachweis „Dunkel unverändert" (neuer Test):** Er nimmt den CSS-Teil von `index.html` vor dem
+3. **Nachweis „Dunkel unverändert" (Vergleichswerkzeug `scripts/dunkel_vergleich.py`, kein
+   dauerhafter Test – es vergleicht gegen einen festen Ausgangsstand und schlüge bei jeder
+   späteren, gewollten CSS-Änderung an; seine eigene Logik sichert ein kleiner Test):** Es nimmt den CSS-Teil von `index.html` vor dem
    Umbau (Stand aus git) und danach, setzt in der neuen Fassung jedes `var(--…)` mit dem dunklen
-   Wert aus `:root` ein und vergleicht Regel für Regel. Abweichen darf nur, was hinzukommt
-   (`html.hell`-Blöcke, Schalter-Stile). Dasselbe für die Farben, die JavaScript für die
-   Statistik liest. Damit ist die Gleichheit des dunklen Designs belegt, ohne dass ein
+   Wert aus `:root` ein und vergleicht Regel für Regel. Abweichen darf nur, was hinzukommt und
+   angemeldet ist (`html.hell`-Blöcke, Schalter-Stile); jede andere neue Regel gilt als
+   verdächtig. Inline-`style=` und JavaScript sieht das Werkzeug nicht: Für die Statistik wird im
+   Browser nachgewiesen, dass die gelesenen Variablen im Dunklen exakt die alten Literale
+   ergeben. Damit ist die Gleichheit des dunklen Designs belegt, ohne dass ein
    Screenshot-Vergleich Pixel für Pixel nötig wäre.
 4. **Kontrasttest (neu):** rechnet für jede Paarung aus Text- und Hintergrundvariable das
-   WCAG-Kontrastverhältnis in beiden Designs aus und verlangt ≥ 4,5:1 für Text.
+   WCAG-Kontrastverhältnis im hellen Design aus und verlangt ≥ 4,5:1 für Text – auf den
+   Panelflächen für alle Textfarben, auf dem Himmelblau des Grundes nur für `--text-bright` und
+   `--green` (die übrigen erreichen dort ~3:1 und stehen deshalb nie direkt auf dem Grund).
 5. **Bestehende Farb-Tests** (u. a. `test_vr_panel.py`, `test_vrp.py`, `test_ground_chart_ui.py`,
    `test_aip_ui.py`, `test_mithoeren.py`, `test_pilot_links.py`, ~12 Assertions mit wörtlichen
    Werten): Wird ein Wert zur Variable, wird die Assertion auf die Variable umgestellt, nicht
-   gelöscht. `test_karte_merker.py` bekommt den neuen Merker.
+   gelöscht. Tests, die ein **Kartenelement** prüfen, bleiben unverändert – wird einer rot,
+   wurde die Karte umgefärbt. Der neue Merker bekommt eine eigene `test_design_merker.py`.
 6. **Sim-Prüfung durch den Nutzer:** Kniebrett öffnen, auf Hell schalten, einmal durch alle
    Reiter. Coherent GT ist hier nicht verfügbar; die Screenshots zeigen den Aufbau, nicht die
    Darstellung im Cockpit.
 
 ## Abschluss
 
-- README-Absatz (Handbuch) und Hilfetext hinter dem `?` im selben Commit wie die sichtbare
-  Änderung.
-- CHANGELOG-Eintrag mit `"highlight": false`, Nebenversion.
+- README-Absatz (Handbuch) im selben Commit wie die sichtbare Änderung. Das `? HILFE` in der
+  Kopfzeile verlinkt auf die README; einen eigenen Hilfetext gibt es nicht.
+- Eintrag in `COORDINATION.md`; vor jedem Push `git fetch` + Rebase.
+- CHANGELOG-Eintrag mit `"highlight": false`, Nebenversion; Datum im ISO-Format.
 - Deploy nicht in den laufenden Flugbetrieb; vorher fragen, wenn geflogen wird.
