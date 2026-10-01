@@ -50,7 +50,9 @@ Tageszeit oder `prefers-color-scheme`.
   **„Anzeige"** mit dem Design-Schalter; die bisherigen Push- und Sichtbarkeitsteile folgen
   unverändert unter der Überschrift **„Benachrichtigungen"**. Im Kniebrett kommt der Schalter in
   den vorhandenen Abschnitt „Anzeige" (`#panel-anzeige`) neben Größe und Kartenhelligkeit.
-- **Der Schalter** besteht aus zwei Knöpfen „Dunkel" / „Hell", der aktive hervorgehoben. Keine
+- **Der Schalter** steht in einem eigenen Block `#einst-design` vor `#panel-anzeige` (auf der
+  Website ist `#panel-anzeige` ausgeblendet); im Kniebrett ergibt das eine Überschrift
+  „Anzeige" über Design, Größe und Kartenhelligkeit. Er besteht aus zwei Knöpfen „Dunkel" / „Hell", der aktive hervorgehoben. Keine
   Checkbox, kein per `innerHTML` eingesetztes SVG (beides zeigt Coherent GT nicht zuverlässig).
 - **Wirkt sofort**, ohne Neuladen.
 - **Sichtbarkeit des Knopfes:** Heute erscheint `#notif-btn` auf der Website nur mit gesetztem
@@ -91,8 +93,9 @@ getrennte Stylesheets (jede Änderung doppelt).
 | `--green-rgb` (neu, Kanalwerte) | `45,156,219` | `16,82,137` | – |
 | `--green-dim/-glow/-faint/-grid` | unverändert | rgba von `#105289` | – |
 | `--cyan` (Friesenrot) | `#D31141` | `#D31141` | 5,2:1 |
-| `--amber` | `#f0a500` | `#8f5f00` | 5,3:1 |
-| `--red` | `#ff5555` | `#c62828` | 5,4:1 |
+| `--amber` | `#f0a500` | `#8f5f00` (Ausnahme, s. u.) | 5,3:1 |
+| `--red` | `#ff5555` | `#BC2A4D` (Forumsrot) | 5,5:1 |
+| `--chart-fluege` (neu) | `#00d4e0` | `#368AD2` (Forums-Linkblau) | Grafik |
 | `--schleier-rgb` (neu) | `4,8,15` | `251,251,251` | – |
 | `--schatten-rgb` (neu) | `0,0,0` | `43,60,90` (Schieferblau, weicher) | – |
 
@@ -105,6 +108,9 @@ im Sim bestätigt, bevor der Rest darauf aufbaut. Wo ein Rahmen im hellen Design
 Forumsfarbe `#CADCEB` statt eines getönten Blaus braucht, bekommt er eine eigene Variable, deren
 dunkler Wert der bisherige Originalwert ist.
 
+**Einzige Farbe nicht aus dem Forum: `--amber`.** Das Forum hat keinen lesbaren Bernsteinton
+(nur `#FF6600`, 2,7:1). `#8f5f00` hat der Nutzer am 01.10.2026 mit der Palette freigegeben.
+
 **Regel aus dem Forum:** Friesenrot steht nie direkt auf Himmelblau (3,1:1), nur auf den hellen
 Inhaltsflächen.
 
@@ -114,9 +120,21 @@ Wert zurück. Sie jetzt zu definieren, änderte das dunkle Design (Punkt 6) – 
 wie sie sind (im Hellen erben sie dann eben die helle Farbe des Elternelements). Nur
 `var(--blue, #2d9cdb)` (3 Stellen) wird zu `var(--green)` – identischer dunkler Wert.
 
-**Kartenelemente mit Variable:** `.aircraft-marker` nutzt schon heute `var(--green)` und würde im
-Hellen dunkelblau. Solche Stellen bekommen eine `html.hell`-Gegenregel mit dem dunklen Wert
-(Punkt 2); ein Test wacht darüber.
+**Die Karte bleibt dunkel – über ihre Ebenen.** Einige Kartenelemente nutzen schon heute
+Variablen (`.aircraft-marker` `--green`, `.fse-platz-label` `--text-label`) und würden sonst
+umschalten. Ein Block setzt im Hellen auf den Leaflet-Ebenen, die die Karte zeichnen (Kacheln,
+Spuren, Marker, Tooltips) und auf den Marker-Bildchen der Legende die dunklen Variablenwerte
+zurück. Gegenregeln je Selektor scheiden aus: `html.hell .aircraft-marker` schlüge per
+Spezifität `.aircraft-marker-fremd`/`-bruegge` und färbte fremde Flugzeuge blau. Popups und
+Bedienelemente liegen nicht in diesen Ebenen und schalten mit. Literale in Kartenselektoren
+werden nie ersetzt.
+
+**Kopfzeile und Tab-Leiste** haben keinen eigenen Hintergrund; ihr Text stünde im Hellen auf dem
+Himmelblau (3,4:1). Sie bekommen im Hellen die Panelfläche – wie die Navigationsleiste des
+Forums (`#fbfbfb`).
+
+**Bewusst nicht umgestellt:** `manifest.webmanifest` (gilt je Installation, nicht je Nutzer) und
+die iOS-Statusleiste (`apple-mobile-web-app-status-bar-style`, nur beim App-Start gelesen).
 
 ### Umbau der festen Farbwerte
 
@@ -126,7 +144,9 @@ Hellen dunkelblau. Solche Stellen bekommen eine `html.hell`-Gegenregel mit dem d
   laufen über `--green-rgb`, jede mit ihrer bisherigen Deckkraft.
 - **JavaScript:** Betroffen sind nur Farben außerhalb der Karte, vor allem die Statistik
   (Chart.js, `new Chart` ab ~Z. 14547, 16 feste Farben). Sie lesen ihre Farben beim Zeichnen
-  per `getComputedStyle` aus den Variablen und werden beim Umschalten neu gezeichnet.
+  per `getComputedStyle` aus den Variablen und werden beim Umschalten neu gezeichnet. Von den
+  Datenlinien bleibt nur die Dauer (Friesenrot) fest; Flüge (`#00d4e0`, 1,7:1 auf Weiß) und
+  Stunden (`#f0a500`, 1,9:1) laufen über `--chart-fluege` und `--amber`.
   Leaflet-Popups und -Bedienelemente sind CSS und laufen über die Variablen.
 - **Meta-Farbe** `theme-color` folgt dem Design (`#04080f` bzw. `#9FC7F8`).
 
@@ -150,8 +170,9 @@ Hellen dunkelblau. Solche Stellen bekommen eine `html.hell`-Gegenregel mit dem d
    dauerhafter Test – es vergleicht gegen einen festen Ausgangsstand und schlüge bei jeder
    späteren, gewollten CSS-Änderung an; seine eigene Logik sichert ein kleiner Test):** Es nimmt den CSS-Teil von `index.html` vor dem
    Umbau (Stand aus git) und danach, setzt in der neuen Fassung jedes `var(--…)` mit dem dunklen
-   Wert aus `:root` ein und vergleicht Regel für Regel. Abweichen darf nur, was hinzukommt und
-   angemeldet ist (`html.hell`-Blöcke, Schalter-Stile); jede andere neue Regel gilt als
+   Wert aus `:root` ein und vergleicht Regel für Regel. Verglichen wird je Schritt gegen den letzten
+   Commit (so gehören Änderungen paralleler Sitzungen zur Basis). Abweichen darf nur, was
+   hinzukommt und angemeldet ist (`html.hell`-Blöcke, Schalter-Stile); jede andere neue Regel gilt als
    verdächtig. Inline-`style=` und JavaScript sieht das Werkzeug nicht: Für die Statistik wird im
    Browser nachgewiesen, dass die gelesenen Variablen im Dunklen exakt die alten Literale
    ergeben. Damit ist die Gleichheit des dunklen Designs belegt, ohne dass ein
