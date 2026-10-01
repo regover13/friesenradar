@@ -418,7 +418,8 @@ def test_ebenen_auswahl_ist_sichtbar_scrollbar():
     Fund wie bei .scroll-list in CLAUDE.md.
     """
     assert "leaflet-control-layers-scrollbar::-webkit-scrollbar-thumb" in INDEX
-    assert "scrollbar-color: rgba(45,156,219,0.7)" in INDEX
+    # Seit dem hellen Design (15.32.0) ueber den Kanalwert -- im Dunklen derselbe Ton.
+    assert "scrollbar-color: rgba(var(--green-rgb),0.7)" in INDEX
     assert "max-height: 60vh" in INDEX
 
 

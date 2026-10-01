@@ -815,9 +815,72 @@
       /* Kanalwerte fuer rgba(var(--green-rgb), deckkraft) -- helles Design, Spec 2026-10-01.
          Die Deckkraft bleibt an jeder Stelle, wie sie war; nur der Farbton wechselt. */
       --green-rgb:    45,156,219;
+      --schleier-rgb: 4,8,15;
+      --schatten-rgb: 0,0,0;
+      /* Bedienfelder auf der Karte (ICAO-Suche, Ebenen, Deckkraft, Wind, Zoom-Knoepfe) */
+      --text-hell:    #cfe3f0;
+      --knopf-bg:     #0b2036;
+      --knopf-hover:  #14314d;
       --text-mono:    'Courier Prime', monospace;
       --text-display: 'Exo 2', sans-serif;
     }
+
+    /* HELLES DESIGN -- Farben des Forums (board.friesenflieger.de, Friesen.new/colours.css).
+       Friesenrot bleibt; nie Friesenrot direkt auf --bg-body (3,1:1). */
+    html.hell {
+      --bg-body:      #9FC7F8;
+      --bg-panel:     #FBFBFB;
+      --bg-panel-2:   #F1F8FF;
+      --green:        #191D53;   /* Friesen-Navy (_FF_NAVY), klickbar */
+      --green-rgb:    25,29,83;
+      --green-dim:    rgba(25,29,83,0.3);
+      --green-glow:   rgba(25,29,83,0.2);
+      --green-faint:  rgba(25,29,83,0.08);
+      --green-grid:   rgba(25,29,83,0.05);
+      --cyan:         #D31141;
+      --amber:        #D75F28;
+      --red:          #BC2A4D;
+      --text-bright:  #2B3C5A;
+      --text-label:   #536482;
+      --schleier-rgb: 251,251,251;
+      --schatten-rgb: 43,60,90;
+      --text-hell:    #2B3C5A;
+      --knopf-bg:     #F1F8FF;
+      --knopf-hover:  #E1EBF2;
+    }
+    /* KARTE BLEIBT DUNKEL (Spec Punkt 2): Auf den Ebenen, die die Karte zeichnen, gelten im
+       Hellen wieder die dunklen Werte -- Marker, Beschriftungsplaettchen, Spuren, Tooltips und
+       die Marker-Bildchen der Legende. Bewusst KEINE Gegenregel je Selektor: Eine
+       `html.hell .aircraft-marker`-Regel schlaegt per Spezifitaet .aircraft-marker-fremd und
+       -bruegge und faerbte fremde Flugzeuge blau. Popups und Bedienelemente liegen nicht in
+       diesen Ebenen und schalten mit. Waechter: test_karte_schaltet_nicht_mit. */
+    html.hell .leaflet-tile-pane,
+    html.hell .leaflet-overlay-pane,
+    html.hell .leaflet-shadow-pane,
+    html.hell .leaflet-marker-pane,
+    html.hell .leaflet-tooltip-pane,
+    html.hell .karten-legende-flz {
+      --bg-body:      #04080f;
+      --bg-panel:     #071525;
+      --bg-panel-2:   #091b30;
+      --green:        #2d9cdb;
+      --green-rgb:    45,156,219;
+      --green-dim:    rgba(45,156,219,0.3);
+      --green-glow:   rgba(45,156,219,0.2);
+      --green-faint:  rgba(45,156,219,0.08);
+      --green-grid:   rgba(45,156,219,0.05);
+      --cyan:         #D31141;
+      --amber:        #f0a500;
+      --red:          #ff5555;
+      --text-bright:  #d4e8f5;
+      --text-label:   #6b9ab8;
+      --schleier-rgb: 4,8,15;
+      --schatten-rgb: 0,0,0;
+      --text-hell:    #cfe3f0;
+      --knopf-bg:     #0b2036;
+      --knopf-hover:  #14314d;
+    }
+
 
     html.vr-panel {
       /* VR-Panel-Modus (MSFS-EFB, /panel oder ?vr=1): skaliert Text, Abstände, Buttons und
@@ -872,7 +935,7 @@
       padding: 8px 10px;
       margin-bottom: 6px;
       cursor: pointer;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 2px 10px rgba(var(--schatten-rgb), 0.5);
     }
     .panel-hinweis-titel {
       color: var(--green);
@@ -931,7 +994,7 @@
 
     body {
       background:
-        radial-gradient(ellipse at 50% 40%, rgba(45,156,219,0.04) 0%, transparent 70%),
+        radial-gradient(ellipse at 50% 40%, rgba(var(--green-rgb),0.04) 0%, transparent 70%),
         var(--bg-body);
     }
 
@@ -957,7 +1020,7 @@
       z-index: 9999;
       width: 100%;
       height: 2px;
-      background: rgba(45,156,219,0.12);
+      background: rgba(var(--green-rgb),0.12);
       animation: scanline 8s linear infinite;
       top: -2px;
     }
@@ -1001,7 +1064,7 @@
       color: var(--green);
       letter-spacing: 0.12em;
       text-transform: uppercase;
-      text-shadow: 0 0 20px rgba(45,156,219,0.5), 0 0 40px rgba(45,156,219,0.2);
+      text-shadow: 0 0 20px rgba(var(--green-rgb),0.5), 0 0 40px rgba(var(--green-rgb),0.2);
     }
 
     .logo-prefix {
@@ -1121,14 +1184,14 @@
     .tab-btn:hover {
       color: var(--green);
       background: var(--green-faint);
-      box-shadow: 0 0 15px rgba(45,156,219,0.15);
+      box-shadow: 0 0 15px rgba(var(--green-rgb),0.15);
     }
 
     .tab-btn.active {
       color: var(--green);
-      background: rgba(45,156,219,0.08);
+      background: rgba(var(--green-rgb),0.08);
       border-bottom: 2px solid var(--green);
-      text-shadow: 0 0 8px rgba(45,156,219,0.5);
+      text-shadow: 0 0 8px rgba(var(--green-rgb),0.5);
     }
 
     /* =====================================================================
@@ -1251,7 +1314,7 @@
     }
     #bummel-banner, #kutter-banner, #reddung-banner {
       border: 1px solid var(--green-dim);
-      background: linear-gradient(180deg, rgba(45,156,219,0.10), rgba(45,156,219,0.02));
+      background: linear-gradient(180deg, rgba(var(--green-rgb),0.10), rgba(var(--green-rgb),0.02));
       padding: 12px 14px;
       margin-bottom: 16px;
     }
@@ -1270,7 +1333,7 @@
     }
     /* FriesenReddung: ein schlichter Balken -- die Flaeche hat keine Aufschluesselung wie die
        Kutter-Fracht, nur einen Anteil. */
-    .reddung-balken { height: 10px; background: rgba(45,156,219,0.15); margin: 8px 0 6px; }
+    .reddung-balken { height: 10px; background: rgba(var(--green-rgb),0.15); margin: 8px 0 6px; }
     .reddung-fundort { font-size: 22px; line-height: 26px; text-align: center; filter: drop-shadow(0 0 3px #000); }
     .reddung-fundort .emoji-icon { width: 22px; height: 22px; }
     .reddung-balken > span { display: block; height: 100%; background: var(--green); }
@@ -1385,7 +1448,7 @@
     }
 
     tbody tr:hover {
-      background: rgba(45,156,219,0.06);
+      background: rgba(var(--green-rgb),0.06);
     }
 
     tbody tr.new-row {
@@ -1393,7 +1456,7 @@
     }
 
     @keyframes rowHighlight {
-      0%   { background: rgba(45,156,219,0.25); }
+      0%   { background: rgba(var(--green-rgb),0.25); }
       100% { background: transparent; }
     }
 
@@ -1501,9 +1564,9 @@
        Live-Karte einmal geöffnet hatte, und dann global für alle drei Karten. Hier im
        Stylesheet gilt es von Anfang an und für alle, ohne Umweg. */
     .leaflet-control-zoom a {
-      background: #071525 !important;
-      color: #2d9cdb !important;
-      border-color: rgba(45,156,219,0.3) !important;
+      background: var(--bg-panel) !important;
+      color: var(--green) !important;
+      border-color: rgba(var(--green-rgb),0.3) !important;
       /* Mittig, damit die gezeichneten Symbole nicht an der Grundlinie kleben (sie sind
          keine Schriftzeichen mehr, s. _zoomSymbol). */
       display: flex;
@@ -1540,9 +1603,9 @@
        umfaerben, indem man es invertiert -- das ergibt weiss, nicht die Akzentfarbe. Als
        Vektor ist es ausserdem in jeder Aufloesung scharf, was auf dem Tablet zaehlt. */
     .leaflet-control-layers {
-      background: #071525 !important;
-      border: 1px solid rgba(45,156,219,0.3) !important;
-      color: #cfe3f0 !important;
+      background: var(--bg-panel) !important;
+      border: 1px solid rgba(var(--green-rgb),0.3) !important;
+      color: var(--text-hell) !important;
       box-shadow: none !important;
     }
     .leaflet-control-layers-toggle {
@@ -1560,7 +1623,7 @@
     }
     /* Aufgeklappt: die Liste selbst gehoert ins gleiche Bild wie der Knopf. */
     .leaflet-control-layers-expanded { padding: 8px 10px !important; }
-    .leaflet-control-layers-separator { border-top-color: rgba(45,156,219,0.25) !important; }
+    .leaflet-control-layers-separator { border-top-color: rgba(var(--green-rgb),0.25) !important; }
 
     /* Die Liste ist laenger als die Karte hoch ist -- Leaflet begrenzt sie dann selbst und
        macht sie scrollbar (`leaflet-control-layers-scrollbar`). Nur SIEHT man das nicht:
@@ -1582,17 +1645,17 @@
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: thin;
-      scrollbar-color: rgba(45,156,219,0.7) rgba(45,156,219,0.12);
+      scrollbar-color: rgba(var(--green-rgb),0.7) rgba(var(--green-rgb),0.12);
     }
     .leaflet-control-layers-expanded .leaflet-control-layers-list::-webkit-scrollbar,
     .leaflet-control-layers-scrollbar::-webkit-scrollbar { width: 10px; }
     .leaflet-control-layers-expanded .leaflet-control-layers-list::-webkit-scrollbar-track,
     .leaflet-control-layers-scrollbar::-webkit-scrollbar-track {
-      background: rgba(45,156,219,0.12);
+      background: rgba(var(--green-rgb),0.12);
     }
     .leaflet-control-layers-expanded .leaflet-control-layers-list::-webkit-scrollbar-thumb,
     .leaflet-control-layers-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(45,156,219,0.7);
+      background: rgba(var(--green-rgb),0.7);
       border-radius: 5px;
     }
 
@@ -1609,7 +1672,7 @@
        --text-label (#6b9ab8) ist dafuer zu schwach -- derselbe Befund wie bei den
        Knopfbeschriftungen weiter unten. Die Einrueckung ordnet den Haken ohnehin schon zu. */
     html.vr-panel .leaflet-control-layers .ebenen-unterpunkt {
-      color: #cfe3f0;
+      color: var(--text-hell);
       font-size: 1em;
     }
 
@@ -1627,13 +1690,13 @@
       justify-content: center;
       width: 26px !important;
       height: 26px !important;
-      background: #071525 !important;
-      border: 1px solid rgba(45,156,219,0.3) !important;
-      color: #2d9cdb !important;
+      background: var(--bg-panel) !important;
+      border: 1px solid rgba(var(--green-rgb),0.3) !important;
+      color: var(--green) !important;
       cursor: pointer;
     }
     .leaflet-touch .navi-bar .navi-knopf { width: 30px !important; height: 30px !important; }
-    .navi-bar .navi-knopf:hover { background: #0b2036 !important; }
+    .navi-bar .navi-knopf:hover { background: var(--knopf-bg) !important; }
     /* Die Suedhaelfte der Kompassnadel ist normalerweise hell -- auf dem blauen Grund des
        eingeschalteten Zustands waere sie kaum zu sehen. Dort also dunkel, genau wie der
        Moving-Map-Pfeil sein Symbol umkehrt. */
@@ -1655,9 +1718,9 @@
        Lehre fuers Pruefen: Eine gesetzte CSS-Klasse ist KEIN Beleg dafuer, dass man etwas
        sieht. Meine Tests haben die Klasse abgefragt und waren deshalb blind. */
     .navi-bar.navi-an .navi-knopf {
-      background: #2d9cdb !important;
-      color: #04080f !important;
-      border-color: #2d9cdb !important;
+      background: var(--green) !important;
+      color: var(--bg-body) !important;
+      border-color: var(--green) !important;
     }
     /* Kein Drehen moeglich (leaflet-rotate nicht geladen): Knopf bleibt sichtbar, aber
        erkennbar wirkungslos -- lieber ein stummer Knopf als ein Knopf, der nichts tut und
@@ -1690,9 +1753,9 @@
       align-items: center;
       width: 26px;
       padding: 6px 0 3px;
-      background: #071525;
-      border: 1px solid rgba(45,156,219,0.3);
-      color: #2d9cdb;
+      background: var(--bg-panel);
+      border: 1px solid rgba(var(--green-rgb),0.3);
+      color: var(--green);
     }
     /* GEDREHT statt `appearance: slider-vertical`: Diese Eigenschaft ist in Chromium ab 121
        entfernt, ihr Nachfolger `writing-mode: vertical-*` wirkt erst ab derselben Fassung --
@@ -1713,25 +1776,25 @@
        Engine anders aus oder gar nicht. Der Griff ist 22 px gross, damit er im Cockpit mit
        dem Finger zu treffen ist. */
     .deckkraft-regler::-webkit-slider-runnable-track {
-      height: 4px; background: rgba(45,156,219,0.35); border-radius: 2px;
+      height: 4px; background: rgba(var(--green-rgb),0.35); border-radius: 2px;
     }
     .deckkraft-regler::-webkit-slider-thumb {
       -webkit-appearance: none; appearance: none;
       width: 22px; height: 22px; margin-top: -9px; border-radius: 50%;
-      background: #2d9cdb; border: 2px solid #04080f;
+      background: var(--green); border: 2px solid var(--bg-body);
     }
     .deckkraft-regler::-moz-range-track {
-      height: 4px; background: rgba(45,156,219,0.35); border-radius: 2px;
+      height: 4px; background: rgba(var(--green-rgb),0.35); border-radius: 2px;
     }
     .deckkraft-regler::-moz-range-thumb {
       width: 22px; height: 22px; border-radius: 50%;
-      background: #2d9cdb; border: 2px solid #04080f;
+      background: var(--green); border: 2px solid var(--bg-body);
     }
     .deckkraft-text {
       font-family: var(--text-mono, monospace);
       font-size: 9px;
       line-height: 1.2;
-      color: #cfe3f0;
+      color: var(--text-hell);
       margin-top: 3px;
     }
 
@@ -1758,17 +1821,17 @@
       z-index: 1200; display: none;
       width: 292px; max-width: calc(100% - 20px);
       padding: 8px;
-      background: #071525;
-      border: 1px solid rgba(45,156,219,0.3);
-      color: #cfe3f0;
+      background: var(--bg-panel);
+      border: 1px solid rgba(var(--green-rgb),0.3);
+      color: var(--text-hell);
     }
     .icao-box.icao-auf { display: block; }
     .icao-kopf { display: flex; align-items: center; }
     .icao-feld {
       flex: 1; min-width: 0; height: 34px; margin-right: 4px; padding: 0 8px;
-      background: #04080f;
-      border: 1px solid rgba(45,156,219,0.35);
-      color: #cfe3f0;
+      background: var(--bg-body);
+      border: 1px solid rgba(var(--green-rgb),0.35);
+      color: var(--text-hell);
       font-family: var(--text-mono, monospace);
       /* 16px, ausdruecklich in px und nicht in rem: Safari auf iOS zoomt beim Fokus in
          die Seite hinein, sobald die Schrift eines Eingabefelds UNTER 16 px liegt. In rem
@@ -1779,13 +1842,13 @@
     .icao-taste {
       width: 28px; height: 34px; margin: 2px; padding: 0;
       display: inline-flex; align-items: center; justify-content: center;
-      background: #0b2036;
-      border: 1px solid rgba(45,156,219,0.3);
-      color: #cfe3f0;
+      background: var(--knopf-bg);
+      border: 1px solid rgba(var(--green-rgb),0.3);
+      color: var(--text-hell);
       font-family: var(--text-mono, monospace);
       font-size: 0.95rem; cursor: pointer;
     }
-    .icao-taste:hover { background: #14314d; }
+    .icao-taste:hover { background: var(--knopf-hover); }
     .icao-kopf .icao-taste { width: 34px; }
     .icao-taste svg { width: 18px; height: 18px; display: block; }
     .icao-tasten { margin-top: 6px; }
@@ -1797,12 +1860,12 @@
     .icao-zeile {
       display: flex; align-items: baseline; width: 100%;
       padding: 5px 6px; margin: 0; text-align: left;
-      background: none; border: none; border-bottom: 1px solid rgba(45,156,219,0.15);
-      color: #cfe3f0; font-size: 0.82rem; cursor: pointer;
+      background: none; border: none; border-bottom: 1px solid rgba(var(--green-rgb),0.15);
+      color: var(--text-hell); font-size: 0.82rem; cursor: pointer;
     }
-    .icao-zeile:hover { background: rgba(45,156,219,0.12); }
+    .icao-zeile:hover { background: rgba(var(--green-rgb),0.12); }
     .icao-zeile b {
-      font-family: var(--text-mono, monospace); color: #2d9cdb;
+      font-family: var(--text-mono, monospace); color: var(--green);
       margin-right: 8px; flex: none;
     }
     .icao-zeile span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -1846,9 +1909,9 @@
     .wind-bar .wind-feld {
       display: flex;
       align-items: center;
-      background: #071525;
-      border: 1px solid rgba(45,156,219,0.3);
-      color: #2d9cdb;
+      background: var(--bg-panel);
+      border: 1px solid rgba(var(--green-rgb),0.3);
+      color: var(--green);
       padding: 5px 9px 5px 6px;
     }
     .wind-bar .wind-pfeil {
@@ -1863,7 +1926,7 @@
       font-family: var(--text-display);
       font-size: 0.78rem;
       letter-spacing: 0.05em;
-      color: #cfe3f0;
+      color: var(--text-hell);
       white-space: nowrap;
     }
     /* DER FOLGE-KNOPF MUSS AUS DEM FLUSS SEINER ECKE HERAUS, sonst schiebt ihn die
@@ -1904,11 +1967,11 @@
       z-index: 900;
     }
     .leaflet-control-attribution {
-      background: rgba(4,8,15,0.8) !important;
-      color: #6b9ab8 !important;
+      background: rgba(var(--schleier-rgb),0.8) !important;
+      color: var(--text-label) !important;
       font-size: 9px !important;
     }
-    .leaflet-control-attribution a { color: #2d9cdb !important; }
+    .leaflet-control-attribution a { color: var(--green) !important; }
 
     /* Vollbild-Toggle für Kartenansichten (Karte-Tab, Events-Tab, Track-Modal) — unten links,
        damit es nicht mit Leaflets Zoom-Control (+/-, oben links) kollidiert. */
@@ -2034,7 +2097,7 @@
       top: 0; right: 0; bottom: 0; left: 0;
       z-index: 999999;
       display: none;
-      background: #04080f;
+      background: var(--bg-body);
       color: var(--text-bright);
       padding: 40px 28px 28px;
       overflow-y: auto;
@@ -2049,7 +2112,7 @@
     .panel-paket-sperre p { font-size: 0.9rem; line-height: 1.6; margin: 0 0 14px; }
     .panel-paket-sperre .adresse {
       display: block;
-      background: #071525;
+      background: var(--bg-panel);
       border: 1px solid var(--green-dim);
       color: var(--green);
       font-family: var(--text-mono);
@@ -3084,11 +3147,11 @@
     .btn:hover {
       background: var(--green-faint);
       border-color: var(--green);
-      box-shadow: 0 0 15px rgba(45,156,219,0.5);
+      box-shadow: 0 0 15px rgba(var(--green-rgb),0.5);
     }
 
     .btn:active {
-      background: rgba(45,156,219,0.15);
+      background: rgba(var(--green-rgb),0.15);
     }
 
     .btn-primary {
@@ -3100,7 +3163,7 @@
 
     .btn-primary:hover {
       background: #5db8f0;
-      box-shadow: 0 0 20px rgba(45,156,219,0.6);
+      box-shadow: 0 0 20px rgba(var(--green-rgb),0.6);
     }
 
     /* =====================================================================
@@ -3296,7 +3359,7 @@
     .fp-modal-overlay {
       position: fixed;
       top: 0; right: 0; bottom: 0; left: 0;
-      background: rgba(4,8,15,0.88);
+      background: rgba(var(--schleier-rgb),0.88);
       z-index: 10000;
       display: flex;
       align-items: center;
@@ -3307,7 +3370,7 @@
     .fp-modal-box {
       background: var(--bg-panel);
       border: 1px solid var(--green);
-      box-shadow: 0 0 40px rgba(45,156,219,0.25), 0 0 80px rgba(45,156,219,0.08);
+      box-shadow: 0 0 40px rgba(var(--green-rgb),0.25), 0 0 80px rgba(var(--green-rgb),0.08);
       width: min(720px, 95vw);
       max-height: 88vh;
       overflow-y: auto;
@@ -3325,7 +3388,7 @@
       justify-content: space-between;
       padding: 16px 20px;
       border-bottom: 1px solid var(--green-dim);
-      background: rgba(45,156,219,0.04);
+      background: rgba(var(--green-rgb),0.04);
     }
 
     .fp-callsign-title {
@@ -3334,7 +3397,7 @@
       font-size: 1.5rem;
       color: var(--green);
       letter-spacing: 0.12em;
-      text-shadow: 0 0 12px rgba(45,156,219,0.5);
+      text-shadow: 0 0 12px rgba(var(--green-rgb),0.5);
     }
 
     .fp-close-btn {
@@ -3427,7 +3490,7 @@
     }
 
     .td-callsign-link:hover {
-      text-shadow: 0 0 12px rgba(45,156,219,0.9);
+      text-shadow: 0 0 12px rgba(var(--green-rgb),0.9);
     }
 
     /* Events: Callsign prominenter als CID */
@@ -3505,7 +3568,7 @@
       z-index: 9000;
       background: var(--bg-panel);
       border: 1px solid var(--green-dim);
-      box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+      box-shadow: 0 4px 24px rgba(var(--schatten-rgb),0.6);
       padding: 16px;
       min-width: 260px;
       max-width: 320px;
@@ -3544,14 +3607,14 @@
          gilt die Mindestgroesse weiter (s. die 44px-Regel im Panel-Block). */
       width: 44px; height: 44px;
       display: flex; align-items: center; justify-content: center;
-      background: #0b2036;
+      background: var(--knopf-bg);
       border: 1px solid rgba(var(--green-rgb),0.3);
       color: var(--green);
       font-family: var(--text-display);
       font-size: 1.2rem;
       cursor: pointer;
     }
-    .panel-zoom-knopf:hover { background: #14314d; }
+    .panel-zoom-knopf:hover { background: var(--knopf-hover); }
     .panel-zoom-wert {
       min-width: 78px;
       text-align: center;
@@ -3565,7 +3628,7 @@
       min-height: 44px;
       margin-top: 8px;
       background: transparent;
-      border: 1px solid rgba(45,156,219,0.3);
+      border: 1px solid rgba(var(--green-rgb),0.3);
       color: var(--text-label);
       font-family: var(--text-display);
       font-size: 0.78rem;
@@ -3728,7 +3791,7 @@
     }
     .td-map-btn:hover {
       color: var(--green);
-      text-shadow: 0 0 8px rgba(45,156,219,0.7);
+      text-shadow: 0 0 8px rgba(var(--green-rgb),0.7);
     }
 
     /* =====================================================================
@@ -3975,7 +4038,7 @@
       flex-shrink: 0;
       transition: all 0.15s ease;
     }
-    .install-banner-btn:hover { background: #5db8f0; box-shadow: 0 0 16px rgba(45,156,219,0.6); }
+    .install-banner-btn:hover { background: #5db8f0; box-shadow: 0 0 16px rgba(var(--green-rgb),0.6); }
     .install-banner-close {
       background: transparent;
       border: 1px solid var(--green-dim);
@@ -3994,8 +4057,8 @@
       .install-banner-btn { order: 3; }
     }
     /* Changelog-Banner: gleiche Basis wie Install-Banner, anderer Akzent (Blau statt Grün) */
-    .changelog-banner { border-left: 3px solid var(--blue, #2d9cdb); }
-    .changelog-banner .install-banner-text strong { color: var(--blue, #2d9cdb); }
+    .changelog-banner { border-left: 3px solid var(--green); }
+    .changelog-banner .install-banner-text strong { color: var(--green); }
     /* Versionsverlauf-Modal */
     .changelog-entry { padding: 12px 0; border-bottom: 1px solid var(--green-grid); }
     .changelog-entry:last-child { border-bottom: none; }
@@ -4003,7 +4066,7 @@
       display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px;
     }
     .changelog-entry-ver {
-      font-family: var(--text-mono); font-weight: 700; color: var(--blue, #2d9cdb); font-size: 0.95rem;
+      font-family: var(--text-mono); font-weight: 700; color: var(--green); font-size: 0.95rem;
     }
     .changelog-entry-date { font-family: var(--text-mono); font-size: 0.75rem; color: var(--text-label); opacity: 0.7; }
     .changelog-entry-title { font-size: 0.9rem; color: var(--text); }
@@ -4025,7 +4088,7 @@
       display: none;
       position: fixed;
       top: 0; right: 0; bottom: 0; left: 0;
-      background: rgba(4,8,15,0.88);
+      background: rgba(var(--schleier-rgb),0.88);
       z-index: 10000;
       align-items: center;
       justify-content: center;
@@ -4036,7 +4099,7 @@
       position: relative;
       background: var(--bg-panel);
       border: 1px solid var(--green);
-      box-shadow: 0 0 40px rgba(45,156,219,0.25), 0 0 80px rgba(45,156,219,0.08);
+      box-shadow: 0 0 40px rgba(var(--green-rgb),0.25), 0 0 80px rgba(var(--green-rgb),0.08);
       width: min(560px, 95vw);
       padding: 18px 20px 20px;
       animation: fpModalIn 0.15s ease-out;
@@ -4111,6 +4174,49 @@
        Rand waere in jeder Ansicht zu sehen. */
     .zieh-balken[hidden] { display: none; }
     .zieh-balken[data-bereit="1"] { background: var(--green); }
+    /* =====================================================================
+       HELLES DESIGN: Gegenregeln (am Ende, damit sie bei gleicher Spezifitaet gewinnen)
+       ===================================================================== */
+    /* Kopfzeile und Tabs haben keinen eigenen Hintergrund; im Hellen stuende ihr Text auf
+       dem Himmelblau (--text-label 3,4:1). Das Forum legt seine Navigation ebenso auf #fbfbfb. */
+    html.hell header,
+    html.hell .tab-nav { background: var(--bg-panel); border-bottom: 1px solid #CADCEB; }
+    html.hell #userName { color: var(--text-bright) !important; }
+    /* Beschriftungen im Einstellungsmenue (Design, Groesse, Kartenhelligkeit) stehen dunkel in
+       --green-dim (0,3 Deckkraft); im Hellen waeren sie unlesbar blass. Dunkel bleibt. */
+    html.hell .panel-einst-name { color: var(--text-label); }
+
+    /* Helle Schrift- und Flaechenfarben, die nur auf dunklem Grund funktionieren. Im Hellen auf
+       Forums- und Friesenfarben gelegt; das Dunkle bleibt unberuehrt (Waechter:
+       test_helle_schrift_hat_im_hellen_eine_gegenregel). Orange = FriesenOrange (#D75F28) fuer
+       Hervorhebungen, Rot = Forumsrot (#BC2A4D), Trennlinien = Forumsrahmen (#CADCEB). */
+    html.hell #reddung-banner .reddung-status-fehlt,
+    html.hell .bummel-rank-1,
+    html.hell .bummel-incomplete .bi-missing { color: #D75F28; }
+    html.hell .reddung-lage { border-left-color: #D75F28; }
+    html.hell .reddung-hinweis { background: rgba(251,251,251,0.96); border-color: #D75F28; }
+    html.hell .panel-hinweis { background: rgba(251,251,251,0.96); }
+    html.hell .kutter-quip { color: var(--text-label); }
+    html.hell .kutter-summary { color: var(--text-bright); }
+    html.hell .kutter-feed td.kf-relay,
+    html.hell .kutter-feed td.kf-relay-kg { color: #368AD2; }
+    html.hell .kutter-loss,
+    html.hell .kutter-feed td.kf-empty.kutter-loss { color: #BC2A4D; }
+    html.hell .kutter-seg { background: #E1EBF2; }
+    html.hell .kutter-live-block + .kutter-live-block,
+    html.hell .kutter-grp-h.kutter-grp-section,
+    html.hell .karten-legende-abschnitt { border-top-color: #CADCEB; }
+    html.hell .popup-bruegge { color: var(--text-bright); }
+    html.hell .icao-hinweis,
+    html.hell .ac-credit,
+    html.hell .ac-block h4 { color: var(--text-label); }
+    html.hell .btn-primary:hover,
+    html.hell .install-banner-btn:hover { background: #368AD2; }
+
+    /* Ebenen-Symbol: Farbe steckt in der Data-URL, dort greift kein var() -- Navy im Hellen. */
+    html.hell .leaflet-control-layers-toggle {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2 22 8 12 14 2 8z' fill='%23191D53'/%3E%3Cpath d='M12 16.4 4.4 11.9 2 13.2l10 5.9 10-5.9-2.4-1.3z' fill='%23191D53' opacity='.6'/%3E%3C/svg%3E") !important;
+    }
   </style>
 </head>
 <body>
@@ -4446,7 +4552,7 @@
       <button class="notif-save-btn" id="notif-save-btn">Speichern</button>
     </div>
     <div id="visibility-section" hidden
-         style="border-top:1px solid rgba(45,156,219,0.2); margin-top:14px; padding-top:10px;">
+         style="border-top:1px solid rgba(var(--green-rgb),0.2); margin-top:14px; padding-top:10px;">
       <a href="#" id="visibility-toggle"
          style="color:var(--green); cursor:pointer; text-decoration:none; font-size:0.82rem; font-weight:500;"><svg class="icon"><use href="#icon-lock" xlink:href="#icon-lock"/></svg> Wer darf über mich benachrichtigt werden? <span id="visibility-caret"><svg class="icon"><use href="#icon-caret-right" xlink:href="#icon-caret-right"/></svg></span></a>
       <div id="visibility-body" class="notif-filter-section" hidden style="margin-top:10px;">

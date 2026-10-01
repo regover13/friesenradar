@@ -1284,11 +1284,12 @@ def test_moving_map_an_ist_auch_sichtbar():
     m = re.search(r"\.navi-bar\.navi-an \.navi-knopf \{([^}]*)\}", INDEX, re.S)
     assert m, "An-Zustand des Moving-Map-Knopfes nicht gefunden"
     regel = m.group(1)
-    assert "background: #2d9cdb !important" in regel, \
+    # Seit dem hellen Design (15.32.0) ueber Variablen -- im Dunklen dieselben Werte.
+    assert "background: var(--green) !important" in regel, \
         "ohne !important gewinnt die Grundfarbe und der Knopf sieht an wie aus aus"
     # Gegenprobe: Die Grundfarbe traegt es tatsaechlich -- sonst waere das obige unnoetig.
     g = re.search(r"\.navi-bar \.navi-knopf \{([^}]*)\}", INDEX, re.S)
-    assert g and "background: #071525 !important" in g.group(1)
+    assert g and "background: var(--bg-panel) !important" in g.group(1)
 
 
 def test_kartenknoepfe_sehen_gleich_aus():
@@ -1299,7 +1300,7 @@ def test_kartenknoepfe_sehen_gleich_aus():
     deshalb ein eingebettetes SVG in der Akzentfarbe: Ein PNG liesse sich nur invertieren
     (ergibt weiss, nicht blau) und waere auf dem Tablet ausserdem unscharf."""
     m = re.search(r"\.leaflet-control-layers \{([^}]*)\}", INDEX, re.S)
-    assert m and "#071525" in m.group(1), "die Ebenen-Auswahl traegt nicht den dunklen Grund"
+    assert m and "var(--bg-panel)" in m.group(1), "die Ebenen-Auswahl traegt nicht den Panelgrund"
     t = re.search(r"\.leaflet-control-layers-toggle \{([^}]*)\}", INDEX, re.S)
     assert t, "Ebenen-Symbol nicht gefunden"
     assert "data:image/svg+xml" in t.group(1), "Leaflets PNG-Symbol ist noch da"
