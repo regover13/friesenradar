@@ -821,6 +821,7 @@
       --text-hell:    #cfe3f0;
       --knopf-bg:     #0b2036;
       --knopf-hover:  #14314d;
+      --chart-fluege: #00d4e0;   /* Statistik: Linie "Fluege" */
       --text-mono:    'Courier Prime', monospace;
       --text-display: 'Exo 2', sans-serif;
     }
@@ -847,6 +848,7 @@
       --text-hell:    #2B3C5A;
       --knopf-bg:     #F1F8FF;
       --knopf-hover:  #E1EBF2;
+      --chart-fluege: #368AD2;
     }
     /* KARTE BLEIBT DUNKEL (Spec Punkt 2): Auf den Ebenen, die die Karte zeichnen, gelten im
        Hellen wieder die dunklen Werte -- Marker, Beschriftungsplaettchen, Spuren, Tooltips und
@@ -879,6 +881,7 @@
       --text-hell:    #cfe3f0;
       --knopf-bg:     #0b2036;
       --knopf-hover:  #14314d;
+      --chart-fluege: #00d4e0;
     }
 
 
@@ -14747,7 +14750,15 @@ async function fetchAndRenderChart(days) {
   } catch (_) {}
 }
 
+// Liest eine Design-Variable. Im dunklen Design liefert sie exakt die frueheren Literale --
+// das Diagramm sieht dort unveraendert aus (Spec helles Design, Punkt 6).
+function _themaFarbe(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+let _aktivitaetZuletzt = null;
+
 function renderActivityChart(data, grouping) {
+  _aktivitaetZuletzt = { data: data, grouping: grouping };
   const wrap = document.getElementById('stats-activity-wrap');
   if (!wrap) return;
 
@@ -14778,8 +14789,8 @@ function renderActivityChart(data, grouping) {
         {
           label: 'Piloten',
           data: pilotData,
-          borderColor: '#2d9cdb',
-          backgroundColor: 'rgba(45,156,219,0.08)',
+          borderColor: _themaFarbe('--green'),
+          backgroundColor: 'rgba(' + _themaFarbe('--green-rgb') + ',0.08)',
           fill: true,
           yAxisID: 'y',
           tension: 0.35,
@@ -14790,7 +14801,7 @@ function renderActivityChart(data, grouping) {
         {
           label: 'Flüge',
           data: flightData,
-          borderColor: '#00d4e0',
+          borderColor: _themaFarbe('--chart-fluege'),
           backgroundColor: 'transparent',
           yAxisID: 'y',
           tension: 0.35,
@@ -14801,7 +14812,7 @@ function renderActivityChart(data, grouping) {
         {
           label: 'Flugstunden',
           data: hoursData,
-          borderColor: '#f0a500',
+          borderColor: _themaFarbe('--amber'),
           backgroundColor: 'transparent',
           yAxisID: 'y1',
           tension: 0.35,
@@ -14832,18 +14843,18 @@ function renderActivityChart(data, grouping) {
       plugins: {
         legend: {
           labels: {
-            color: '#6b9ab8',
+            color: _themaFarbe('--text-label'),
             font: { family: "'Exo 2', sans-serif", size: 10 },
             boxWidth: 18, padding: 10,
             usePointStyle: true,
           },
         },
         tooltip: {
-          backgroundColor: '#071525',
-          borderColor: 'rgba(45,156,219,0.3)',
+          backgroundColor: _themaFarbe('--bg-panel'),
+          borderColor: 'rgba(' + _themaFarbe('--green-rgb') + ',0.3)',
           borderWidth: 1,
-          titleColor: '#2d9cdb',
-          bodyColor: '#d4e8f5',
+          titleColor: _themaFarbe('--green'),
+          bodyColor: _themaFarbe('--text-bright'),
           callbacks: {
             label: item => item.raw != null
               ? ` ${item.dataset.label}: ${item.raw}` : null,
@@ -14852,9 +14863,9 @@ function renderActivityChart(data, grouping) {
       },
       scales: {
         x: {
-          grid: { color: 'rgba(45,156,219,0.05)' },
+          grid: { color: 'rgba(' + _themaFarbe('--green-rgb') + ',0.05)' },
           ticks: {
-            color: '#6b9ab8',
+            color: _themaFarbe('--text-label'),
             font: { family: "'Courier Prime', monospace", size: 9 },
             maxRotation: 45,
             autoSkip: true,
@@ -14865,14 +14876,14 @@ function renderActivityChart(data, grouping) {
           type: 'linear',
           position: 'left',
           beginAtZero: true,
-          grid: { color: 'rgba(45,156,219,0.07)' },
+          grid: { color: 'rgba(' + _themaFarbe('--green-rgb') + ',0.07)' },
           ticks: {
-            color: '#6b9ab8',
+            color: _themaFarbe('--text-label'),
             font: { size: 10 },
             stepSize: 1,
             maxTicksLimit: 6,
           },
-          title: { display: true, text: 'Anzahl', color: '#6b9ab8', font: { size: 9 } },
+          title: { display: true, text: 'Anzahl', color: _themaFarbe('--text-label'), font: { size: 9 } },
         },
         y1: {
           type: 'linear',
@@ -14880,16 +14891,29 @@ function renderActivityChart(data, grouping) {
           beginAtZero: true,
           grid: { drawOnChartArea: false },
           ticks: {
-            color: '#6b9ab8',
+            color: _themaFarbe('--text-label'),
             font: { size: 10 },
             maxTicksLimit: 6,
           },
-          title: { display: true, text: 'Flugstunden', color: '#6b9ab8', font: { size: 9 } },
+          title: { display: true, text: 'Flugstunden', color: _themaFarbe('--text-label'), font: { size: 9 } },
         },
       },
     },
   });
 }
+
+function _aktivitaetNeuZeichnen() {
+  if (!_activityChart || !_aktivitaetZuletzt) return;
+  const canvas = _activityChart.canvas;
+  _activityChart.destroy();
+  _activityChart = null;
+  // Nicht in einen verborgenen Reiter zeichnen: Coherent GT hat keinen ResizeObserver, ein
+  // Chart auf einem 0x0-Canvas bliebe dort leer. Ist der Reiter zu, baut der naechste
+  // Abruf das Diagramm ohnehin neu (renderActivityChart mit _activityChart === null).
+  if (canvas && canvas.offsetParent === null) return;
+  renderActivityChart(_aktivitaetZuletzt.data, _aktivitaetZuletzt.grouping);
+}
+_designHaken.push(_aktivitaetNeuZeichnen);
 
 function renderStatsSummary(stats, days) {
   const totalFlights = stats.reduce((s, p) => s + (p.flight_count || 0), 0);
