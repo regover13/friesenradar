@@ -925,7 +925,8 @@ def test_glocke_im_panel_ist_einfaerbbar_und_steht_fest_im_markup():
     eingesetztes <svg> blieb in Coherent GT unsichtbar, obwohl dieselbe Sprite-Referenz im
     festen Markup einwandfrei rendert (Sim-Fund 14.08.2026). Wer das wieder auf JavaScript
     umstellt, macht die Glocke im Tablet erneut unsichtbar."""
-    assert 'class="emoji-icon notif-glocke-web"' in INDEX
+    # Seit 15.32.0 Zahnrad auch auf der Website (helles Design) -- die Twemoji-Glocke ist weg.
+    assert "emoji-icon notif-glocke-web" not in INDEX
     assert "html.vr-panel .notif-glocke-web { display: none; }" in INDEX
     assert "glocke.innerHTML" not in INDEX, "Glocke darf nicht per JavaScript erzeugt werden"
     # Seit 03.09.2026 zeigt das Kniebrett ein ZAHNRAD: Die Ansicht dahinter enthaelt nicht
@@ -3499,7 +3500,7 @@ def test_die_gemerkte_groesse_wird_erst_nach_der_serverantwort_angewandt():
 def test_die_einstellungsansicht_traegt_beide_themen():
     """Die Ansicht hinter dem Zahnrad enthält seit 03.09.2026 zwei Dinge -- der alte Titel
     „Benachrichtigungen" benannte nur eines davon."""
-    assert "titel.textContent = 'Einstellungen';" in INDEX
+    assert '<div class="notif-panel-title">Einstellungen</div>' in INDEX
     assert 'id="panel-anzeige"' in INDEX
     assert "panel-abschnitt-titel" in INDEX
     # Auf der Website gibt es kein Kniebrett, dessen Flaeche zu klein waere.

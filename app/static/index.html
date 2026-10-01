@@ -772,6 +772,13 @@
        Alle drei stehen fest im Markup: Ein per innerHTML eingesetztes <svg> blieb in
        Coherent GT unsichtbar (Sim-Fund 14.08.2026), obwohl richtig platziert und bemessen. */
     .notif-glocke-panel, .notif-zahnrad-panel { display: none; }
+    /* Seit 15.32.0 auch auf der Website: Das Menue enthaelt dort das Design (helles Design,
+       Spec 2026-10-01). Die html.vr-panel-Regel darunter bleibt und wiederholt nur. */
+    .notif-zahnrad-panel {
+      display: inline-block;
+      fill: currentColor;
+      fill-rule: evenodd;
+    }
     /* `fill: currentColor` MUSS hier stehen, nicht nur als Attribut am <svg>: Die Klasse
        `.icon` setzt `fill: none` (fuer die konturgezeichneten Symbole), und eine CSS-Regel
        schlaegt jedes Praesentationsattribut -- egal wie spezifisch das Attribut gemeint war.
@@ -785,6 +792,8 @@
       fill: currentColor;
       fill-rule: evenodd;
     }
+    /* trifft seit 15.32.0 nichts mehr (das <img> ist weg); bleibt stehen, damit der
+       Dunkel-Vergleich ohne Entferntes auskommt. */
     html.vr-panel .notif-glocke-web { display: none; }
 
     :root {
@@ -3576,6 +3585,39 @@
     }
     .panel-einst-name:first-of-type { margin-top: 6px; }
 
+    /* Design-Schalter: zwei Knoepfe, der aktive gefuellt. Farben ueber Variablen, damit er in
+       beiden Designs stimmt. */
+    .design-knopf {
+      background: none;
+      border: 1px solid var(--green-dim);
+      color: var(--text-label);
+      font-family: var(--text-mono);
+      padding: 4px 12px;
+      cursor: pointer;
+    }
+    /* 44px wie alles Bedienbare im Kniebrett (s. Z. ~2070, .panel-zoom-knopf). */
+    html.vr-panel .design-knopf { min-height: 44px; min-width: 88px; }
+    .design-knopf.an {
+      background: var(--green);
+      border-color: var(--green);
+      color: var(--bg-panel);
+    }
+    /* Ohne VAPID-Schluessel war der Knopf frueher gar nicht sichtbar; jetzt oeffnet er das Menue
+       trotzdem (Anzeige). Alles, was am Web-Push haengt, fehlt dann -- dieselbe Liste wie im
+       Kniebrett (html.vr-panel-Block oben), plus die Ueberschrift. */
+    .notif-panel:not(.mit-push) #notif-web-titel,
+    .notif-panel:not(.mit-push) #notif-enabled-row,
+    .notif-panel:not(.mit-push) #notif-filter,
+    .notif-panel:not(.mit-push) #notif-ios-hint,
+    .notif-panel:not(.mit-push) #notif-blocked-hint,
+    .notif-panel:not(.mit-push) #notif-install-btn,
+    .notif-panel:not(.mit-push) #notif-reset-btn,
+    .notif-panel:not(.mit-push) #visibility-section { display: none !important; }
+    html.vr-panel #notif-web-titel { display: none !important; }
+    /* "Groesse" ist seit dem Herausnehmen der Ueberschrift das erste .panel-einst-name in
+       #panel-anzeige; ohne diese Regel rueckte es von 14px auf 6px Abstand (Zeile ~3559). */
+    #panel-anzeige .panel-einst-name:first-of-type { margin-top: 14px; }
+
     html:not(.vr-panel) #panel-anzeige { display: none !important; }
 
     .notif-panel::-webkit-scrollbar { width: 8px; }
@@ -4301,7 +4343,7 @@
            die Glocke ist der einzige Fall mit zwei Fassungen (Twemoji fuer die Website,
            Vektor fuer den Verbindungszustand im Panel) -- ein Sprite-Verweis brauechte hier
            also ohnehin eine Sonderbehandlung, ohne irgendetwas zu gewinnen. -->
-      <button id="notif-btn" class="notif-btn" title="Benachrichtigungen" hidden><img class="emoji-icon notif-glocke-web" src="/static/emoji/bell.svg" alt="" /><svg class="icon notif-glocke-panel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 8 2 8H4s2-2 2-8"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg><svg class="icon notif-zahnrad-panel" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.4-2.3 1a7.8 7.8 0 0 0-1.7-1l-.3-2.5h-4l-.3 2.5c-.6.2-1.2.6-1.7 1l-2.3-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.3-1c.5.4 1.1.8 1.7 1l.3 2.5h4l.3-2.5c.6-.2 1.2-.6 1.7-1l2.3 1 2-3.4-2-1.5zM12 15.2A3.2 3.2 0 1 1 12 8.8a3.2 3.2 0 0 1 0 6.4z"/></svg></button>
+      <button id="notif-btn" class="notif-btn" title="Einstellungen"><svg class="icon notif-glocke-panel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 8 2 8H4s2-2 2-8"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg><svg class="icon notif-zahnrad-panel" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.4-2.3 1a7.8 7.8 0 0 0-1.7-1l-.3-2.5h-4l-.3 2.5c-.6.2-1.2.6-1.7 1l-2.3-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.3-1c.5.4 1.1.8 1.7 1l.3 2.5h4l.3-2.5c.6-.2 1.2-.6 1.7-1l2.3 1 2-3.4-2-1.5zM12 15.2A3.2 3.2 0 1 1 12 8.8a3.2 3.2 0 0 1 0 6.4z"/></svg></button>
       <div id="sse-badge" class="sse-badge disconnected">
         <div class="sse-dot"></div>
         <span class="sse-label" id="sse-label">GETRENNT</span>
@@ -4313,7 +4355,7 @@
 
   <!-- Notification Panel (fixed overlay) -->
   <div id="notif-panel" class="notif-panel" hidden>
-    <div class="notif-panel-title">Benachrichtigungen</div>
+    <div class="notif-panel-title">Einstellungen</div>
     <!-- Im MSFS-Kniebrett gibt es keinen Web-Push (kein OS-Push-Kanal in Coherent GT). Dort
          zeigt das Tablet die Meldungen selbst an; gesteuert wird das ueber diese vier
          Schalter, gespeichert im Tablet. Wer NICHT will, dass ueber ihn benachrichtigt wird,
@@ -4329,8 +4371,18 @@
          hier laesst sich das Ergebnis nachjustieren. Navigraph hat an derselben Stelle NUR
          die Handeinstellung und keine Automatik -- im dortigen Forum landen Nutzer deshalb
          bei 510, 600 und 800 Prozent und finden nicht mehr zurueck. -->
-    <div id="panel-anzeige" hidden>
+    <!-- DESIGN (Spec 2026-10-01): auf Website UND im Kniebrett. Knoepfe statt Checkbox
+         (Coherent GT zeigt deren Zustand nicht). Die Ueberschrift "Anzeige" steht nur hier;
+         im Kniebrett folgen darunter Groesse und Kartenhelligkeit aus #panel-anzeige. -->
+    <div id="einst-design">
       <div class="panel-abschnitt-titel">Anzeige</div>
+      <div class="panel-einst-name">Design</div>
+      <div class="panel-zoom-reihe">
+        <button type="button" class="design-knopf" id="design-dunkel">Dunkel</button>
+        <button type="button" class="design-knopf" id="design-hell">Hell</button>
+      </div>
+    </div>
+    <div id="panel-anzeige" hidden>
       <div class="panel-einst-name">Gr&ouml;&szlig;e</div>
       <div class="panel-zoom-reihe">
         <button type="button" class="panel-zoom-knopf" id="panel-zoom-kleiner"
@@ -4371,6 +4423,7 @@
         Erscheint im Tablet, solange der Simulator läuft und FriesenSpy geladen ist.
       </div>
     </div>
+    <div class="panel-abschnitt-titel" id="notif-web-titel">Benachrichtigungen</div>
     <label class="notif-toggle-row" id="notif-enabled-row">
       <input type="checkbox" id="notif-enabled"> Beim Online-gehen benachrichtigen
     </label>
@@ -5384,6 +5437,13 @@ function _designSetzen(wert) {
   _prefSchreib(_DESIGN_KEY, d);
   _designAnwenden(d);
 }
+function _designSchalterAnzeigen(d) {
+  const dk = document.getElementById('design-dunkel');
+  const hl = document.getElementById('design-hell');
+  if (dk) dk.classList.toggle('an', d !== 'hell');
+  if (hl) hl.classList.toggle('an', d === 'hell');
+}
+_designHaken.push(_designSchalterAnzeigen);
 // ENDE DESIGN-ABSCHNITT (Anker fuer tests/test_design_merker.py -- Neues zum Design davor)
 
 // --- In welchem Zustand war das Kniebrett? -------------------------------------------------
@@ -8453,6 +8513,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const enabledCb   = document.getElementById('notif-enabled');
   const saveBtn     = document.getElementById('notif-save-btn');
   const installBtn  = document.getElementById('notif-install-btn');
+
+  // Design-Schalter (Website und Kniebrett, s. #einst-design)
+  _on(document.getElementById('design-dunkel'), 'click', () => _designSetzen('dunkel'));
+  _on(document.getElementById('design-hell'),   'click', () => _designSetzen('hell'));
+  _designSchalterAnzeigen(_designNormal(_prefLies(_DESIGN_KEY)));
 
   _on(notifBtn, 'click', e => {
     e.stopPropagation();
@@ -16559,7 +16624,7 @@ const _configPromise = fetch('/api/frontend-config').then(r => r.json()).then(cf
   _vapidPublicKey = cfg.vapid_public_key || '';
   _callsignPrefix = (cfg.callsign_prefix || 'FRS').toUpperCase();
   if (_vapidPublicKey) {
-    document.getElementById('notif-btn').hidden = false;
+    document.getElementById('notif-panel').classList.add('mit-push');
     _registerServiceWorker();
   }
   _initVersionUI(cfg.version, cfg.changelog, cfg.banner_version);
@@ -16853,9 +16918,6 @@ function _initPanelAnzeige() {
   if (!block) return;
   block.hidden = false;
 
-  // Die Ansicht traegt jetzt zwei Themen -- der alte Titel benannte nur eines davon.
-  const titel = document.querySelector('.notif-panel-title');
-  if (titel) titel.textContent = 'Einstellungen';
 
   const kleiner = document.getElementById('panel-zoom-kleiner');
   const groesser = document.getElementById('panel-zoom-groesser');

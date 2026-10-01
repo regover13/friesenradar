@@ -27,6 +27,7 @@ VATSIM Live-Tracker für die FriesenFlieger Virtual Airline. Zeigt wer von der G
   - [Flugbetrieb und Daten](#flugbetrieb-und-daten)
   - [Kniebrett](#kniebrett)
   - [Diagnose](#diagnose)
+- [🌗 Helles Design](#-helles-design)
 - [🔔 Benachrichtigungen (Push Notifications)](#-benachrichtigungen-push-notifications)
 - [TS-Login-Benachrichtigung (Phase 1)](#ts-login-benachrichtigung-phase-1)
 - [🗺️ Karten-Layer](#️-karten-layer)
@@ -623,6 +624,16 @@ VATSIM weiterhin die Sekunden, in denen sie schweigt.
 
 ---
 
+## 🌗 Helles Design
+
+FriesenSpy gibt es dunkel wie bisher oder hell in den Farben des Forums. Umschalten lässt es sich über das **Zahnrad ⚙ oben rechts** → **Einstellungen** → **Anzeige** → **Design: Dunkel / Hell**. Die Seite wechselt sofort, ohne neu zu laden.
+
+- **Die Wahl wird gemerkt** — auf der Website und im Kniebrett getrennt, du kannst also am PC hell und im Cockpit dunkel fliegen. Mit Forum-Anmeldung hängt sie an deinem Konto, ohne Anmeldung merkt sie sich der Browser.
+- **Die Karte bleibt, wie sie ist.** Flugzeuge, Spuren, Platzrunden und Beschriftungen auf der Karte behalten ihre Farben; die Grundkarte wählst du wie gewohnt über die Ebenen-Auswahl (dort gibt es auch eine helle Karte). Popups und Bedienelemente der Karte folgen dem Design.
+- **Im Kniebrett** erscheint beim Start kurz das dunkle Design, bis die gespeicherte Wahl geladen ist.
+
+---
+
 ## 🔔 Benachrichtigungen (Push Notifications)
 
 FriesenSpy kann dich benachrichtigen, wenn ein Friese auf VATSIM online geht — auch wenn der Browser im Hintergrund läuft oder der PC gesperrt ist. Optional auch schon beim **Einreichen oder Ändern eines Flugplans** (Prefile), bevor der Pilot online geht — auch bei Änderungen an Abflugzeit, Abflug- oder Zielflughafen. Die Notification enthält Datum und Uhrzeit des geplanten Fluges (aus dem DOF-Feld). Ist der Pilot bereits online, werden Prefile-Änderungen ignoriert.
@@ -631,12 +642,12 @@ Zusätzlich kann FriesenSpy Push-Benachrichtigungen senden, wenn ein Friese dem 
 
 Über den **„Events"-Schalter** lassen sich außerdem **Event-Erinnerungen** aktivieren: FriesenSpy sendet dann ~1 h vor jedem FriesenEvent im Kalender einen Push — und benachrichtigt auch bei Bummel-Start und Ergebnisenthüllung. Die ~1h-Erinnerung gilt für Kalender-Events, Bummel-Rennen, Kutter-Events und FriesenReddungen und läuft dadurch auch für **manuell** im Admin angelegte Events (nicht nur Kalender-Termine); pro Rennen/Event lässt sich der Push im Admin abschalten, dann bleibt auch die Erinnerung aus. Bei einer **FriesenReddung** kommt zum Beginn eine weitere Meldung — mit dem Hinweis, dass ohne FriesenBrügge kein Havarist zu sehen ist —, danach je eine bei Fund, Aufnahme, Einlieferung und zum Ende. Dieser Schalter ist separat opt-in und standardmäßig deaktiviert.
 
-Das Bell-Symbol 🔔 oben rechts im Header öffnet das Benachrichtigungs-Panel.
+Das **Zahnrad ⚙ oben rechts** im Header öffnet die Einstellungen; die Benachrichtigungen stehen dort unter **„Benachrichtigungen“**. (Bis Version 15.31 war dort eine Glocke 🔔.)
 
-**Wer darf über mich benachrichtigt werden? (bei aktivem Board-Login):** Eingeloggte Mitglieder finden im Benachrichtigungs-Panel einen Sichtbarkeits-Regler — **Alle / Nur bestimmte / Keiner**. Damit bestimmt jeder selbst, wer über seine eigene Aktivität (Online, Flugplan, TeamSpeak) per Push benachrichtigt wird; „Keiner"/„Nur bestimmte" unterdrücken auch die Ankündigung im öffentlichen Telegram-Online-Kanal. Die Live-Anzeige bleibt unberührt. Grundlage ist die Identität aus dem Forum-Login (VATSIM-CID + FRS-Rufzeichen); Push-Abos werden dabei dem eingeloggten Mitglied zugeordnet (`owner_cid`), damit „Nur bestimmte" greifen kann. Die alte `manage_ts_consent.py`-Steuerung ist damit abgelöst.
+**Wer darf über mich benachrichtigt werden? (bei aktivem Board-Login):** Eingeloggte Mitglieder finden in den Einstellungen unter „Benachrichtigungen“ einen Sichtbarkeits-Regler — **Alle / Nur bestimmte / Keiner**. Damit bestimmt jeder selbst, wer über seine eigene Aktivität (Online, Flugplan, TeamSpeak) per Push benachrichtigt wird; „Keiner"/„Nur bestimmte" unterdrücken auch die Ankündigung im öffentlichen Telegram-Online-Kanal. Die Live-Anzeige bleibt unberührt. Grundlage ist die Identität aus dem Forum-Login (VATSIM-CID + FRS-Rufzeichen); Push-Abos werden dabei dem eingeloggten Mitglied zugeordnet (`owner_cid`), damit „Nur bestimmte" greifen kann. Die alte `manage_ts_consent.py`-Steuerung ist damit abgelöst.
 
 **Einrichten:**
-1. 🔔 klicken → Panel öffnet sich
+1. Zahnrad ⚙ klicken → Einstellungen öffnen sich
 2. „Beim Online-gehen benachrichtigen" aktivieren
 3. Browser fragt nach Erlaubnis → **Zulassen**
 4. Optional: Filtern auf bestimmte Piloten (Alle Friesen oder nur ausgewählte)
@@ -650,7 +661,7 @@ Das Bell-Symbol 🔔 oben rechts im Header öffnet das Benachrichtigungs-Panel.
 |-----------|---------------|---------|
 | Windows (Edge / Chrome) | Direkt im Browser abonnieren | Funktioniert ohne weitere Schritte |
 | Android (Chrome) | Direkt im Browser abonnieren | Chrome empfohlen; Edge auf Android kann Probleme machen |
-| iPhone / iPad | Erst als App installieren, dann abonnieren | Safari → Teilen ⬆ → „Zum Home-Bildschirm" → App öffnen → 🔔 |
+| iPhone / iPad | Erst als App installieren, dann abonnieren | Safari → Teilen ⬆ → „Zum Home-Bildschirm" → App öffnen → ⚙ |
 
 **Als App installieren:** FriesenSpy ist eine PWA (Web-App-Manifest + Service Worker). Oben auf der Seite erscheint ein **Install-Banner** („📲 FriesenSpy als App installieren") — schließbar (merkt sich das Wegklicken), und ausgeblendet, sobald die App installiert ist. Auf Android/Desktop (Chrome/Edge) öffnet der Button den nativen Install-Dialog; auf iPhone/iPad zeigt der Banner die manuelle Anleitung (Safari → Teilen ⬆ → „Zum Home-Bildschirm"). Installiert läuft FriesenSpy im eigenen Fenster mit App-Icon.
 
