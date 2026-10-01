@@ -104,7 +104,7 @@ def test_kopfzeile_hat_im_hellen_eine_flaeche():
 # Oberflaechen-Regel (nicht Karte), braucht dieselbe Regel eine html.hell-Fassung -- sonst
 # steht im Hellen hellgelber oder hellblauer Text auf Weiss (Kutter-Feed, ICAO-Feld ...).
 _HELLE_SCHRIFT = ("#cfe3f0", "#ffe6c2", "#b3ddff", "#e8a9a0", "#9fc9b6", "#ffd24a",
-                  "#e0884a", "#e0a33e", "#19d3c5", "#8fb3cc", "#8aa0b8")
+                  "#e0884a", "#e0a33e", "#19d3c5", "#8fb3cc", "#8aa0b8", "#c8933a")
 _KARTE_SEL = re.compile(r"aircraft-marker|traffic-|vrp|aip-marke|fse-platz|ground-marke|"
                         r"platzrunde|kompass|leaflet-tooltip|kachel")
 
@@ -135,3 +135,53 @@ def test_leuchteffekte_sind_im_hellen_aus():
     # Leuchten ein dunkler Schmier und aus der Scanlinie eine wandernde graue Linie.
     assert re.search(r"html\.hell \.logo \{[^}]*text-shadow: none", INDEX)
     assert re.search(r"html\.hell \.scanline \{[^}]*display: none", INDEX)
+    # Leuchtende Schrift (text-shadow) und Glow-Rahmen: auf Weiss ein dunkler Schmier.
+    for sel in (".tab-btn.active", ".fp-callsign-title", ".td-callsign-link:hover",
+                ".td-map-btn:hover"):
+        assert re.search(r"html\.hell " + re.escape(sel) + r"[,\s][^{]*\{[^}]*text-shadow: none", INDEX), sel
+    for sel in (".btn:hover", ".fp-modal-box", ".modal-box", ".btn-primary:hover"):
+        assert re.search(r"html\.hell " + re.escape(sel) + r"[,\s][^{]*\{[^}]*box-shadow: none", INDEX), sel
+
+
+def _hell_regel(sel):
+    m = re.search(r"html\.hell " + re.escape(sel) + r"[,\s][^{]*\{([^}]*)\}", INDEX)
+    assert m, sel
+    return m.group(1)
+
+
+def test_hover_knoepfe_sind_im_hellen_lesbar():
+    # Abschlussreview: Schwarz auf Navy (1,3:1) bzw. Himmelblau auf #368AD2 (2,1:1).
+    assert "color: var(--bg-panel)" in _hell_regel(".notif-save-btn:hover")
+    r = _hell_regel(".btn-primary:hover")
+    assert "#105289" in r and "color: var(--bg-panel)" in r
+    assert _kontrast("#FBFBFB", "#105289") >= 4.5
+
+
+def test_kompassnadel_behaelt_im_hellen_beide_haelften():
+    assert "fill: var(--text-label)" in _hell_regel(".navi-bar .kompass-sued")
+    assert "fill: var(--bg-panel)" in _hell_regel(".navi-bar.navi-an .kompass-sued")
+
+
+def test_fusszeile_steht_lesbar_auf_dem_grund():
+    # Die Fusszeile setzt ihre Farbe inline (style="color:var(--text-label)") -- ohne
+    # !important gewinnt das Inline-Attribut.
+    assert "color: var(--text-bright) !important" in _hell_regel("footer")
+
+
+def test_kleine_hinweise_sind_im_hellen_kraeftiger():
+    # Spec: FriesenOrange hat 3,6:1 -- sind die kleinsten Stellen zu blass, werden sie fett.
+    assert re.search(r"font-weight: (500|600|700)", _hell_regel(".notif-hint"))
+
+
+def test_kartenebenen_erben_keine_helle_schrift():
+    # Die Leaflet-Ebenen erben im Dunklen die Schrift von html/body; im Hellen ebenso. NICHT
+    # aber die Legenden-Bildchen: Dort traegt dasselbe Element die Klasse des Flugzeugsymbols
+    # (.aircraft-marker-fremd ...), und eine color-Regel schluege dessen eigene Farbe.
+    css = re.sub(r"/\*.*?\*/", "", INDEX, flags=re.S)
+    farb = [(k, r) for k, r in re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+            if "html.hell .leaflet-overlay-pane" in k and "color: var(--text-bright)" in r]
+    assert len(farb) == 1, farb
+    assert ".karten-legende-flz" not in farb[0][0]
+    kopf, _ = _rueckstellblock()
+    rueck = re.search(re.escape(kopf) + r"\{([^}]*)\}", css).group(1)
+    assert not re.search(r"(?<![-\w])color:", rueck)

@@ -883,6 +883,12 @@
       --knopf-hover:  #14314d;
       --chart-fluege: #00d4e0;
     }
+    /* Die Ebenen erben im Hellen dieselbe Schrift wie im Dunklen. Bewusst ohne die Legende:
+       Dort traegt dasselbe Element die Klasse des Flugzeugsymbols, und color schluege sie. */
+    html.hell .leaflet-overlay-pane,
+    html.hell .leaflet-shadow-pane,
+    html.hell .leaflet-marker-pane,
+    html.hell .leaflet-tooltip-pane { color: var(--text-bright); }
 
 
     html.vr-panel {
@@ -4214,11 +4220,29 @@
     html.hell .ac-credit,
     html.hell .ac-block h4 { color: var(--text-label); }
     html.hell .btn-primary:hover,
-    html.hell .install-banner-btn:hover { background: #368AD2; }
+    html.hell .install-banner-btn:hover { background: #105289; color: var(--bg-panel); }
 
-    /* Leuchtschein und Scanlinie sind Effekte fuer dunklen Grund -- im Hellen aus. */
+    /* Leuchtschein, Scanlinie und Glow sind Effekte fuer dunklen Grund -- im Hellen wird daraus
+       ein dunkler Schmier um Navy-Schrift. Im Hellen aus. */
     html.hell .logo { text-shadow: none; }
     html.hell .scanline { display: none; }
+    html.hell .tab-btn.active,
+    html.hell .fp-callsign-title,
+    html.hell .td-callsign-link:hover,
+    html.hell .td-map-btn:hover { text-shadow: none; }
+    html.hell .btn:hover,
+    html.hell .fp-modal-box,
+    html.hell .modal-box,
+    html.hell .btn-primary:hover { box-shadow: none; }
+
+    /* Abschlussreview: Hover-Schrift auf Navy bzw. Blau, Kompass-Suedhaelfte, Fusszeile auf dem
+       Himmelblau, kleine orange Hinweise, Kutter-Kapazitaet. */
+    html.hell .notif-save-btn:hover { color: var(--bg-panel); }
+    html.hell .navi-bar .kompass-sued { fill: var(--text-label); }
+    html.hell .navi-bar.navi-an .kompass-sued { fill: var(--bg-panel); }
+    html.hell footer { color: var(--text-bright) !important; }   /* Farbe steht inline */
+    html.hell .notif-hint { font-weight: 600; }
+    html.hell .kutter-legend .kl-cap { color: #D75F28; background: rgba(215,95,40,0.12); }
 
     /* Ebenen-Symbol: Farbe steckt in der Data-URL, dort greift kein var() -- Navy im Hellen. */
     html.hell .leaflet-control-layers-toggle {
