@@ -126,7 +126,10 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           envs: GITHUB_TOKEN,GITHUB_ACTOR
           script: |
-            cd /opt/friesenradar
+            # Abbrechen statt weitermachen: Fehlt das Verzeichnis, lief sonst `compose pull` ins
+            # Leere, und der Health-Check fragte den ALTEN Container -- und meldete gruen.
+            set -eu
+            cd /opt/friesenradar || exit 1
             echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
             docker compose pull
             docker compose up -d
