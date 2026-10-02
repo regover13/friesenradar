@@ -1,6 +1,28 @@
-# FriesenSpy
+# FriesenRadar
 
 VATSIM Live-Tracker für die FriesenFlieger-Gruppe.
+
+## Name (stehende Regel — IMMER einhalten)
+
+**Die App heißt FriesenRadar** (seit 16.0.0 „Lichtblick“, Oktober 2026; Issues #51–#56). Vorgabe
+des Nutzers: *„Ich will nirgends mehr FriesenSpy lesen!“* — und: *„nicht später immer wieder auf
+den alten Namen kommen!!“*. In Antworten, Commits, Changelog, Forumstexten und neuer Doku steht
+deshalb nur FriesenRadar.
+
+Wo „friesenspy“ trotzdem steht, ist es eines von zwei Dingen, und keins davon ist ein Vorbild:
+
+- **Technische Konstante** (Nutzerentscheidung 02.10.2026, weniger Risiko, keine Migration):
+  Merker-Schlüssel `friesenspy_*`, Gerätekennung `friesenspy_device`, Schnittstellenwert
+  `source: 'friesenspy'`, `quelle: 'friesenspy'` im postMessage, Cookie-Namen `fs_*`, Bezeichner im
+  Code. **Nicht „aufräumen“** — das wäre eine Datenmigration, die niemand beschlossen hat.
+- **Geschichte:** CHANGELOG-Einträge vor 16.0.0, datierte Specs/Pläne/Analysen unter `docs/`,
+  Commit-Historie, alte Forumsbeiträge, Kommentare in anderen Repos. Sie nennen den alten Namen,
+  weil er damals galt.
+
+`friesenspy.devprops.de` bleibt als **stilles Alias** erreichbar (alte Brüggen, alte Pakete, Badges
+in alten Beiträgen) und wird nirgends mehr genannt. Technische Heimat ist
+`friesenradar.devprops.de`; die Adresse für Mitglieder wird `radar.friesenflieger.de`, sobald DNS
+und Zertifikat stehen — bis dahin nennen Texte die technische Heimat.
 
 ## Stack
 
@@ -166,7 +188,7 @@ einen Link.
 GitHub Push → main-Branch → GitHub Actions → GHCR → SSH-Deploy auf VPS
 
 - Container: `ghcr.io/regover13/friesenradar:latest`
-- Port: 8091 (intern), friesenspy.devprops.de (extern)
+- Port: 8091 (intern), friesenradar.devprops.de (extern; friesenspy.devprops.de als stilles Alias)
 - DB: `/opt/friesenradar/data/friesenradar.db` (Volume)
 - Config: `/opt/friesenradar/config.env` (niemals in git!)
 - **Discord-Meldung nach jedem Deploy:** letzter Schritt in `deploy.yml`, meldet Erfolg (grün, nach
@@ -183,8 +205,8 @@ GitHub Push → main-Branch → GitHub Actions → GHCR → SSH-Deploy auf VPS
 ```bash
 mkdir -p /opt/friesenradar/data
 # config.env anlegen mit echten CIDs + Token
-# nginx-Config: nginx/friesenspy.devprops.de.conf einbinden
-# certbot: certbot --nginx -d friesenspy.devprops.de
+# nginx-Config: nginx/friesenradar.devprops.de.conf einbinden
+# certbot: certbot --nginx -d friesenradar.devprops.de
 ```
 
 ## Kniebrett-Standards (stehende Regeln — IMMER einhalten)
@@ -542,7 +564,7 @@ Widerspruch) stehen je These in `app/bruegge_bindung.py`, der Beschluss in
   **Zwei naheliegende Hebel sind gemessen und fallen aus** (04.09.2026, Belege im Kommentar
   zu GitHub-Issue #16):
   *Andere Container abschalten (Condor)* — die Maschine hatte Luft, Load maximal 4,2 bei
-  6 Kernen, FriesenSpy selbst nie über 0,8 Kerne (13,7 % → 78,6 % über den Abend).
+  6 Kernen, die App selbst nie über 0,8 Kerne (13,7 % → 78,6 % über den Abend).
   *Höhere Priorität / nice / `cpu_shares`* — der Wartedruck auf CPU (PSI `cpu_some_pressure`)
   lag im Maximum bei **2,12 %**, `throttled` durchgehend 0, und Limits gibt es keine
   (`NanoCpus=0, CpuShares=0, CpuQuota=0`). Der Prozess wartete nicht auf Rechenzeit, er war
@@ -597,7 +619,7 @@ Zeilen und 480 kB am Tag, rund 175 MB im Jahr. Am 15.09.2026 ausdrücklich best�
 lassen** — alte Spuren sind hier ein Merkmal, kein Ballast, und die Platte hat 151 GB frei.
 
 **CPU: 5,2 % eines Kerns im Wochenmittel** (Netdata, `cgroup_friesenradar-friesenradar-1.cpu`:
-4,85 % user + 0,35 % system). Damit liegt FriesenSpy auf Rang 3 der Container — weit hinter
+4,85 % user + 0,35 % system). Damit liegt FriesenRadar auf Rang 3 der Container — weit hinter
 `condor-condor-server-1` (99 %) und `netdata` (26 %). Das Container-Log ist mit 121 kB
 unauffällig und seit dem 13.09.2026 ohnehin auf 5 × 20 MB gedeckelt.
 
@@ -703,7 +725,7 @@ auch der echte `push`.
 
 **Recovery, in dieser Reihenfolge:**
 1. **Dauerhafter Fix (nur der Nutzer):** GitHub-App-Verbindung in claude.ai/code → GitHub-Integration
-   für `regover13/friesenspy` neu autorisieren. Danach stellt jede neue Session ihr Token wieder
+   für `regover13/friesenradar` neu autorisieren. Danach stellt jede neue Session ihr Token wieder
    korrekt aus. Das ist der eigentliche Hebel — aus der Session heraus NICHT reparierbar.
 2. **Frische Cloud-Session** starten (war es ein einmaliger Ausstellungs-Fehler, ist sie sauber).
 3. **Ohne CLI-git trotzdem liefern:** Doku/Einzeldateien via GitHub-**MCP-Tools** direkt committen;

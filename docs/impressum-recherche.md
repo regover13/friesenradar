@@ -1,4 +1,4 @@
-# Recherche: Impressumspflicht für devprops.de-Dienste (insb. FriesenSpy)
+# Recherche: Impressumspflicht für devprops.de-Dienste (insb. FriesenRadar)
 
 **Stand:** 2026-07-07 · **Task:** #65 · **Art:** Recherche (keine Codeänderung)
 
@@ -8,7 +8,7 @@
 
 ## 1. Kurzfazit
 
-- **Impressum: wahrscheinlich pflichtig.** FriesenSpy ist technisch öffentlich (kein Login),
+- **Impressum: wahrscheinlich pflichtig.** FriesenRadar ist technisch öffentlich (kein Login),
   wird dauerhaft/planmäßig betrieben und richtet sich an eine Gruppe (FriesenFlieger-Community)
   außerhalb des eigenen Haushalts/der Familie. Das erfüllt „geschäftsmäßig" i. S. d. § 5 DDG —
   Gewinnerzielungsabsicht ist **nicht** erforderlich. Die enge Ausnahme „ausschließlich
@@ -37,7 +37,7 @@ Dritter** dauerhaft bereitgestellter, technisch offener Dienst fällt nicht mehr
 wenn der Nutzerkreis klein und faktisch geschlossen ist.
 
 **Datenschutz** ist von der Impressumsfrage getrennt: schon IP-Speicherung in Server-Logs löst
-die Informationspflicht aus; FriesenSpy verarbeitet zusätzlich personenbeziehbare VATSIM-Daten
+die Informationspflicht aus; FriesenRadar verarbeitet zusätzlich personenbeziehbare VATSIM-Daten
 und Push-Abos.
 
 ## 3. Handlungsempfehlung
@@ -73,7 +73,7 @@ Hinweis: nicht gewerblich, ohne Gewinnerzielungsabsicht betrieben.
 7. Kontakt für Betroffenenanfragen
 
 ### Nächste Schritte (priorisiert)
-1. **FriesenSpy zuerst** absichern (Impressum + Datenschutz).
+1. **FriesenRadar zuerst** absichern (Impressum + Datenschutz).
 2. **Zentrales** Impressum/Datenschutz unter `devprops.de/impressum` bzw. `/datenschutz`, von
    allen öffentlich erreichbaren Diensten verlinken (Nextcloud, Vaultwarden, n8n, Condor-Web,
    MCP-Frontends).

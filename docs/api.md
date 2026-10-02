@@ -1,6 +1,6 @@
 # REST API
 
-Basis-URL: `https://friesenspy.devprops.de`
+Basis-URL: `https://friesenradar.devprops.de`
 
 ---
 
@@ -334,7 +334,7 @@ Gruppierung: ≤93 Tage → täglich (`%Y-%m-%d`), >93 Tage → monatlich (`%Y-%
 
 ## GET /api/stats
 
-Letzter Flug und Fluganzahl pro Pilot. Kombiniert FriesenSpy-Aufzeichnungen und gecachte StatSim-Daten.
+Letzter Flug und Fluganzahl pro Pilot. Kombiniert FriesenRadar-Aufzeichnungen und gecachte StatSim-Daten.
 
 **Query-Parameter**
 
@@ -427,7 +427,7 @@ als `v`, ein Wechsel des Fotos schlägt also sofort durch.
 
 ## GET /api/pilots/{cid}/flights
 
-Alle Flüge eines Piloten — GPS-only Phase 2 (#23): die Antwort kommt direkt und live (ungecacht) aus `canonicalize_legs` (`callsign_prefix=""`, zeigt also auch Flüge unter einem Nicht-FRS-Callsign desselben Piloten). Abheben und Landung werden primär aus dem GPS-Track erkannt (echte Landung an einem Flugplatz, auch Zwischenlandungen ohne neuen Flugplan als eigene Zeile); fehlt ein Track, greift der refile-/disconnect-basierte Fallback (Reconnect-Merge). FriesenSpy-eigene Aufzeichnungen und StatSim-Historik werden dedupliziert kombiniert. Antwortet **sofort**; StatSim-Update läuft im Hintergrund (letzter 31-Tage-Chunk). Response-Header `X-StatSim-Status: fresh | updating | no-key`.
+Alle Flüge eines Piloten — GPS-only Phase 2 (#23): die Antwort kommt direkt und live (ungecacht) aus `canonicalize_legs` (`callsign_prefix=""`, zeigt also auch Flüge unter einem Nicht-FRS-Callsign desselben Piloten). Abheben und Landung werden primär aus dem GPS-Track erkannt (echte Landung an einem Flugplatz, auch Zwischenlandungen ohne neuen Flugplan als eigene Zeile); fehlt ein Track, greift der refile-/disconnect-basierte Fallback (Reconnect-Merge). FriesenRadar-eigene Aufzeichnungen und StatSim-Historik werden dedupliziert kombiniert. Antwortet **sofort**; StatSim-Update läuft im Hintergrund (letzter 31-Tage-Chunk). Response-Header `X-StatSim-Status: fresh | updating | no-key`.
 
 **Query-Parameter**
 
@@ -479,7 +479,7 @@ Alle Flüge eines Piloten — GPS-only Phase 2 (#23): die Antwort kommt direkt u
 ]
 ```
 
-Sortiert nach `logon_time` absteigend. FriesenSpy-Einträge haben Vorrang bei Zeitstempel-Überschneidungen (±5 Min).
+Sortiert nach `logon_time` absteigend. FriesenRadar-Einträge haben Vorrang bei Zeitstempel-Überschneidungen (±5 Min).
 
 **Neue Felder (GPS-only Phase 2, #23):**
 
@@ -489,11 +489,11 @@ Sortiert nach `logon_time` absteigend. FriesenSpy-Einträge haben Vorrang bei Ze
 | `plan_departure` / `plan_arrival` | DEP/ARR aus dem eingereichten Flugplan (reine Beschriftung, keine Grundlage mehr für die Flugzählung). Kann von `gps_*` abweichen, z. B. bei einer Zwischenlandung ohne Refile — oder wenn der Pilot bereits vor der Landung des aktuellen Legs den nächsten Plan eingereicht hat (zeitbasierte Zuordnung, Stand 2026-07-05). |
 | `connection_closed` | `true`, wenn die zugrunde liegende VATSIM-Verbindung beendet ist (`logoff_time` gesetzt). **Kein** Indikator dafür, ob der Flug selbst fertig geflogen ist — das entscheidet allein `arrival`/`gps_arrival`/`logoff_time`, und „🛫 läuft" leitet das Frontend seit v8.1.0 aus `last_pos_ts` (Frische), nicht aus diesem Feld ab. |
 | `last_pos_ts` | (v8.1.0) ISO8601 UTC — Zeit der **letzten belegten Position** dieses Legs (statisch, nicht „now"). Für einen geschlossenen Flug = Landung/letzte Position; für einen offenen Flug = letzte empfangene Position. Das Frontend zeigt „🛫 läuft" nur, wenn der Flug offen ist **und** `last_pos_ts` frisch (< 15 min alt), und nutzt den Wert als Obergrenze beim Nachladen des GPS-Tracks offener Legs. |
-| `block_start` | (v8.9.0) ISO8601 UTC — **Rollbeginn** (Rückwärts-Walk ab dem Abheben `logon_time` bis zum ersten zusammenhängenden Sample, begrenzt durch das Ende des Vorflugs/eine 30-min-Lücke). Das Frontend nutzt ihn als **Untergrenze** beim Nachladen des GPS-Tracks der gefensterten FriesenSpy-Endpoints (`/api/flights/{id}/track`, `/api/pilots/{cid}/track`), damit Taxi-out + Startlauf sichtbar sind, statt erst am Abheben zu beginnen. Ohne Track/bei Fallback-Zeilen nicht gesetzt → das Frontend fällt auf `logon_time` zurück. |
+| `block_start` | (v8.9.0) ISO8601 UTC — **Rollbeginn** (Rückwärts-Walk ab dem Abheben `logon_time` bis zum ersten zusammenhängenden Sample, begrenzt durch das Ende des Vorflugs/eine 30-min-Lücke). Das Frontend nutzt ihn als **Untergrenze** beim Nachladen des GPS-Tracks der gefensterten FriesenRadar-Endpoints (`/api/flights/{id}/track`, `/api/pilots/{cid}/track`), damit Taxi-out + Startlauf sichtbar sind, statt erst am Abheben zu beginnen. Ohne Track/bei Fallback-Zeilen nicht gesetzt → das Frontend fällt auf `logon_time` zurück. |
 
 `departure`/`arrival` bleiben aus Kompatibilitätsgründen erhalten und entsprechen im Regelfall `gps_departure`/`gps_arrival` (Fallback auf den Flugplan, wenn kein GPS-Wert vorliegt).
 
-`duration_min` = **Flugzeit** (Abheben → Landung). `block_min` = **Blockzeit** (Summe der GPS-Bewegungsabschnitte gate-to-gate inkl. Taxi; belegte Standphasen ≥ 10 min, z. B. eine Zwischenlandung ohne Disconnect, zählen nicht) — nur bei FriesenSpy-Flügen vorhanden, StatSim/Altflüge haben `null`.
+`duration_min` = **Flugzeit** (Abheben → Landung). `block_min` = **Blockzeit** (Summe der GPS-Bewegungsabschnitte gate-to-gate inkl. Taxi; belegte Standphasen ≥ 10 min, z. B. eine Zwischenlandung ohne Disconnect, zählen nicht) — nur bei FriesenRadar-Flügen vorhanden, StatSim/Altflüge haben `null`.
 
 Flüge unter einem **Nicht-`FRS`-Callsign** (`callsign_prefix=""` liefert sie mit) erscheinen ebenfalls in der Antwort, zählen aber nicht in Statistik, FriesenBummel oder FriesenKutter (das Frontend markiert sie als „nicht gewertet").
 
@@ -555,7 +555,7 @@ GPS-Track des aktuell laufenden Fluges aus `position_history` (logoff_time IS NU
 
 ## GET /api/flights/{flight_id}/track
 
-GPS-Track eines FriesenSpy-Fluges aus der `position_history`-Tabelle.
+GPS-Track eines FriesenRadar-Fluges aus der `position_history`-Tabelle.
 
 **Query-Parameter** (optional)
 
@@ -657,7 +657,7 @@ Live-Erkennung und Track-Nachladen, nie „jetzt"). `id`/`statsim_id`/`cid` iden
 Track-Quelle (s. u.). Positionen selbst sind **nicht mehr embedded** — das Frontend lädt den
 Track pro Flug bei Bedarf nach.
 
-Jeder Flug-Eintrag enthält ein `source`-Feld: `"friesenspy"` für live von FriesenSpy erkannte
+Jeder Flug-Eintrag enthält ein `source`-Feld: `"friesenspy"` für live von FriesenRadar erkannte
 Flüge, `"statsim"` für Einträge aus dem StatSim-Cache. Der Track wird unabhängig von `source`
 nachgeladen — StatSim-Flüge bekommen ihren GPS-Track ebenso automatisch im Hintergrund nachgefüllt
 (`app/poller.py` `_fetch_statsim_tracks`, unabhängig vom Callsign-Präfix) und zeigen ihn dann
@@ -667,11 +667,11 @@ identisch zu einem live aufgezeichneten Flug an:
 - sonst (GPS-Leg ohne Flugplan-Zuordnung) → `GET /api/pilots/{cid}/track?logon=...&logoff=...`
 
 **StatSim-Fallback:** Piloten die in `statsim_cache` per `departure` oder `arrival` im Zeitfenster
-gefunden werden, aber keine `position_history` haben (z. B. weil FriesenSpy zu diesem Zeitpunkt
+gefunden werden, aber keine `position_history` haben (z. B. weil FriesenRadar zu diesem Zeitpunkt
 nicht lief), erscheinen ebenfalls in der Antwort — mit `source: "statsim"`.
 
 **2-Klassen-Regel:** Flüge mit einem Callsign außerhalb des konfigurierten `CALLSIGN_PREFIX`
-(z. B. ein FriesenSpy-Pilot, der unter einem anderen virtuellen-Airline-Callsign fliegt)
+(z. B. ein FriesenRadar-Pilot, der unter einem anderen virtuellen-Airline-Callsign fliegt)
 erscheinen HIER NICHT — die gehören nur in die Piloten-Statistik (`/api/pilots/{cid}/flights`,
 das dort `callsign_prefix=""` verwendet).
 
@@ -699,7 +699,7 @@ Ein Prefile ist ein eingereichter Flugplan ohne aktive VATSIM-Verbindung — der
 ]
 ```
 
-`name` ist nur vorhanden wenn der Pilot FriesenSpy bekannt ist (zuvor als FRS* geflogen). `planned_deptime` ist im Format `HHMM` UTC.
+`name` ist nur vorhanden wenn der Pilot FriesenRadar bekannt ist (zuvor als FRS* geflogen). `planned_deptime` ist im Format `HHMM` UTC.
 
 ---
 
@@ -961,7 +961,7 @@ ETag: "<hash>"
 
 **BBCode für board.friesenflieger.de:**
 ```
-[img]https://friesenspy.devprops.de/api/bummel/race/{race_id}/badge/{cid}.png[/img]
+[img]https://friesenradar.devprops.de/api/bummel/race/{race_id}/badge/{cid}.png[/img]
 ```
 
 Der **„📋 Forum"**-Button im enthüllten Ranking kopiert diesen BBCode direkt in die Zwischenablage. Der **„🎖 Badge"**-Button öffnet das PNG in einem neuen Tab.
@@ -1052,7 +1052,7 @@ ETag: "<hash>"
 
 **BBCode für board.friesenflieger.de:**
 ```
-[img]https://friesenspy.devprops.de/api/transport/event/{event_id}/badge/{cid}.png[/img]
+[img]https://friesenradar.devprops.de/api/transport/event/{event_id}/badge/{cid}.png[/img]
 ```
 
 Im Events-Tab erscheint nach der Bilanz je Teilnehmer **🎖 Badge** (öffnet das PNG) und
@@ -1074,7 +1074,7 @@ dass es auf einem andersfarbigen Untergrund als hellblaues Feld sichtbar bleibt 
 deshalb an eine helle Stelle.
 
 ```html
-<iframe src="https://friesenspy.devprops.de/widget" width="420" height="88"
+<iframe src="https://friesenradar.devprops.de/widget" width="420" height="88"
   style="border:none;" scrolling="no"></iframe>
 ```
 
@@ -1359,7 +1359,7 @@ Nimmt das signierte Token der Bridge entgegen (`?token=…&state=…`). Prüft `
 
 ### GET /auth/forum/logout
 
-Meldet **nur** FriesenSpy ab (löscht `fs_user`); die Forum-Session bleibt. `302` nach `/`.
+Meldet **nur** FriesenRadar ab (löscht `fs_user`); die Forum-Session bleibt. `302` nach `/`.
 
 ### GET /api/me
 
@@ -1954,7 +1954,7 @@ berechnet (nichts wird gespeichert, kein Bezug zu `flight_cache`). Kein Poll-Imp
 {
   "window": {"start": "…Z", "end": "…Z"},
   "summary": {
-    "flights": 42,            // FriesenSpy-Connections im Fenster (StatSim ausgenommen)
+    "flights": 42,            // FriesenRadar-Connections im Fenster (StatSim ausgenommen)
     "statsim_flights": 3,
     "gps_legs": 47,           // erkannte GPS-Etappen im Fenster
     "matches": 40,            // Connections mit ≥ 1 überlappenden Etappe
@@ -2017,7 +2017,7 @@ Test-Benachrichtigung **nur** an das angegebene (eigene) Gerät senden — nie a
 | Feld | Typ | Pflicht | Beschreibung |
 |------|-----|---------|--------------|
 | `endpoint` | string | ✓ | Push-Endpoint-URL des eigenen Browsers |
-| `title` | string | — | Titel als Vorschau (leer → Standard „FriesenSpy Test ✅") |
+| `title` | string | — | Titel als Vorschau (leer → Standard „FriesenRadar Test ✅") |
 | `body` | string | — | Text als Vorschau (leer → Standard-Testtext) |
 
 **Responses**
@@ -2039,7 +2039,7 @@ erzwingbar.
 | Feld | Typ | Beschreibung |
 |------|-----|--------------|
 | `service` | string | `online \| prefile \| ts \| events` (Vorgabe `events`) — steuert, welcher Kategorie-Schalter im Panel greift |
-| `title` | string | Titel (leer → „FriesenSpy Test") |
+| `title` | string | Titel (leer → „FriesenRadar Test") |
 | `body` | string | Text (leer → Standardtext) |
 
 **Responses**

@@ -1,4 +1,4 @@
-# Analyse-Auftrag für Claude Fable 5 — FriesenSpy Flug-Tracking & FriesenKutter
+# Analyse-Auftrag für Claude Fable 5 — FriesenRadar Flug-Tracking & FriesenKutter
 
 **Zweck:** Sorgfältige Root-Cause-Analyse mehrerer beim Live-Test am 2026-07-01 aufgetretener
 Bugs, plus zwei kleine klar umrissene Fixes. Diese Themen brauchen **keine Produkt-Entscheidung**
@@ -37,7 +37,7 @@ Auftraggeber hat das ausdrücklich freigegeben). Aber sorgfältig und mit diesen
 
 ## Projektkontext
 
-FriesenSpy = VATSIM-Live-Tracker (Python 3.11 / FastAPI / SQLite WAL / APScheduler). Callsign-
+FriesenRadar = VATSIM-Live-Tracker (Python 3.11 / FastAPI / SQLite WAL / APScheduler). Callsign-
 Prefix `FRS`. Relevante Dateien:
 
 - `app/poller.py` — `VatsimPoller._poll_once` (State-Machine: newly_online / still_online /
@@ -184,7 +184,7 @@ gar nicht (leerer type_code → stiller globaler Default, taucht nicht mal als �
 **Kernfrage der Analyse:** Bietet der **öffentliche VATSIM-Datenfeed**
 (`https://data.vatsim.net/v3/vatsim-data.json`) überhaupt **irgendein** Feld für den Flugzeugtyp
 **außerhalb** des `flight_plan`-Objekts (auf Piloten-Ebene)? Rohstruktur eines `pilots[]`-Eintrags
-prüfen. **Wenn nein** → das ist eine echte VATSIM-Datenlimitierung, kein FriesenSpy-Bug; dann
+prüfen. **Wenn nein** → das ist eine echte VATSIM-Datenlimitierung, kein FriesenRadar-Bug; dann
 Lösungsoptionen skizzieren (z. B. StatSim-Abgleich, oder Hinweis an Piloten „Flugplan nötig"), aber
 **nicht** implementieren. **Wenn ja** → dokumentieren, welches Feld, und einen minimalen Fix-Vorschlag
 für `pilot_to_position` skizzieren. Reiner Recherchebericht.

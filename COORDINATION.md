@@ -1,6 +1,6 @@
 # Koordination paralleler Sessions
 
-Kurze Absprachen zwischen parallel arbeitenden Claude-Sessions am FriesenSpy-Repo.
+Kurze Absprachen zwischen parallel arbeitenden Claude-Sessions am FriesenRadar-Repo.
 Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommittete
 Änderungen überschreiben. Einträge bitte oben anfügen (neueste zuerst).
 

@@ -364,7 +364,7 @@ alles Übrige ist weiterhin nur gelesen und **vor jeder Planung zu bestätigen.*
 | Tablet-Oberfläche wie das EFB | ja (MSFS 2024) | kein Gegenstück |
 
 **Ein Punkt sticht heraus:** X-Plane liefert die **Höhe über Grund direkt**. Die Spec zu #20
-musste sich in Abschnitt 4.2 ausdrücklich auf MSL beschränken, weil FriesenSpy kein
+musste sich in Abschnitt 4.2 ausdrücklich auf MSL beschränken, weil FriesenRadar kein
 Geländemodell hat. Für X-Plane fiele diese Einschränkung weg — was den Kieker über Land
 (Norwegen, Berge) erst richtig brauchbar machte. Das ist ein Argument **für** X-Plane, nicht
 nur eine Pflichtübung.

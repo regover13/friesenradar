@@ -264,7 +264,7 @@ Zusätzlich leitet `/panel` ohne bzw. mit veralteter Versionsangabe auf `/panel?
 Nach Änderungen am **Package** (nicht an der Website) ist ein Rebuild nötig:
 
 ```powershell
-cd D:\User\Tobias\OneDrive\Claude\FriesenSpy\msfs-panel\PackageSources\FriesenSpy
+cd D:\User\Tobias\OneDrive\Claude\FriesenRadar\msfs-panel\PackageSources\FriesenRadar
 npm run build
 cd ..\..
 .\build-package.ps1
