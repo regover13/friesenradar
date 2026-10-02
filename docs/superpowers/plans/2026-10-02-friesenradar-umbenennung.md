@@ -69,6 +69,7 @@ kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch l�
 - [ ] **Step 2:** `vaultwarden-setup`: Watchtower-Liste auf `friesenradar-friesenradar-1` auf einem Branch vorbereiten. Einspielen vor dem nächsten Sonntag 04:00.
 - [ ] **Step 3:** `fail2ban` im Repo `devprops.de`: Jail und Filter `friesenradar` vorbereiten (Filter kennt alle drei Hosts schon, `efa4b5e`).
 - [ ] **Step 4:** `config.env`-Änderung dem Nutzer zeigen und **Freigabe holen**: `DB_PATH=/opt/friesenradar/data/friesenradar.db`, `FORUM_SSO_CALLBACK=https://friesenradar.devprops.de/auth/forum/callback`. Ohne Freigabe kein Umzug.
+- [ ] **Step 4b:** Der Sitzung auf dem Simulator-Rechner Bescheid geben: `paket.ps1` lädt ab dem Umzug nach `/opt/friesenradar/...`; ein Upload mit altem Stand scheitert laut. (K6)
 - [ ] **Step 5:** `COORDINATION.md`-Eintrag mit Termin; Vorbedingung für Task 7: **keine andere Sitzung arbeitet in `~/projects/friesenspy*`**.
 
 **Am Abend, vor dem Ausfall (alter Container läuft weiter):**
@@ -93,12 +94,12 @@ kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch l�
 **Nachziehen (ohne Ausfall, am selben Abend):**
 - [ ] **Step 17: nginx:** `nginx/friesenradar.devprops.de.conf` installieren, alten Symlink **vor** `nginx -t` entfernen (sonst doppelte `limit_req_zone`-Namen), alte Datei und die drei `.bak` nach `/root/umzug-…`, `reload`. Bis Step 22 zeigt der neue Vhost noch auf das bestehende Zertifikat (`live/friesenspy.devprops.de`, deckt beide Namen).
 - [ ] **Step 18: fail2ban** aus Step 3 einspielen, `fail2ban-regex` mit drei Probezeilen, `fail2ban-client status friesenradar`.
-- [ ] **Step 19: Backup** aus Step 1 einspielen — **vor 03:00**. Alte Archive `/opt/backup/friesenspy/*.tar.gz` nach `/opt/backup/manual/friesenspy-alt/` (die Rotation sieht Unterordner nicht und würde sie sonst nie löschen). Probelauf dieses Teils, Archiv im OneDrive prüfen. Am Morgen `systemctl --failed`.
+- [ ] **Step 19: Backup** aus Step 1 einspielen — **vor 03:00** — ausdrücklich per `cp backup_onedrive.sh /opt/backup/scripts/` mit `diff`-Gegenprobe (die README beschreibt nur die Erstinstallation, K9). Alte Archive `/opt/backup/friesenspy/*.tar.gz` nach `/opt/backup/manual/friesenspy-alt/` (die Rotation sieht Unterordner nicht und würde sie sonst nie löschen). Probelauf dieses Teils, Archiv im OneDrive prüfen. Am Morgen `systemctl --failed`.
 - [ ] **Step 20: Watchtower** aus Step 2 einspielen, `docker compose up -d --no-deps watchtower`; Gegenprobe `docker inspect watchtower`.
 - [ ] **Step 21:** `containersvc`-Kommentar in `/etc/passwd`; Serverdoku (Repo `devprops.de`) mit Pfaden, Containernamen und Tabellen.
 
 **Eine Woche später:**
-- [ ] **Step 22: Zertifikat:** `sudo certbot certonly -n --webroot -w /var/www/html --cert-name friesenradar.devprops.de -d friesenradar.devprops.de -d friesenspy.devprops.de --deploy-hook "systemctl reload nginx"`, Vhost auf `live/friesenradar.devprops.de`, `nginx -t`, `reload`, mit `curl -v` prüfen. Erst danach `certbot delete --cert-name friesenspy.devprops.de` — **nicht umkehrbar** außer durch Neuausstellung (Rate-Limit). (B5)
+- [ ] **Step 22: Zertifikat:** `sudo certbot certonly -n --webroot -w /var/www/html --cert-name friesenradar.devprops.de -d friesenradar.devprops.de -d friesenspy.devprops.de --deploy-hook "systemctl reload nginx"`, Vhost auf `live/friesenradar.devprops.de`, `nginx -t`, `reload`, mit `curl -v` prüfen. Erst wenn `nginx -T | grep live/friesenspy` leer ist (K3): `certbot delete --cert-name friesenspy.devprops.de` — **nicht umkehrbar** außer durch Neuausstellung (Rate-Limit). (B5)
 - [ ] **Step 23:** Altes Image `docker rmi ghcr.io/regover13/friesenspy:latest`, Gegenprobe `docker images`.
 
 **Später, wenn Heinz den DNS-Eintrag gesetzt hat** (CNAME `radar` → **`friesenradar.devprops.de`**):
