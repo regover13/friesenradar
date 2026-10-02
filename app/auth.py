@@ -1,4 +1,4 @@
-"""Admin-Authentifizierung für FriesenSpy — signiertes Cookie via SECRET_KEY.
+"""Admin-Authentifizierung für FriesenRadar — signiertes Cookie via SECRET_KEY.
 
 Kein Server-Session-Store: Das Cookie enthält einen HMAC-SHA256 über das Admin-Passwort,
 signiert mit ``SECRET_KEY``. Eine Passwort- oder Key-Änderung invalidiert alte Cookies

@@ -615,7 +615,7 @@ def test_friesenspy_schriftzug_steht_oben_in_der_statusleiste():
     m = re.search(r"html\.vr-panel \.panel-topbar::before \{([^}]*)\}", INDEX, re.S)
     assert m, "Schriftzug-Pseudoelement nicht gefunden"
     rumpf = m.group(1)
-    assert "content: 'FRIESENSPY';" in rumpf
+    assert "content: 'FRIESENRADAR';" in rumpf
     assert "top: 0;" in rumpf, "Schriftzug muss oben in der Statusleiste sitzen"
     assert "height: 26px;" in rumpf, "Schriftzug darf nicht in den Bereich der Tabs reichen"
     opazitaet = re.search(r"opacity:\s*([\d.]+);", rumpf)

@@ -1,4 +1,4 @@
-"""SQLite WAL-Mode Datenbank-Layer für FriesenSpy."""
+"""SQLite WAL-Mode Datenbank-Layer für FriesenRadar."""
 from __future__ import annotations
 
 import bisect
@@ -2717,13 +2717,13 @@ def reconstruct_orphaned_flights(
 
     Fall (Live-Test 2026-07-01, Reiner cid 1031301): ein Feed-Aussetzer schloss die laufende
     Session; Folgeflüge derselben Verbindung liefen nur noch in position_history — StatSim
-    kennt den Flug, FriesenSpy besitzt den Track, aber es existiert kein flights-Eintrag.
+    kennt den Flug, FriesenRadar besitzt den Track, aber es existiert kein flights-Eintrag.
 
     Anker ist die LANDEZEIT (``logoff_time`` = StatSims ``arrived``): StatSims ``loggedOn``
     ist die SESSION-Anmeldung und bei mehreren Flügen einer Verbindung für alle gleich —
     als Flugbeginn unbrauchbar (der zweite Flug „18:18–18:36" steht im Cache als
     17:04→18:36). Kandidat ist jede StatSim-Landung mit Strecke, die in KEINEM aktiven
-    FriesenSpy-Fenster (± _RECONSTRUCT_COVER_MARGIN_MIN) liegt. Der Flugbeginn wird aus dem
+    FriesenRadar-Fenster (± _RECONSTRUCT_COVER_MARGIN_MIN) liegt. Der Flugbeginn wird aus dem
     Track abgeleitet: Rückwärtssuche von der Landung zur letzten belegten Standphase
     (≥ _RECONSTRUCT_STAND_SEC zusammenhängend ≤ _BLOCK_GS_KT) — dort begann der Flug; ohne
     Stand-Beleg ab der vorigen Session (gedeckelt auf _RECONSTRUCT_MAX_LOOKBACK_H). Das
@@ -4353,7 +4353,7 @@ def bruegge_uebersicht(conn: sqlite3.Connection, frisch_s: int = 120) -> list[di
 def get_stats(
     conn: sqlite3.Connection, days: int = 30, callsign_prefix: str = "FRS"
 ) -> list[dict]:
-    """Letzter Flug + Anzahl FRS*-Flüge pro Pilot (FriesenSpy + StatSim-Cache).
+    """Letzter Flug + Anzahl FRS*-Flüge pro Pilot (FriesenRadar + StatSim-Cache).
 
     Alle Werte werden auf den gewählten Zeitraum (days) und den konfigurierten
     Callsign-Prefix begrenzt. Aggregiert über get_cached_flights (GPS-Wahrheit,
@@ -4582,7 +4582,7 @@ def _statsim_rows_continuous(
     logoff_time-Feldern aus, während die echten Positionen nur 60 Sekunden auseinanderlagen
     — die Aufzeichnung lief über den Start in KCAR hinweg einfach in der zweiten ID weiter).
 
-    Nutzt DIESELBEN Zeit-/Distanz-/Richtungs-Regeln und -Konstanten wie der FriesenSpy-
+    Nutzt DIESELBEN Zeit-/Distanz-/Richtungs-Regeln und -Konstanten wie der FriesenRadar-
     Reconnect (``_segments_continuous``) — nur auf ``statsim_position_history`` statt
     ``position_history``, mit bereits geladenen Positionslisten statt eigener SQL-Abfrage, und
     mit den ECHTEN Positions-Zeitstempeln als Lückenmaß (die ``logon_time``/``logoff_time``-
@@ -4646,7 +4646,7 @@ def merge_fragmented_flights(
     """Merge consecutive same-callsign flights where one lacks a flight plan.
 
     Handles: pilot connects without FP (DEP/ARR empty), briefly disconnects,
-    reconnects with FP. FriesenSpy records two entries; this merges them into one.
+    reconnects with FP. FriesenRadar records two entries; this merges them into one.
     Conditions: same callsign, exactly one has no DEP/ARR (or both same DEP+ARR),
     and gap within the per-case window (same-FP ≤ 30 min, no-FP ≤ 15 min). With conn:
     additional geo-continuity check (distance budget + direction) gegen das Nachbarsegment.
@@ -4709,7 +4709,7 @@ def merge_fragmented_flights(
 def _dedup_statsim_against_fs(
     fs_flights: list[dict], statsim_flights: list[dict]
 ) -> list[dict]:
-    """StatSim-Flüge zurückgeben, die NICHT bereits durch einen FriesenSpy-Flug abgedeckt sind.
+    """StatSim-Flüge zurückgeben, die NICHT bereits durch einen FriesenRadar-Flug abgedeckt sind.
 
     Abgedeckt = (a) StatSim-Logon liegt innerhalb eines FS-Fensters [logon, logoff], oder
     (b) gleiche Strecke und FS-Logon bis 10 Min nach StatSim (Flugplanwechsel nach Connect).
@@ -4831,12 +4831,12 @@ def canonicalize_flights(
     """Die EINZIGE Wahrheit für „echte Flüge": gemergt, dedupliziert, ghost-gefiltert.
 
     Liefert eine Liste von Flug-Dicts (absteigend nach logon_time) mit Feld `source`
-    ('friesenspy' | 'statsim'). FriesenSpy-Flüge: nur aktive (superseded_by IS NULL),
+    ('friesenspy' | 'statsim'). FriesenRadar-Flüge: nur aktive (superseded_by IS NULL),
     abgeschlossene; Fragmente/Reconnects via merge_fragmented_flights zusammengeführt;
     Ghosts verworfen: Test-Connects (≤0.5 nm und ≤5 min) sowie belegte Steh-Sessions
     (keine Strecke, Blockzeit 0, Track vorhanden — verbunden rumstehen ist kein Flug;
     Altflüge ohne Positionsdaten bleiben). StatSim: nur Einträge, die NICHT bereits
-    durch einen FriesenSpy-Flug abgedeckt sind.
+    durch einen FriesenRadar-Flug abgedeckt sind.
 
     Alle Views (Statistik, Events, Piloten-Detail) nutzen diese Funktion → identische Zahlen.
     `start`/`end` filtern nach logon_time (ISO8601 UTC). `cids` schränkt auf Piloten ein.
@@ -5025,7 +5025,7 @@ def _statsim_plan(row: dict) -> dict:
 
 
 _GPS_LEG_GAP_MINUTES = 30  # muss zum gap_minutes-Default von detect_gps_legs passen
-# Live-Guard für die Landungs-Rettung (#53): ein FriesenSpy-Leg, dessen letzter Punkt jünger als
+# Live-Guard für die Landungs-Rettung (#53): ein FriesenRadar-Leg, dessen letzter Punkt jünger als
 # dieses Fenster ist, gilt als (noch) live und wird NICHT gerettet — sonst würde ein gerade
 # laufender Anflug fälschlich als abgeschlossen gewertet. Deckt sich mit dem Live-Fenster im
 # Frontend (``_LIVE_MAX_AGE_MS``, app/static/index.html). StatSim-Aufzeichnungen sind IMMER
@@ -5155,7 +5155,7 @@ def _gps_flights_for_positions(
     """GPS-Flüge (Task-1/2-Detektor + Collapse) über eine ÜBERGEBENE Positionsliste in
     kanonische Flug-Dicts übersetzen — Metriken via Task-3-Helfer auf denselben Positionen
     (``_block_seconds_positions`` / ``_distance_nm_positions``), damit die Funktion für
-    ``position_history`` (FriesenSpy) UND ``statsim_position_history``-Tracks (StatSim)
+    ``position_history`` (FriesenRadar) UND ``statsim_position_history``-Tracks (StatSim)
     gleichermaßen funktioniert.
 
     ``plan_rows``: Kandidaten-Flugpläne/Connections (``flights``-Zeilen bzw.
@@ -5197,7 +5197,7 @@ def _gps_flights_for_positions(
     from app.gps_legs import detect_gps_legs, collapse_same_airport
 
     # #53: StatSim-Aufzeichnungen sind immer beendet -> immer retten (rescue_before=None).
-    # FriesenSpy-Tracks können live sein -> nur retten, wenn der letzte Punkt außerhalb des
+    # FriesenRadar-Tracks können live sein -> nur retten, wenn der letzte Punkt außerhalb des
     # Live-Fensters liegt (sonst würde ein laufender Anflug fälschlich geschlossen).
     rescue_before = None if source == "statsim" else (
         datetime.now(timezone.utc) - timedelta(minutes=_GPS_RESCUE_LIVE_WINDOW_MIN)
@@ -5390,7 +5390,7 @@ def _gps_flights_for_positions(
             # block_start = Rollbeginn (``taxi_start_ts`` aus detect_gps_legs, s. oben). Dient dem
             # Frontend als Track-Untergrenze (#62), damit Taxi-out + Startlauf sichtbar sind —
             # takeoff_ts (Abheben) schnitt sie bisher ab. Nur relevant für die gefensterten
-            # FriesenSpy-Track-Endpoints; der StatSim-Track lädt ohnehin ungefenstert.
+            # FriesenRadar-Track-Endpoints; der StatSim-Track lädt ohnehin ungefenstert.
             "block_start": block_start,
             # block_end = Blockfenster-Ende (s. ``_extend_block_end``) — normalerweise
             # ``end_ts`` (Landung bzw. bisheriges Tracking-Ende bei offenem Leg), bei
@@ -5421,7 +5421,7 @@ def _flightrow_as_flight(row: dict, source: str) -> dict:
     """Fallback-Flug direkt aus einer ``flights``-/``statsim_cache``-Zeile OHNE GPS-Track.
 
     GPS unbekannt (``gps_departure``/``gps_arrival`` = ``None``); ``departure``/``arrival``
-    kommen aus dem Flugplan der Zeile selbst. ``connection_closed``: FriesenSpy = ``logoff_time``
+    kommen aus dem Flugplan der Zeile selbst. ``connection_closed``: FriesenRadar = ``logoff_time``
     der Zeile gesetzt; StatSim = immer ``True`` (Spec — StatSim-Sessions werden grundsätzlich
     erst abgeschlossen erfasst).
     """
@@ -5529,7 +5529,7 @@ def canonicalize_legs(
     Flugplan-Zuordnung (zeitbasiert — zuletzt gefilter Plan zum Landungs-/Leg-Ende, Spec G
     aktualisiert 2026-07-05) → Fallback auf die reine Connection-/
     StatSim-Zeile, wenn kein Track vorliegt (bzw. kein Leg erkannt wurde) → Ergebnis auf
-    Überlappung mit ``[start, end]`` gefiltert → StatSim-Flüge, die einen FriesenSpy-Flug
+    Überlappung mit ``[start, end]`` gefiltert → StatSim-Flüge, die einen FriesenRadar-Flug
     DESSELBEN cid überlappen, werden verworfen (PRO FLUG, nicht pro Session — Teil-
     Überlappung, z. B. nach einem FS-Absturz, lässt den unüberdeckten StatSim-Rest überleben)
     → Sortierung ``logon_time`` absteigend.
@@ -5537,7 +5537,7 @@ def canonicalize_legs(
     ``callsign_prefix=""`` liefert alle Callsigns (für die Piloten-Detail-Ansicht).
 
     ``radius_km``: Erkennungs-Umkreis für die Platz-Zuordnung (Start/Ziel) im GPS-Leg-
-    Detektor, an ``_gps_flights_for_positions``/``detect_gps_legs`` durchgereicht (FriesenSpy-
+    Detektor, an ``_gps_flights_for_positions``/``detect_gps_legs`` durchgereicht (FriesenRadar-
     UND StatSim-Zweig gleichermaßen). ``None`` (Default) → ``_BUMMEL_AIRPORT_RADIUS_KM``
     (4 km) — unverändertes Verhalten für die globale Statistik/den Cache.
 
@@ -5565,7 +5565,7 @@ def canonicalize_legs(
         _shift_iso(end, hours=_PLAN_ROWS_LOOKBACK_H) if end else None
     )
 
-    # --- FriesenSpy: Connections im Fenster → cid-Menge -------------------------------
+    # --- FriesenRadar: Connections im Fenster → cid-Menge -------------------------------
     # Bewusst OHNE "logoff_time IS NOT NULL" (anders als canonicalize_flights): unter
     # GPS-only ist die Connection nicht mehr die Wahrheit für "abgeschlossen" — das
     # übernimmt connection_closed, das auch für noch offene Connections False liefert.
@@ -5697,10 +5697,10 @@ def canonicalize_legs(
     # Verarbeitet man jede id isoliert, entsteht dabei ein Geister-Leg ("KCAR → —", gestartet
     # aber nie gelandet, weil die Positionsdaten dieser id vor der Landung enden). Deshalb
     # werden zeitlich benachbarte Zeilen DESSELBEN Piloten erst zu Clustern zusammengefasst
-    # (dieselben Reconnect-Regeln wie bei FriesenSpy-Verbindungsabbrüchen), bevor der
+    # (dieselben Reconnect-Regeln wie bei FriesenRadar-Verbindungsabbrüchen), bevor der
     # Detektor läuft — Positionen werden aneinandergehängt, alle betroffenen Flugpläne
     # gemeinsam als plan_rows übergeben (_flightplan_asof ordnet dann jedem erkannten Leg
-    # automatisch den zeitlich richtigen Plan zu, genau wie beim FriesenSpy-Zweig).
+    # automatisch den zeitlich richtigen Plan zu, genau wie beim FriesenRadar-Zweig).
     sc_by_cid: dict[int, list[dict]] = {}
     for row in sc_rows:
         sc_by_cid.setdefault(row["cid"], []).append(row)
@@ -5735,7 +5735,7 @@ def canonicalize_legs(
                     if not f.get("callsign"):
                         # Kein Plan-Match (z. B. Spawn-in-der-Luft, dep_icao unbekannt) UND
                         # statsim_position_history hat KEINE callsign-Spalte (anders als
-                        # position_history bei FriesenSpy) -> callsign_by_ts liefert für StatSim
+                        # position_history bei FriesenRadar) -> callsign_by_ts liefert für StatSim
                         # nie einen Treffer. Ohne diesen Fallback bliebe die Zeile callsign-los,
                         # obwohl die statsim_cache-Zeile ihn längst kennt (row.callsign).
                         f["callsign"] = cluster_rows[0].get("callsign") or None
@@ -5784,7 +5784,7 @@ def audit_gps_vs_refile(
     Flüge unter GPS-only aussähen. ``detect_gps_legs`` + ``collapse_same_airport`` bleiben
     unverändert; nur die Datenquelle ist die StatSim-Positionstabelle.
 
-    Je FriesenSpy-Connection (StatSim hat keine ``position_history`` → keine GPS-Sicht, aus den
+    Je FriesenRadar-Connection (StatSim hat keine ``position_history`` → keine GPS-Sicht, aus den
     Match-Nennern ausgeschlossen) werden die überlappenden ``canonicalize_legs``-Flüge desselben
     ``cid`` gesucht, deren ``logon_time`` (= Takeoff) im Connection-Fenster
     ``[logon_time, logoff_time]`` liegt (``logoff_time`` None → offenes Fenster). Aus der GPS-Sicht
@@ -7026,7 +7026,7 @@ def count_uncached_statsim(
 def get_pilot_flights_friesenspy(
     conn: sqlite3.Connection, cid: int, days: int = 90
 ) -> list[dict]:
-    """FriesenSpy-eigene Flüge für einen Piloten (nur abgeschlossene)."""
+    """FriesenRadar-eigene Flüge für einen Piloten (nur abgeschlossene)."""
     rows = conn.execute(
         """
         SELECT id, cid, callsign, aircraft_short AS aircraft,
@@ -11003,7 +11003,7 @@ def _gap_seconds(a: str, b: str) -> float:
 def _covered_by_session(sessions: list[dict], cid: int, takeoff: str | None) -> bool:
     """Deckt eine echte VATSIM-Verbindung dieses Leg ab? (StatSim-Doppelzählung verhindern.)
 
-    canonicalize_legs verwirft StatSim-Legs, die einen FriesenSpy-Flug DESSELBEN cid überlappen,
+    canonicalize_legs verwirft StatSim-Legs, die einen FriesenRadar-Flug DESSELBEN cid überlappen,
     bereits selbst (database.py:2499 ff.) — aber nur PRO FLUG, ein unüberdeckter Rest überlebt
     bewusst (z. B. nach einem FS-Absturz). Dieser Test hält die Ereignis-Erzeugung dazu konsistent.
     """
@@ -11225,7 +11225,7 @@ def _stack_inputs(conn: sqlite3.Connection, event: dict, now: str, *,
             # `sessions` gebaut; ohne einen Session-Eintrag fiele der StatSim-Pilot aus flights[]
             # und participants[], obwohl seine Lieferung in total_kg zählt. `statsim_only` markiert
             # ihn als NICHT-live (Backfill, keine VATSIM-Verbindung im Poller) — der Live-Block
-            # bleibt so FriesenSpy-only (index.html, fetchKutterActive filtert danach). Angehängt
+            # bleibt so FriesenRadar-only (index.html, fetchKutterActive filtert danach). Angehängt
             # NACH `session_cids`/der Sessions-Schleife: die Event-Erzeugung oben läuft nur über die
             # echten Sessions, hier werden die Ereignisse direkt erzeugt (kein Doppel).
             statsim_sessions.append({
@@ -12488,7 +12488,7 @@ def messeverkehr_geplante_starts_leeren(conn: sqlite3.Connection) -> None:
 def list_messeverkehr_ausschluss_callsigns(conn: sqlite3.Connection) -> list[str]:
     """Zusaetzliche, von Hand gepflegte Ausschlussliste echter Callsigns (z.B. aus der vollen
     Forum-Mitgliederliste) -- ergaenzt bekannte_echte_callsigns() in app/messeverkehr.py um
-    Callsigns, die FriesenSpy selbst nie beobachtet hat (nie geflogen, nie eingeloggt)."""
+    Callsigns, die FriesenRadar selbst nie beobachtet hat (nie geflogen, nie eingeloggt)."""
     rows = conn.execute(
         "SELECT callsign FROM messeverkehr_ausschluss_callsigns ORDER BY callsign"
     ).fetchall()

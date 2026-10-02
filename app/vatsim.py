@@ -1,4 +1,4 @@
-"""VATSIM-API-Client für FriesenSpy — Abrufen und Filtern von Pilotendaten."""
+"""VATSIM-API-Client für FriesenRadar — Abrufen und Filtern von Pilotendaten."""
 from __future__ import annotations
 
 import httpx

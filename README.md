@@ -1,15 +1,15 @@
-# FriesenSpy
+# FriesenRadar
 
 VATSIM Live-Tracker für die FriesenFlieger Virtual Airline. Zeigt wer von der Gruppe gerade online fliegt — mit Live-Karte, Statistiken und Event-Suche.
 
-**Live:** https://friesenspy.devprops.de
+**Live:** https://friesenradar.devprops.de
 
 ---
 
 ## Inhaltsverzeichnis
 
-- [Was ist FriesenSpy?](#was-ist-friesenspy)
-  - [Wie FriesenSpy Flüge zählt (GPS-only, seit v8.0.0)](#wie-friesenspy-flüge-zählt-gps-only-seit-v800)
+- [Was ist FriesenRadar?](#was-ist-friesenradar)
+  - [Wie FriesenRadar Flüge zählt (GPS-only, seit v8.0.0)](#wie-friesenradar-flüge-zählt-gps-only-seit-v800)
 - [Die vier Tabs im Überblick](#die-vier-tabs-im-überblick)
   - [✈ Live](#-live)
   - [🗺️ Karte](#️-karte)
@@ -36,17 +36,17 @@ VATSIM Live-Tracker für die FriesenFlieger Virtual Airline. Zeigt wer von der G
 - [Woher kommen die Daten?](#woher-kommen-die-daten)
 - [Für Entwickler](#für-entwickler)
 
-## Was ist FriesenSpy?
+## Was ist FriesenRadar?
 
-FriesenSpy überwacht automatisch alle VATSIM-Verbindungen mit dem Callsign-Prefix **`FRS`** — das sind die Piloten der FriesenFlieger. Alle 15 Sekunden werden die Echtzeit-Daten von VATSIM abgerufen. Wenn ein Friese online geht, wird das sofort angezeigt, der GPS-Track aufgezeichnet und (optional) eine Benachrichtigung verschickt.
+FriesenRadar überwacht automatisch alle VATSIM-Verbindungen mit dem Callsign-Prefix **`FRS`** — das sind die Piloten der FriesenFlieger. Alle 15 Sekunden werden die Echtzeit-Daten von VATSIM abgerufen. Wenn ein Friese online geht, wird das sofort angezeigt, der GPS-Track aufgezeichnet und (optional) eine Benachrichtigung verschickt.
 
-Es wird kein VATSIM-Account benötigt. FriesenSpy liest ausschließlich öffentliche Daten.
+Es wird kein VATSIM-Account benötigt. FriesenRadar liest ausschließlich öffentliche Daten.
 
-> **Test-Connects** (keine Bewegung, kein Flugplan) werden herausgefiltert — ein Flug erscheint nur wenn er mindestens ~1 km zurückgelegt hat oder länger als 5 Minuten dauerte. Echte Kurzstrecken erscheinen damit vollständig. Flüge, die FriesenSpy selbst aufgezeichnet hat und die auch in StatSim vorhanden sind, werden nie doppelt gezählt.
+> **Test-Connects** (keine Bewegung, kein Flugplan) werden herausgefiltert — ein Flug erscheint nur wenn er mindestens ~1 km zurückgelegt hat oder länger als 5 Minuten dauerte. Echte Kurzstrecken erscheinen damit vollständig. Flüge, die FriesenRadar selbst aufgezeichnet hat und die auch in StatSim vorhanden sind, werden nie doppelt gezählt.
 
-### Wie FriesenSpy Flüge zählt (GPS-only, seit v8.0.0)
+### Wie FriesenRadar Flüge zählt (GPS-only, seit v8.0.0)
 
-Seit v8.0.0 ist der **GPS-Track die einzige Wahrheit** für „was ist ein Flug". FriesenSpy
+Seit v8.0.0 ist der **GPS-Track die einzige Wahrheit** für „was ist ein Flug". FriesenRadar
 erkennt Abheben und Landung direkt aus den aufgezeichneten Positionen — nicht mehr aus dem
 Verbindungsende oder einem Flugplanwechsel:
 
@@ -63,7 +63,7 @@ Verbindungsende oder einem Flugplanwechsel:
 - Der **eingereichte Flugplan** (DEP/ARR) bleibt erhalten und wird weiterhin angezeigt — er ist
   aber nur noch Beschriftung, keine Grundlage mehr für die Flugzählung selbst.
 
-**Die harten Schwellen (Kurzfassung).** Woran genau FriesenSpy Start und Landung festmacht — die **Höhe über Grund ist immer das Leitsignal**, die Geschwindigkeit nur Hilfssignal:
+**Die harten Schwellen (Kurzfassung).** Woran genau FriesenRadar Start und Landung festmacht — die **Höhe über Grund ist immer das Leitsignal**, die Geschwindigkeit nur Hilfssignal:
 
 | Ereignis | Bedingung |
 |---|---|
@@ -75,7 +75,7 @@ Verbindungsende oder einem Flugplanwechsel:
 Der Umkreis ist ein fester, globaler 4-km-Radius (kein per-Event-Radius). Vollständige Konstanten-Tabelle **plus die Begründung je Regel** (belegte Irrwege inklusive): [`docs/gps-flugerkennung.md`](docs/gps-flugerkennung.md).
 
 **Fallback ohne GPS-Track:** Fehlt ein Track (z. B. reine StatSim-Historie oder ein Serverausfall
-mitten im Flug), fällt FriesenSpy auf die klassische, refile-/disconnect-basierte Erkennung
+mitten im Flug), fällt FriesenRadar auf die klassische, refile-/disconnect-basierte Erkennung
 zurück (Reconnect-Merge über Callsign + Flugplan + Zeitlücke, wie zuvor) — Details dazu unter
 [`docs/architecture.md`](docs/architecture.md) → „GPS-Leg-Erkennung" / `canonicalize_legs`.
 
@@ -159,14 +159,14 @@ Interaktive Karte mit allen aktuell fliegenden Friesen. Sie geht über Wangeroog
 - Die Symbole **wandern gleichmäßig**, statt alle 15 Sekunden zu springen: Zwischen zwei VATSIM-Meldungen wird ihre Position aus Kurs und Geschwindigkeit weitergerechnet. Der eingezeichnete Track bleibt davon unberührt — dort stehen nur echte Messpunkte
 - **Türkise Flugzeuge werden sekundengenau gezeigt.** Ihre Position kommt dann nicht von VATSIM, sondern jede Sekunde direkt aus einem Simulator — auf den Meter statt bis zu 35 Sekunden alt wie bei VATSIM. Diese 35 Sekunden sind die Summe dreier Wartezeiten: 2–5 Sekunden, bis die Position überhaupt im VATSIM-Datenstand steht (gemessen an 1280 Piloten: Mittelwert 2,6 s, 99 % unter 5 s), bis zu 15 Sekunden, bis wir diesen Stand abrufen, und bis zu 15 Sekunden, bis die Karte ihn von uns holt. Höhe und Geschwindigkeit am Symbol stammen aus derselben Quelle, und im Popup steht die Quelle als eigene Zeile. Die Quelle ist seine eigene **FriesenBrügge**, sein eigenes **Kniebrett** oder das **Kniebrett eines anderen Friesen** in seiner Nähe; im Popup steht, welche es ist.
 
-  **Wie das geht.** Ein Simulator kennt die Position jedes Flugzeugs, das er darstellt, auf den Meter und in jedem Augenblick — er muss sie ja zeichnen. VATSIM dagegen ist ein Netzdienst mit festem Takt. Beide Zusatzpakete tun deshalb dasselbe, nur für verschiedene Flugzeuge: Die **FriesenBrügge** sitzt als Modul im Simulator und meldet die **eigene** Position ihres Piloten. Das **Kniebrett** ist die FriesenSpy-Seite im EFB und sieht alle Flugzeuge, die der eigene Simulator gerade darstellt — es meldet also **die anderen** mit, bis rund 90 km weit.
+  **Wie das geht.** Ein Simulator kennt die Position jedes Flugzeugs, das er darstellt, auf den Meter und in jedem Augenblick — er muss sie ja zeichnen. VATSIM dagegen ist ein Netzdienst mit festem Takt. Beide Zusatzpakete tun deshalb dasselbe, nur für verschiedene Flugzeuge: Die **FriesenBrügge** sitzt als Modul im Simulator und meldet die **eigene** Position ihres Piloten. Das **Kniebrett** ist die FriesenRadar-Seite im EFB und sieht alle Flugzeuge, die der eigene Simulator gerade darstellt — es meldet also **die anderen** mit, bis rund 90 km weit.
 
   **Warum nicht alle Flugzeuge.** Der Simulator weiß, *wo* ein Flugzeug ist, aber nicht, *wer* es ist: Rufzeichen und Muster stehen nur bei VATSIM. Das Kniebrett legt beide Listen übereinander und ordnet zu, was zusammenpasst — und was es nicht sicher zuordnen kann, meldet es lieber gar nicht. Ein falsches Rufzeichen wäre schlimmer als keines, denn man sieht ihm nicht an, dass es falsch ist. Deshalb bekommt ein Flugzeug nur das Rufzeichen eines Piloten, der auch in der Nähe ist, und ein Flugzeug, das auf VATSIM geparkt steht, bleibt nicht an einem, das fliegt. Einen Friesen, dessen eigenes Kniebrett meldet, erkennt das Kniebrett über seine Anmeldung sicher. Stockt der Simulator kurz, bleiben die Rufzeichen erhalten. Dazu kommt: Der eigene Simulator stellt nur dar, was in der Nähe ist, und Flugzeuge, die der Simulator selbst erfindet (Asobos KI-Verkehr), gibt es auf VATSIM überhaupt nicht.
 
   **Warum nicht immer.** Sekundengenau geht nur, solange **jemand mit den Zusatzpaketen in der Nähe ist**. Fliegt niemand mit Brügge oder offenem Kniebrett, bleibt es beim 15-Sekunden-Takt von VATSIM — daran lässt sich nichts ändern, die Daten sind schlicht nicht schneller da. Und es endet von selbst: Hört die Quelle auf zu melden (Simulator geschlossen, Netz weg, Flugzeug außer Reichweite), wird das Flugzeug nach zehn Sekunden wieder blau.
 
   **Das Melden ist einstellbar.** Die Verwaltung kann es ganz abschalten, auf „nur die eigene Position" begrenzen oder auch den Fremdverkehr freigeben — für einzelne Piloten oder für alle. Hintergrund: Wer gemeldet wird, wird sekundengenau gezeigt, **ohne selbst etwas installiert zu haben**. Hört die Quelle auf zu melden (Simulator geschlossen, Netz weg, Flugzeug außer Reichweite), wird das Flugzeug nach zehn Sekunden wieder blau und läuft normal auf VATSIM weiter
-- **Im Kniebrett kommt Türkis von deinem eigenen Simulator.** Dort braucht es keine fremde Meldung: Der Simulator zeigt dir die Flugzeuge um dich herum ohnehin, und sobald das Kniebrett eines davon einem Piloten zuordnen kann, wird es türkis. Das ist die genaueste Anzeige, die es in FriesenSpy gibt — gemessen statt geschätzt, ohne einen einzigen Netzweg dazwischen. **Auch der Fremdverkehr zeigt es an**, dort aber anders: Sein Symbol bleibt dunkel, nur sein Saum wird türkis. Die Fläche eines Flugzeugs sagt weiterhin, ob es ein Friese ist — daran ändert die Quelle nichts. **Dein eigenes Flugzeug ist im Kniebrett türkis, solange du auf VATSIM bist** — es braucht dafür keine Zuordnung, seine Position kommt ohnehin direkt aus dem Simulator, und genauer kennt die Karte kein Flugzeug. **Fliegst du offline, bleibt es blau.** Türkis sagt nämlich zweierlei: dass die Position sekundengenau ist *und* dass feststeht, wer da fliegt. Ohne VATSIM hat dein Flugzeug gar kein Rufzeichen — auf der Karte heißt es dann wörtlich „Dein Flugzeug" —, und ein türkiser Punkt neben türkisen Nachbarn behauptete eine Zuordnung, die es nicht gibt. Verliert der Simulator ein Flugzeug aus den Augen, fällt es wieder auf VATSIM zurück
+- **Im Kniebrett kommt Türkis von deinem eigenen Simulator.** Dort braucht es keine fremde Meldung: Der Simulator zeigt dir die Flugzeuge um dich herum ohnehin, und sobald das Kniebrett eines davon einem Piloten zuordnen kann, wird es türkis. Das ist die genaueste Anzeige, die es in FriesenRadar gibt — gemessen statt geschätzt, ohne einen einzigen Netzweg dazwischen. **Auch der Fremdverkehr zeigt es an**, dort aber anders: Sein Symbol bleibt dunkel, nur sein Saum wird türkis. Die Fläche eines Flugzeugs sagt weiterhin, ob es ein Friese ist — daran ändert die Quelle nichts. **Dein eigenes Flugzeug ist im Kniebrett türkis, solange du auf VATSIM bist** — es braucht dafür keine Zuordnung, seine Position kommt ohnehin direkt aus dem Simulator, und genauer kennt die Karte kein Flugzeug. **Fliegst du offline, bleibt es blau.** Türkis sagt nämlich zweierlei: dass die Position sekundengenau ist *und* dass feststeht, wer da fliegt. Ohne VATSIM hat dein Flugzeug gar kein Rufzeichen — auf der Karte heißt es dann wörtlich „Dein Flugzeug" —, und ein türkiser Punkt neben türkisen Nachbarn behauptete eine Zuordnung, die es nicht gibt. Verliert der Simulator ein Flugzeug aus den Augen, fällt es wieder auf VATSIM zurück
 
 **Was du tun kannst:**
 - Karte frei verschieben und zoomen
@@ -201,7 +201,7 @@ Interaktive Karte mit allen aktuell fliegenden Friesen. Sie geht über Wangeroog
 
 > **Hinweis:** Es werden ausschließlich Flüge mit einem `FRS`-Callsign gezählt. Flüge desselben Piloten unter einem anderen Callsign erscheinen nicht in den Statistiken.
 
-> **Datenschutz:** In der Pilotenliste wird der vollständige VATSIM-Name angezeigt. Alle dort sichtbaren Namen sind öffentlich im VATSIM-Datenfeed (`data.vatsim.net`) — FriesenSpy zeigt keine zusätzlichen privaten Daten.
+> **Datenschutz:** In der Pilotenliste wird der vollständige VATSIM-Name angezeigt. Alle dort sichtbaren Namen sind öffentlich im VATSIM-Datenfeed (`data.vatsim.net`) — FriesenRadar zeigt keine zusätzlichen privaten Daten.
 
 **Was du siehst:**
 - **KPI-Box** oben: Gesamtanzahl aktiver Piloten, Flüge, Flugstunden, Durchschnitt pro Tag, aktivster Pilot und durchschnittliche Flugdauer im gewählten Zeitraum
@@ -216,10 +216,10 @@ Interaktive Karte mit allen aktuell fliegenden Friesen. Sie geht über Wangeroog
 - **◎** neben einem Einzelflug → öffnet den GPS-Track dieses Fluges in einem eigenen Fenster (mit **⛶ Vollbild**)
 - **⎘** neben einem Einzelflug → kopiert den Link zu genau diesem Flug
 
-> **„Ich sehe nur 30 Tage Statistik"** — Das ist der Default. Oben links im Statistiken-Tab gibt es einen Umschalter für **30 / 90 / 365 Tage**. Für Piloten, die FriesenSpy noch nicht kannte, werden beim ersten Anklicken automatisch die letzten 31 Tage von StatSim geholt. Für das vollständige letzte Jahr einmal **„Alle Flüge laden (letztes Jahr)"** klicken — das dauert einige Sekunden.
+> **„Ich sehe nur 30 Tage Statistik"** — Das ist der Default. Oben links im Statistiken-Tab gibt es einen Umschalter für **30 / 90 / 365 Tage**. Für Piloten, die FriesenRadar noch nicht kannte, werden beim ersten Anklicken automatisch die letzten 31 Tage von StatSim geholt. Für das vollständige letzte Jahr einmal **„Alle Flüge laden (letztes Jahr)"** klicken — das dauert einige Sekunden.
 
 Einzelflüge können aus zwei Quellen stammen — erkennbar am Badge:
-- **Kein Badge** = FriesenSpy hat den Flug live aufgezeichnet → GPS-Track sofort verfügbar
+- **Kein Badge** = FriesenRadar hat den Flug live aufgezeichnet → GPS-Track sofort verfügbar
 - **◌ StatSim** = Flug kommt aus der StatSim-Datenbank → GPS-Track wird im Hintergrund automatisch nachgeladen (kann etwas dauern); bis dahin nur Flugplan-Daten (Start, Ziel, Dauer)
 
 **GPS-Route und Flugplan getrennt (seit v8.0.0):** Die Einzelflug-Liste zeigt zwei eigene Spalten
@@ -241,7 +241,7 @@ Oben erscheint die **FriesenEvents-Liste** — Events aus dem FriesenFlieger-Goo
 Dazu stehen dort die **Bummel und Kutter** selbst. Gehört ein Termin zu einem solchen Event, erscheint **nur das Event** — mit den Angaben, die im Admin gepflegt sind, nicht mit denen aus dem Kalender. So steht ein Abend einmal in der Liste statt zweimal, und eine korrigierte Strecke ist auch hier zu sehen. Gehört kein Event dazu, bleibt der Termin für sich stehen (seit v14.21.0).
 
 **Wie es funktioniert:**
-Du gibst einen **ICAO-Code** (z.B. `EDDK`) oder **`global`** für weltweite Suche ein, sowie einen **Zeitraum**. Bei ICAO-Suche wird zusätzlich ein **Radius in km** berücksichtigt. FriesenSpy sucht alle Friesen-Flüge, deren Route durch den Bereich verlief oder die dort gestartet/gelandet sind. Piloten werden gefunden, wenn ihr Flug das Zeitfenster **überlappt** — auch wer schon früher gestartet oder erst nach Event-Ende gelandet ist.
+Du gibst einen **ICAO-Code** (z.B. `EDDK`) oder **`global`** für weltweite Suche ein, sowie einen **Zeitraum**. Bei ICAO-Suche wird zusätzlich ein **Radius in km** berücksichtigt. FriesenRadar sucht alle Friesen-Flüge, deren Route durch den Bereich verlief oder die dort gestartet/gelandet sind. Piloten werden gefunden, wenn ihr Flug das Zeitfenster **überlappt** — auch wer schon früher gestartet oder erst nach Event-Ende gelandet ist.
 
 **Was du siehst:**
 - **Karte** (oben) mit allen gefundenen GPS-Tracks gleichzeitig eingezeichnet (werden pro Flug nachgeladen, sobald die Suche fertig ist)
@@ -281,7 +281,7 @@ Der **FriesenBummel** ist ein besonderer Event-Typ — ein „Schätzweltmeister
 
 **Automatische Erkennung — kein Admin-Aufwand:** Ein Termin im FriesenFlieger-Kalender wird als Bummel erkannt, sobald im **Titel oder in der Beschreibung** das Stichwort „Bummel" steht **und** mindestens **zwei Flugplätze** (ICAO-Codes) hinterlegt sind. Eine Plausibilitätsprüfung verhindert Fehlerkennungen: Liegen zwei Streckenflugplätze weiter als ~600 nm auseinander, wird der Termin nicht als Bummel gewertet.
 
-**Und wenn im Termin ein Fehler steckt:** Korrigiere Strecke, Zeit oder Namen einfach im Admin — die Änderung **bleibt jetzt stehen**. Bis v14.21.0 war das vergebliche Mühe: Spätestens beim nächsten Kalender-Abgleich (alle sechs Stunden) hatte der Kalender die Korrektur stillschweigend zurückgesetzt. FriesenSpy merkt sich seither **je Feld**, was von Hand gesetzt wurde. Verschiebt jemand den Termin später im Kalender, zieht die Zeit trotzdem mit — solange du sie nicht selbst angefasst hast.
+**Und wenn im Termin ein Fehler steckt:** Korrigiere Strecke, Zeit oder Namen einfach im Admin — die Änderung **bleibt jetzt stehen**. Bis v14.21.0 war das vergebliche Mühe: Spätestens beim nächsten Kalender-Abgleich (alle sechs Stunden) hatte der Kalender die Korrektur stillschweigend zurückgesetzt. FriesenRadar merkt sich seither **je Feld**, was von Hand gesetzt wurde. Verschiebt jemand den Termin später im Kalender, zieht die Zeit trotzdem mit — solange du sie nicht selbst angefasst hast.
 
 **Wertung (bewusst robust):**
 - **Teilnahme ohne Anmeldung** — jeder Friese, der die Strecke im Zeitfenster fliegt, ist automatisch dabei.
@@ -290,7 +290,7 @@ Der **FriesenBummel** ist ein besonderer Event-Typ — ein „Schätzweltmeister
 - **Frühstarter zählen mit:** Wer schon vor dem offiziellen Event-Start losfliegt, aber währenddessen unterwegs ist, wird mit seiner **vollen Blockzeit** gewertet.
 - **Gewertete Zeit** = Summe der Blockzeiten der Tour-Legs (*off blocks* bis *on blocks*, Taxi und Halte unterwegs eingeschlossen; die Standzeit an Zwischenstopps zählt nicht — egal wie lange sie dauert). Tatsächlich geflogene Meilen, Warteschleifen und Umwege spielen keine Rolle.
 - **Niemand fällt still raus:** Piloten, die noch nicht alle Etappen geflogen haben, werden separat als „unvollständig" aufgelistet — mit den fehlenden Etappen, benannt in der Richtung, in der die Strecke sie nennt (`EDTD - EDSR`).
-- **GPS statt Flugplan:** Ob ein Pilot an einem Flugplatz war, erkennt FriesenSpy am **GPS-Track** (erste/letzte Position am Flugplatz), nicht am eingereichten Flugplan. Ein Tippfehler im Flugplan kann eine Wertung also nicht verhindern; der Flugplan dient nur als Rückfall, wenn kein Track vorliegt. Wie nah eine Position an einem Streckenflugplatz liegen muss, steuert der **feste, globale 4-km-Radius** (siehe oben) — es gibt keinen separat einstellbaren Radius mehr pro Rennen.
+- **GPS statt Flugplan:** Ob ein Pilot an einem Flugplatz war, erkennt FriesenRadar am **GPS-Track** (erste/letzte Position am Flugplatz), nicht am eingereichten Flugplan. Ein Tippfehler im Flugplan kann eine Wertung also nicht verhindern; der Flugplan dient nur als Rückfall, wenn kein Track vorliegt. Wie nah eine Position an einem Streckenflugplatz liegen muss, steuert der **feste, globale 4-km-Radius** (siehe oben) — es gibt keinen separat einstellbaren Radius mehr pro Rennen.
 
 **Fairness-Verdeckung — keine Zeitvorteile durch Nachschauen:** Solange das Rennen läuft, bleiben Durchschnittszeit, Einzelzeiten und das Ranking verborgen — ein noch nicht geflogener Pilot könnte seine Zeit sonst bewusst auf den Schnitt ausrichten. Sichtbar sind nur: wer teilnimmt, Callsign, Flugzeugtyp, Flugplan (Start/Ziel/Route), Abfluguhrzeit, Fortschritt (geflogene und fehlende Etappen, Anzahl Legs) und wer gerade unterwegs ist. **Die Landezeiten bleiben bis zur Enthüllung verdeckt** — aus ihnen ließe sich die Dauer ablesen. Die vollständige Auswertung (Zeiten, Schnitt, Ranking) erscheint frühestens bei `dtend` — dem Renn-Ende aus dem Kalendertermin (fehlt es → Mitternacht UTC am Ende des Starttags) — und erst wenn keine Nachzügler mehr in der Luft sind. Maßgeblich ist die **Landung**, nicht das Verlassen des Netzwerks: Wer aufgesetzt hat und im Cockpit sitzen bleibt, hält die Enthüllung nicht mehr auf (seit v14.23.0). Gewartet wird allerdings, **bis die Blockzeiten feststehen** — wer am Boden steht und online bleibt, dessen Blockzeit läuft noch mit, bis zehn Minuten Stillstand belegt sind (seit v14.25.0; vorher konnte ein Zwischenstand eingefroren werden). Loggt er sich vorher aus, geht es sofort weiter.
 
@@ -299,7 +299,7 @@ Nach dem Renn-Ende steht in der Statuszeile, **woran der Abschluss gerade hängt
 **Was du siehst:**
 - **Live-Tab:** Solange ein Bummel läuft, zeigt ein Banner oben den aktuellen Teilnahme-Zwischenstand (wer dabei ist, wer gerade unterwegs ist) — ohne Zeiten, solange das Rennen noch nicht enthüllt ist.
 - **Events-Tab:** Bummel-Termine tragen ein **🏁 BUMMEL**-Badge. Vor der Enthüllung sieht man Teilnahme und Fortschritt — darüber steht das **Zeitfenster** des Rennens (Beginn – Ende), und solange es läuft, nennt die Statuszeile die Uhrzeit, bis zu der es geht. Das ist der Anmeldeschluss: Wer erst danach startet, wird nicht mehr gewertet (seit v14.23.0). Nach der Enthüllung öffnet ein Klick das vollständige Ranking (Platz, Pilot, Flugzeug, Legs, Block-Gesamtzeit, Abstand zum Schnitt — signiert und ungerundet, in der Auflösung des VATSIM-Feeds von 15 Sekunden; wer exakt gleich weit vom Schnitt liegt, **teilt sich den Platz**) samt „unvollständig"-Liste — und **darunter die komplette normale Event-Ansicht** (Karte + alle Piloten im Umkreis, auch Nicht-Teilnehmer; gewertete Piloten tragen ihr Bummel-Standing als Badge). Im enthüllten Ranking erscheint außerdem ein **„Für Forum kopieren"**-Button — er erzeugt einen fertig formatierten Ergebnistext zum Einfügen in board.friesenflieger.de. Manuell angelegte Bummel erscheinen ebenfalls in dieser Liste und sind anklickbar.
-- **Push-Benachrichtigungen:** FriesenSpy benachrichtigt (sofern Push aktiviert ist), wenn das Rennen **gestartet** wird — der Trigger ist der erste Pilot, der eine Blockzeit an einem Streckenflugplatz erreicht — und wenn die **Ergebnisse enthüllt** werden. Beide Ereignisse sind Latches (feuern nur einmal je Rennen) und können je Rennen über die Admin-Seite abgeschaltet werden. Diese Benachrichtigungen erreichen nur Abonnenten mit aktiviertem **„Events"-Schalter** (opt-in).
+- **Push-Benachrichtigungen:** FriesenRadar benachrichtigt (sofern Push aktiviert ist), wenn das Rennen **gestartet** wird — der Trigger ist der erste Pilot, der eine Blockzeit an einem Streckenflugplatz erreicht — und wenn die **Ergebnisse enthüllt** werden. Beide Ereignisse sind Latches (feuern nur einmal je Rennen) und können je Rennen über die Admin-Seite abgeschaltet werden. Diese Benachrichtigungen erreichen nur Abonnenten mit aktiviertem **„Events"-Schalter** (opt-in).
 
 ### Badge fürs Forum
 
@@ -316,15 +316,15 @@ Im enthüllten Ranking erscheinen je Pilot zwei Schaltflächen: **🎖 Badge** �
 
 ## 🦐 FriesenKutter (Transportflüge)
 
-Der **FriesenKutter** ist ein kleines „FSE für Friesen": ein Transportflug-Event, bei dem die Gruppe Nachschub zu einem Ziel fliegt (z.B. Wangerooge → Helgoland) und FriesenSpy **automatisch mitzählt, wie viel Fracht bewegt wurde** — ohne jede Vorbereitung, gespeist aus den ohnehin getrackten FRS-Flügen.
+Der **FriesenKutter** ist ein kleines „FSE für Friesen": ein Transportflug-Event, bei dem die Gruppe Nachschub zu einem Ziel fliegt (z.B. Wangerooge → Helgoland) und FriesenRadar **automatisch mitzählt, wie viel Fracht bewegt wurde** — ohne jede Vorbereitung, gespeist aus den ohnehin getrackten FRS-Flügen.
 
 **So läuft es:**
 
-- **Anlegen:** **ausschließlich manuell im Admin**. Aus einem Kalendertermin entsteht **kein** Kutter — der braucht ein Frachtmanifest, und das kann ein Termin nicht tragen. **Neu seit v14.21.0:** Der Termin selbst verschwindet deshalb nicht mehr. Bis dahin fiel jeder Termin, in dem irgendwo „Kutter" stand, lautlos aus FriesenSpy heraus — auch dann, wenn niemand einen Kutter angelegt hatte, und der Abend war anschließend nirgends zu sehen. Jetzt steht er ganz normal in den Events und erinnert wie jeder andere Termin. Gehören Termin und Kutter zusammen, **verknüpfst du beide im Admin** (siehe [Verwaltung](#-verwaltung-admin)); dann erscheint der Abend genau einmal.
+- **Anlegen:** **ausschließlich manuell im Admin**. Aus einem Kalendertermin entsteht **kein** Kutter — der braucht ein Frachtmanifest, und das kann ein Termin nicht tragen. **Neu seit v14.21.0:** Der Termin selbst verschwindet deshalb nicht mehr. Bis dahin fiel jeder Termin, in dem irgendwo „Kutter" stand, lautlos aus FriesenRadar heraus — auch dann, wenn niemand einen Kutter angelegt hatte, und der Abend war anschließend nirgends zu sehen. Jetzt steht er ganz normal in den Events und erinnert wie jeder andere Termin. Gehören Termin und Kutter zusammen, **verknüpfst du beide im Admin** (siehe [Verwaltung](#-verwaltung-admin)); dann erscheint der Abend genau einmal.
 - **Fracht-Manifest:** Jedes Event hat eine Frachtliste (z.B. *1 t Fischbrötchen + 500 kg Friesen Tee*), die zusammen das Ziel ergibt. Die eingehenden Flüge füllen sie **der Reihe nach** auf; jeder Flug bekommt seine Frachtart.
 - **Verschiedene Waren je Startplatz:** Jede Frachtart liegt an **genau einem Startplatz** (z.B. *ab EDWG Äpfel · ab EDDW Birnen*, alle zum selben Ziel) — für dieselbe Ware an mehreren Plätzen legst du einfach mehrere Zeilen an. Nur wer dort startet, lädt die Ware — so steht sie durch den Startort fest, statt sich über die Abflugreihenfolge zu verschieben. Der Fortschritt wird **je Startplatz gruppiert** angezeigt, mit einem Gesamt-Balken darüber. Ein **eigenes Strecken-Feld gibt es nicht**: die Strecke ergibt sich automatisch aus den Startplätzen der Fracht + dem Ziel. Ein Event braucht ein **Ziel** und **mind. eine Frachtart mit Startplatz** (ein „geteilter Topf" ohne Startplatz entfällt).
 - **Nur in eine Richtung:** Fracht zählt auf dem Weg **zum Ziel**. Der Rückflug fliegt leer und erscheint im Feed als „leer".
-- **Zuladung pro Flugzeugtyp:** Wie viel ein Flug lädt, hängt vom Muster ab (MTOW − Leergewicht − halber Tank − Pilot, alles im Admin einstellbar). Die ~108 gängigen GA-/Privat-/Hubschraubermuster (inkl. Transall C-160 & A400M) kommen aus einem **kuratierten Datensatz** (`app/data/aircraft_specs.json`, viele Werte sim-authentisch aus FSEconomy) und sind ab Start sofort und kostenlos vorbefüllt — nur für seltene, unbekannte Muster holt sich FriesenSpy noch automatisch einen **KI-Vorschlag** (Web-Recherche). Gespeichert wird der volle Tank; fürs Rechnen zählt der halbe. Alle Werte (inkl. Name) bleiben im Admin frei anpassbar.
+- **Zuladung pro Flugzeugtyp:** Wie viel ein Flug lädt, hängt vom Muster ab (MTOW − Leergewicht − halber Tank − Pilot, alles im Admin einstellbar). Die ~108 gängigen GA-/Privat-/Hubschraubermuster (inkl. Transall C-160 & A400M) kommen aus einem **kuratierten Datensatz** (`app/data/aircraft_specs.json`, viele Werte sim-authentisch aus FSEconomy) und sind ab Start sofort und kostenlos vorbefüllt — nur für seltene, unbekannte Muster holt sich FriesenRadar noch automatisch einen **KI-Vorschlag** (Web-Recherche). Gespeichert wird der volle Tank; fürs Rechnen zählt der halbe. Alle Werte (inkl. Name) bleiben im Admin frei anpassbar.
 - **Anzeige:** Im Events-Tab zeigt eine Karte einen **segmentierten Ziel-Balken** je Frachtart und darunter den **Flug-Feed** (neueste oben), der sich live aktualisiert. In der Detail-Ansicht zeigt ein zweiter Block **je Abholplatz**, was dort noch liegt und was schon geholt ist. **Dieser Balken leert sich:** Die Farbe ist der Stapel, der dort noch wartet — am Anfang voll, nach dem letzten Abflug leer. Der Gesamtbalken darüber macht es umgekehrt und füllt sich mit dem Gelieferten (v14.27.5).
 - **Push:** Start des Events, erreichtes Ziel und eine Feierabend-Zusammenfassung („X Frachtflüge, Y t bewegt") gehen an die Events-Abonnenten. Bleibt ein Event komplett ohne Frachtflug, entfällt die Feierabend-Zusammenfassung (und der dafür sonst nötige KI-Aufruf) — das Event gilt trotzdem als abgeschlossen. Push für ein einzelnes Event lässt sich im Admin an- oder abschalten (analog zum Bummel).
 - **Frachtart-Katalog:** Im Admin pflegbare Frachtarten mit Emoji und optionaler Obergrenze pro Flug — z.B. Krabbenbrötchen 🦐, Heringe 🐟 oder Filmrollen 🎞️ (max 100 kg). Ist eine Frachtart gedeckelt, nimmt der Rest der Zuladung eines Flugs automatisch die nächste Frachtart mit (Co-Load).
@@ -332,7 +332,7 @@ Der **FriesenKutter** ist ein kleines „FSE für Friesen": ein Transportflug-Ev
 - **Fracht direkt im Kalendertermin (derzeit inaktiv):** Der frühere Kalender-Frachtimport (`Fracht EDWG: 1000 Krabbenbrötchen, 500 Friesentee` in der Termin-Beschreibung) ist mit der Deaktivierung des Kutter-Kalenderimports **stillgelegt** — das Manifest wird ausschließlich manuell im Admin gepflegt. Die Parser-Logik (`parse_cargo_lines`) bleibt für eine spätere, forum-basierte Import-Lösung erhalten.
 - **Ohne Disconnect zählen:** Fracht wird bereits erfasst, sobald du am Ziel-Flugplatz landest (GPS-erkannte Landung) — du musst nicht disconnecten. Einmal erkannt, bleibt die Fracht dauerhaft gezählt, auch wenn du danach weiterfliegst.
 - **Ladung ist ein Bestand, keine Zusicherung:** Die Fracht liegt als **Stapel** an ihrem Startplatz. Wer am Boden dort steht, **lädt vom Stapel** (bis zur Zuladung des Musters) — das ist zugleich die »Reservierung« (»davon X kg unterwegs« im Balken), es gibt keinen getrennten Reservierungs-Topf mehr. Was geladen ist, **bleibt an Bord** — auch über Zwischenlandungen (eine Milchmann-Tour bleibt **eine** Reise »unterwegs«, kein Leerflug pro Leg; auch **Platzrunden/Stop-and-Go am selben Platz** — bis 5 Min Bodenzeit — zählen als **ein** Flug und tragen die Ware unverändert weiter: dazwischen wird nichts nachgeladen, geliefert oder verloren, die Bordladung bleibt schlicht an Bord bis zur nächsten echten Landung an einem anderen Platz). Eine Teilnehmerliste zeigt, wer gerade lädt, unterwegs ist oder (leer) mitmacht. **Verlorene Fracht** ergibt sich allein daraus, wo jemand mit Ladung an Bord **ausloggt**: an einem **Ladeplatz** → **zurückgebracht** (kein Verlust), an einem **fremden Platz** → **»geklaut«**, in der Luft → **»Kutter versunken«** — im Feed und in der Bilanz sichtbar. Unterm Strich gilt immer: gelieferte + verlorene + an Bord befindliche + restliche Fracht = Manifest (der Balken kann nicht mehr lügen). Der Erkennungs-Umkreis ist der feste, globale 4-km-Radius (siehe oben) — es gibt keinen separat einstellbaren Radius mehr pro Event.
-- **Alles aus dem GPS-Track, nicht aus dem Flugplan (GPS-only):** Wo du lädst, wohin du fliegst, welche Zwischenlandungen du machst und wo du lieferst, erkennt FriesenSpy **ausschließlich am Track** — Start-/Landeort, Zwischenstopps und der Vollstopp am Ziel. **Den Flugplan braucht der Kutter nur für das Flugzeugmuster** (daraus ergibt sich die Zuladung, siehe oben). Ein falsch getippter oder mehrfach neu eingereichter Flugplan ändert an der Fracht deshalb **nichts** — für die Zuladung zählt nur der zuletzt aktive Muster-Typ. (Dasselbe Prinzip wie bei der allgemeinen Flugerkennung, siehe „GPS statt Flugplan" oben.)
+- **Alles aus dem GPS-Track, nicht aus dem Flugplan (GPS-only):** Wo du lädst, wohin du fliegst, welche Zwischenlandungen du machst und wo du lieferst, erkennt FriesenRadar **ausschließlich am Track** — Start-/Landeort, Zwischenstopps und der Vollstopp am Ziel. **Den Flugplan braucht der Kutter nur für das Flugzeugmuster** (daraus ergibt sich die Zuladung, siehe oben). Ein falsch getippter oder mehrfach neu eingereichter Flugplan ändert an der Fracht deshalb **nichts** — für die Zuladung zählt nur der zuletzt aktive Muster-Typ. (Dasselbe Prinzip wie bei der allgemeinen Flugerkennung, siehe „GPS statt Flugplan" oben.)
 - **Nur echte Legs sind Flüge (v10.0.2):** Als Flug erscheint, wird geloggt und in die „gesamt"-Zahl gezählt **ausschließlich, was der GPS-Track als echtes Leg erfasst.** Eine **reine Rückgabe am Platz** — laden und ohne einen Meter zu fliegen am selben Platz wieder ablegen (z. B. Logout/Reconnect) — ist **kein Flug**: keine Feed-Zeile, kein Zähler. Fachlich ist das eine **stille Stapel-Buchung** (die Ware liegt einfach wieder auf ihrem Stapel), **kg-neutral** — der Balken bleibt exakt gleich, es fehlt nur die irreführende Zeile. (Vorher blähten solche stillen Buchungen die „gesamt"-Zahl auf.)
 - **Milchmann-Zwischenlegs zeigen die getragene Ladung (v10.0.3):** Ein Milchmann mit Zwischenlandungen (EDWZ→EDWY→EDWJ→Ziel) zeigt auf jedem **Zwischenleg**, was dort an Bord war — z. B. „🎞️ Filmrollen (100) · getragen" — statt fälschlich „leer". Erst das letzte Leg mit der Landung am Ziel zeigt „geliefert". Grund: Die Fracht einer Leg-Zeile kommt jetzt aus der **Modell-Wahrheit „was war beim Abheben an Bord"**, nicht mehr nur aus den Lieferungen (dieselbe Logik, die der laufende Flug schon nutzte, gilt jetzt für **jedes** Leg). Reine Anzeige — an Zahlen und Balken ändert sich nichts.
 - **Forum-Badge nach der Feierabend-Bilanz:** Sobald ein Event abgeschlossen ist, bekommt jeder Teilnehmer ein rundes Badge-PNG „Voll beladen!" (Callsign, Flugzeugmuster, gelieferte kg) — bei verlorener Fracht zusätzlich mit Verlust-Titel **SPITZBOOV!** (geklaut), **BADEMESTER!** (versenkt) oder **SEEROVER!** (beides). Im Events-Tab erscheinen dafür je Teilnehmer **🎖 Badge** (öffnet das PNG) und **📋 Forum** (kopiert den BBCode) über dem Flug-Feed — analog zum Bummel-Badge. Auch hier gibt es im Admin ein Feld **„Name auf dem Badge"** für einen Kurznamen, wenn der Event-Name die runde Grafik sprengt (leer = voller Event-Name).
@@ -500,12 +500,12 @@ Kniebrett — tun das nur, solange sie zu sehen sind.
 
 ### Board-Login (Forum-SSO, optional)
 
-Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, Standard AUS), ist die gesamte App nur für eingeloggte Forum-Mitglieder (`board.friesenflieger.de`, phpBB) sichtbar. Der Login läuft im Forum — das Passwort erreicht FriesenSpy nie: eine kleine Bridge-Datei `sso.php` (aus `deploy/forum/`, neben phpBB kopiert) liefert per Redirect ein kurzlebiges, HMAC-signiertes Token mit Benutzername, VATSIM-CID (aus dem Forum-Profil) und Admin-Flag (Forum-Gruppe „Events“). FriesenSpy prüft es (`SSO_SECRET`, Frische ≤ 60 s, Einmal-Nonce, `state`) und legt eine eigene kurze Session (`fs_user`) an. Das `ADMIN_PASSWORD` bleibt als Break-glass-Zugang erhalten. Details: `docs/superpowers/specs/2026-07-13-forum-sso-design.md` und `deploy/forum/README.md`.
+Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, Standard AUS), ist die gesamte App nur für eingeloggte Forum-Mitglieder (`board.friesenflieger.de`, phpBB) sichtbar. Der Login läuft im Forum — das Passwort erreicht FriesenRadar nie: eine kleine Bridge-Datei `sso.php` (aus `deploy/forum/`, neben phpBB kopiert) liefert per Redirect ein kurzlebiges, HMAC-signiertes Token mit Benutzername, VATSIM-CID (aus dem Forum-Profil) und Admin-Flag (Forum-Gruppe „Events“). FriesenRadar prüft es (`SSO_SECRET`, Frische ≤ 60 s, Einmal-Nonce, `state`) und legt eine eigene kurze Session (`fs_user`) an. Das `ADMIN_PASSWORD` bleibt als Break-glass-Zugang erhalten. Details: `docs/superpowers/specs/2026-07-13-forum-sso-design.md` und `deploy/forum/README.md`.
 
 ### Rund um den FriesenBummel
 - **Rennen manuell anlegen** — auch ohne Kalender-Termin, mit frei wählbarer Strecke, Start- und (optionalem) Endtermin sowie Anwesenheitsradius. Ein fehlendes `dtend` wird auf Mitternacht UTC des Starttags gesetzt.
 - **Rennen bearbeiten und löschen** — nachträgliche Korrekturen an Name, Strecke, Termin oder Radius; Löschen entfernt das Rennen dauerhaft. **Was du hier änderst, bleibt geändert:** Jedes Feld zeigt, woher sein Wert kommt — *aus dem Kalender* oder *von Hand*. Von Hand gesetzte Felder rührt der Kalender-Abgleich nicht mehr an; die übrigen bleiben ihm überlassen. Vertan? Der Pfeil **↺** neben dem Feld holt den Kalenderstand sofort zurück.
-- **Kalendertermin verknüpfen** — beim Anlegen und beim Bearbeiten wählst du aus einer Liste den Termin, zu dem dieses Rennen gehört (oder lässt das Feld leer). Verknüpft heißt: Rennen und Termin **sind dasselbe Ereignis** — der Termin steht dann nicht mehr zusätzlich in den Events und erinnert nicht doppelt. FriesenSpy schlägt einen passenden Termin vor (gleicher Tag, ähnlicher Titel), entscheidet aber nichts von allein: Bestätigt wird mit dem Speichern. Termine, an denen schon ein Event hängt, sind ausgegraut. **Beim Kutter genauso** (dort zusätzlich das Ziel, das nie aus dem Kalender kommt).
+- **Kalendertermin verknüpfen** — beim Anlegen und beim Bearbeiten wählst du aus einer Liste den Termin, zu dem dieses Rennen gehört (oder lässt das Feld leer). Verknüpft heißt: Rennen und Termin **sind dasselbe Ereignis** — der Termin steht dann nicht mehr zusätzlich in den Events und erinnert nicht doppelt. FriesenRadar schlägt einen passenden Termin vor (gleicher Tag, ähnlicher Titel), entscheidet aber nichts von allein: Bestätigt wird mit dem Speichern. Termine, an denen schon ein Event hängt, sind ausgegraut. **Beim Kutter genauso** (dort zusätzlich das Ziel, das nie aus dem Kalender kommt).
 
   Warum von Hand und nicht automatisch nach Datum? Weil zwei Ereignisse am selben Abend zwei Ereignisse sein dürfen. Am 4. September liefen „FFFreitag – Ausmotten" und ein Kutter parallel — bewusst als zwei Themen mit zwei Benachrichtigungen. Ob etwas zusammengehört, ist eine Absicht und keine Eigenschaft der Daten.
 - **Enthüllung steuern** — Notfall-Enthüllung (sofort zeigen) oder wieder verbergen, z. B. um einen Fehler zu korrigieren, bevor das Ergebnis öffentlich wird.
@@ -563,7 +563,7 @@ Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, St
   Piloten bei 110 kt. Ein 40-×-40-km-Sektor ist damit rund eine halbe Stunde Arbeit; 20 × 20 km
   wären nach zehn Minuten vorbei.
 - **Alle Höhen sind Fuß AGL über dem Havaristen**, nicht MSL. Die Geländehöhe an der
-  Unglücksstelle holt FriesenSpy beim Speichern aus einem Höhenmodell („karte“), sobald der
+  Unglücksstelle holt FriesenRadar beim Speichern aus einem Höhenmodell („karte“), sobald der
   Havarist gesetzt ist — damit gilt die Suchhöhe schon ab dem Start über dem echten Gelände.
   Meldet die FriesenBrügge später die Höhe aus dem Simulator, ersetzt sie den Kartenwert
   („gemessen“); neben der Zahl steht, woher sie kommt. Fehlt sie, warnt der Admin: Dann gilt die
@@ -582,7 +582,7 @@ Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, St
   Fund) und „Landung zur Rettung nötig" (aus: ein Schwebeflug genügt, verlangt dann aber einen
   Hubschrauber). Was der Haken bedeutet, steht im Admin direkt daneben.
 - **Aufnahme freigeben** — wer aufgenommen hat und dann ohne Landung verschwindet, blockiert
-  sonst den ganzen Abend. Das erledigt FriesenSpy von selbst, sobald er sich **abgemeldet** hat
+  sonst den ganzen Abend. Das erledigt FriesenRadar von selbst, sobald er sich **abgemeldet** hat
   und zehn Minuten nichts mehr meldet (abschaltbar); der Knopf daneben tut es sofort. Die zehn
   Minuten sind die Schonfrist für einen Absturz zum Desktop mit Wiederanmeldung.
 - **Bearbeiten, 🔗 Link, Push je Event** und **Löschen** — der Link ist der Direktlink fürs
@@ -626,7 +626,7 @@ VATSIM weiterhin die Sekunden, in denen sie schweigt.
 
 ## 🌗 Helles Design
 
-FriesenSpy gibt es dunkel wie bisher oder hell in den Farben des Forums. Umschalten lässt es sich über das **Zahnrad ⚙ oben rechts** → **Einstellungen** → **Anzeige** → **Design: Dunkel / Hell**. Die Seite wechselt sofort, ohne neu zu laden.
+FriesenRadar gibt es dunkel wie bisher oder hell in den Farben des Forums. Umschalten lässt es sich über das **Zahnrad ⚙ oben rechts** → **Einstellungen** → **Anzeige** → **Design: Dunkel / Hell**. Die Seite wechselt sofort, ohne neu zu laden.
 
 - **Die Wahl wird gemerkt** — auf der Website und im Kniebrett getrennt, du kannst also am PC hell und im Cockpit dunkel fliegen. Mit Forum-Anmeldung hängt sie an deinem Konto, ohne Anmeldung merkt sie sich der Browser.
 - **Die Karte bleibt, wie sie ist.** Flugzeuge, Spuren, Platzrunden und Beschriftungen auf der Karte behalten ihre Farben; die Grundkarte wählst du wie gewohnt über die Ebenen-Auswahl (dort gibt es auch eine helle Karte). Popups und Bedienelemente der Karte folgen dem Design.
@@ -636,11 +636,11 @@ FriesenSpy gibt es dunkel wie bisher oder hell in den Farben des Forums. Umschal
 
 ## 🔔 Benachrichtigungen (Push Notifications)
 
-FriesenSpy kann dich benachrichtigen, wenn ein Friese auf VATSIM online geht — auch wenn der Browser im Hintergrund läuft oder der PC gesperrt ist. Optional auch schon beim **Einreichen oder Ändern eines Flugplans** (Prefile), bevor der Pilot online geht — auch bei Änderungen an Abflugzeit, Abflug- oder Zielflughafen. Die Notification enthält Datum und Uhrzeit des geplanten Fluges (aus dem DOF-Feld). Ist der Pilot bereits online, werden Prefile-Änderungen ignoriert.
+FriesenRadar kann dich benachrichtigen, wenn ein Friese auf VATSIM online geht — auch wenn der Browser im Hintergrund läuft oder der PC gesperrt ist. Optional auch schon beim **Einreichen oder Ändern eines Flugplans** (Prefile), bevor der Pilot online geht — auch bei Änderungen an Abflugzeit, Abflug- oder Zielflughafen. Die Notification enthält Datum und Uhrzeit des geplanten Fluges (aus dem DOF-Feld). Ist der Pilot bereits online, werden Prefile-Änderungen ignoriert.
 
-Zusätzlich kann FriesenSpy Push-Benachrichtigungen senden, wenn ein Friese dem **FriesenFlieger-TeamSpeak** beitritt (siehe [TS-Login-Benachrichtigung](#ts-login-benachrichtigung-phase-1)).
+Zusätzlich kann FriesenRadar Push-Benachrichtigungen senden, wenn ein Friese dem **FriesenFlieger-TeamSpeak** beitritt (siehe [TS-Login-Benachrichtigung](#ts-login-benachrichtigung-phase-1)).
 
-Über den **„Events"-Schalter** lassen sich außerdem **Event-Erinnerungen** aktivieren: FriesenSpy sendet dann ~1 h vor jedem FriesenEvent im Kalender einen Push — und benachrichtigt auch bei Bummel-Start und Ergebnisenthüllung. Die ~1h-Erinnerung gilt für Kalender-Events, Bummel-Rennen, Kutter-Events und FriesenReddungen und läuft dadurch auch für **manuell** im Admin angelegte Events (nicht nur Kalender-Termine); pro Rennen/Event lässt sich der Push im Admin abschalten, dann bleibt auch die Erinnerung aus. Bei einer **FriesenReddung** kommt zum Beginn eine weitere Meldung — mit dem Hinweis, dass ohne FriesenBrügge kein Havarist zu sehen ist —, danach je eine bei Fund, Aufnahme, Einlieferung und zum Ende. Dieser Schalter ist separat opt-in und standardmäßig deaktiviert.
+Über den **„Events"-Schalter** lassen sich außerdem **Event-Erinnerungen** aktivieren: FriesenRadar sendet dann ~1 h vor jedem FriesenEvent im Kalender einen Push — und benachrichtigt auch bei Bummel-Start und Ergebnisenthüllung. Die ~1h-Erinnerung gilt für Kalender-Events, Bummel-Rennen, Kutter-Events und FriesenReddungen und läuft dadurch auch für **manuell** im Admin angelegte Events (nicht nur Kalender-Termine); pro Rennen/Event lässt sich der Push im Admin abschalten, dann bleibt auch die Erinnerung aus. Bei einer **FriesenReddung** kommt zum Beginn eine weitere Meldung — mit dem Hinweis, dass ohne FriesenBrügge kein Havarist zu sehen ist —, danach je eine bei Fund, Aufnahme, Einlieferung und zum Ende. Dieser Schalter ist separat opt-in und standardmäßig deaktiviert.
 
 Das **Zahnrad ⚙ oben rechts** im Header öffnet die Einstellungen; die Benachrichtigungen stehen dort unter **„Benachrichtigungen“**. (Bis Version 15.31 war dort eine Glocke 🔔.)
 
@@ -663,7 +663,7 @@ Das **Zahnrad ⚙ oben rechts** im Header öffnet die Einstellungen; die Benachr
 | Android (Chrome) | Direkt im Browser abonnieren | Chrome empfohlen; Edge auf Android kann Probleme machen |
 | iPhone / iPad | Erst als App installieren, dann abonnieren | Safari → Teilen ⬆ → „Zum Home-Bildschirm" → App öffnen → ⚙ |
 
-**Als App installieren:** FriesenSpy ist eine PWA (Web-App-Manifest + Service Worker). Oben auf der Seite erscheint ein **Install-Banner** („📲 FriesenSpy als App installieren") — schließbar (merkt sich das Wegklicken), und ausgeblendet, sobald die App installiert ist. Auf Android/Desktop (Chrome/Edge) öffnet der Button den nativen Install-Dialog; auf iPhone/iPad zeigt der Banner die manuelle Anleitung (Safari → Teilen ⬆ → „Zum Home-Bildschirm"). Installiert läuft FriesenSpy im eigenen Fenster mit App-Icon.
+**Als App installieren:** FriesenRadar ist eine PWA (Web-App-Manifest + Service Worker). Oben auf der Seite erscheint ein **Install-Banner** („📲 FriesenRadar als App installieren") — schließbar (merkt sich das Wegklicken), und ausgeblendet, sobald die App installiert ist. Auf Android/Desktop (Chrome/Edge) öffnet der Button den nativen Install-Dialog; auf iPhone/iPad zeigt der Banner die manuelle Anleitung (Safari → Teilen ⬆ → „Zum Home-Bildschirm"). Installiert läuft FriesenRadar im eigenen Fenster mit App-Icon.
 
 **Herunterziehen zum Aktualisieren (installierte App, seit v14.20.0):** Am Seitenanfang nach unten ziehen frischt die Anzeige auf — Flugliste, Karte, Prefiles, TeamSpeak, Bummel und Kutter, dazu die Live-Verbindung, falls sie abgerissen war. Ein Balken am oberen Rand wächst mit dem Finger mit und bleibt stehen, bis die Daten da sind. Die Seite wird dabei **nicht** neu geladen: Kartenausschnitt und offener Tab bleiben, wie sie waren. Die Geste gibt es nur in der installierten App — im Browser-Tab macht Safari das selbst, im MSFS-Kniebrett gibt es sie nicht. Auf der Karte und in den eigenen Scroll-Listen bleibt Ziehen das, was es dort war (Ausschnitt verschieben bzw. scrollen).
 
@@ -677,13 +677,13 @@ Das **Zahnrad ⚙ oben rechts** im Header öffnet die Einstellungen; die Benachr
 
 ## TS-Login-Benachrichtigung (Phase 1)
 
-FriesenSpy kann eine Web-Push-Benachrichtigung senden, wenn ein Friese dem FriesenFlieger-TeamSpeak beitritt — auch wenn kein Browser offen ist. Das Feature ist **optional** und standardmäßig deaktiviert (`TS_NOTIFY_ENABLED=false`).
+FriesenRadar kann eine Web-Push-Benachrichtigung senden, wenn ein Friese dem FriesenFlieger-TeamSpeak beitritt — auch wenn kein Browser offen ist. Das Feature ist **optional** und standardmäßig deaktiviert (`TS_NOTIFY_ENABLED=false`).
 
 > 📡 **Wie komme ich ins TeamSpeak?** Login-Daten für den TeamSpeak und alle weiteren Kommunikationskanäle der FriesenFlieger findest du im Forum: [board.friesenflieger.de – TS & Kommunikationskanäle](https://board.friesenflieger.de/viewtopic.php?t=720).
 
 **Wie es funktioniert:**
 
-Alle `TS_POLL_INTERVAL` Sekunden (Default: 30 s) fragt FriesenSpy den TeamSpeak-Server über die ServerQuery-Schnittstelle (Port 10011) ab. Es wird verglichen, welche FRS-Nummern gerade im konfigurierten Kanal sitzen — neu Beigetretene lösen eine Push-Benachrichtigung aus. Der erste erfolgreiche Poll setzt nur die Baseline (keine Notification). Ein `TS_NOTIFY_CHANNEL_ID=0` überwacht den gesamten Server. Mit `TS_EXCLUDE_CHANNEL_IDS` (komma-separierte Kanal-IDs) lassen sich einzelne Kanäle ausnehmen — z. B. der Verwaltungs-Baum, in dem Beitritte niemanden benachrichtigen sollen.
+Alle `TS_POLL_INTERVAL` Sekunden (Default: 30 s) fragt FriesenRadar den TeamSpeak-Server über die ServerQuery-Schnittstelle (Port 10011) ab. Es wird verglichen, welche FRS-Nummern gerade im konfigurierten Kanal sitzen — neu Beigetretene lösen eine Push-Benachrichtigung aus. Der erste erfolgreiche Poll setzt nur die Baseline (keine Notification). Ein `TS_NOTIFY_CHANNEL_ID=0` überwacht den gesamten Server. Mit `TS_EXCLUDE_CHANNEL_IDS` (komma-separierte Kanal-IDs) lassen sich einzelne Kanäle ausnehmen — z. B. der Verwaltungs-Baum, in dem Beitritte niemanden benachrichtigen sollen.
 
 **Datenschutz / Consent (Subjekt-Seite):** Ob über die TS-Beitritte einer Person benachrichtigt werden darf, entscheidet sie seit der Subjekt-Sichtbarkeit **selbst** im Benachrichtigungs-Panel („Wer darf über mich benachrichtigt werden?" → Alle / Nur bestimmte / Keiner, siehe oben). Die Einstellung gilt für alle Push-Pfade gemeinsam, nicht nur für TeamSpeak.
 
@@ -697,7 +697,7 @@ Hinweis: Im Modus „Nur bestimmte" bekommen reine TS-Leute **ohne** VATSIM-Flug
 
 **Debounce:** Ein schnelles Re-Join (z.B. TS-Client-Neustart) löst innerhalb von `TS_REJOIN_DEBOUNCE_SEC` Sekunden (Default: 900 s / 15 min) keine erneute Benachrichtigung aus.
 
-**Neue Abhängigkeit:** `ts3` (in `requirements.txt`). Das Paket wird nur beim TS-Poll geladen (lazy import); der Rest von FriesenSpy läuft ohne `ts3`.
+**Neue Abhängigkeit:** `ts3` (in `requirements.txt`). Das Paket wird nur beim TS-Poll geladen (lazy import); der Rest von FriesenRadar läuft ohne `ts3`.
 
 **config.env-Variablen:**
 
@@ -721,7 +721,7 @@ TS_REJOIN_DEBOUNCE_SEC=900   # Default: 900 s (15 min)
 
 ## 🗺️ Karten-Layer
 
-Alle Karten in FriesenSpy (Live-Tab, Track-Ansicht, Event-Suche) verwenden dieselbe Layer-Auswahl. Deine Wahl wird im Browser gespeichert und beim nächsten Besuch automatisch wiederhergestellt.
+Alle Karten in FriesenRadar (Live-Tab, Track-Ansicht, Event-Suche) verwenden dieselbe Layer-Auswahl. Deine Wahl wird im Browser gespeichert und beim nächsten Besuch automatisch wiederhergestellt.
 
 **Basis-Layer (einer ist immer aktiv):**
 
@@ -755,11 +755,11 @@ Diese Blätter sind nach der Bahnrichtung gedruckt statt genordet; auf der Karte
 
 ## 🛩️ Kniebrett (MSFS-2024-Tablet)
 
-Das **Kniebrett** ist FriesenSpy als eigene App im EFB-Tablet des **Microsoft Flight Simulator 2024** — dieselben vier Tabs wie auf der Website, nur direkt beim Fliegen, ohne Alt-Tab und auch in VR.
+Das **Kniebrett** ist FriesenRadar als eigene App im EFB-Tablet des **Microsoft Flight Simulator 2024** — dieselben vier Tabs wie auf der Website, nur direkt beim Fliegen, ohne Alt-Tab und auch in VR.
 
-**Installieren:** Paket und Schritt-für-Schritt-Anleitung stehen unter **[/download](https://friesenspy.devprops.de/download)** („Download" ganz unten auf der Seite; die alte URL `/efb` bleibt ebenfalls erreichbar): ZIP herunterladen und entpacken — es entsteht ein Ordner `friesenflieger-friesenspy-efb`, in dem direkt `manifest.json` liegt —, diesen Ordner als Ganzes in den Community-Ordner des Simulators kopieren, Simulator starten — FriesenSpy steht dann in der App-Liste des Tablets. Das Paket ist nur eine **dünne Hülle**; alles Weitere kommt vom Server. Änderungen an FriesenSpy sind also ohne Neuinstallation da.
+**Installieren:** Paket und Schritt-für-Schritt-Anleitung stehen unter **[/download](https://friesenradar.devprops.de/download)** („Download" ganz unten auf der Seite; die alte URL `/efb` bleibt ebenfalls erreichbar): ZIP herunterladen und entpacken — es entsteht ein Ordner `friesenflieger-friesenspy-efb`, in dem direkt `manifest.json` liegt —, diesen Ordner als Ganzes in den Community-Ordner des Simulators kopieren, Simulator starten — FriesenRadar steht dann in der App-Liste des Tablets. Das Paket ist nur eine **dünne Hülle**; alles Weitere kommt vom Server. Änderungen an FriesenRadar sind also ohne Neuinstallation da.
 
-**Anmelden:** Beim ersten Start fragt das Tablet nach dem Forum-Login — dieselben Zugangsdaten wie auf der Website. Die anschließende Rückfrage „Kniebrett dauerhaft anmelden?" **bestätigen**: Sonst fragt FriesenSpy bei jedem Start des Simulators erneut. Gemerkt wird dafür eine zufällige Gerätekennung, kein Passwort. Gewarnt wird nur vor dem echten Risiko — die Frage zu bestätigen, während man gar nicht selbst im Simulator sitzt. Gehört ein Rechner nicht mehr dir, löst die Verwaltung die Verknüpfung (Meldung im Forum).
+**Anmelden:** Beim ersten Start fragt das Tablet nach dem Forum-Login — dieselben Zugangsdaten wie auf der Website. Die anschließende Rückfrage „Kniebrett dauerhaft anmelden?" **bestätigen**: Sonst fragt FriesenRadar bei jedem Start des Simulators erneut. Gemerkt wird dafür eine zufällige Gerätekennung, kein Passwort. Gewarnt wird nur vor dem echten Risiko — die Frage zu bestätigen, während man gar nicht selbst im Simulator sitzt. Gehört ein Rechner nicht mehr dir, löst die Verwaltung die Verknüpfung (Meldung im Forum).
 
 **Taucht mitten im Flug „Diese Anmeldung ist abgelaufen“ auf**, hat das Tablet eine alte Anmeldeseite noch einmal geöffnet. Bist du angemeldet, geht es von selbst zurück ins Kniebrett; sonst führt „Neu anmelden“ über den Forum-Login wieder hinein. Bisher blieb an dieser Stelle ein schwarzes Tablet stehen.
 
@@ -789,7 +789,7 @@ Nicht im Kniebrett: der **Lautsprecher** zum Mithören (es gibt keinen Browser, 
 
 ## 🔗 Links teilen & Deep-Linking
 
-Jeder Zustand in FriesenSpy ist als Link teilbar — der aktuelle Tab, ein geöffneter Flugplan, eine Event-Suche, ein bestimmter GPS-Track, ein geöffnetes Flugdetail-Modal. Der gesamte Zustand steckt im URL-Hash (`#...`), sodass sich beim Neuladen der Seite genau derselbe Zustand öffnet.
+Jeder Zustand in FriesenRadar ist als Link teilbar — der aktuelle Tab, ein geöffneter Flugplan, eine Event-Suche, ein bestimmter GPS-Track, ein geöffnetes Flugdetail-Modal. Der gesamte Zustand steckt im URL-Hash (`#...`), sodass sich beim Neuladen der Seite genau derselbe Zustand öffnet.
 
 Das ⎘-Symbol neben Piloten und Flügen kopiert den fertigen Link direkt in die Zwischenablage. Wenn das Flugdetail-Modal geöffnet ist, enthält der kopierte Link auch genau diesen Flug — der Empfänger sieht beim Öffnen des Links das Modal direkt.
 
@@ -799,26 +799,26 @@ Auch ein **FriesenBummel** ist teilbar: in der Bummel-Ansicht (sowohl verdeckt a
 
 ## Woher kommen die Daten?
 
-FriesenSpy kombiniert zwei Datenquellen:
+FriesenRadar kombiniert zwei Datenquellen:
 
-| | FriesenSpy (Live) | StatSim (Historisch) |
+| | FriesenRadar (Live) | StatSim (Historisch) |
 |---|---|---|
 | **GPS-Track** | ✅ lokal (alle 15 s aufgezeichnet) | ✅ lokal gecacht (ab erstem Abruf) |
 | **Event-Suche auf Karte** | ✅ Track sichtbar | ✅ Track sichtbar |
 | **Flugplan (DEP/ARR)** | ✅ | ✅ |
 | **Flugdauer** | ✅ | ✅ |
-| **Verfügbarkeit** | Nur wenn FriesenSpy läuft | Letztes Jahr via API |
+| **Verfügbarkeit** | Nur wenn FriesenRadar läuft | Letztes Jahr via API |
 | **Fluganzahl in Statistiken** | ✅ gezählt | ✅ gezählt (Duplikate gefiltert) |
 
-**FriesenSpy (Live):** Jede VATSIM-Position wird alle 15 Sekunden abgerufen und gespeichert. Das ergibt einen präzisen GPS-Track für jeden Flug.
+**FriesenRadar (Live):** Jede VATSIM-Position wird alle 15 Sekunden abgerufen und gespeichert. Das ergibt einen präzisen GPS-Track für jeden Flug.
 
-**StatSim:** Eine öffentliche Datenbank mit historischen VATSIM-Flügen ([statsim.net](https://statsim.net)). FriesenSpy fragt StatSim ergänzend ab, um Flüge zu finden, die vor dem Start von FriesenSpy stattgefunden haben oder bei einem Serverausfall nicht aufgezeichnet wurden. StatSim liefert GPS-Tracks, die beim ersten Abruf lokal gespeichert werden.
+**StatSim:** Eine öffentliche Datenbank mit historischen VATSIM-Flügen ([statsim.net](https://statsim.net)). FriesenRadar fragt StatSim ergänzend ab, um Flüge zu finden, die vor dem Start von FriesenRadar stattgefunden haben oder bei einem Serverausfall nicht aufgezeichnet wurden. StatSim liefert GPS-Tracks, die beim ersten Abruf lokal gespeichert werden.
 
-> FriesenSpy-Tracks enthalten dichtere Positionsdaten (15-Sekunden-Intervalle). StatSim dient als Rückfall für ältere Zeiträume oder bei Serverausfall.
+> FriesenRadar-Tracks enthalten dichtere Positionsdaten (15-Sekunden-Intervalle). StatSim dient als Rückfall für ältere Zeiträume oder bei Serverausfall.
 
-**Wie ein „Flug" bestimmt wird (GPS-only, seit v8.0.0).** Eine VATSIM-Verbindung ist über `(CID, Logon-Zeit)` eindeutig — Container-Neustarts oder doppelte Aufzeichnungen können nie mehr Duplikate erzeugen (struktureller Unique-Index). Die eigentliche **Flugzählung** läuft aber über `canonicalize_legs`: Abheben und Landung werden direkt aus dem GPS-Track erkannt, unabhängig davon, ob die Verbindung dabei getrennt wird. Eine Verbindung kann dadurch **mehrere** Flüge enthalten (Zwischenlandung ohne Refile), und ein Flug zählt bereits bei der GPS-Landung, nicht erst beim Disconnect. **Nur wenn kein GPS-Track vorliegt** (reine StatSim-Historie, Serverausfall mitten im Flug), fällt FriesenSpy auf die klassische refile-/disconnect-basierte Erkennung zurück: ein **vorübergehender Reconnect** (z. B. kurzer Netzausfall) erzeugt technisch zwei Verbindungen, wird aber zu **einem** Flug zusammengeführt, solange Callsign und Flugplan passen und der Reconnect geografisch plausibel anschließt. Alle Ansichten (Statistik, Events, Piloten-Detail, Bummel, Kutter) berechnen Flugzahl und -dauer aus **einer** gemeinsamen Funktion (`canonicalize_legs`, für die globale Statistik über den materialisierten `flight_cache`) — die Zahlen stimmen überall überein. Fehlerhafte Altdaten werden reversibel bereinigt (markiert, nicht gelöscht).
+**Wie ein „Flug" bestimmt wird (GPS-only, seit v8.0.0).** Eine VATSIM-Verbindung ist über `(CID, Logon-Zeit)` eindeutig — Container-Neustarts oder doppelte Aufzeichnungen können nie mehr Duplikate erzeugen (struktureller Unique-Index). Die eigentliche **Flugzählung** läuft aber über `canonicalize_legs`: Abheben und Landung werden direkt aus dem GPS-Track erkannt, unabhängig davon, ob die Verbindung dabei getrennt wird. Eine Verbindung kann dadurch **mehrere** Flüge enthalten (Zwischenlandung ohne Refile), und ein Flug zählt bereits bei der GPS-Landung, nicht erst beim Disconnect. **Nur wenn kein GPS-Track vorliegt** (reine StatSim-Historie, Serverausfall mitten im Flug), fällt FriesenRadar auf die klassische refile-/disconnect-basierte Erkennung zurück: ein **vorübergehender Reconnect** (z. B. kurzer Netzausfall) erzeugt technisch zwei Verbindungen, wird aber zu **einem** Flug zusammengeführt, solange Callsign und Flugplan passen und der Reconnect geografisch plausibel anschließt. Alle Ansichten (Statistik, Events, Piloten-Detail, Bummel, Kutter) berechnen Flugzahl und -dauer aus **einer** gemeinsamen Funktion (`canonicalize_legs`, für die globale Statistik über den materialisierten `flight_cache`) — die Zahlen stimmen überall überein. Fehlerhafte Altdaten werden reversibel bereinigt (markiert, nicht gelöscht).
 
-Pro Flug werden zwei Zeiten geführt: **Flugzeit** (Abheben → Landung, `duration_min`) und **Blockzeit** (`block_min` für die Anzeige, `block_sec` ungerundet für Wertungen — *off blocks* bis *on blocks*, Taxi eingeschlossen; Halte unterwegs zählen mit, die Zeit an der Abstellposition nicht). So zählt z. B. langes Parken am Gate oder auf dem Vorfeld zwar in die Flugzeit, nicht aber in die Blockzeit. Ein Zwischenstopp trennt zwei Legs an der längsten Stillstandsphase — seine Standzeit gehört damit keinem von beiden, unabhängig davon, wie lange er dauert (seit v14.24.0; vorher zählte ein Halt unter 10 Minuten als Blockzeit und die Anrollzeit zum nächsten Start sogar doppelt). Blockzeit gibt es nur für FriesenSpy-Aufzeichnungen (StatSim liefert keine GPS-Spur dafür).
+Pro Flug werden zwei Zeiten geführt: **Flugzeit** (Abheben → Landung, `duration_min`) und **Blockzeit** (`block_min` für die Anzeige, `block_sec` ungerundet für Wertungen — *off blocks* bis *on blocks*, Taxi eingeschlossen; Halte unterwegs zählen mit, die Zeit an der Abstellposition nicht). So zählt z. B. langes Parken am Gate oder auf dem Vorfeld zwar in die Flugzeit, nicht aber in die Blockzeit. Ein Zwischenstopp trennt zwei Legs an der längsten Stillstandsphase — seine Standzeit gehört damit keinem von beiden, unabhängig davon, wie lange er dauert (seit v14.24.0; vorher zählte ein Halt unter 10 Minuten als Blockzeit und die Anrollzeit zum nächsten Start sogar doppelt). Blockzeit gibt es nur für FriesenRadar-Aufzeichnungen (StatSim liefert keine GPS-Spur dafür).
 
 Verliert der VATSIM-Datenfeed einen Piloten kurzzeitig (Feed-Aussetzer), wird die Session beim Wiederauftauchen mit derselben Logon-Zeit nahtlos **wieder geöffnet** — es entstehen weder Duplikate noch verwaiste Tracks. Sollte dennoch einmal ein Flug ohne eigenen Eintrag bleiben (historischer Schaden), rekonstruiert der Server ihn beim Start automatisch aus StatSim + eigenem GPS-Track (`reconstruct_orphaned_flights`).
 
@@ -869,7 +869,7 @@ Brügge weiß, was ein Windrad ist. Ältere Brüggen laufen unverändert weiter.
 #### Sie merkt sich, wer du bist (ab 1.18.0)
 
 **Seit dem 26.09.2026 behält die FriesenBrügge ihre Kennung über jeden Neustart**, in MSFS 2020
-und 2024 wie in X-Plane. Beim allerersten Start ordnet FriesenSpy sie dir über die Position zu:
+und 2024 wie in X-Plane. Beim allerersten Start ordnet FriesenRadar sie dir über die Position zu:
 im Stand, sobald du dich nach dem Laden des Flugs bei VATSIM verbindest. **Bestätigt ist die
 Zuordnung nach zwei Minuten Flug**, bei denen kein anderer Friese dicht neben dir fliegt. Danach
 findet sie dich bei jedem Start sofort wieder, auch wenn ein anderer Friese direkt neben dir
@@ -878,7 +878,7 @@ steht. **Mach deinen ersten Flug nach der Installation deshalb möglichst allein
 Gefunden wirst du dabei über deine VATSIM-Nummer, nicht über das Rufzeichen. Auf der Karte ändert
 das nichts: Friese ist weiter, wer mit FRS-Rufzeichen fliegt.
 
-Die ältere Fassung bis 1.17.0 läuft noch bis zum **24.10.2026**, danach nimmt FriesenSpy ihre
+Die ältere Fassung bis 1.17.0 läuft noch bis zum **24.10.2026**, danach nimmt FriesenRadar ihre
 Meldungen nicht mehr an. Wer die FriesenBrügge wieder entfernt: Ihre Kennung und die vom Simulator
 übersetzten Modulteile bleiben unter `LocalState` liegen; das stört nicht.
 
@@ -928,7 +928,7 @@ SECRET_KEY=<beliebiger-zufalls-string>     # Pflicht
 CALLSIGN_PREFIX=FRS                         # Default: FRS
 VATSIM_POLL_INTERVAL=15                     # Sekunden, Default: 15
 VATSIM_REJOIN_DEBOUNCE_SEC=900              # s, Default: 900 (15 min) — Reconnect-Fenster Online-Push
-DB_PATH=friesenspy.db                       # Lokal: relativer Pfad OK
+DB_PATH=friesenradar.db                       # Lokal: relativer Pfad OK
 LOG_LEVEL=INFO                              # Default: INFO — App-Logger (Push/Poll sichtbar)
 PUSH_OVERVIEW_PASSWORD=                     # Optional: Extra-Passwort für die Push-Diagnose
                                             # (/admin/push-overview). Leer = Feature aus (404).
@@ -956,8 +956,8 @@ EFB_PACKAGE_PATH=                           # Optional: eigener Ort des Kniebret
 # Board-Login (Forum-SSO) — optional; alle leer = Board-Login inaktiv
 SSO_SECRET=                                 # GETEILT mit sso.php auf dem Forum; niemals in git
 FORUM_SSO_URL=                              # z.B. https://board.friesenflieger.de/sso.php
-FORUM_SSO_CALLBACK=                         # z.B. https://friesenspy.devprops.de/auth/forum/callback
-USER_SESSION_MAX_AGE_SEC=3600              # kurze FriesenSpy-Session (spiegelt Forum-Logout verzögert)
+FORUM_SSO_CALLBACK=                         # z.B. https://friesenradar.devprops.de/auth/forum/callback
+USER_SESSION_MAX_AGE_SEC=3600              # kurze FriesenRadar-Session (spiegelt Forum-Logout verzögert)
 # TeamSpeak-Login-Benachrichtigung (alle optional, Default: deaktiviert)
 TS_NOTIFY_ENABLED=false
 TS_HOST=127.0.0.1
@@ -1000,7 +1000,7 @@ GitHub Push auf `main` → GitHub Actions baut Docker-Image → pushed nach GHCR
 ```
 main branch
     └─► GitHub Actions (.github/workflows/deploy.yml)
-            └─► docker build → ghcr.io/regover13/friesenspy:latest
+            └─► docker build → ghcr.io/regover13/friesenradar:latest
                     └─► SSH: docker compose pull + up -d
 ```
 
@@ -1022,7 +1022,7 @@ Deploy erscheint das Banner automatisch bei allen Nutzern, die die Version noch 
 ### Projektstruktur
 
 ```
-FriesenSpy/
+FriesenRadar/
 ├── app/
 │   ├── main.py        # FastAPI-App, REST + SSE-Endpoints
 │   ├── config.py      # pydantic-settings (liest config.env)
@@ -1059,7 +1059,7 @@ FriesenSpy/
 ├── tests/             # pytest-Tests
 ├── docs/              # Architektur, API, Deployment
 ├── msfs-panel/        # Quellen des MSFS-Community-Packages (Windows-Build, nicht in der CI)
-├── nginx/             # nginx-Konfiguration für friesenspy.devprops.de
+├── nginx/             # nginx-Konfiguration für friesenradar.devprops.de
 ├── .github/workflows/ # CI/CD: Build → GHCR → SSH-Deploy
 ├── Dockerfile
 └── docker-compose.yml
@@ -1077,9 +1077,9 @@ FriesenSpy/
 | `/api/teamspeak` | GET | Aktuell im TeamSpeak befindliche FRS + Anzahl (letzter TS-Poll-Snapshot) |
 | `/api/stats?days=30&sort_by=last_flight&sort_dir=desc` | GET | Letzter Flug + Fluganzahl + Flugzeit pro Pilot, sortierbar |
 | `/api/stats/activity?days=30` | GET | Flugaktivität über Zeit (täglich/monatlich) |
-| `/api/pilots/{cid}/flights?days=365` | GET | Einzelflüge eines Piloten (FriesenSpy + StatSim) |
+| `/api/pilots/{cid}/flights?days=365` | GET | Einzelflüge eines Piloten (FriesenRadar + StatSim) |
 | `/api/pilots/{cid}/live-track` | GET | GPS-Track des aktuell laufenden Fluges |
-| `/api/flights/{id}/track` | GET | GPS-Track eines FriesenSpy-Fluges |
+| `/api/flights/{id}/track` | GET | GPS-Track eines FriesenRadar-Fluges |
 | `/api/flights/statsim/{id}/track` | GET | GPS-Track eines StatSim-Fluges |
 | `/api/events?icao=EDDK&radius=150&start=...&end=...` | GET | Event-Teilnehmer mit Tracks (Overlap-Logik) |
 | `/api/calendar/events` | GET | FriesenEvents letzte 365 Tage bis heute, inkl. RRULE-Expansion + `route`/`is_bummel` (Google-Kalender-Cache) |

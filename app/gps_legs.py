@@ -1,4 +1,4 @@
-"""Reiner, DB-freier GPS-Leg-Detektor für FriesenSpy.
+"""Reiner, DB-freier GPS-Leg-Detektor für FriesenRadar.
 
 Erkennt Flug-Etappen (Legs) allein aus einer ts-sortierten Positionsliste je Pilot —
 ohne Flugplan, ohne Disconnect. Höhe (AGL) ist das Leitsignal, Groundspeed nur sekundär
@@ -291,7 +291,7 @@ def _detect_segment(
     # Segment-Ende (= Ende oder Gap): offene Zustände finalisieren.
     if state == "AIRBORNE":
         # Landungs-Rettung (#53): Track riss ab, BEVOR die reguläre gs<2-Touchdown-Erkennung
-        # greifen konnte — z. B. StatSim-Aufzeichnungsende oder FriesenSpy-Disconnect kurz vor
+        # greifen konnte — z. B. StatSim-Aufzeichnungsende oder FriesenRadar-Disconnect kurz vor
         # dem Vollstopp. War der letzte Punkt trotzdem tief über einem Platz, ist der Flug dort
         # nachweislich beendet (Absturz vs. sauberer Aufsetzer ist aus GPS nicht unterscheidbar,
         # aber für die Zwecke hier irrelevant — "an diesem Platz beendet" stimmt so oder so).

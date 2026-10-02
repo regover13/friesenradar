@@ -1,4 +1,4 @@
-"""Claude-API-Anbindung für FriesenSpy (aktuell: Zuladungs-Vorschlag pro Flugzeugtyp).
+"""Claude-API-Anbindung für FriesenRadar (aktuell: Zuladungs-Vorschlag pro Flugzeugtyp).
 
 Der Vorschlag **recherchiert per Web-Search** (serverseitiges Anthropic-Tool) die realen,
 dokumentierten Herstellerangaben und liefert sie als Structured Output. Modell: Haiku 4.5

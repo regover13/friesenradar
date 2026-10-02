@@ -1,4 +1,4 @@
-"""FriesenSpy FastAPI-App — REST-Endpoints + SSE-Stream."""
+"""FriesenRadar FastAPI-App — REST-Endpoints + SSE-Stream."""
 from __future__ import annotations
 
 import asyncio
@@ -435,7 +435,7 @@ _mimetypes.add_type("application/manifest+json", ".webmanifest")
 # größte der drei Datendateien — ohne diese Zeile ginge ausgerechnet sie unkomprimiert raus.
 _mimetypes.add_type("application/geo+json", ".geojson")
 
-app = FastAPI(title="FriesenSpy", lifespan=lifespan)
+app = FastAPI(title="FriesenRadar", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
@@ -3683,7 +3683,7 @@ def get_events(
     }
 
     # StatSim-Ergänzung: Piloten, die per DEP/ARR im Zeitfenster gefunden werden, aber keine
-    # position_history haben (z.B. FriesenSpy war nicht aktiv) — nur zur cid-Ermittlung; die
+    # position_history haben (z.B. FriesenRadar war nicht aktiv) — nur zur cid-Ermittlung; die
     # Flug-Dicts selbst liefert canonicalize_legs (deckt StatSim intern mit ab).
     if global_search or icao_list:
         conn3 = get_connection(settings.DB_PATH)
@@ -3898,7 +3898,7 @@ async def sse_endpoint(request: Request):
 
 @app.get("/api/pilots/{cid}/flights")
 def get_pilot_flights(cid: int, days: int = 90, background_tasks: BackgroundTasks = None):
-    """Alle Flüge eines Piloten: FriesenSpy sofort + StatSim aus Cache.
+    """Alle Flüge eines Piloten: FriesenRadar sofort + StatSim aus Cache.
 
     StatSim wird im Hintergrund aktualisiert (letzter 31-Tage-Chunk bei normalem
     Aufruf; volle 365 Tage bei days=0). Antwort kommt immer sofort.
@@ -3985,7 +3985,7 @@ async def get_pilot_live_track(cid: int):
 
 @app.get("/api/flights/{flight_id}/track")
 async def get_flight_track(flight_id: int, logon: str = "", logoff: str = ""):
-    """Positionshistorie eines FriesenSpy-Fluges aus position_history.
+    """Positionshistorie eines FriesenRadar-Fluges aus position_history.
 
     logon/logoff können als Query-Params übergeben werden (nötig nach Merge
     zweier Fragmente, wo die DB noch alte Zeiten hat).
@@ -5312,9 +5312,9 @@ async def auth_device(request: Request, device: str = "", next: str = "/panel",
 </style></head><body><div class="box">
 <h1>Kniebrett dauerhaft anmelden?</h1>
 <p>Angemeldet als <strong>{name}</strong>.</p>
-<p>FriesenSpy meldet sich auf diesem Simulator dann von selbst an — auch nach einem
+<p>FriesenRadar meldet sich auf diesem Simulator dann von selbst an — auch nach einem
 Neustart. <strong>Das ist die empfohlene Einstellung fürs Cockpit.</strong></p>
-<p>Ohne sie fragt FriesenSpy bei <em>jedem</em> Start des Simulators erneut nach deiner
+<p>Ohne sie fragt FriesenRadar bei <em>jedem</em> Start des Simulators erneut nach deiner
 Anmeldung, mitten in der Flugvorbereitung. Entziehen kannst du sie jederzeit im Admin-Bereich.</p>
 <p class="hinweis">Nur ablehnen, wenn du gerade <strong>nicht</strong> im Simulator sitzt —
 etwa weil du einem Link aus einer Nachricht gefolgt bist. Dann wird nichts gespeichert.</p>
@@ -5484,7 +5484,7 @@ def _rueckruf_abgelehnt(request: Request, status: int, grund: str) -> Response:
     seite = f"""<!doctype html>
 <html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FriesenSpy – Anmeldung</title>
+<title>FriesenRadar – Anmeldung</title>
 <style>
 body{{margin:0;background:#0d1b2a;color:#e8eef4;font-family:sans-serif;
      display:flex;align-items:center;justify-content:center;min-height:100vh}}
@@ -5503,7 +5503,7 @@ eine alte Seite noch einmal geöffnet wird. Melde dich einfach neu an.</p>
 
 @app.get("/auth/forum/callback")
 async def forum_callback(request: Request):
-    """Nimmt das signierte Token der Bridge entgegen → eigene FriesenSpy-Session."""
+    """Nimmt das signierte Token der Bridge entgegen → eigene FriesenRadar-Session."""
     settings = get_settings()
     token = request.query_params.get("token", "")
     state = request.query_params.get("state", "")
@@ -5576,29 +5576,10 @@ async def forum_callback(request: Request):
 
 @app.get("/auth/forum/logout")
 async def forum_logout():
-    """Meldet NUR FriesenSpy ab (Forum-Session bleibt)."""
+    """Meldet NUR FriesenRadar ab (Forum-Session bleibt)."""
     resp = RedirectResponse("/", status_code=302)
     resp.delete_cookie(USER_COOKIE, path="/")
     return resp
-
-
-def _radar_vorschau_fuer(cid: str) -> bool:
-    """Sieht diese CID schon die Vorschau auf FriesenRadar (Issue #56)?
-
-    Bewusst keine eigene Tabelle und keine Admin-Oberflaeche: Bis zum Umstieg testet nur der
-    Nutzer selbst. Die Liste steht als Kommaliste in ``app_settings.radar_vorschau_cids`` und
-    wird von Hand gesetzt. Ueber die neuen Adressen (friesenradar.devprops.de,
-    radar.friesenflieger.de) sieht jeder die Vorschau ohnehin -- das entscheidet das
-    Kopfskript im Browser, nicht diese Funktion. Die CID-Liste ist fuers Kniebrett da, das
-    immer friesenspy.devprops.de laedt."""
-    if not cid:
-        return False
-    conn = get_connection(get_settings().DB_PATH)
-    try:
-        roh = get_app_setting(conn, "radar_vorschau_cids", "") or ""
-    finally:
-        conn.close()
-    return cid in {t.strip() for t in roh.split(",") if t.strip()}
 
 
 @app.get("/api/me")
@@ -5618,8 +5599,7 @@ async def api_me(request: Request):
         return JSONResponse({"logged_in": False, "board_login_active": True})
     resp = JSONResponse({"logged_in": True, "board_login_active": True,
                          "name": claims.get("name", ""), "cid": claims.get("cid", ""),
-                         "is_admin": bool(claims.get("is_admin")),
-                         "radar_vorschau": _radar_vorschau_fuer(str(claims.get("cid", "")))})
+                         "is_admin": bool(claims.get("is_admin"))})
     exp = time.time() + settings.USER_SESSION_MAX_AGE_SEC
     resp.set_cookie(
         USER_COOKIE,
@@ -5820,7 +5800,7 @@ async def admin_push_test(request: Request):
     if not sub:
         raise HTTPException(status_code=404, detail="Bitte zuerst in der App Push aktivieren.")
     # Titel/Text aus dem Broadcast-Formular als Vorschau übernehmen; sonst Standard-Testtext.
-    title = str(body.get("title", "")).strip() or "FriesenSpy Test ✅"
+    title = str(body.get("title", "")).strip() or "FriesenRadar Test ✅"
     text = str(body.get("body", "")).strip() or "Test-Benachrichtigung vom Admin."
     payload = {"title": title, "body": text, "url": "/"}
     await send_web_push(
@@ -5856,7 +5836,7 @@ async def admin_panel_notify_test(request: Request):
                                    "geht ausschließlich an das eigene Kniebrett.")
     body = await request.json() if await request.body() else {}
     dienst = str(body.get("service", "")).strip() or "events"
-    titel = str(body.get("title", "")).strip() or "FriesenSpy Test"
+    titel = str(body.get("title", "")).strip() or "FriesenRadar Test"
     text = str(body.get("body", "")).strip() or "Test-Meldung aus dem Admin."
 
     poller: VatsimPoller = request.app.state.poller
@@ -6293,7 +6273,7 @@ async def admin_create_race(request: Request):
 
 @app.get("/api/admin/calendar/events")
 async def admin_calendar_events(request: Request, around: str = "", days: int = 3):
-    """Kalendertermine zur Auswahl im Admin — #19: FriesenSpy schlägt vor, verknüpft wird von Hand.
+    """Kalendertermine zur Auswahl im Admin — #19: FriesenRadar schlägt vor, verknüpft wird von Hand.
 
     ``around`` (ISO-UTC) engt auf ±``days`` Tage um diesen Zeitpunkt ein; ohne ``around`` kommt
     das ganze gespeicherte Fenster. ``claimed_by`` sagt, ob an dem Termin schon ein Objekt hängt
@@ -8134,7 +8114,7 @@ async def aip_chart_roh(icao: str, sorte: str, request: Request):
                         headers={"Cache-Control": "private, max-age=3600"})
 
 
-_AIP_UA = {"User-Agent": "FriesenSpy/AIP-Kartenabgleich (+https://friesenspy.devprops.de)"}
+_AIP_UA = {"User-Agent": "FriesenRadar/AIP-Kartenabgleich (+https://friesenradar.devprops.de)"}
 
 
 def _aip_holer(client):
@@ -9015,7 +8995,7 @@ async def widget_preview():
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>FriesenSpy Widget – Vorschau</title>
+<title>FriesenRadar Widget – Vorschau</title>
 <style>
   body{background:#d0e0f0;color:#053080;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;padding:32px;max-width:640px;margin:0 auto}
   h1{color:#053080;font-size:1.1rem;margin-bottom:4px;font-weight:700}
@@ -9031,7 +9011,7 @@ async def widget_preview():
 </style>
 </head>
 <body>
-<h1>✈ FriesenSpy Widget</h1>
+<h1>✈ FriesenRadar Widget</h1>
 <p>So sieht das Widget auf einer Webseite aus — aktualisiert sich automatisch alle 60 Sekunden.</p>
 <div class="preview-box">
   <div class="preview-label">Vorschau</div>
@@ -9040,14 +9020,14 @@ async def widget_preview():
 <div class="preview-label" style="margin-bottom:8px">Einbettungscode (klicken zum Kopieren)</div>
 <div class="code-box" onclick="copyCode(this)" title="Klicken zum Kopieren">
 <span class="copy-hint" id="hint">📋 kopieren</span>&lt;iframe
-  src="https://friesenspy.devprops.de/widget"
+  src="https://friesenradar.devprops.de/widget"
   width="420" height="140"
   style="border:none;"
   scrolling="no"&gt;&lt;/iframe&gt;</div>
 <div class="note">
   Die Höhe (<code>height</code>) ggf. anpassen — mit eingereichten Flugplänen wird das Widget höher.<br>
   ⚠ phpBB (unser Forum) erlaubt standardmäßig keine iframes in Beiträgen — der Code funktioniert nur auf externen Webseiten (z.B. friesenflieger.de).<br>
-  Direkter Link zum Widget: <a href="/widget">friesenspy.devprops.de/widget</a>
+  Direkter Link zum Widget: <a href="/widget">friesenradar.devprops.de/widget</a>
 </div>
 <script>
 // Vorschau-iframe (same-origin) automatisch an den Inhalt anpassen, damit auch die
@@ -9062,7 +9042,7 @@ function _fitPreview() {
 _wf.addEventListener('load', _fitPreview);  // initial + bei jedem 60s-Auto-Refresh des Widgets
 setInterval(_fitPreview, 5000);             // fängt Inhalts-Reflow (neue Prefiles) zwischendurch ab
 function copyCode(el) {
-  const code = `<iframe\\n  src="https://friesenspy.devprops.de/widget"\\n  width="420" height="140"\\n  style="border:none;"\\n  scrolling="no"></iframe>`;
+  const code = `<iframe\\n  src="https://friesenradar.devprops.de/widget"\\n  width="420" height="140"\\n  style="border:none;"\\n  scrolling="no"></iframe>`;
   navigator.clipboard.writeText(code).then(() => {
     const h = document.getElementById('hint');
     h.textContent = '✓ kopiert';
@@ -9179,16 +9159,16 @@ def widget(request: Request):
 </style>
 </head>
 <body>
-<a href="https://friesenspy.devprops.de" target="_blank">
+<a href="https://friesenradar.devprops.de" target="_blank">
   <div class="hd">
-    <span class="hd-title">✈ FriesenSpy</span>
+    <span class="hd-title">✈ FriesenRadar</span>
     <span class="badge">{_ICON_PLANE}{len(live)}&nbsp;online</span>
     {ts_badge}
   </div>
   <div class="bd">
     <div>{pilots_html}</div>
     {prefile_html}
-    <div class="ft">Flugstunden der letzten 7&nbsp;Tage:&nbsp;{total_h:.1f}&nbsp;h&nbsp;·&nbsp;Blockzeit:&nbsp;{total_block_h:.1f}&nbsp;h&nbsp;·&nbsp;FriesenSpy.devprops.de</div>
+    <div class="ft">Flugstunden der letzten 7&nbsp;Tage:&nbsp;{total_h:.1f}&nbsp;h&nbsp;·&nbsp;Blockzeit:&nbsp;{total_block_h:.1f}&nbsp;h</div>
   </div>
 </a>
 </body>

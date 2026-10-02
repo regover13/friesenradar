@@ -1,6 +1,6 @@
 {
-  "name": "FriesenSpy",
-  "short_name": "FriesenSpy",
+  "name": "FriesenRadar",
+  "short_name": "FriesenRadar",
   "description": "VATSIM Live-Tracker für die FriesenFlieger",
   "start_url": "/",
   "scope": "/",

@@ -1,4 +1,4 @@
-"""VatsimPoller — APScheduler-basierter Hintergrundprozess für FriesenSpy.
+"""VatsimPoller — APScheduler-basierter Hintergrundprozess für FriesenRadar.
 
 Ruft VATSIM-Daten ab, verwaltet eine Flug-State-Machine für Friesen-Piloten
 und publiziert Live-Positions-Updates in eine asyncio.Queue für SSE-Clients.

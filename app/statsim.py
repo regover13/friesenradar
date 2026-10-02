@@ -32,7 +32,7 @@ def _normalize_flight(f: dict) -> dict:
             return ts[:19] + "Z" if len(ts) >= 19 else ts
 
     # Kurzer ICAO-Typ statt Composite-String (z. B. "A320/M-SDE3FGHIRWY/LB1" → "A320") — analog
-    # zu aircraft_short bei FriesenSpy-Flügen (app/vatsim.py:76).
+    # zu aircraft_short bei FriesenRadar-Flügen (app/vatsim.py:76).
     aircraft_full = f.get("aircraft", "") or ""
     aircraft = aircraft_full.split("/")[0] if aircraft_full else aircraft_full
 

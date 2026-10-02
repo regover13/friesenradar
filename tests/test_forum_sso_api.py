@@ -115,8 +115,7 @@ def test_callback_sets_user_cookie(env):
     main._reset_gate_cache()
     me = env.client.get("/api/me")
     assert me.json() == {"logged_in": True, "board_login_active": True,
-                         "name": "Tobias", "cid": "1401925", "is_admin": True,
-                         "radar_vorschau": False}
+                         "name": "Tobias", "cid": "1401925", "is_admin": True}
 
 
 def test_login_to_admin_roundtrip(env):
@@ -608,26 +607,3 @@ def test_hostliste_entspricht_der_sso_php():
     import re
     in_php = set(re.findall(r"'https://([^/']+)/auth/forum/callback'", php))
     assert in_php == set(main._SSO_RUECKSPRUNG_HOSTS)
-
-
-
-# --- Vorschau FriesenRadar (Issue #56) --------------------------------------------------------
-# Nur die CIDs in app_settings.radar_vorschau_cids sehen den neuen Namen auch ueber die alte
-# Adresse (und damit im Kniebrett, das immer friesenspy.devprops.de laedt).
-
-def _eingeloggt_als(env, cid):
-    env.client.post("/api/admin/forum-login", json={"enabled": True}, cookies=_admin_cookie())
-    main._reset_gate_cache()
-    exp = time.time() + 3600
-    env.client.cookies.set("fs_user", forum_sso.make_user_token(SECRET, "Pilot", cid, False, exp))
-
-
-@pytest.mark.parametrize("liste,erwartet", [
-    ("1401925", True), ("123, 1401925 ,456", True), ("123", False), ("", False), (None, False),
-])
-def test_me_meldet_radar_vorschau_nur_fuer_freigegebene_cids(env, liste, erwartet):
-    if liste is not None:
-        conn = get_connection(env.db); set_app_setting(conn, "radar_vorschau_cids", liste)
-        conn.commit(); conn.close()
-    _eingeloggt_als(env, "1401925")
-    assert env.client.get("/api/me").json()["radar_vorschau"] is erwartet

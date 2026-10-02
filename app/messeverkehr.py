@@ -66,7 +66,7 @@ _IDENTITAETEN_SAAT = 20260927
 
 def _identitaeten_bauen() -> dict[str, str]:
     """Callsign -> "Name ICAO" fuer jede Nummer im freien Bereich. Name im selben Muster wie
-    echte FriesenSpy-Piloten: (Vor- oder voller Name) + Heimatflugplatz am Ende -- ohne den
+    echte FriesenRadar-Piloten: (Vor- oder voller Name) + Heimatflugplatz am Ende -- ohne den
     Platz fielen erfundene Namen sofort auf. Ob ein Callsign die 'N'-Endung (Neu-Friese) traegt,
     ist ebenfalls fest, damit auch dieselbe Person nicht mal mit, mal ohne N auftaucht."""
     zufall = random.Random(_IDENTITAETEN_SAAT)
@@ -85,12 +85,12 @@ _IDENTITAETEN = _identitaeten_bauen()
 
 
 def bekannte_echte_callsigns(conn) -> set[str]:
-    """Alle Callsigns, die FriesenSpy je einem echten Piloten zugeordnet hat.
+    """Alle Callsigns, die FriesenRadar je einem echten Piloten zugeordnet hat.
 
-    Quelle: flights/live_positions/statsim_cache (alles, was seit FriesenSpy laeuft geflogen
+    Quelle: flights/live_positions/statsim_cache (alles, was seit FriesenRadar laeuft geflogen
     ist) plus forum_callsign (jeder, der sich je per Forum-SSO angemeldet hat). NICHT
     vollstaendig: Ein Mitglied, das sein Callsign nur im Forum reserviert hat, ohne je zu
-    fliegen oder sich bei FriesenSpy einzuloggen, fehlt hier -- bestmoegliche automatische
+    fliegen oder sich bei FriesenRadar einzuloggen, fehlt hier -- bestmoegliche automatische
     Quelle, bis eine autoritativere (volle Forum-Mitgliederliste) vorliegt.
     """
     ergebnis: set[str] = set()

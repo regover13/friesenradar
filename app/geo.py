@@ -1,4 +1,4 @@
-"""Geographische Hilfsfunktionen für FriesenSpy: Haversine-Distanz und Event-Filter."""
+"""Geographische Hilfsfunktionen für FriesenRadar: Haversine-Distanz und Event-Filter."""
 from __future__ import annotations
 
 import math

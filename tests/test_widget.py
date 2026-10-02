@@ -51,7 +51,7 @@ def test_bringt_eigene_helle_flaeche_mit(widget_env):
 def test_zaehler_sitzen_in_der_kopfzeile_beim_schriftzug(widget_env):
     html = _render(widget_env)
     kopf = html.split('<div class="hd">')[1].split("</div>")[0]
-    assert "FriesenSpy" in kopf
+    assert "FriesenRadar" in kopf
     assert "online" in kopf and "TS" in kopf
 
 

@@ -111,8 +111,8 @@ def test_thema_ohne_luftfahrzeug_wird_verworfen():
 def test_user_agent_traegt_kontakt_und_version():
     """B3: ohne aussagekraeftigen UA antwortet Wikimedia von diesem Server mit 403
     ('Contabo networks are forbidden due to abuse'). Gemessen 2026-07-30 im Container."""
-    assert "FriesenSpy/" in USER_AGENT
-    assert "friesenspy.devprops.de" in USER_AGENT
+    assert "FriesenRadar/" in USER_AGENT
+    assert "friesenradar.devprops.de" in USER_AGENT
     assert "@" in USER_AGENT, "Kontakt fehlt — Wikimedia-Nutzungsregeln verlangen ihn"
     assert "python" not in USER_AGENT.lower()
 

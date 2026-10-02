@@ -3,7 +3,7 @@
 self.addEventListener('push', event => {
   const data = event.data?.json() || {};
   event.waitUntil(
-    self.registration.showNotification(data.title || 'FriesenSpy', {
+    self.registration.showNotification(data.title || 'FriesenRadar', {
       body: data.body || '',
       icon: '/static/favicon.ico',
       badge: '/static/favicon.ico',

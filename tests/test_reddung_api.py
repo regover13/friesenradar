@@ -702,7 +702,7 @@ def test_im_kniebrett_steht_die_adresse_statt_eines_links():
     stelle = q[q.index("function _reddungHinweisPruefen"):]
     stelle = stelle[:stelle.index("\n}")]
     assert "_PANEL_MODUS" in stelle, "der Hinweis unterscheidet Website und Kniebrett nicht"
-    assert "friesenspy.devprops.de/download" in stelle, "im Panel fehlt die Adresse als Text"
+    assert "friesenradar.devprops.de/download" in stelle, "im Panel fehlt die Adresse als Text"
 
 
 def test_der_hinweis_sagt_dass_ohne_bruegge_nichts_gewertet_wird():

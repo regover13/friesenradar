@@ -1,4 +1,4 @@
-"""TeamSpeak-ServerQuery-Client für FriesenSpy (Phase 1).
+"""TeamSpeak-ServerQuery-Client für FriesenRadar (Phase 1).
 
 Kurzlebige ServerQuery-Verbindung pro Poll (kein dauerhafter Event-Thread, kein
 TS-Client). Liest die Clients im Zielkanal und parst FRS-Nummern aus den Nicknames.

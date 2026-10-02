@@ -1,4 +1,4 @@
-"""Forum-SSO (Board-Login) für FriesenSpy — Token-Primitiven.
+"""Forum-SSO (Board-Login) für FriesenRadar — Token-Primitiven.
 
 Zwei getrennte Token, beide im Format ``base64url(payload).hmac_sha256_hex`` und mit einem
 festen Typ-Feld ``typ`` (``"sso"`` bzw. ``"user"``), das die beiden Sorten strikt trennt —
@@ -7,7 +7,7 @@ auch dann, wenn versehentlich dasselbe Secret für beide konfiguriert würde:
 - Das *eingehende* SSO-Token (``typ="sso"``) von der Forum-Bridge ``sso.php``, signiert mit dem
   GETEILTEN ``SSO_SECRET``. Kurzlebig (``iat``-Frische ≤ 60 s), trägt einen Einmal-``nonce``
   (Replay-Schutz/Nonce-Verbrauch liegt beim Aufrufer).
-- Das *eigene* FriesenSpy-Session-Cookie (``typ="user"``) nach erfolgreichem Login, signiert mit
+- Das *eigene* FriesenRadar-Session-Cookie (``typ="user"``) nach erfolgreichem Login, signiert mit
   ``SECRET_KEY`` (analog :mod:`app.auth`), mit Ablaufzeitpunkt ``exp``.
 
 Reine Standardbibliothek, keine zusätzliche Abhängigkeit.
@@ -95,7 +95,7 @@ def verify_sso_token(token: str, sso_secret: str, now: float | None = None) -> d
 
 def make_user_token(secret_key: str, name: str, cid: str, is_admin: bool,
                     exp: float) -> str:
-    """Eigenes FriesenSpy-Session-Cookie (``typ="user"``, signiert mit ``SECRET_KEY``), Ablauf ``exp``.
+    """Eigenes FriesenRadar-Session-Cookie (``typ="user"``, signiert mit ``SECRET_KEY``), Ablauf ``exp``.
 
     Die interne Forum-User-ID (``sub`` des eingehenden SSO-Tokens) wird bewusst NICHT ins Cookie
     übernommen — sie wurde nirgends ausgewertet (Berechtigung läuft über ``cid``/``is_admin``),
@@ -105,7 +105,7 @@ def make_user_token(secret_key: str, name: str, cid: str, is_admin: bool,
 
 
 def verify_user_token(token: str, secret_key: str, now: float | None = None) -> dict | None:
-    """FriesenSpy-Session-Cookie prüfen: Signatur (``SECRET_KEY``) + ``typ`` + ``exp``. Claims oder ``None``."""
+    """FriesenRadar-Session-Cookie prüfen: Signatur (``SECRET_KEY``) + ``typ`` + ``exp``. Claims oder ``None``."""
     claims = _decode(token, secret_key)
     if claims is None or claims.get("typ") != "user":
         return None

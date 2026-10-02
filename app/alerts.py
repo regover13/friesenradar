@@ -1,4 +1,4 @@
-"""Telegram-Alert-System für FriesenSpy — Benachrichtigungen wenn Friesen online gehen."""
+"""Telegram-Alert-System für FriesenRadar — Benachrichtigungen wenn Friesen online gehen."""
 from __future__ import annotations
 
 import html

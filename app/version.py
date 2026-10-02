@@ -1,4 +1,4 @@
-"""Versionierung + nutzerorientierter Changelog für FriesenSpy.
+"""Versionierung + nutzerorientierter Changelog für FriesenRadar.
 
 Die Daten liegen als normale Repo-Datei ``app/CHANGELOG.json`` (Single Source of Truth) und
 werden hier eingelesen. ``VERSION`` ergibt sich aus dem ersten (= neuesten) Eintrag. Ausgeliefert

@@ -22,7 +22,7 @@ from app.version import VERSION
 
 logger = logging.getLogger(__name__)
 
-USER_AGENT = f"FriesenSpy/{VERSION} (https://friesenspy.devprops.de; admin@devprops.de)"
+USER_AGENT = f"FriesenRadar/{VERSION} (https://friesenradar.devprops.de; admin@devprops.de)"
 
 # Die Wikipedia-Such-API lehnt Anfragen über 300 Zeichen mit `cirrussearch-query-too-long` ab.
 # 80 ist reichlich für „Hersteller + Modell" und schließt die Prosa-Altwerte sicher aus:
