@@ -53,7 +53,7 @@ class TestDefaults:
 
     def test_db_path_default(self):
         s = _make_settings()
-        assert s.DB_PATH == "/opt/friesenspy/data/friesenspy.db"
+        assert s.DB_PATH == "/opt/friesenradar/data/friesenradar.db"
 
     def test_telegram_defaults_empty(self):
         s = _make_settings()

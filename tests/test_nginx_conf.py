@@ -1,4 +1,4 @@
-"""Repo-nginx-Config fuer friesenspy.devprops.de (Review-Fund, Important, v12.10.x).
+"""Repo-nginx-Config fuer friesenradar.devprops.de (Review-Fund, Important, v12.10.x).
 
 Systemseitig ist gzip_types in /etc/nginx/nginx.conf auskommentiert (nur der Default text/html
 gilt) und gzip_proxied steht auf dem Default "off" -- beides fassen wir laut CLAUDE.md nicht an.
@@ -7,7 +7,7 @@ Die drei Karten-Datendateien (Platzrunden-GeoJSON, FSE-Plaetze, FSE-Landeflaeche
 in der Repo-Config, die vollstaendig per proxy_pass an FastAPI serviert."""
 from pathlib import Path
 
-CONF = (Path(__file__).resolve().parents[1] / "nginx" / "friesenspy.devprops.de.conf").read_text(
+CONF = (Path(__file__).resolve().parents[1] / "nginx" / "friesenradar.devprops.de.conf").read_text(
     encoding="utf-8"
 )
 
@@ -44,15 +44,15 @@ def test_gzip_types_deckt_die_kartendaten_ab():
 # einmal ein Browser daneben.
 
 def test_kniebrett_hat_eine_eigene_zone():
-    assert "zone=friesenspy_kniebrett:10m" in CONF
+    assert "zone=friesenradar_kniebrett:10m" in CONF
 
 
 def test_die_kniebrett_zone_ist_nicht_die_der_bruegge():
     """Getrennte Zonen: Wer beides nutzt, läge sonst mit 120 r/m in einem 180er-Topf."""
     stelle = CONF.index("location = /api/kniebrett/melden")
     block = CONF[stelle:CONF.index("}", stelle)]
-    assert "zone=friesenspy_kniebrett" in block
-    assert "friesenspy_bruegge" not in block
+    assert "zone=friesenradar_kniebrett" in block
+    assert "friesenradar_bruegge" not in block
 
 
 def test_kniebrett_location_ist_exakt_und_nicht_als_prefix():

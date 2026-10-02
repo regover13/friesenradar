@@ -61,7 +61,7 @@ GRAD_FENSTER = 46.0
 SCHRITT = 0.05
 
 
-def blatt(icao: str, sorte: str, db_verzeichnis: str = "/opt/friesenspy/data") -> Image.Image:
+def blatt(icao: str, sorte: str, db_verzeichnis: str = "/opt/friesenradar/data") -> Image.Image:
     pfad = aip_charts.dfs_blatt_pfad(str(Path(db_verzeichnis) / "x.db"), icao, sorte, "roh")
     return Image.open(pfad).convert("RGB")
 

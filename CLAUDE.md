@@ -38,7 +38,7 @@ für die *andere*: Erst die Suite abwarten, dann die Version schreiben.
 Produktion: `geo.set_custom_airports(list_custom_airports(conn))` — die Registry füllt sonst nur
 der App-Start, ohne sie fehlen Ergänzungsflugplätze (EDSR!) und alle Leg-Erkennungen kippen —
 und eine OBERE Zeitgrenze bei Positionssuchen, sonst geraten spätere Flüge desselben Piloten
-hinein („50 348 Minuten Standzeit"). Im Zweifel `docker exec friesenspy-friesenspy-1 python -c …`,
+hinein („50 348 Minuten Standzeit"). Im Zweifel `docker exec friesenradar-friesenradar-1 python -c …`,
 dort stimmt die Welt von selbst.
 
 **Einen neuen Regressionstest gegen den entfernten Fix gegenprüfen** — er muss ohne ihn rot
@@ -165,10 +165,10 @@ einen Link.
 
 GitHub Push → main-Branch → GitHub Actions → GHCR → SSH-Deploy auf VPS
 
-- Container: `ghcr.io/regover13/friesenspy:latest`
+- Container: `ghcr.io/regover13/friesenradar:latest`
 - Port: 8091 (intern), friesenspy.devprops.de (extern)
-- DB: `/opt/friesenspy/data/friesenspy.db` (Volume)
-- Config: `/opt/friesenspy/config.env` (niemals in git!)
+- DB: `/opt/friesenradar/data/friesenradar.db` (Volume)
+- Config: `/opt/friesenradar/config.env` (niemals in git!)
 - **Discord-Meldung nach jedem Deploy:** letzter Schritt in `deploy.yml`, meldet Erfolg (grün, nach
   bestandenem Health-Check) oder Fehlschlag (rot) mit Version, Commit-Titel und Link zum Workflow-Log.
   Braucht das Repo-Secret `DISCORD_WEBHOOK` (Discord-Kanal-Webhook, **ohne** `/github`-Suffix).
@@ -181,7 +181,7 @@ GitHub Push → main-Branch → GitHub Actions → GHCR → SSH-Deploy auf VPS
 ## VPS-Einrichtung (einmalig)
 
 ```bash
-mkdir -p /opt/friesenspy/data
+mkdir -p /opt/friesenradar/data
 # config.env anlegen mit echten CIDs + Token
 # nginx-Config: nginx/friesenspy.devprops.de.conf einbinden
 # certbot: certbot --nginx -d friesenspy.devprops.de
@@ -342,7 +342,7 @@ belassen es bei einer einfachen Hash-Aktualitätsprüfung.").
   nicht gelöscht.** Sie tragen die Daten, aus denen die Migration liest. Ein `DROP` ist eine
   eigene, bewusste Entscheidung — erst wenn der neue Stand geprüft ist.
 - **Ihre Bilddateien liegen seit dem 15.09.2026 nicht mehr auf dem Server.**
-  `/opt/friesenspy/data/aip/` (236 MB, 455 Dateien) und `aip_ground/` (88 MB, 175 Dateien)
+  `/opt/friesenradar/data/aip/` (236 MB, 455 Dateien) und `aip_ground/` (88 MB, 175 Dateien)
   waren toter Bestand: Kein Endpunkt und keine Codestelle liest daraus, und über zwei Wochen
   nginx-Log wurden ausschließlich `/aip-chart-dfs/` (671×) und `/aip-chart-roh/` (114×)
   abgerufen. Sie liegen jetzt als `/root/friesenspy-aip-alt-2026-09-15.tar.gz` (331 MB, 0600,
@@ -538,7 +538,7 @@ Widerspruch) stehen je These in `app/bruegge_bindung.py`, der Beschluss in
   länger braucht, ist kein Gedränge mehr.
 - **Wenn die App langsam wird: erst die Log-Zeile lesen, dann den Container neu starten.**
   Der Neustart setzt die Kurve zurück (20 s Ausfall) — er löscht aber auch die Spur, also
-  vorher `docker logs friesenspy-friesenspy-1 | grep "Poll-Zyklus langsam"` wegschreiben.
+  vorher `docker logs friesenradar-friesenradar-1 | grep "Poll-Zyklus langsam"` wegschreiben.
   **Zwei naheliegende Hebel sind gemessen und fallen aus** (04.09.2026, Belege im Kommentar
   zu GitHub-Issue #16):
   *Andere Container abschalten (Condor)* — die Maschine hatte Luft, Load maximal 4,2 bei
@@ -596,7 +596,7 @@ auskommentiert; `cleanup_old_history(days=365)` liegt einsatzbereit daneben). Da
 Zeilen und 480 kB am Tag, rund 175 MB im Jahr. Am 15.09.2026 ausdrücklich bestätigt: **so
 lassen** — alte Spuren sind hier ein Merkmal, kein Ballast, und die Platte hat 151 GB frei.
 
-**CPU: 5,2 % eines Kerns im Wochenmittel** (Netdata, `cgroup_friesenspy-friesenspy-1.cpu`:
+**CPU: 5,2 % eines Kerns im Wochenmittel** (Netdata, `cgroup_friesenradar-friesenradar-1.cpu`:
 4,85 % user + 0,35 % system). Damit liegt FriesenSpy auf Rang 3 der Container — weit hinter
 `condor-condor-server-1` (99 %) und `netdata` (26 %). Das Container-Log ist mit 121 kB
 unauffällig und seit dem 13.09.2026 ohnehin auf 5 × 20 MB gedeckelt.
@@ -661,7 +661,7 @@ TELEGRAM_CHAT_ID=            # Optional
 VATSIM_POLL_INTERVAL=15
 VATSIM_REJOIN_DEBOUNCE_SEC=900   # Default: 900 s (15 min) — Reconnect-Fenster Online-Push
 LOG_LEVEL=INFO                   # Default: INFO — App-Logger sichtbar (unter uvicorn sonst nur WARNING+)
-DB_PATH=/opt/friesenspy/data/friesenspy.db
+DB_PATH=/opt/friesenradar/data/friesenradar.db
 ANTHROPIC_API_KEY=               # Optional — FriesenKutter-Zuladungs-Vorschlag (Claude Haiku 4.5 + Web-Search,
                                  # llm.py:25 _SUGGEST_MODEL, seit v7.4.2 — NICHT Sonnet 5; Sonnet 5 macht nur die
                                  # Sprüche, llm.py:295). Denselben Key wie TSBot verwenden.

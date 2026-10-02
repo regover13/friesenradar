@@ -155,11 +155,11 @@ def test_ablage_liegt_im_datenverzeichnis():
 
     ⚠ Geprüft wird die BEZIEHUNG zur Datenbank, nicht eine ausgeschriebene Zeichenkette.
     `pfad_fuer` ruft `.resolve()`, und das stellt unter Windows das aktuelle Laufwerk voran
-    (`D:/opt/friesenspy/...`). Der Vergleich gegen `Path("/opt/friesenspy/data/…")` war
+    (`D:/opt/friesenradar/...`). Der Vergleich gegen `Path("/opt/friesenradar/data/…")` war
     deshalb auf dem Entwicklungsrechner dauerhaft rot und nur im Container grün — ein
     Fehlschlag, der nichts über den Code sagt und echte verdeckt (14.09.2026).
     """
-    db = "/opt/friesenspy/data/friesenspy.db"
+    db = "/opt/friesenradar/data/friesenradar.db"
     ziel = vrp.pfad_fuer(db)
     assert ziel.name == "vrp_openaip.json"
     assert ziel.parent == Path(db).resolve().parent

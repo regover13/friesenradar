@@ -67,7 +67,7 @@ def test_standardablage_liegt_neben_der_datenbank(env):
     Release ersetzt."""
     pfad = main._efb_zip_path(env.settings)
     assert pfad.parent.parent == Path(env.settings.DB_PATH).parent
-    assert pfad.name == "friesenspy-efb.zip"
+    assert pfad.name == "friesenradar-efb.zip"
 
 
 def test_eigener_pfad_hat_vorrang(env):
@@ -237,3 +237,27 @@ def test_die_seite_beschreibt_den_ordner_richtig():
     seite = Path("app/static/efb.html").read_text(encoding="utf-8")
     assert "Darin liegt ein Ordner namens" not in seite, "die alte Beschreibung muss weg"
     assert "manifest.json" in seite
+
+
+# --- Umzug FriesenRadar (Plan 2026-10-02, Task 1) -----------------------------------------
+# Die Paketdatei im Volume heisst kuenftig friesenradar-efb.zip. Bis das neue Paket gebaut
+# ist (Task 5), liegt dort nur die alte friesenspy-efb.zip -- sie muss weiter ausgeliefert
+# werden, sonst ist der Download nach dem Umzug ein 404.
+
+def test_neue_paketdatei_hat_vorrang(env):
+    daten = Path(env.settings.DB_PATH).parent
+    _paket_bauen(daten / "efb" / "friesenspy-efb.zip", version="2.3.2")
+    _paket_bauen(daten / "efb" / "friesenradar-efb.zip", version="3.0.0")
+    assert main._efb_zip_path(env.settings) == daten / "efb" / "friesenradar-efb.zip"
+
+
+def test_ohne_neue_paketdatei_kommt_die_alte(env):
+    daten = Path(env.settings.DB_PATH).parent
+    _paket_bauen(daten / "efb" / "friesenspy-efb.zip", version="2.3.2")
+    assert main._efb_zip_path(env.settings) == daten / "efb" / "friesenspy-efb.zip"
+
+
+def test_ganz_ohne_paket_zeigt_auf_die_neue_datei(env):
+    # Wohin ein neues Paket abgelegt werden soll -- und wo der 404 herkommt.
+    daten = Path(env.settings.DB_PATH).parent
+    assert main._efb_zip_path(env.settings) == daten / "efb" / "friesenradar-efb.zip"

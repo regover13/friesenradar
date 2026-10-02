@@ -3,23 +3,23 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-RUN useradd -u 1001 -m -s /bin/bash friesenspy
-USER friesenspy
-WORKDIR /opt/friesenspy
+RUN useradd -u 1001 -m -s /bin/bash friesenradar
+USER friesenradar
+WORKDIR /opt/friesenradar
 
-COPY --chown=friesenspy:friesenspy requirements.txt .
+COPY --chown=friesenradar:friesenradar requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
-COPY --chown=friesenspy:friesenspy app/ ./app/
+COPY --chown=friesenradar:friesenradar app/ ./app/
 # scripts/ gehoert ins Image, weil der woechentliche AIP-Job in app/poller.py
 # `from scripts.aip_bestand import lauf` macht. Ohne diese Zeile scheitert er mit
 # ImportError -- und zwar lautlos, denn der Job faengt jede Exception ab. Der
 # Kartenbestand waere dann einfach nie aufgefrischt. tests/test_aip_api.py haelt
 # das fest.
-COPY --chown=friesenspy:friesenspy scripts/ ./scripts/
+COPY --chown=friesenradar:friesenradar scripts/ ./scripts/
 
-ENV PATH="/home/friesenspy/.local/bin:$PATH"
-ENV DB_PATH=/opt/friesenspy/data/friesenspy.db
+ENV PATH="/home/friesenradar/.local/bin:$PATH"
+ENV DB_PATH=/opt/friesenradar/data/friesenradar.db
 # SECRET_KEY wird über config.env gesetzt (Pflichtfeld — kein Fallback)
 
 EXPOSE 8091

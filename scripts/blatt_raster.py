@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw
 
 icao, sorte = sys.argv[1], sys.argv[2]
 schritt = int(sys.argv[3]) if len(sys.argv) > 3 else 200
-quelle = Path(f"/opt/friesenspy/data/aip_dfs/{icao}.{sorte}.roh.png")
+quelle = Path(f"/opt/friesenradar/data/aip_dfs/{icao}.{sorte}.roh.png")
 im = Image.open(quelle).convert("RGB")
 b, h = im.size
 z = ImageDraw.Draw(im)

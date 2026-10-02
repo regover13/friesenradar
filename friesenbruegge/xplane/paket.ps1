@@ -25,7 +25,7 @@ if (-not (Test-Path $Datei)) { throw "$Datei gibt es nicht." }
 # Derselbe Ort wie das MSFS- und das Kniebrett-ZIP: im Volume neben der Datenbank. KEIN
 # Deploy fasst diese Dateien an -- beim Kniebrett-ZIP ist genau das dreimal schiefgegangen,
 # der Download lief drei Fassungen hinterher und fiel nur im Browsertest auf.
-$ziel = "server:/opt/friesenspy/data/efb/friesenbruegge-xplane.zip"
+$ziel = "server:/opt/friesenradar/data/efb/friesenbruegge-xplane.zip"
 Write-Output "Lade hoch nach $ziel ..."
 & scp -q $Datei $ziel
 if ($LASTEXITCODE -eq 0) {

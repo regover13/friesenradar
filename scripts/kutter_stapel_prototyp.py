@@ -21,7 +21,7 @@ from app.transport_stacks import derive_stacks, STOLEN, SUNK
 
 # Pfad zur KOPIE als Argument — niemals die Original-Prod-DB.
 db_pfad = sys.argv[1] if len(sys.argv) > 1 else "/tmp/friesenspy-kopie.db"
-if db_pfad.startswith("/opt/friesenspy/"):
+if db_pfad.startswith("/opt/friesenradar/"):
     raise SystemExit("Das ist die Produktions-DB. Bitte eine Kopie angeben.")
 # mode=ro erzwingt Lesen auf DB-Ebene — nicht nur per Vorsatz.
 conn = sqlite3.connect(f"file:{db_pfad}?mode=ro", uri=True)

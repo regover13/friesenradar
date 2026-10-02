@@ -402,7 +402,7 @@ async def lifespan(app: FastAPI):
     # noch gelesen, deshalb ohne Sperre. Bewusst HINTER dem finally: das JSON-Parsen dauert
     # eine halbe Sekunde, und die DB-Verbindung solange offen zu halten wäre grundlos.
     # Der Pfad ist relativ zum Arbeitsverzeichnis, wie der StaticFiles-Mount weiter unten —
-    # im Container ist das /opt/friesenspy.
+    # im Container ist das /opt/friesenradar.
     app.state.fse = fse.laden(Path("app/data/fse"))
     _logger.info("FSE-Bestand geladen: %d Plätze", len(app.state.fse.plaetze))
     # Meldepunkte aus der Ablage im Datenverzeichnis. Ist dort nichts (erster Start nach dem
@@ -705,7 +705,15 @@ def _efb_zip_path(settings) -> Path:
     eigen = str(getattr(settings, "EFB_PACKAGE_PATH", "") or "").strip()
     if eigen:
         return Path(eigen)
-    return Path(settings.DB_PATH).parent / "efb" / "friesenspy-efb.zip"
+    efb = Path(settings.DB_PATH).parent / "efb"
+    # Umzug FriesenRadar (02.10.2026): Die Datei heisst kuenftig friesenradar-efb.zip. Bis das
+    # neue Paket gebaut und abgelegt ist, liegt nur die alte vor -- dann die ausliefern, sonst
+    # waere der Download nach dem Umzug ein 404.
+    neu = efb / "friesenradar-efb.zip"
+    alt = efb / "friesenspy-efb.zip"
+    if not neu.is_file() and alt.is_file():
+        return alt
+    return neu
 
 
 def _efb_package_version(pfad: Path) -> str | None:

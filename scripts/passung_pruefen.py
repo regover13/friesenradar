@@ -122,7 +122,7 @@ def _schranke(px_schwellen: float, px_leiste: float) -> float:
     return max(SCHRANKE_MIN, SICHERHEIT * rel)
 
 
-def bahnen_holen(icao: str, db_verzeichnis: str = "/opt/friesenspy/data"):
+def bahnen_holen(icao: str, db_verzeichnis: str = "/opt/friesenradar/data"):
     datei = Path(db_verzeichnis) / "runways.csv"
     if not datei.is_file():
         datei = Path("/tmp/runways.csv")

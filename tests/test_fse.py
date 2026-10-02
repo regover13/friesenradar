@@ -799,7 +799,7 @@ def klient(bestand, tmp_path, monkeypatch):
     """TestClient OHNE ``with`` — der Lifespan darf hier nicht laufen.
 
     Er liest ``SECRET_KEY`` (das hat keinen Default und steht nur in config.env), ruft
-    ``init_db`` auf dem PRODUKTIONSPFAD /opt/friesenspy/data/friesenspy.db und startet den
+    ``init_db`` auf dem PRODUKTIONSPFAD /opt/friesenradar/data/friesenradar.db und startet den
     VATSIM-Poller gegen die echte API. Das Hausmuster dagegen steht in
     tests/test_traffic_api.py:79: Settings per monkeypatch ersetzen und den Zustand direkt an
     app.state haengen.

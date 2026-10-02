@@ -366,7 +366,7 @@ Write-Output ("ZIP gebaut:  {0}  ({1:N0} Bytes, Fassung {2})" -f $zip, $zg, $fas
 
 if ($Hochladen) {
     # Der Pfad ist derselbe wie beim EFB-ZIP -- beide liegen im Volume neben der Datenbank.
-    $ziel = "server:/opt/friesenspy/data/efb/friesenbruegge.zip"
+    $ziel = "server:/opt/friesenradar/data/efb/friesenbruegge.zip"
     Write-Output "Lade hoch nach $ziel ..."
     & scp -q $zip $ziel
     if ($LASTEXITCODE -eq 0) {
@@ -378,7 +378,7 @@ if ($Hochladen) {
     Write-Output ""
     Write-Output "Noch NICHT auf der Download-Seite. Wenn das Paket im Simulator geprueft ist:"
     Write-Output "    .\paket.ps1 -Hochladen"
-    Write-Output "  oder von Hand:  scp `"$zip`" server:/opt/friesenspy/data/efb/"
+    Write-Output "  oder von Hand:  scp `"$zip`" server:/opt/friesenradar/data/efb/"
 }
 
 Write-Output ""

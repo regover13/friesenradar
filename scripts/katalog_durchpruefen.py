@@ -45,7 +45,7 @@ Bruegge sich als 2020er (20.09.2026 beobachtet) -- der Lauf misst dann den falsc
     python katalog_durchpruefen.py --cid 1602713 --simulator xplane12 --block 100 --alle
     python katalog_durchpruefen.py --cid 1602713 --simulator msfs2020 --nur-zugeordnet
 
-Abbruch von aussen: die Datei ``/opt/friesenspy/data/katalog_durchpruefen.stop`` anlegen; der
+Abbruch von aussen: die Datei ``/opt/friesenradar/data/katalog_durchpruefen.stop`` anlegen; der
 Lauf endet nach dem laufenden Block und raeumt auf.
 """
 from __future__ import annotations
@@ -56,9 +56,9 @@ import os
 import sys
 import time
 
-# Im Container liegt die App unter /opt/friesenspy -- das Arbeitsverzeichnis ist ein
+# Im Container liegt die App unter /opt/friesenradar -- das Arbeitsverzeichnis ist ein
 # anderes, deshalb der ausdrueckliche Pfad.
-sys.path.insert(0, "/opt/friesenspy")
+sys.path.insert(0, "/opt/friesenradar")
 
 # ⚠ DIESELBE Regel wie der Server, IMPORTIERT statt abgeschrieben. Der erste Probelauf
 # (16.09.2026, sechs Titel) meldete 5 Fehlschlaege und 1 Erfolg bei sechs GLEICHARTIGEN
@@ -78,8 +78,8 @@ from app.database import (  # noqa: E402
     _BRUEGGE_TOPF,
 )
 
-DB = "/opt/friesenspy/data/friesenspy.db"
-STOP = "/opt/friesenspy/data/katalog_durchpruefen.stop"
+DB = "/opt/friesenradar/data/friesenradar.db"
+STOP = "/opt/friesenradar/data/katalog_durchpruefen.stop"
 
 #: Praefix der Wegwerf-Arten. Wird am Ende jedes Blocks wieder entfernt -- und beim Start
 #: eines Laufs vorsorglich auch, falls ein frueherer Lauf abgebrochen ist.

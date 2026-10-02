@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # Reconnect-Fenster für den Online-Push: geht ein Pilot innerhalb dieser Zeit erneut online
     # (vPilot-Reconnect), wird das als Reconnect gewertet und NICHT erneut gepusht.
     VATSIM_REJOIN_DEBOUNCE_SEC: int = 900
-    DB_PATH: str = "/opt/friesenspy/data/friesenspy.db"
+    DB_PATH: str = "/opt/friesenradar/data/friesenradar.db"
     STATSIM_API_KEY: str = ""
     OPENAIP_API_KEY: str = ""
     # Kacheln der Ebenen „Light" und „Dark" (CARTO Positron / Dark Matter). Seit dem
@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     SSO_SECRET: str = ""            # GETEILT mit sso.php; niemals in git
     FORUM_SSO_URL: str = ""         # z.B. https://board.friesenflieger.de/sso.php
     FORUM_SSO_CALLBACK: str = ""    # absolute URL zu /auth/forum/callback (muss der Whitelist in sso.php entsprechen)
-    USER_SESSION_MAX_AGE_SEC: int = 1200  # 20 min — kurze FriesenSpy-Session; Forum-Logout greift spätestens dann
+    USER_SESSION_MAX_AGE_SEC: int = 1200  # 20 min — kurze FriesenRadar-Session; Forum-Logout greift spätestens dann
 
 
 @lru_cache(maxsize=1)

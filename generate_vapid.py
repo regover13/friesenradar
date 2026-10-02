@@ -1,7 +1,7 @@
 """VAPID-Keys für Web Push Notifications generieren.
 
 Ausgabe direkt in config.env-Format (Wert auf einer Zeile, \n escaped).
-Keys einmalig ausführen und in /opt/friesenspy/config.env eintragen.
+Keys einmalig ausführen und in /opt/friesenradar/config.env eintragen.
 """
 from cryptography.hazmat.primitives.asymmetric.ec import generate_private_key, SECP256R1
 from cryptography.hazmat.primitives.serialization import (

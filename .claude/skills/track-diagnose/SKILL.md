@@ -46,7 +46,7 @@ Fall A und macht Grübeleien überflüssig:
 ## Datenzugang (nur lesend)
 
 ```bash
-ssh -i ~/.ssh/tsbot_server root@167.86.127.129 "sqlite3 -header -column /opt/friesenspy/data/friesenspy.db \"<SQL>\""
+ssh -i ~/.ssh/tsbot_server root@167.86.127.129 "sqlite3 -header -column /opt/friesenradar/data/friesenradar.db \"<SQL>\""
 ```
 
 Stolpersteine:
@@ -72,7 +72,7 @@ Here-Doc hat keine Quoting-Ebene mehr und läuft deshalb sauber:
 
 ```bash
 ssh -i ~/.ssh/tsbot_server root@167.86.127.129 \
-  'docker exec -i friesenspy-friesenspy-1 python -' <<'PY' > gaps.json
+  'docker exec -i friesenradar-friesenradar-1 python -' <<'PY' > gaps.json
 import json
 from app import geo
 from app.config import get_settings

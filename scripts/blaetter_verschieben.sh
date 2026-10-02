@@ -3,7 +3,7 @@
 #
 # ZIEL="" bedeutet Trockenlauf in ein temporaeres Verzeichnis (kopiert statt verschiebt).
 set -euo pipefail
-DATA=/opt/friesenspy/data
+DATA=/opt/friesenradar/data
 ZIEL=${1:-/tmp/aip_dfs_probe}
 ECHT=${2:-nein}
 

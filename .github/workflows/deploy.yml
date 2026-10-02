@@ -21,7 +21,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE: ghcr.io/regover13/friesenspy
+  IMAGE: ghcr.io/regover13/friesenradar
 
 jobs:
   # Die Tests laufen VOR dem Bau -- ein roter Stand wird nicht deployt. Bis zum 26.09.2026 gab
@@ -72,7 +72,7 @@ jobs:
             --arg actor "$ACTOR" \
             --arg run "$RUN_URL" \
             '{embeds: [{
-                author: {name: "FriesenSpy — Tests rot, nicht deployt"},
+                author: {name: "FriesenRadar — Tests rot, nicht deployt"},
                 title: $title,
                 url: $url,
                 description: ("Auf dem VPS läuft die bisherige Version weiter.\n\n" + $summe
@@ -126,7 +126,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           envs: GITHUB_TOKEN,GITHUB_ACTOR
           script: |
-            cd /opt/friesenspy
+            cd /opt/friesenradar
             echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
             docker compose pull
             docker compose up -d
@@ -166,13 +166,13 @@ jobs:
           TITLE=$(printf '%s' "$COMMIT_MSG" | head -1)
           if [ "$JOB_STATUS" = "success" ]; then
             COLOR=3066993
-            TEXT='Deploy erfolgreich — Health-Check auf friesenspy.devprops.de bestanden.'
+            TEXT='Deploy erfolgreich — Health-Check auf friesenradar.devprops.de bestanden.'
           else
             COLOR=15158332
             TEXT="Deploy fehlgeschlagen ($JOB_STATUS) — auf dem VPS läuft die bisherige Version weiter."
           fi
           jq -n \
-            --arg name "FriesenSpy v$VERSION" \
+            --arg name "FriesenRadar v$VERSION" \
             --arg title "$TITLE" \
             --arg url "$COMMIT_URL" \
             --arg text "$TEXT" \
