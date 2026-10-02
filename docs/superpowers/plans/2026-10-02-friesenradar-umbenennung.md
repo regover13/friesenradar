@@ -17,136 +17,111 @@
 - **Bleiben als Geschichte:** CHANGELOG-Einträge vor 16.0.0, datierte Doku (`docs/superpowers/`, Dateien mit Datum im Namen), Commit-Historie, Forumsbeiträge, Erwähnungen in anderen Repos.
 - **Logofarben nie ändern;** nur offizielle Fassungen. App-Symbol: rotes Flugzeug auf Weiß.
 - **`friesenspy.devprops.de` bleibt stilles Alias** im selben Vhost; nirgends mehr genannt.
-- **Technische Heimat** für Paket und Brügge: `friesenradar.devprops.de`. Für Mitglieder: `radar.friesenflieger.de` (sobald DNS steht, sonst `friesenradar.devprops.de`).
+- **Technische Heimat** für Paket, Brügge und Widget-Einbettung: `friesenradar.devprops.de`. Für Mitglieder: `radar.friesenflieger.de` — **erst nennen, wenn `curl -sf https://radar.friesenflieger.de/health` gelingt**; bis dahin überall `friesenradar.devprops.de`. Heute zeigt der Name auf den Wildcard-Eintrag des Vereins (217.160.242.47), nicht auf uns.
 - **Geschützt, nur mit ausdrücklicher Freigabe:** `/opt/*/config.env`, alles auf friesenflieger.de (Forum-Schreiben, Board-Vorlage, Website).
 - **Vor jedem Push:** `git fetch` + Rebase; pytest-Exit-Code selbst prüfen; zu Flugzeiten nicht deployen (nginx-Log: CoherentGT, `/api/sse`).
 - **Tests:** `/home/claude/.venv-friesenspy/bin/python -m pytest -n 4 tests/ -q -p no:cacheprovider` (venv wird in Task 7 umbenannt).
 - **SQLite nie per `cp`** — `.backup` oder Checkpoint bei gestopptem Container.
 
+## Prüfstand
+
+Vierfach geprüft am 02./03.10.2026: Betrieb (Tasks 1, 2, 7, 8) und Verträglichkeit für Mitglieder
+(Tasks 3–6, Spec), jeweils von Fable und Opus. Alle blockierenden Befunde sind unten eingearbeitet;
+die Nummern in Klammern (B = Betrieb, V = Verträglichkeit) verweisen auf die Berichte. Offen ist
+eine Entscheidung des Nutzers: **der Ordnername des Kniebrett-Pakets (Task 5)**.
+
 ## Review Focus
 
-1. **Backup nach dem Umzug:** Läuft `backup_onedrive.sh` mit den neuen Pfaden durch und landet das Archiv in `Server-Backup/friesenradar/`? (Task 2, Probelauf)
-2. **Alte Brüggen und Kniebretter nach dem Umzug:** Melden sie weiter über `friesenspy.devprops.de` (nginx-Log 200 auf `/api/bruegge/melden`)? (Task 2, Gegenprobe)
-3. **Forum-Login über alle drei Adressen** nach dem Umzug, inkl. `FORUM_SSO_CALLBACK` in `config.env`. (Task 2)
-4. **Watchtower** prüft den neuen Container nicht (Liste) und meldet keinen 401. (Task 2)
-5. **Installierte PWAs** behalten Namen und Symbol bis zur Neuinstallation — steht in der Ankündigung. (Task 4)
+1. **Leere Datenbank statt Umzug:** Stimmen Mount im Compose, `DB_PATH` in `config.env` und Dateiname nicht überein, legt SQLite still eine leere DB an; Mitglieder sähen eine leere App, und das Backup um 03:00 sicherte die leere Datei. Gegenprobe vor dem Start und Zeilenzahlen direkt danach (Task 2). (B1)
+2. **Alte Brüggen und Kniebretter nach dem Umzug** melden weiter über `friesenspy.devprops.de`. Gemessen wird in der **DB** (`bruegge_zuordnung.gesehen_am`, `panel_devices.last_seen_at`), **nicht** im nginx-Log: Erfolgreiche Brügge-Meldungen schreibt `conf.d/bruegge-log.conf` gar nicht ins Log, ein leeres Log hieße dort nichts. (V3)
+3. **Forum-Login über alle Adressen** nach dem Umzug, inkl. `FORUM_SSO_CALLBACK`. (Task 2)
+4. **Backup läuft in der ersten Nacht mit den neuen Pfaden** und sichert eine nicht leere Datei. (B4)
+5. **Push-Benachrichtigungen hängen an der alten Adresse:** 14 Abos von 8 Personen. Wer zusätzlich über die neue Adresse einschaltet, bekommt jede Meldung doppelt. Gehört in die Ankündigung. (V5/V6)
 
 ---
 
-### Task 1: Umzug im Repo vorbereiten (Branch `umzug`, noch nicht ausliefern)
+### Task 1: Umzug im Repo vorbereiten (Branch `umzug`) — erledigt bis auf Nachträge
 
-Alles, was Pfade und Namen von Repo, Image und Server betrifft. Wird erst im Umzugsfenster (Task 2) nach `main` gebracht, weil es `/opt/friesenradar` voraussetzt.
+Stand `5aaeb47` auf `origin/umzug`, Suite 3910 grün. Umgesetzt: Compose (Dienst `friesenradar`,
+Image `ghcr.io/regover13/friesenradar`, Volume `./data:/opt/friesenradar/data`), `deploy.yml`,
+`config.py` (Vorgabe `/opt/friesenradar/data/friesenradar.db`), **Dockerfile** (Benutzer, `WORKDIR`,
+`ENV DB_PATH`), nginx-Datei umbenannt, Paketskripte, Paketdatei `efb/friesenradar-efb.zip` mit
+Rückfall auf `friesenspy-efb.zip`.
 
-**Files:**
-- Modify: `docker-compose.yml` (Dienst `friesenradar`, Image `ghcr.io/regover13/friesenradar:latest`, Volume `./data:/opt/friesenradar/data`)
-- Modify: `.github/workflows/deploy.yml` (`IMAGE`, `cd /opt/friesenradar`, Meldetexte „FriesenRadar …“, Health-Check-Text auf `friesenradar.devprops.de`)
-- Modify: `app/config.py` (Vorgabe `DB_PATH = "/opt/friesenradar/data/friesenradar.db"`, Kommentar zur Paketdatei)
-- Modify: `app/main.py:708,811` (Paketdatei `efb/friesenradar-efb.zip`, Download-Name `friesenflieger-friesenradar-efb.zip`) — **mit Rückfall:** existiert die neue Datei nicht, alte `efb/friesenspy-efb.zip` ausliefern (bis Task 5 gebaut ist)
-- Rename: `nginx/friesenspy.devprops.de.conf` → `nginx/friesenradar.devprops.de.conf` (`server_name friesenradar.devprops.de friesenspy.devprops.de;` — neuer Name zuerst; Zertifikatspfad `live/friesenradar.devprops.de/`)
-- Modify: `friesenbruegge/msfs/paket.ps1`, `friesenbruegge/xplane/paket.ps1` (Ziel `server:/opt/friesenradar/data/efb/…`)
-- Test: `tests/test_paket_download.py` (neu oder bestehende Download-Tests erweitern)
+**Der Download-Name bleibt `friesenflieger-friesenspy-efb.zip`.** Er ist zugleich der Ordnername
+nach dem Entpacken (`main.py`, Kommentar beim Download). Ein neuer Name ergäbe nach dem Update ein
+zweites Paket neben dem alten, mit derselben App darin. Ob er sich je ändert, hängt an der
+Entscheidung in Task 5. (V1)
 
-- [ ] **Step 1:** Branch `umzug` von `main`.
-- [ ] **Step 2: Test zuerst** für den Paket-Download: liefert `friesenradar-efb.zip`, wenn vorhanden; sonst `friesenspy-efb.zip`; Download-Dateiname `friesenflieger-friesenradar-efb.zip`. Rot laufen lassen.
-- [ ] **Step 3:** `main.py` anpassen, Test grün.
-- [ ] **Step 4:** Übrige Dateien oben ändern. `grep -rn "/opt/friesenspy\|regover13/friesenspy" --include=*.py --include=*.yml --include=*.ps1 --include=*.conf .` muss leer sein (außer datierter Doku).
-- [ ] **Step 5:** Suite grün. Commit auf `umzug`, push nach `origin/umzug` (kein Deploy, Workflow läuft nur auf `main`).
+- [ ] **Nachtrag 1:** `deploy.yml` Skript mit `set -euo pipefail` beginnen, damit ein fehlendes Verzeichnis den Lauf abbricht statt in `$HOME` weiterzumachen.
+- [ ] **Nachtrag 2:** Grep aus Step 4 wiederholen, diesmal mit `--include=Dockerfile --include=*.sh` (B3).
+- [ ] **Nachtrag 3:** Rebase auf `main`, Suite grün, push nach `origin/umzug`.
 
 ---
 
 ### Task 2: Server-Umzug (Wartungsfenster, Nutzer gibt Bescheid)
 
-**Nur, wenn der Nutzer das Fenster freigibt.** Dauer ~15 min, davon ~5 min Ausfall (Bau des Images).
+**Nur, wenn der Nutzer das Fenster freigibt.** Ausfall ~1 min. Die CI liegt **nicht** auf dem
+kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch läuft. (B2)
 
-**Vorab (ohne Ausfall):**
-- [ ] **Step 1:** `COORDINATION.md`-Eintrag: „Umzug FriesenRadar am …, Pfade ändern sich: /opt/friesenradar, Repo regover13/friesenradar, ~/projects/friesenradar“. Push (nur .md, kein Deploy).
-- [ ] **Step 2:** Neues Zertifikat (läuft parallel zum alten): `sudo certbot certonly --webroot -w /var/www/html --cert-name friesenradar.devprops.de -d friesenradar.devprops.de -d friesenspy.devprops.de [-d radar.friesenflieger.de, falls DNS steht]`.
-- [ ] **Step 3:** `config.env`-Änderung dem Nutzer zeigen und **Freigabe holen**: `DB_PATH=/opt/friesenradar/data/friesenradar.db`, `FORUM_SSO_CALLBACK=https://friesenradar.devprops.de/auth/forum/callback` (Rückfall-Adresse; die Liste in `_SSO_RUECKSPRUNG_HOSTS` deckt alle drei ab). Sicherung `config.env.bak-umzug`.
-- [ ] **Step 4:** Flugbetrieb prüfen (nginx-Log der letzten 10 min, ohne Nutzer-IP).
+**Vorbedingungen (Tage vorher, ohne Ausfall):**
+- [ ] **Step 1:** `server-backup`: Änderung auf einem Branch vorbereiten (`FS_DIR=/opt/backup/friesenradar`, Archiv `friesenradar-${DATE}.tar.gz`, Quelle `/opt/friesenradar/data/friesenradar.db`, Ziel `onedrive:/Server-Backup/friesenradar/`), dazu eine Prüfung `[ -s "$DB" ]` vor dem `.backup`, damit nie eine leere Datei gesichert wird. `rclone`-Pfade als Literal. (B4)
+- [ ] **Step 2:** `vaultwarden-setup`: Watchtower-Liste auf `friesenradar-friesenradar-1` auf einem Branch vorbereiten. Einspielen vor dem nächsten Sonntag 04:00.
+- [ ] **Step 3:** `fail2ban` im Repo `devprops.de`: Jail und Filter `friesenradar` vorbereiten (Filter kennt alle drei Hosts schon, `efa4b5e`).
+- [ ] **Step 4:** `config.env`-Änderung dem Nutzer zeigen und **Freigabe holen**: `DB_PATH=/opt/friesenradar/data/friesenradar.db`, `FORUM_SSO_CALLBACK=https://friesenradar.devprops.de/auth/forum/callback`. Ohne Freigabe kein Umzug.
+- [ ] **Step 5:** `COORDINATION.md`-Eintrag mit Termin; Vorbedingung für Task 7: **keine andere Sitzung arbeitet in `~/projects/friesenspy*`**.
 
-**Umzug:**
-- [ ] **Step 5:** `cd /opt/friesenspy && docker compose down`. Gegenprobe: `docker ps | grep friesenspy` leer.
-- [ ] **Step 6:** DB sichern und Zeilen zählen: `sqlite3 data/friesenspy.db "PRAGMA wal_checkpoint(TRUNCATE)"`, `.backup /opt/backup/friesenspy-vor-umzug.db`, Zeilenzahlen von `flights`, `position_history`, `panel_prefs`, `progress_snapshot` notieren.
-- [ ] **Step 7:** `sudo mv /opt/friesenspy /opt/friesenradar`; `mv data/friesenspy.db data/friesenradar.db` (WAL/SHM sind nach dem Checkpoint leer; vorhandene `-wal`/`-shm` mitbenennen). `config.env` anpassen (Step 3).
-- [ ] **Step 8: GitHub:** `gh repo rename friesenradar -R regover13/friesenspy --yes`. Lokales Remote: `git remote set-url origin https://github.com/regover13/friesenradar.git`. Beschreibung: „VATSIM Live-Tracker für die FriesenFlieger“ (unverändert, enthält keinen Namen).
-- [ ] **Step 9:** Branch `umzug` nach `main` (Rebase, Suite grün, push). Der Workflow baut `ghcr.io/regover13/friesenradar` und deployt nach `/opt/friesenradar` → Container `friesenradar-friesenradar-1`.
-- [ ] **Step 10: nginx:** `nginx/friesenradar.devprops.de.conf` nach `/etc/nginx/sites-available/`, Symlink in `sites-enabled`, alten Symlink und alte Datei entfernen (vorher nach `/root/friesenspy-nginx-vor-umzug.conf` sichern), `nginx -t`, `reload`. Die drei `.bak`-Dateien in `sites-available` nach `/root/` verschieben.
-- [ ] **Step 11: Gegenproben** (alle müssen stimmen, sonst zurück auf den alten Stand):
-  - `curl -s -o /dev/null -w "%{http_code}"` auf alle drei Adressen → 401/200 wie vorher
-  - Zeilenzahlen aus Step 6 im laufenden Container identisch
-  - Forum-Login im Browser über `friesenradar.devprops.de` (Nutzer) bzw. `curl` auf `/auth/forum/login` → 302 mit passender Rücksprungadresse
-  - nginx-Log: `/api/bruegge/melden` und `/panel` über `friesenspy.devprops.de` weiter 200 (Review Focus 2)
+**Am Abend, vor dem Ausfall (alter Container läuft weiter):**
+- [ ] **Step 6:** Flugbetrieb prüfen (nginx-Log der letzten 10 min, `CoherentGT`, `/api/sse`).
+- [ ] **Step 7:** `gh repo rename friesenradar -R regover13/friesenspy --yes`, Remote auf `regover13/friesenradar`. Discord vorwarnen: Der folgende Deploy meldet rot.
+- [ ] **Step 8:** `umzug` nach `main` (Rebase, Suite grün, Push). Der Workflow testet und baut `ghcr.io/regover13/friesenradar:latest`; sein Deploy-Schritt scheitert an `cd /opt/friesenradar` (gibt es noch nicht), der alte Container bleibt unberührt. Gegenprobe: `gh api user/packages/container/friesenradar` zeigt das Paket, `visibility: private`. **Ist der Bau rot, hier aufhören** — nichts ist bis dahin verändert außer dem Repo-Namen.
 
-**Nachziehen (ohne Ausfall):**
-- [ ] **Step 12: fail2ban:** Repo `devprops.de`: `fail2ban/jail.d/friesenspy.conf` → `friesenradar.conf` (`[friesenradar]`, `filter = friesenradar`), `filter.d/friesenspy.conf` → `friesenradar.conf`. Auf dem Server installieren, alte Dateien entfernen, `fail2ban-client reload`. Gegenprobe: `fail2ban-regex` mit drei Probezeilen (wie am 02.10.2026), `fail2ban-client status friesenradar`.
-- [ ] **Step 13: Backup** (Repo `server-backup`): `FS_DIR=/opt/backup/friesenradar`, Archivname `friesenradar-${DATE}.tar.gz`, Quelle `/opt/friesenradar/data/friesenradar.db`, Ziel `onedrive:/Server-Backup/friesenradar/`, Funktionsnamen und Labels. `/opt/backup/friesenspy` → `/opt/backup/friesenradar` (alte Archive rotieren von selbst heraus). **Probelauf** nur dieses Teils (Review Focus 1), Archiv im OneDrive prüfen. Commit, Push, auf dem Server einspielen wie im Repo beschrieben.
-- [ ] **Step 14: Watchtower** (Repo `vaultwarden-setup`): in `WATCHTOWER_DISABLE_CONTAINERS` `friesenspy-friesenspy-1` → `friesenradar-friesenradar-1`. Auf dem Server einspielen, `docker compose up -d --no-deps watchtower` in `/opt/vaultwarden`. Gegenprobe: `docker inspect watchtower` zeigt die neue Liste.
-- [ ] **Step 15:** Zertifikat `friesenspy.devprops.de` löschen (`certbot delete --cert-name friesenspy.devprops.de`), nachdem nginx auf das neue zeigt.
-- [ ] **Step 16:** `/etc/passwd`: `sudo usermod -c "… Container hermes, mailsync und friesenradar …" containersvc`.
-- [ ] **Step 17: Serverdoku** (Repo `devprops.de`, `claude-leitstand/projects-CLAUDE.md`): Dienste-Tabelle, Repos-Tabelle, Deploy-Tabelle, Pfade; veraltete Kopie `nginx/sites-available/friesenspy.devprops.de.conf` dort löschen (maßgeblich ist das App-Repo). Push.
-- [ ] **Step 18:** Altes Image lokal: `docker rmi ghcr.io/regover13/friesenspy:latest` (nachdem kein Container es nutzt), Gegenprobe `docker images | grep friesenspy` leer.
+**Ausfall (~1 min):**
+- [ ] **Step 9:** `PRAGMA integrity_check` auf der laufenden DB, Ergebnis `ok`. Zeilenzahlen und `MAX(id)` notieren: `flights`, `position_history`, `panel_prefs`, `panel_devices`, `push_subscriptions`, `progress_snapshot` (dazu `COUNT(*)` und `MAX(computed_at)`, die 19 Snapshots dürfen sich nie ändern).
+- [ ] **Step 10:** `cd /opt/friesenspy && docker compose down`. Gegenprobe: `docker ps | grep friesenspy` leer.
+- [ ] **Step 11:** Checkpoint und Sicherung als `containersvc` mit absoluten Pfaden: `PRAGMA wal_checkpoint(TRUNCATE)`, `.backup /root/umzug-friesenradar-<datum>/friesenspy.db` (nicht unter `/opt/backup`, sonst hält `backup_status.sh` die Handkopie für die jüngste Sicherung). Alte Compose nach `/root/umzug-friesenradar-<datum>/`, ebenso `config.env`.
+- [ ] **Step 12:** `sudo mv /opt/friesenspy /opt/friesenradar`, `mv data/friesenspy.db data/friesenradar.db`. `ls -la data/friesenradar.db*` → genau eine Datei, Besitzer `containersvc`.
+- [ ] **Step 13:** **Neue `docker-compose.yml` aus dem Repo nach `/opt/friesenradar/` kopieren** — der Deploy kopiert keine Compose-Datei, sonst startet die alte mit altem Image und altem Mount (B1). `config.env` wie in Step 4 freigegeben. Gegenprobe: `docker compose config | grep -E 'image|/opt/'` zeigt nur `friesenradar`, und die DB-Datei aus `DB_PATH` liegt im gemounteten Verzeichnis.
+- [ ] **Step 14:** `echo "$GH_TOKEN" | docker login ghcr.io -u regover13 --password-stdin`, `docker compose pull && docker compose up -d`, `docker logout ghcr.io`. Container heißt `friesenradar-friesenradar-1`. **Rückfall, falls der Pull scheitert:** `docker tag ghcr.io/regover13/friesenspy:latest ghcr.io/regover13/friesenradar:latest` und `up -d` (das alte Image läuft mit den neuen Pfaden, weil `config.env` gewinnt).
+- [ ] **Step 15: Gegenproben sofort** — scheitert eine, Rückweg (Step 16):
+  - `curl -sf http://127.0.0.1:8091/health`
+  - Zeilenzahlen aus Step 9: jede `>=` dem notierten Wert, `progress_snapshot` exakt gleich
+  - alle drei Adressen antworten wie vorher; Forum-Login über `/auth/forum/login` springt je Host richtig zurück
+  - nach 5 min: `bruegge_zuordnung.gesehen_am` und `panel_devices.last_seen_at` nach dem Umzug, falls jemand fliegt (Review Focus 2)
+- [ ] **Step 16 (nur im Fehlerfall): Rückweg** — `down`, `mv` zurück, DB-Name zurück, alte Compose und `config.env` aus `/root/umzug-…`, `up -d` in `/opt/friesenspy`. Das alte Image liegt lokal, bis Step 23.
+
+**Nachziehen (ohne Ausfall, am selben Abend):**
+- [ ] **Step 17: nginx:** `nginx/friesenradar.devprops.de.conf` installieren, alten Symlink **vor** `nginx -t` entfernen (sonst doppelte `limit_req_zone`-Namen), alte Datei und die drei `.bak` nach `/root/umzug-…`, `reload`. Bis Step 22 zeigt der neue Vhost noch auf das bestehende Zertifikat (`live/friesenspy.devprops.de`, deckt beide Namen).
+- [ ] **Step 18: fail2ban** aus Step 3 einspielen, `fail2ban-regex` mit drei Probezeilen, `fail2ban-client status friesenradar`.
+- [ ] **Step 19: Backup** aus Step 1 einspielen — **vor 03:00**. Alte Archive `/opt/backup/friesenspy/*.tar.gz` nach `/opt/backup/manual/friesenspy-alt/` (die Rotation sieht Unterordner nicht und würde sie sonst nie löschen). Probelauf dieses Teils, Archiv im OneDrive prüfen. Am Morgen `systemctl --failed`.
+- [ ] **Step 20: Watchtower** aus Step 2 einspielen, `docker compose up -d --no-deps watchtower`; Gegenprobe `docker inspect watchtower`.
+- [ ] **Step 21:** `containersvc`-Kommentar in `/etc/passwd`; Serverdoku (Repo `devprops.de`) mit Pfaden, Containernamen und Tabellen.
+
+**Eine Woche später:**
+- [ ] **Step 22: Zertifikat:** `sudo certbot certonly -n --webroot -w /var/www/html --cert-name friesenradar.devprops.de -d friesenradar.devprops.de -d friesenspy.devprops.de --deploy-hook "systemctl reload nginx"`, Vhost auf `live/friesenradar.devprops.de`, `nginx -t`, `reload`, mit `curl -v` prüfen. Erst danach `certbot delete --cert-name friesenspy.devprops.de` — **nicht umkehrbar** außer durch Neuausstellung (Rate-Limit). (B5)
+- [ ] **Step 23:** Altes Image `docker rmi ghcr.io/regover13/friesenspy:latest`, Gegenprobe `docker images`.
+
+**Später, wenn Heinz den DNS-Eintrag gesetzt hat** (CNAME `radar` → **`friesenradar.devprops.de`**):
+- [ ] **Step 24:** `dig +short radar.friesenflieger.de` zeigt auf 167.86.127.129. Zertifikat erweitern (`--expand -d radar.friesenflieger.de`), `server_name` ergänzen, `curl -sf https://radar.friesenflieger.de/health`, Forum-Login über diese Adresse. Erst danach Texte für Mitglieder auf diese Adresse umstellen (Task 3 Nachtrag). (V4)
 
 ---
 
-### Task 3: Release 16.0.0 „Lichtblick“ (sichtbar)
+### Task 3: Release 16.0.0 „Lichtblick“ (sichtbar) — gebaut auf Branch `lichtblick`
 
-**Files:**
-- Modify: `app/static/index.html` — Vorschau wird Normalfall:
-  - Kopfskript-Block `radarHosts` entfernen; `html.radar`-Präfix aus allen Regeln streichen (Regeln gelten immer); `.logo-alt` samt altem Schriftzug und Raute entfernen; `.logo-radar { display: none }` entfernen.
-  - `_appName()` → `return 'FriesenRadar';`, `_radarAnwenden()` und der Aufruf in `fsRefreshSession` entfernen; `_appNameEinsetzen` setzt nur noch `.app-name`/Titel (Manifest-Umschaltung entfällt, s. u.).
-  - `<title>`, `application-name`, `apple-mobile-web-app-title` fest „FriesenRadar“; `.app-name`-Spans durch festen Text ersetzen.
-  - Kniebrett-Leiste: Regeln aus der Vorschau gelten fest (Streifen 42 px, Logo).
-  - Download-Hinweise `friesenspy.devprops.de/download` → `radar.friesenflieger.de/download` (bzw. `friesenradar.devprops.de`).
-- Modify: `app/static/manifest.webmanifest` (Inhalt von `radar/manifest.webmanifest`, Symbolpfade auf die Wurzel); Symbole `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png` durch die aus `static/radar/` ersetzen; `favicon.ico` aus `radar/favicon-32.png` erzeugen (Pillow, 16/32/48); `static/radar/` danach löschen.
-- Modify: `app/static/sw.js` (Rückfalltitel „FriesenRadar“), `admin.html` (3), `efb.html` (5), `impressum.html` (4), `datenschutz.html` (8).
-- Modify: `app/main.py` — FastAPI-Titel; Tablet-Anmeldeseite (Z. ~5236–5408); Test-Push-Titel (Z. ~5744, 5780); AIP-User-Agent (Z. 8058); Widget-Vorschau (Z. ~8939–8986: Titel, Einbettungscode auf `https://radar.friesenflieger.de/widget`); Widget selbst (Z. ~9103–9112: Link, „✈ FriesenRadar“, Fußzeile ohne alten Domainnamen); `_radar_vorschau_fuer` und `radar_vorschau` in `/api/me` entfernen.
-- Modify: `README.md` (alle Nennungen, Links auf neue Adresse und neues Repo), `CLAUDE.md` (Titel, Projektstruktur, Deployment-Pfade, **neuer Abschnitt „Name“**: Der Name ist FriesenRadar; „friesenspy“ in Code, Merkern, Gerätekennung und Schnittstellen ist technische Konstante; datierte Doku ist Geschichte und kein Vorbild für Namen), `COORDINATION.md` (Kopf), undatierte Doku: `docs/api.md`, `architecture.md`, `bruegge-arten-ausbau.md`, `deployment.md`, `efb-panel-debugging.md`, `fable-analyse-auftrag.md`, `flugplatzkarten-passen.md`, `fse-daten-weltweit.md`, `gps-flugerkennung.md`, `impressum-recherche.md`, `kutter-zuladung-invalidierung.md`, `offene-aufgaben.md`, `uebergabe-an-die-server-sitzung.md`, `uebergabe-msfs-build.md` (nicht `release-14.0.0-…`, das ist Geschichte).
-- Modify: `app/CHANGELOG.json` (16.0.0 „Lichtblick“, `highlight: false`).
-- Modify: `scripts/dunkel_vergleich.py` (`NEU_ERLAUBT`-Muster für `html.radar` entfernen) — oder das Werkzeug, falls nicht mehr gebraucht, behalten wie es ist.
-- Test: `tests/test_radar_vorschau.py` → umbauen zu `tests/test_name_friesenradar.py`
+Stand `f395b0d` auf `origin/lichtblick` (Basis `umzug`): Vorschau-Schalter entfernt, Logo fest,
+Name in allen Seiten, Server-Texten, Widget, Anmeldeseite, Test-Push, User-Agents, Manifest,
+Symbolen, `favicon.ico`, README, CLAUDE.md (Abschnitt „Name“), COORDINATION.md, undatierter Doku;
+`radar_vorschau` aus `/api/me` entfernt; `generate_icons.py` gelöscht (hätte die neuen Symbole still
+mit den alten überschrieben); Changelog 16.0.0 „Lichtblick“ (`highlight: false`). Die Download-
+Adresse nennt das Kniebrett als Text: `friesenradar.devprops.de/download`. Widget-Einbettung:
+`https://friesenradar.devprops.de/widget` (technische Heimat, liest kein Mitglied). Wächtertest
+`tests/test_name_friesenradar.py` prüft Seiten, README (inkl. Überschriften) und Server-Code.
+Suite: 1 rot — der Ordnername des Pakets in `efb.html`, abhängig von Task 5.
 
-- [ ] **Step 1: Test zuerst** `tests/test_name_friesenradar.py`:
-
-```python
-"""Der Name ist FriesenRadar (16.0.0). Waechter gegen den alten Namen in allem, was ein Mensch liest."""
-import re
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-SICHTBAR = ["app/static/index.html", "app/static/admin.html", "app/static/efb.html",
-            "app/static/impressum.html", "app/static/datenschutz.html", "app/static/sw.js",
-            "app/static/manifest.webmanifest", "README.md"]
-
-
-def _ohne_kommentare(text):
-    text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
-    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
-    return "\n".join(l for l in text.split("\n") if not l.strip().startswith(("//", "#")))
-
-
-def test_kein_alter_name_wo_menschen_lesen():
-    for rel in SICHTBAR:
-        t = _ohne_kommentare((ROOT / rel).read_text(encoding="utf-8"))
-        # Technische Konstanten (Merker-Schluessel, source-Wert, Geraetekennung) sind erlaubt.
-        t = re.sub(r"friesenspy_[a-z_]+|'friesenspy[-a-z_]*'|\"friesenspy[-a-z_]*\"", "", t)
-        assert not re.search(r"friesen ?spy", t, re.I), rel
-
-
-def test_widget_und_anmeldeseite_heissen_friesenradar():
-    main = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
-    assert "✈ FriesenRadar" in main and "✈ FriesenSpy" not in main
-    assert "<title>FriesenRadar – Anmeldung</title>" in main
-
-
-def test_vorschau_schalter_ist_weg():
-    idx = (ROOT / "app" / "static" / "index.html").read_text(encoding="utf-8")
-    assert "html.radar" not in idx and "_radarAnwenden" not in idx and "radarHosts" not in idx
-```
-
-- [ ] **Step 2:** Rot laufen lassen (README und Seiten nennen den alten Namen).
-- [ ] **Step 3:** Änderungen oben umsetzen. Erlaubte Fundstellen von `friesen ?spy` danach nur noch: Konstanten, Kommentare, datierte Doku, CHANGELOG vor 16.0.0, `deploy/forum/sso.php`-Liste (enthält die Alias-Adresse als erlaubten Rücksprung — technisch).
-- [ ] **Step 4:** Browser-Gegenprobe (lokal, leere DB): Website hell/dunkel, Handy, Kniebrett (`?vr=1`), Widget `/widget`, Anmeldeseite `/auth/device`; Titel, Logo, Manifest. `scripts/dunkel_vergleich.py` gegen `HEAD` zeigt nur die erwarteten Änderungen der Kopfzeile.
-- [ ] **Step 5:** Suite grün, Commit. **Auslieferung erst am Tag der Forum-Umstellung (Task 4), Flugbetrieb prüfen.**
+- [ ] **Step 1:** Ordnername in `efb.html` und README nach der Entscheidung aus Task 5.
+- [ ] **Step 2:** **Sim-Prüfung des Logos im Kniebrett, vor dem Ausliefern:** Bisher ist das Radar-Kniebrett nie in Coherent GT gelaufen (0 Abrufe der Logo-Dateien mit `CoherentGT` im Log). Prüfung über die Vorschau, die heute auf `main` für die CID des Nutzers aktiv ist: hell und dunkel, mit Statusleiste und geöffneten Fenstern. (V9)
+- [ ] **Step 3:** Teilen- und Badge-Codes bauen ihre Adresse aus `location.origin`; wer über das Alias kommt, verbreitet die alte Adresse weiter. Abbilden: aus `friesenspy.devprops.de` wird beim Kopieren `friesenradar.devprops.de`, mit Test. (V7)
+- [ ] **Step 4:** Vor dem Ausliefern: Rebase auf `main` (nach Task 2), Datum im Changelog auf den Releasetag, Suite grün, Flugbetrieb prüfen. Nach dem Ausliefern im Admin **16.0.0 als Banner wählen** — sonst zeigt der Neuigkeiten-Kasten weiter den Text von Luftschloss, und darin steht der alte Name.
 
 ---
 
@@ -154,51 +129,52 @@ def test_vorschau_schalter_ist_weg():
 
 Alles auf friesenflieger.de nur mit Freigabe; Schreiben einzeln erfragen.
 
-- [ ] **Step 1:** Unterforum „FriesenSpy“ (f=116, Tools und AddOns → Mapping-Tools) in „FriesenRadar“ umbenennen — **Nutzer oder Heinz** über ACP → Foren.
-- [ ] **Step 2:** Thema 1785 „FriesenSpy – Entwicklungsstand“ → „FriesenRadar – Entwicklungsstand“: ersten Beitrag mit `forum_read_topic` finden (Autor, Inhalt prüfen), Betreff per `forum_edit_post` ändern, Text unverändert mitgeben (`previous_text` sichern). **Erst nach Freigabe.**
-- [ ] **Step 3:** Widget-Einbettung umstellen: Board-Vorlage (Heinz) und www.friesenflieger.de (Micha) auf `https://radar.friesenflieger.de/widget`. Text für Heinz/Micha im Chat vorbereiten.
-- [ ] **Step 4:** Ankündigung „V16 - Lichtblick“ im Thema 1785: Entwurf im Chat (Ton: `tone-of-voice`, kurz, wenig Formatierung), nach Freigabe posten, Betreff nachziehen. Inhalt: neuer Name, neue Adresse, Logo/Symbol, **installierte App einmal neu installieren**, Kniebrett-Paket und Brügge folgen (Task 5/6).
-- [ ] **Step 5:** Gegenprobe: `forum_list_forums` (seit Hermes `5bdcc1c` mit allen Ebenen) nennt kein „FriesenSpy“ mehr; Board-Startseite und Website zeigen das Widget mit „FriesenRadar“.
+- [ ] **Step 1:** Unterforum „FriesenSpy“ (f=116) in „FriesenRadar“ umbenennen — Nutzer oder Heinz im ACP.
+- [ ] **Step 2:** Thema 1785 in „FriesenRadar – Entwicklungsstand“ umbenennen — **im ACP bzw. über die Moderation**, nicht durch Bearbeiten des ersten Beitrags: Trägt er eine Umfrage, löscht jedes Bearbeiten sie samt Ergebnissen. (V10)
+- [ ] **Step 3:** Widget-Einbettung (Board-Vorlage Heinz, Website Micha) auf `https://friesenradar.devprops.de/widget`. Text im Chat vorbereiten.
+- [ ] **Step 4:** Discord-Webhook-Name und Telegram-Bot-Anzeigename umbenennen (Nutzer).
+- [ ] **Step 5:** Ankündigung „V16 - Lichtblick“: Entwurf im Chat, nach Freigabe posten, Betreff nachziehen. Inhalt: neuer Name, neue Adresse, Logo und Symbol; **iPhone/iPad:** alte App vom Home-Bildschirm löschen, über die neue Adresse neu hinzufügen, Benachrichtigungen neu einschalten; **Android:** nichts tun, Name und Symbol ziehen von selbst nach; einmal neu anmelden; Kniebrett-Paket und Brügge folgen. (V5/V6)
+- [ ] **Step 6:** Gegenprobe `forum_list_forums`; nach einigen Tagen `SELECT owner_cid, COUNT(*) FROM push_subscriptions GROUP BY 1 HAVING COUNT(*) > 1`.
 
 ---
 
-### Task 5: Kniebrett-Paket 3.0.0 (Code hier, Bau auf dem Simulator-Rechner)
+### Task 5: Kniebrett-Paket 3.0.0 — **Entscheidung des Nutzers offen**
 
-**Files:**
-- Rename: `msfs-panel/PackageSources/FriesenSpy/` → `msfs-panel/PackageSources/FriesenRadar/` (inkl. `FriesenSpy.tsx`/`.scss` → `FriesenRadar.*`)
-- Modify: `manifest.json` (`title` „FriesenRadar“, `package_version` 3.0.0, Release-Notiz), `package.json` (`@efb/friesenradar`), `build.js`, `build-package.ps1` (Pfade, Paketordner `friesenflieger-friesenradar-efb`, `efb_apps/FriesenRadar`)
-- Modify: `FriesenRadar.tsx` — URL `https://friesenradar.devprops.de/panel` und `/auth/device`; App-Name; **`DEVICE_KEY` bleibt `"friesenspy_device"`** (Kommentar: technische Konstante, Bindung bleibt); `PAKET_VERSION` 3.0.0
-- Modify: `src/Assets/app-icon.svg` (rotes Flugzeug auf Weiß, aus `static/radar/icon.svg`)
-- Modify: Server: Hinweis auf veraltetes Paket (vorhandener `paket_version`-Mechanismus) nennt „Bitte den alten Ordner `friesenflieger-friesenspy-efb` aus dem Community-Ordner löschen“.
+Was die Prüfung ergab (V2): Die EFB merkt sich angeheftete Apps über den Klassennamen; das CSS-Präfix
+kommt aus dem Ordnernamen; Ordner, Klasse und `efb_apps/<Name>` müssen gleich heißen. Liegen alter
+und neuer Ordner nebeneinander, zeigt das Tablet zwei Apps; der Hinweis auf das alte Paket erscheint
+nur in der alten. Ob `SetStoredData` paketübergreifend gilt (Gerätebindung), ist plausibel, aber
+nicht belegt.
 
-- [ ] **Step 1:** Änderungen im Repo, Tests für den Paket-Hinweis (Text, Mindestversion 3.0.0).
-- [ ] **Step 2:** Übergabe an die Sitzung auf dem Simulator-Rechner (`docs/uebergabe-msfs-build.md` nachziehen): bauen, testen im Sim (Bindung bleibt, Logo, Name), Zip nach `/opt/friesenradar/data/efb/friesenradar-efb.zip`.
-- [ ] **Step 3:** Nach Ablage: Download liefert das neue Paket (Task 1 Rückfall greift nicht mehr). Alte Datei `friesenspy-efb.zip` löschen.
+- **(A) empfohlen:** Paketordner, Klasse und Quellordner bleiben `FriesenSpy`/`friesenflieger-friesenspy-efb` als technische Konstante. Geändert werden der angezeigte Name (`get name()`), `manifest.title`, Symbol, URL. Das Update ersetzt das alte Paket an Ort und Stelle; Bindung und Anheftung bleiben sicher. Sichtbar bleibt der Ordnername beim Einbauen.
+- **(B) neuer Ordner:** Dann zusätzlich: Erkennung des alten Pakets in 3.0.0 mit nicht wegklickbarem Hinweis, Sim-Prüfung „nur neues Paket“ (dieselbe `device=`-Kennung bei `/auth/device`) und „beide installiert“.
+
+In beiden Fällen: URL auf `https://friesenradar.devprops.de/panel`, `DEVICE_KEY` bleibt `friesenspy_device`, `PAKET_VERSION` 3.0.0, Symbol aus `app/static/logo/friesenradar-symbol.svg`. Die Sperre `_paketSperrePruefen` bleibt unverändert (sie gilt nur für Pakete ohne Version); 2.3.2 wird **nicht** gesperrt, nur per Hinweis gebeten zu aktualisieren — mit Test. (V3 Fable) Die Release-Notizen älterer Fassungen im Paket bleiben als Geschichte.
 
 ---
 
-### Task 6: FriesenBrügge (Code hier, Bau auf dem Simulator-Rechner)
+### Task 6: FriesenBrügge
 
-**Files:** `friesenbruegge/msfs/bruegge.cpp:129` (`BRUEGGE_URL`), `friesenbruegge/xplane/netz.h:98,102,133`, `friesenbruegge/xplane/bruegge.cpp:424,1007` (Texte), `LIESMICH.txt`, Paketskripte (Task 1).
+**Files:** `friesenbruegge/msfs/bruegge.cpp` (`BRUEGGE_URL`), `friesenbruegge/xplane/netz.h`, `bruegge.cpp` (Texte), `LIESMICH.txt`.
 
-- [ ] **Step 1:** URL auf `https://friesenradar.devprops.de/api/bruegge/melden`, Texte „FriesenRadar“, Versionsnummer erhöhen.
-- [ ] **Step 2:** Übergabe an die Sitzung auf dem Simulator-Rechner: bauen, im Sim prüfen (Meldungen kommen über die neue Adresse an: nginx-Log), Pakete hochladen.
-- [ ] **Step 3:** Alte Brüggen melden weiter über das Alias (kein Zwang zum Update).
+- [ ] **Step 1:** URL auf `https://friesenradar.devprops.de/api/bruegge/melden`, Texte, **neue Versionsnummer** — an ihr erkennt der Server später, wer noch die alte Adresse nutzt.
+- [ ] **Step 2:** **Möglichst vor dem 24.10.2026** ausliefern (`_BRUEGGE_P2_MSFS_BIS`): Dann aktualisieren die MSFS-Piloten einmal statt zweimal.
+- [ ] **Step 3:** Erfolg in der DB prüfen (`bruegge_zuordnung.bruegge_version`, `gesehen_am`), nicht im nginx-Log.
 
 ---
 
 ### Task 7: Claude-Arbeitsumgebung (direkt nach Task 2)
 
-- [ ] **Step 1:** `~/projects/friesenspy` → `~/projects/friesenradar` (`mv`, Remote ist seit Task 2 umgestellt). Alter Worktree `~/projects/friesenspy-posix`: `git worktree remove` (Branch längst in main). `~/projects/friesenspy-aip-arbeitsstand.md` → `friesenradar-aip-arbeitsstand.md`.
-- [ ] **Step 2:** venv neu anlegen: `python3 -m venv ~/.venv-friesenradar`, `pip install -r requirements.txt -r requirements-test.txt playwright`, `playwright install chromium`; altes `~/.venv-friesenspy` löschen. Gedächtnisnotiz `reference_friesenspy-tests-eigenes-venv` umschreiben.
-- [ ] **Step 3:** `~/projects/.claude/settings.local.json`: Pfade `friesenspy` → `friesenradar` (nur Pfade).
-- [ ] **Step 4:** Gedächtnis: Notizen mit Pfaden/Repo/Adressen auf den neuen Stand; Dateinamen `*friesenspy*` → `*friesenradar*`, `MEMORY.md`-Zeilen nachziehen. Inhaltliche Geschichte („am 05.09. in FriesenSpy …“) darf bleiben, aber jede Notiz, die einen Namen für künftige Arbeit vorgibt, sagt FriesenRadar.
+- [ ] **Step 1:** Vorbedingung: keine andere Sitzung in `~/projects/friesenspy*` (offene Shells verlieren ihr Verzeichnis). Worktrees `friesenspy-umzug` und `friesenspy-lichtblick` erst nach dem Merge entfernen; `friesenspy-posix` (`karten-legende-politur`) vorher auf ungemergte Commits prüfen (`git log main..karten-legende-politur`). Danach `mv ~/projects/friesenspy ~/projects/friesenradar`, `git worktree repair` für verbleibende.
+- [ ] **Step 2:** venv `~/.venv-friesenradar` neu, altes löschen, Gedächtnisnotiz nachziehen.
+- [ ] **Step 3:** `~/projects/.claude/settings.local.json`: nur Pfade.
+- [ ] **Step 4:** Gedächtnis: Pfade, Repo, Adressen. Die Sitzungsablagen unter `~/.claude/projects/-home-claude-projects-friesenspy*` hängen am alten Pfad; `claude --resume` aus dem neuen Ordner findet sie nicht — hinnehmbar, die Server-Sitzungen laufen in `~/projects`.
 
 ---
 
-### Task 8: Aufräumen und Entscheidung zum Alias (später)
+### Task 8: Aufräumen (später)
 
-- [ ] **Step 1:** Altes GHCR-Paket `friesenspy` löschen (Nutzer, falls der Token kein `delete:packages` hat).
-- [ ] **Step 2:** OneDrive `Server-Backup/friesenspy/`: leert sich durch die Rotation; danach den leeren Ordner löschen.
-- [ ] **Step 3:** Nach einigen Wochen nginx-Log auswerten: melden noch alte Brüggen/Pakete über `friesenspy.devprops.de`? Ergebnis in #52; Alias bleibt mindestens wegen der Badges in alten Beiträgen.
+- [ ] **Step 1:** Altes GHCR-Paket `friesenspy` löschen (Token hat `delete:packages`). Nicht umkehrbar — nach Bewährung.
+- [ ] **Step 2:** `/opt/backup/manual/friesenspy-alt/` nach 7 Tagen, OneDrive `Server-Backup/friesenspy/` nach 30 Tagen von Hand löschen (`rclone purge`, Freigabe). Die Rotation erledigt das **nicht**.
+- [ ] **Step 3:** Nach einigen Wochen in der DB auswerten: Welche Brügge- und Paketversionen melden noch? Das Alias bleibt mindestens wegen der Badges in alten Beiträgen und der Push-Abos an der alten Adresse.
 - [ ] **Step 4:** Issues #51–#56 schließen.

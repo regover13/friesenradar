@@ -57,8 +57,9 @@ Forumsbeiträge betten Badges und Widget von dort ein. Lösung:
 - Neue Paket- und Brügge-Fassungen sprechen die neue Adresse an.
 - Die alte Adresse bleibt **stilles Alias** im selben Vhost: liefert dieselbe App, aber niemand
   liest sie mehr (keine Links, keine Texte nennen sie).
-- Abgeschaltet wird sie erst, wenn im nginx-Log keine alte Brügge (`/api/bruegge/melden`) und
-  kein altes Paket mehr meldet. Badges in alten Beiträgen würden dann brechen — deshalb
+- Abgeschaltet wird sie erst, wenn in der Datenbank keine alte Brügge (`bruegge_zuordnung`,
+  Version und `gesehen_am`) und kein altes Paket (`panel_devices`) mehr meldet — das nginx-Log
+  enthält erfolgreiche Brügge-Meldungen gar nicht. Badges in alten Beiträgen würden dann brechen — deshalb
   vermutlich **nie**, sondern dauerhaft als stilles Alias (Entscheidung beim Aufräumen).
 
 **Technische Heimat für Paket und Brügge:** `friesenradar.devprops.de` (unter eigener Kontrolle).
@@ -68,7 +69,7 @@ aber am DNS des Vereins.
 ## Daten und Merker
 
 Entfällt durch Entscheidung 8: Merker, Gerätekennung, Schnittstellenwerte und gespeicherte Daten
-behalten ihre Schlüssel. Keine Migration, kein Risiko für die zwei eingefrorenen Ergebnisse
+behalten ihre Schlüssel. Keine Migration, kein Risiko für die 19 eingefrorenen Ergebnisse
 (`progress_snapshot`) und keine erneute Anmeldung von Tablets. Das Kniebrett-Paket 3.0.0 liest
 und schreibt weiter `friesenspy_device`.
 
@@ -94,8 +95,9 @@ und schreibt weiter `friesenspy_device`.
 - **fail2ban/Watchtower greifen still nicht mehr:** jeweils Gegenprobe (fail2ban-regex,
   Watchtower-Liste gegen `docker ps`).
 - **Eingefrorene Ergebnisse:** werden nicht angefasst (keine Migration).
-- **Mitglieder mit alter App/altem Paket:** stilles Alias; installierte PWAs behalten ihren Namen
-  bis zur Neuinstallation — gehört in die Ankündigung.
+- **Mitglieder mit alter App/altem Paket:** stilles Alias. Android zieht Name und Symbol der
+  installierten App selbst nach; auf iPhone/iPad bleibt der alte Name bis zur Neuinstallation.
+  Push-Abos hängen an der Adresse, über die sie eingeschaltet wurden — gehört in die Ankündigung.
 - **Parallele Sitzungen:** COORDINATION.md-Eintrag vor dem Umzug, Pfade ändern sich für alle.
 
 ## Zeitpunkt
