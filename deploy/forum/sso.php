@@ -37,9 +37,15 @@
 //     FriesenSpys config.env sein. Langer Zufallsstring, z. B. mit `openssl rand -hex 32`.
 $SSO_SECRET = 'HIER-LANGES-GEHEIMNIS-EINSETZEN';
 
-// (2) Einzige erlaubte Rücksprung-Adresse (muss FORUM_SSO_CALLBACK in FriesenSpy entsprechen).
+// (2) Erlaubte Rücksprung-Adressen (eine davon muss FORUM_SSO_CALLBACK in FriesenSpy entsprechen).
 //     Schützt davor, dass jemand das Token an eine fremde Seite umleiten lässt.
-$CALLBACK   = 'https://friesenspy.devprops.de/auth/forum/callback';
+//     Seit 02.10.2026 drei: FriesenSpy heißt jetzt FriesenRadar und ist unter allen drei Namen
+//     erreichbar. Die alte Adresse bleibt drin (installierte Kniebretter melden sich dort an).
+$CALLBACKS  = array(
+    'https://friesenspy.devprops.de/auth/forum/callback',
+    'https://friesenradar.devprops.de/auth/forum/callback',
+    'https://radar.friesenflieger.de/auth/forum/callback',
+);
 
 // (3) Schlüssel des Profilfelds mit der VATSIM-CID ("VatSim-ID"). Bereits bestätigt.
 $CID_FIELD  = 'pf_phpbb_vatsimid';
@@ -82,9 +88,15 @@ $user->setup();
 $redirect = $request->variable('redirect', '');
 $state    = $request->variable('state', '');
 
-// Sicherheitsriegel: Wir leiten NUR an die eine, fest hinterlegte Adresse zurück.
+// Sicherheitsriegel: Wir leiten NUR an eine der fest hinterlegten Adressen zurück.
 // (hash_equals vergleicht zeitkonstant — kein Rateln über Antwortzeiten.)
-if (!hash_equals($CALLBACK, $redirect)) {
+$CALLBACK = '';
+foreach ($CALLBACKS as $erlaubt) {
+    if (hash_equals($erlaubt, $redirect)) {
+        $CALLBACK = $erlaubt;   // ab hier die GEPRÜFTE Adresse, nie die Eingabe selbst
+    }
+}
+if ($CALLBACK === '') {
     http_response_code(400);
     exit('bad redirect');
 }
