@@ -48,7 +48,7 @@ from app.database import (  # noqa: E402
 
 logger = logging.getLogger("aip_bestand")
 
-_UA = {"User-Agent": "FriesenSpy/AIP-Kartenabgleich (+https://friesenspy.devprops.de)"}
+_UA = {"User-Agent": "FriesenRadar/AIP-Kartenabgleich (+https://friesenradar.devprops.de)"}
 
 
 def _hole(client: httpx.Client, pause: float = 0.4):

@@ -92,7 +92,7 @@
 // Die Fassung gehört der UMSETZUNG, nicht dem Protokoll. Das WASM-Modul steht bei 1.6.0,
 // weil es sechs Runden im Simulator hinter sich hat; diese Brügge fängt bei 1.0.0 an. Was
 // beide verbindet, ist `protokoll: 1` -- und das steht in der Meldung daneben.
-#define BRUEGGE_VERSION   "1.4.0"
+#define BRUEGGE_VERSION   "1.5.0"
 #define SIMULATOR_NAME    "xplane12"
 
 
@@ -421,7 +421,7 @@ static void ziel_laden() {
 
     FILE* f = std::fopen(pfad, "rb");
     if (!f) {
-        logzeile("Ziel: friesenspy.devprops.de (fest einkompiliert)");
+        logzeile("Ziel: friesenradar.devprops.de (fest einkompiliert)");
         return;
     }
     char zeile[400] = {0};
@@ -1004,7 +1004,7 @@ PLUGIN_API int XPluginStart(char* name, char* sig, char* beschreibung) {
     std::strcpy(name, "Die FriesenBruegge");
     std::strcpy(sig, "de.friesenflieger.bruegge");
     std::strcpy(beschreibung,
-                "Meldet die Position an FriesenSpy und setzt, was der Server anfordert.");
+                "Meldet die Position an FriesenRadar und setzt, was der Server anfordert.");
 
     // ⚠ Diese Zeile MUSS vor jedem Dateizugriff stehen. Ohne sie liefert XPLMGetSystemPath
     // auf macOS einen klassischen HFS-Pfad mit Doppelpunkten ("Macintosh HD:Applications:

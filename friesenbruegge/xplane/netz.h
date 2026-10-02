@@ -95,11 +95,11 @@ inline void netz_log_abholen(void (*ausgeben)(const char*)) {
 // Wird EINMAL vor dem Threadstart gesetzt und danach nur noch gelesen -- deshalb ohne
 // Schloss, obwohl der Netzthread mitliest.
 
-static char     g_ziel_host[160]  = "friesenspy.devprops.de";
+static char     g_ziel_host[160]  = "friesenradar.devprops.de";
 static char     g_ziel_rumpf[256] = "/api/bruegge/melden";
 static unsigned g_ziel_port       = 443;
 static bool     g_ziel_sicher     = true;
-static char     g_ziel_url[512]   = "https://friesenspy.devprops.de/api/bruegge/melden";
+static char     g_ziel_url[512]   = "https://friesenradar.devprops.de/api/bruegge/melden";
 
 // ---------------------------------------------------------------------------------------
 // Gemeinsame Nebenläufigkeit
@@ -130,7 +130,7 @@ static bool        g_eingang_voll = false;
 
 static HINTERNET g_sitzung = nullptr;
 static HINTERNET g_verbindung = nullptr;
-static wchar_t   g_host_w[160] = L"friesenspy.devprops.de";
+static wchar_t   g_host_w[160] = L"friesenradar.devprops.de";
 static wchar_t   g_pfad_w[256] = L"/api/bruegge/melden";
 
 inline bool netz_bereit(char* fehler, size_t n) {

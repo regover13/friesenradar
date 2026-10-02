@@ -54,7 +54,7 @@ static void teil1_nebenlaeufigkeit() {
 // antwortet der Server mit 200 und leerem soll -- als Beleg genügt das.
 static void teil2_echter_server() {
     std::printf("\nTeil 2 -- gegen den echten Server (HTTPS)\n");
-    netz_ziel("friesenspy.devprops.de", 443, "/api/bruegge/melden", true);
+    netz_ziel("friesenradar.devprops.de", 443, "/api/bruegge/melden", true);
     netz_start();
     netz_senden("{\"kennung\":\"pruefpruefpruef01\",\"fassung\":\"1.1.0\","
                 "\"simulator\":\"xplane12\",\"lage\":{\"lat\":53.7,\"lon\":7.15,"

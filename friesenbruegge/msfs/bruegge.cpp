@@ -1,6 +1,6 @@
 // Die FriesenBrügge für MSFS 2020 und 2024.
 //
-// Sie meldet dem FriesenSpy-Server, wo der Pilot gerade ist, und stellt hin, was der Server
+// Sie meldet dem FriesenRadar-Server, wo der Pilot gerade ist, und stellt hin, was der Server
 // ihr nennt. Der Vertrag steht in ../PROTOKOLL.md (Fassung 3 seit 1.18.0, s. den Nachtrag unten).
 //
 //     Die Brügge ist dumm. Alle Klugheit bleibt auf dem Server.
@@ -125,8 +125,8 @@ static void log_zeile(const char* format, ...) {
 // Feste Größen
 // ---------------------------------------------------------------------------------------
 
-#define BRUEGGE_VERSION   "1.18.1"
-#define BRUEGGE_URL       "https://friesenspy.devprops.de/api/bruegge/melden"
+#define BRUEGGE_VERSION   "1.19.0"
+#define BRUEGGE_URL       "https://friesenradar.devprops.de/api/bruegge/melden"
 // ⭐ WELCHER SIMULATOR -- ZUR LAUFZEIT, NICHT BEIM UEBERSETZEN (16.09.2026).
 //
 // Bis hierher stand der Name in einem `#ifdef FUER_MSFS2020` und war damit eine Eigenschaft
@@ -1442,7 +1442,7 @@ void CALLBACK dispatch(SIMCONNECT_RECV* pData, DWORD, void*) {
             objekt_festhalten(i);
             // Ab jetzt hinsehen: Lebt das Objekt noch, und auf welcher Hoehe steht es?
             // Die Hoehe ist der einzige Weg, auf dem der Server erfaehrt, ob die Stelle
-            // taugt -- FriesenSpy hat kein Gelaendemodell.
+            // taugt -- FriesenRadar hat kein Gelaendemodell.
             SimConnect_RequestDataOnSimObject(g_sim, REQ_OBJEKT + i, DEF_LAGE,
                                               z->dwObjectID, SIMCONNECT_PERIOD_SECOND);
         }

@@ -25,7 +25,7 @@ WELCHE PLATTFORMEN
   lesen dafuer nur die Umgebungsvariable https_proxy, die Windows-Fassung fragt das System.
 
 WAS SIE TUT
-  Sie meldet die eigene Position im Sekundentakt an FriesenSpy -- damit steht das Flugzeug
+  Sie meldet die eigene Position im Sekundentakt an FriesenRadar -- damit steht das Flugzeug
   auf der Karte, ohne dass das Kniebrett offen sein muss. Und sie setzt, was der Server
   anfordert: Tiere, Boote, Bauwerke, Marken.
 

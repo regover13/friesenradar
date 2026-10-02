@@ -75,7 +75,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--datei", default="katalog.json")
-    ap.add_argument("--server", default="https://friesenspy.devprops.de")
+    ap.add_argument("--server", default="https://friesenradar.devprops.de")
     ap.add_argument("--passwort", required=True, help="ADMIN_PASSWORD")
     a = ap.parse_args()
 
