@@ -1,5 +1,14 @@
 [
   {
+    "version": "15.32.2",
+    "date": "2026-10-02",
+    "highlight": false,
+    "title": "Kniebrett: aus Fenstern wieder herauskommen",
+    "items": [
+      "🪟 **Im Kniebrett kam man aus manchen Fenstern nicht mehr heraus**, zum Beispiel aus der Beschreibung eines Musters, dem Flugplan oder dem Versionsverlauf. Bei langem Inhalt rutschte der Schließen-Knopf über den oberen Rand und lag unter der Leiste. Jetzt beginnen die Fenster unter der Leiste, der Knopf ist immer zu sehen, und langer Inhalt scrollt im Fenster."
+    ]
+  },
+  {
     "version": "15.32.1",
     "date": "2026-10-02",
     "highlight": false,

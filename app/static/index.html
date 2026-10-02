@@ -4136,6 +4136,26 @@
        stand direkt daneben in derselben Tabelle und sah als einziger anders aus. */
     .ac-link { color: var(--green); text-decoration: none; cursor: pointer; }
     #ac-modal .modal-box { max-height: 85vh; overflow-y: auto; }
+    /* KNIEBRETT: Fenster beginnen UNTER der festen Leiste und werden hoechstens so hoch wie der
+       Platz darunter (Nutzerfund 02.10.2026). Vorher lag die Leiste (z-index 999997) ueber dem
+       Fenster (10000), und der Zoom (1,35) blaehte 85vh/88vh auf rund 115 % des Bildschirms
+       auf: Bei langem Inhalt rutschte die Kopfzeile mit dem Schliessen-Knopf ueber den oberen
+       Rand -- man kam aus Muster, Flugplan, Strecke, Flugplatz, Verlauf und Typen-Liste nicht
+       mehr heraus. 72px wie beim Hinweis-Stapel (.panel-hinweis-stapel, gleiche Leiste).
+       `100%` statt vh: Prozent bezieht sich aufs Overlay und ist damit vom Zoom unabhaengig.
+       Kein `inset` (Coherent GT ignoriert es still, s. .panel-hinweis-stapel). */
+    html.vr-panel .fp-modal-overlay,
+    html.vr-panel .modal {
+      top: 72px;
+      align-items: flex-start;
+      padding: 6px 0;
+      box-sizing: border-box;
+    }
+    html.vr-panel .fp-modal-box,
+    html.vr-panel #ac-modal .modal-box {
+      max-height: 100%;
+      box-sizing: border-box;
+    }
     /* Eigene Kopfzeile IM FLUSS statt zweier schwebender Knoepfe: absolut positioniert lagen
        Teilen und Schliessen ueber dem Foto (das direkt unter dem Box-Padding beginnt) und waren
        auf hellen Bildern kaum zu lesen. Hier druecken sie das Foto nach unten und stehen immer
