@@ -21,6 +21,8 @@ def test_kein_alter_name_wo_menschen_lesen():
         t = _ohne_kommentare((ROOT / rel).read_text(encoding="utf-8"))
         # Technische Konstanten (Merker-Schluessel, source-Wert, Geraetekennung) sind erlaubt.
         t = re.sub(r"friesenspy_[a-z_]+|'friesenspy[-a-z_]*'|\"friesenspy[-a-z_]*\"", "", t)
+        # Das stille Alias darf genau dort stehen, wo es auf die neue Adresse umgebogen wird.
+        t = t.replace("location.origin === 'https://friesenspy.devprops.de'", "")
         assert not re.search(r"friesen ?spy", t, re.I), rel
 
 

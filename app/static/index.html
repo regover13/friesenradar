@@ -10460,7 +10460,7 @@ async function openAcModal(code) {
 // Teilt den Deep-Link auf dieses Muster (#actype=<code>) — oeffnet das Panel beim Laden.
 function copyAcShareUrl(btn) {
   if (!_acOpenCode) return;
-  const url = `${location.origin}${location.pathname}#actype=${encodeURIComponent(_acOpenCode)}`;
+  const url = `${_teilenUrsprung()}${location.pathname}#actype=${encodeURIComponent(_acOpenCode)}`;
   _copyText(url, btn);
 }
 
@@ -10997,7 +10997,7 @@ function _bummelBadgeLinks(raceId, cid) {
        + ` <button class="btn-share" onclick="copyBummelBadgeCode(${raceId}, ${cid}, this)" title="Forum-Code (BBCode) kopieren">${icon('clipboard')} Forum</button>`;
 }
 function copyBummelBadgeCode(raceId, cid, btn) {
-  const code = `[img]${location.origin}/api/bummel/race/${raceId}/badge/${cid}.png[/img]`;
+  const code = `[img]${_teilenUrsprung()}/api/bummel/race/${raceId}/badge/${cid}.png[/img]`;
   _copyText(code, btn, 'kopiert', 1500, false);
 }
 
@@ -11224,6 +11224,13 @@ function setUrlState(params) {
 // Gemeinsamer Clipboard-Helfer für alle "Teilen"/"Kopieren"-Buttons -- fällt auf die
 // execCommand('copy')-Textarea-Technik zurück, wenn navigator.clipboard fehlt (z. B. im
 // MSFS-EFB-Panel/Coherent GT, das die moderne Clipboard-API vermutlich nicht kennt).
+// Adresse fuer Teilen-Links und Badge-Codes. Wer ueber das stille Alias kommt (altes
+// Lesezeichen, alte App), soll trotzdem nur die neue Adresse weitergeben.
+function _teilenUrsprung() {
+  return location.origin === 'https://friesenspy.devprops.de'
+    ? 'https://friesenradar.devprops.de' : location.origin;
+}
+
 function _copyText(text, btn, successMsg = 'Kopiert!', ms = 2000, showFail = true) {
   const orig = btn.textContent;
   const restore = () => setTimeout(() => { btn.textContent = orig; }, ms);
@@ -11254,14 +11261,14 @@ function copyShareUrl(btn) {
 
 // Teilt den Deep-Link auf den Versionsverlauf (#changelog=1) — öffnet das Modal beim Laden.
 function copyChangelogShareUrl(btn) {
-  const url = `${location.origin}${location.pathname}#changelog=1`;
+  const url = `${_teilenUrsprung()}${location.pathname}#changelog=1`;
   _copyText(url, btn);
 }
 
 // Teilt EXPLIZIT den Deep-Link eines Rennens — unabhängig vom flüchtigen location.href
 // (der nach searchEvents den bummel-Parameter verliert).
 function copyBummelShareUrl(id, btn) {
-  const url = `${location.origin}${location.pathname}#tab=events&bummel=${id}`;
+  const url = `${_teilenUrsprung()}${location.pathname}#tab=events&bummel=${id}`;
   _copyText(url, btn);
 }
 
@@ -15211,7 +15218,7 @@ document.getElementById('types-modal-days').addEventListener('change', (e) => {
 // GERADE zeigt (kann vom Zeitraum der Statistiken-Uebersicht abweichen, wenn der Selector
 // im Modal umgestellt wurde).
 function copyTypesShareUrl(btn) {
-  const url = `${location.origin}${location.pathname}#types=1&days=${_typesModalDays}`;
+  const url = `${_teilenUrsprung()}${location.pathname}#types=1&days=${_typesModalDays}`;
   _copyText(url, btn);
 }
 
@@ -15882,7 +15889,7 @@ function _kutterBadgeLinks(eventId, cid) {
        + ` · <button class="btn-share" onclick="copyKutterBadgeCode(${eventId}, ${cid}, this)" title="Forum-Code (BBCode) kopieren">${icon('clipboard')} Forum</button>`;
 }
 function copyKutterBadgeCode(eventId, cid, btn) {
-  const code = `[img]${location.origin}/api/transport/event/${eventId}/badge/${cid}.png[/img]`;
+  const code = `[img]${_teilenUrsprung()}/api/transport/event/${eventId}/badge/${cid}.png[/img]`;
   _copyText(code, btn, 'kopiert', 1500, false);
 }
 function _kutterBadgeSection(d) {
@@ -15977,7 +15984,7 @@ async function openKutterById(id) {
 // Teilt EXPLIZIT den Deep-Link eines FriesenKutter-Events — unabhängig vom flüchtigen
 // location.href (analog copyBummelShareUrl).
 function copyKutterShareUrl(id, btn) {
-  const url = `${location.origin}${location.pathname}#tab=events&kutter=${id}`;
+  const url = `${_teilenUrsprung()}${location.pathname}#tab=events&kutter=${id}`;
   _copyText(url, btn);
 }
 
@@ -16577,11 +16584,11 @@ function _reddungBadgeLinks(eventId, cid) {
        + ` · <button class="btn-share" onclick="copyReddungBadgeCode(${Number(eventId)}, ${Number(cid)}, this)" title="Forum-Code (BBCode) kopieren">${icon('clipboard')} Forum</button>`;
 }
 function copyReddungBadgeCode(eventId, cid, btn) {
-  _copyText(`[img]${location.origin}/api/reddung/events/${eventId}/badge/${cid}.png[/img]`, btn, 'kopiert', 1500, false);
+  _copyText(`[img]${_teilenUrsprung()}/api/reddung/events/${eventId}/badge/${cid}.png[/img]`, btn, 'kopiert', 1500, false);
 }
 function copyReddungShareHeader(btn) {
   if (_reddungOffenId == null) return;
-  _copyText(`${location.origin}${location.pathname}#tab=events&reddung=${_reddungOffenId}`, btn);
+  _copyText(`${_teilenUrsprung()}${location.pathname}#tab=events&reddung=${_reddungOffenId}`, btn);
 }
 
 function copyReddungForumText(btn) {
