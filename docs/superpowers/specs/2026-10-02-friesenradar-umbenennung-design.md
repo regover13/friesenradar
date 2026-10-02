@@ -40,7 +40,7 @@ Doku. Release **16.0.0 „Lichtblick“**.
 | Vereinswebsite | Widget-Einbettung auf neue Adresse | Micha |
 | GitHub | Repo `regover13/friesenradar`, Image `ghcr.io/regover13/friesenradar` | Umbenennen; GitHub leitet alte Links weiter |
 | Server | `/opt/friesenradar`, Container `friesenradar-friesenradar-1`, `friesenradar.db`, nginx-, Zertifikat-, fail2ban-, Backup-Namen | Umzug in einem ruhigen Fenster |
-| Kniebrett-Paket | Titel im Tablet, Symbol, Adresse; **Ordner `friesenflieger-friesenspy-efb` und Klasse bleiben** (Nutzer 03.10.2026: sonst zwei Apps im Tablet und verlorene Anheftung) | neue Paketversion 3.0.0 |
+| Kniebrett-Paket | Ordner `friesenflieger-friesenradar-efb`, Klasse, Titel, Symbol, Adresse (Nutzer 03.10.2026, Variante B; das Paket erkennt einen alten Ordner daneben und bittet ums Löschen) | neue Paketversion 3.0.0 |
 | FriesenBrügge | Texte und Adresse | neue Fassung |
 | Code-Interna | **bleiben** als technische Konstante (Entscheidung 8) | — |
 | Doku im Repo | README, CLAUDE.md, COORDINATION.md, laufende Doku | Text |
