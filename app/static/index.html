@@ -4282,7 +4282,8 @@
     /* =====================================================================
        VORSCHAU FRIESENRADAR (Issue #56, V16 "Lichtblick") -- greift nur mit html.radar.
        Logo zentriert, oben 6 px, seitlich 18 px, unten 0 (Entscheidung 02.10.2026, #51).
-       Im Dunklen weiss, im Hellen Navy/Rot; in Kopfzeile und Kniebrett ohne Inseln.
+       Im Dunklen die offizielle Fassung "white and red" (rein weiss war zu grell, Nutzer 02.10.2026;
+       Logofarben werden nie veraendert), im Hellen Navy/Rot; in Kopfzeile und Kniebrett ohne Inseln.
        ===================================================================== */
     .logo-radar { display: none; }
     html.radar .logo-alt { display: none; }
@@ -4314,7 +4315,7 @@
       content: '';
       top: 2px;
       height: 38px;
-      background: url('/static/logo/friesenradar-weiss.svg') center / contain no-repeat;
+      background: url('/static/logo/friesenradar-weissrot.svg') center / contain no-repeat;
     }
     html.radar.hell.vr-panel .panel-topbar::before {
       background-image: url('/static/logo/friesenradar-farbig.svg');
@@ -4532,7 +4533,7 @@
     <div class="logo">
       <span class="logo-alt"><span class="logo-prefix"><svg class="icon"><use href="#icon-diamond" xlink:href="#icon-diamond"/></svg></span>FRIESENSPY</span>
       <!-- Vorschau FriesenRadar (Issue #56): beide Fassungen fest im Markup, CSS waehlt je Design. -->
-      <img class="logo-radar logo-radar-weiss" src="/static/logo/friesenradar-weiss.svg" alt="FriesenRadar" />
+      <img class="logo-radar logo-radar-weiss" src="/static/logo/friesenradar-weissrot.svg" alt="FriesenRadar" />
       <img class="logo-radar logo-radar-farbig" src="/static/logo/friesenradar-farbig.svg" alt="FriesenRadar" />
     </div>
     <div class="header-right">

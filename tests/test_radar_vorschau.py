@@ -55,7 +55,10 @@ def test_cid_freigabe_schaltet_die_vorschau_ein():
 
 
 def test_logos_liegen_bereit_und_stehen_in_der_kopfzeile():
-    for name in ("friesenradar-weiss.svg", "friesenradar-farbig.svg"):
+    # Im Dunklen die offizielle Fassung "white and red" (Nutzer 02.10.2026: rein weiss war zu
+    # grell; Logofarben werden nie veraendert, nur offizielle Fassungen verwendet).
+    assert "friesenradar-weiss.svg" not in INDEX
+    for name in ("friesenradar-weissrot.svg", "friesenradar-farbig.svg"):
         assert (STATIC / "logo" / name).is_file(), name
         assert f'src="/static/logo/{name}"' in INDEX, name
     # Im Dunklen weiss, im Hellen farbig (Entscheidung 02.10.2026, Issue #51).
@@ -81,5 +84,5 @@ def test_name_kommt_aus_einer_stelle():
 
 def test_kniebrett_leiste_zeigt_das_logo():
     r = re.search(r"html\.radar\.vr-panel \.panel-topbar::before \{([^}]*)\}", INDEX).group(1)
-    assert "/static/logo/friesenradar-weiss.svg" in r
+    assert "/static/logo/friesenradar-weissrot.svg" in r
     assert "content: ''" in r
