@@ -4225,7 +4225,9 @@
     /* Leuchtschein, Scanlinie und Glow sind Effekte fuer dunklen Grund -- im Hellen wird daraus
        ein dunkler Schmier um Navy-Schrift. Im Hellen aus. */
     html.hell .logo { text-shadow: none; }
-    html.hell .scanline { display: none; }
+    /* Die Scanline bleibt -- als heller Streifen in Friesen-Hellblau (_FF_LBLUE), wie das
+       Schimmern im Dunklen; ein dunkler Ton waere eine graue Linie quer durch die Seite. */
+    html.hell .scanline { background: rgba(143,191,241,0.6); }
     html.hell .tab-btn.active,
     html.hell .fp-callsign-title,
     html.hell .td-callsign-link:hover,

@@ -134,7 +134,12 @@ def test_leuchteffekte_sind_im_hellen_aus():
     # Leuchtschein und Scanlinie sind Effekte fuer dunklen Grund; auf Weiss wird aus dem
     # Leuchten ein dunkler Schmier und aus der Scanlinie eine wandernde graue Linie.
     assert re.search(r"html\.hell \.logo \{[^}]*text-shadow: none", INDEX)
-    assert re.search(r"html\.hell \.scanline \{[^}]*display: none", INDEX)
+    # Die Scanline laeuft im Hellen weiter -- als heller Streifen in Friesen-Hellblau
+    # (#8FBFF1, _FF_LBLUE), wie das Schimmern im Dunklen. Ein dunkler Ton waere wieder eine
+    # graue Linie quer durch die Seite (Nutzerentscheidung 02.10.2026).
+    r = re.search(r"html\.hell \.scanline \{([^}]*)\}", INDEX)
+    assert r and "display: none" not in r.group(1)
+    assert "rgba(143,191,241," in r.group(1).replace(" ", "")
     # Leuchtende Schrift (text-shadow) und Glow-Rahmen: auf Weiss ein dunkler Schmier.
     for sel in (".tab-btn.active", ".fp-callsign-title", ".td-callsign-link:hover",
                 ".td-map-btn:hover"):
