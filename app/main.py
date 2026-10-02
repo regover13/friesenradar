@@ -5503,6 +5503,25 @@ async def forum_logout():
     return resp
 
 
+def _radar_vorschau_fuer(cid: str) -> bool:
+    """Sieht diese CID schon die Vorschau auf FriesenRadar (Issue #56)?
+
+    Bewusst keine eigene Tabelle und keine Admin-Oberflaeche: Bis zum Umstieg testet nur der
+    Nutzer selbst. Die Liste steht als Kommaliste in ``app_settings.radar_vorschau_cids`` und
+    wird von Hand gesetzt. Ueber die neuen Adressen (friesenradar.devprops.de,
+    radar.friesenflieger.de) sieht jeder die Vorschau ohnehin -- das entscheidet das
+    Kopfskript im Browser, nicht diese Funktion. Die CID-Liste ist fuers Kniebrett da, das
+    immer friesenspy.devprops.de laedt."""
+    if not cid:
+        return False
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        roh = get_app_setting(conn, "radar_vorschau_cids", "") or ""
+    finally:
+        conn.close()
+    return cid in {t.strip() for t in roh.split(",") if t.strip()}
+
+
 @app.get("/api/me")
 async def api_me(request: Request):
     """Login-Status für das Frontend. Nur relevant, wenn der Board-Login aktiv ist — ein evtl.
@@ -5520,7 +5539,8 @@ async def api_me(request: Request):
         return JSONResponse({"logged_in": False, "board_login_active": True})
     resp = JSONResponse({"logged_in": True, "board_login_active": True,
                          "name": claims.get("name", ""), "cid": claims.get("cid", ""),
-                         "is_admin": bool(claims.get("is_admin"))})
+                         "is_admin": bool(claims.get("is_admin")),
+                         "radar_vorschau": _radar_vorschau_fuer(str(claims.get("cid", "")))})
     exp = time.time() + settings.USER_SESSION_MAX_AGE_SEC
     resp.set_cookie(
         USER_COOKIE,

@@ -13,6 +13,14 @@
         document.documentElement.classList.add('vr-panel');
       }
 
+      // VORSCHAU FRIESENRADAR (Issue #56, V16 "Lichtblick"): Ueber die neuen Adressen sofort, vor
+      // dem ersten Zeichnen. Die alte Adresse (und damit das Kniebrett) schaltet erst die
+      // Serverantwort frei (/api/me -> radar_vorschau, _radarAnwenden). Beim Umstieg faellt das weg.
+      var radarHosts = ['friesenradar.devprops.de', 'radar.friesenflieger.de'];
+      if (radarHosts.indexOf(String(location.hostname || '').toLowerCase()) !== -1) {
+        document.documentElement.classList.add('radar');
+      }
+
       // HELLES DESIGN (Spec 2026-10-01): VOR dem <style>-Block, sonst blitzt auf der Website
       // beim Laden das dunkle Design auf. Liest dasselbe Merker-Cookie wie _prefLies weiter
       // unten (fs_karte, JSON). Im Kniebrett ist das Cookie nach einem Sim-Neustart leer --
@@ -4270,6 +4278,51 @@
     html.hell .leaflet-control-layers-toggle {
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2 22 8 12 14 2 8z' fill='%23191D53'/%3E%3Cpath d='M12 16.4 4.4 11.9 2 13.2l10 5.9 10-5.9-2.4-1.3z' fill='%23191D53' opacity='.6'/%3E%3C/svg%3E") !important;
     }
+
+    /* =====================================================================
+       VORSCHAU FRIESENRADAR (Issue #56, V16 "Lichtblick") -- greift nur mit html.radar.
+       Logo zentriert, oben 6 px, seitlich 18 px, unten 0 (Entscheidung 02.10.2026, #51).
+       Im Dunklen weiss, im Hellen Navy/Rot; in Kopfzeile und Kniebrett ohne Inseln.
+       ===================================================================== */
+    .logo-radar { display: none; }
+    html.radar .logo-alt { display: none; }
+    html.radar .logo-radar-weiss { display: block; height: 90px; }
+    html.radar.hell .logo-radar-weiss { display: none; }
+    html.radar.hell .logo-radar-farbig { display: block; height: 90px; }
+    html.radar header {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      padding: 6px 18px 0 18px;
+    }
+    html.radar header .logo { grid-column: 2; text-shadow: none; }
+    html.radar header .header-right { grid-column: 3; justify-self: end; }
+    /* Schmale Bildschirme: Die drei Spalten lassen die Knoepfe nicht umbrechen (Uhr und Version
+       liefen rechts aus dem Bild). Deshalb Logo mittig in eine eigene Zeile, Knoepfe darunter --
+       so, wie sie im Normalbetrieb auch umbrechen. */
+    @media (max-width: 600px) {
+      html.radar header { grid-template-columns: 1fr; row-gap: 6px; padding-bottom: 6px; }
+      html.radar header .logo { grid-column: 1; justify-self: center; }
+      html.radar header .header-right { grid-column: 1; justify-self: center; }
+      html.radar .logo-radar-weiss,
+      html.radar.hell .logo-radar-farbig { height: 56px; }
+    }
+    /* Kniebrett: Logo statt Schriftzug im Streifen ueber der Leiste. Der Streifen waechst von 26
+       auf 42 px -- alles, was sich an der Leistenhoehe ausrichtet, rueckt um dieselben 16 px. */
+    html.radar.vr-panel .panel-topbar { padding-top: 42px; }
+    html.radar.vr-panel body { padding-top: 82px; }
+    html.radar.vr-panel .panel-topbar::before {
+      content: '';
+      top: 2px;
+      height: 38px;
+      background: url('/static/logo/friesenradar-weiss.svg') center / contain no-repeat;
+    }
+    html.radar.hell.vr-panel .panel-topbar::before {
+      background-image: url('/static/logo/friesenradar-farbig.svg');
+    }
+    html.radar.vr-panel .panel-hinweis-stapel,
+    html.radar.vr-panel .fp-modal-overlay,
+    html.radar.vr-panel .modal { top: 88px; }
+
   </style>
 </head>
 <body>
@@ -4477,7 +4530,10 @@
        ===================================================================== -->
   <header>
     <div class="logo">
-      <span class="logo-prefix"><svg class="icon"><use href="#icon-diamond" xlink:href="#icon-diamond"/></svg></span>FRIESENSPY
+      <span class="logo-alt"><span class="logo-prefix"><svg class="icon"><use href="#icon-diamond" xlink:href="#icon-diamond"/></svg></span>FRIESENSPY</span>
+      <!-- Vorschau FriesenRadar (Issue #56): beide Fassungen fest im Markup, CSS waehlt je Design. -->
+      <img class="logo-radar logo-radar-weiss" src="/static/logo/friesenradar-weiss.svg" alt="FriesenRadar" />
+      <img class="logo-radar logo-radar-farbig" src="/static/logo/friesenradar-farbig.svg" alt="FriesenRadar" />
     </div>
     <div class="header-right">
       <span id="userBox" hidden style="display:inline-flex;gap:8px;align-items:center;font-size:.8rem;">
@@ -4579,7 +4635,7 @@
         <span class="panel-notif-kasten">[ ]</span> <svg class="icon"><use href="#icon-calendar" xlink:href="#icon-calendar"/></svg> Events (Erinnerung, Bummel, Kutter)
       </button>
       <div class="notif-hint" style="color:var(--text-dim); margin-top:10px;">
-        Erscheint im Tablet, solange der Simulator läuft und FriesenSpy geladen ist.
+        Erscheint im Tablet, solange der Simulator läuft und <span class="app-name">FriesenSpy</span> geladen ist.
       </div>
     </div>
     <div class="panel-abschnitt-titel" id="notif-web-titel">Benachrichtigungen</div>
@@ -4644,7 +4700,7 @@
   <div id="install-banner" class="install-banner" hidden>
     <span class="install-banner-icon"><svg class="icon"><use href="#icon-phone" xlink:href="#icon-phone"/></svg></span>
     <div class="install-banner-text">
-      <strong>FriesenSpy als App installieren</strong>
+      <strong><span class="app-name">FriesenSpy</span> als App installieren</strong>
       <span id="install-banner-sub">Schneller Zugriff vom Startbildschirm – mit Benachrichtigungen.</span>
     </div>
     <button id="install-banner-btn" class="install-banner-btn">Installieren</button>
@@ -4831,7 +4887,7 @@
           Lade Statistiken...
         </div>
       </div>
-      <div class="stats-disclaimer">Nur FRS*-Callsigns · FriesenSpy-Aufzeichnungen + StatSim-Historik · Daten wachsen mit jedem erfassten Flug</div>
+      <div class="stats-disclaimer">Nur FRS*-Callsigns · <span class="app-name">FriesenSpy</span>-Aufzeichnungen + StatSim-Historik · Daten wachsen mit jedem erfassten Flug</div>
     </div>
   </div>
 
@@ -5604,6 +5660,29 @@ function _designSchalterAnzeigen(d) {
 }
 _designHaken.push(_designSchalterAnzeigen);
 // ENDE DESIGN-ABSCHNITT (Anker fuer tests/test_design_merker.py -- Neues zum Design davor)
+
+// ===================================================================
+//  VORSCHAU FRIESENRADAR (Issue #56, V16 "Lichtblick")
+// ===================================================================
+// Der neue Name gilt, solange html.radar gesetzt ist -- ueber die neuen Adressen vom Kopfskript,
+// fuer freigegebene CIDs von fsRefreshSession. Beim Umstieg wird _appName() zur Konstante.
+function _appName() {
+  return document.documentElement.classList.contains('radar') ? 'FriesenRadar' : 'FriesenSpy';
+}
+
+function _appNameEinsetzen() {
+  const n = _appName();
+  document.title = n;
+  // Array.prototype.forEach statt NodeList.forEach: Das kennt Coherent GT (Chrome 49) noch nicht.
+  Array.prototype.forEach.call(document.querySelectorAll('.app-name'),
+                               function (el) { el.textContent = n; });
+}
+
+function _radarAnwenden() {
+  if (document.documentElement.classList.contains('radar')) return;
+  document.documentElement.classList.add('radar');
+  _appNameEinsetzen();
+}
 
 // --- In welchem Zustand war das Kniebrett? -------------------------------------------------
 //
@@ -8546,6 +8625,8 @@ function fsRefreshSession() {
     .then(d => {
       if (d && d.logged_in) {
         _fsWasLoggedIn = true;
+        // Vorschau FriesenRadar fuer freigegebene CIDs (Issue #56) -- vor allem fuers Kniebrett.
+        if (d.radar_vorschau) _radarAnwenden();
         // Die eigene CID ist die einzige Moeglichkeit, den eigenen Flieger im VATSIM-Strom
         // wiederzuerkennen -- Grundlage von Moving Map und Track-up ohne Sim-Position.
         _meineCid = d.cid || null;
@@ -8677,6 +8758,8 @@ document.addEventListener('DOMContentLoaded', () => {
   _on(document.getElementById('design-dunkel'), 'click', () => _designSetzen('dunkel'));
   _on(document.getElementById('design-hell'),   'click', () => _designSetzen('hell'));
   _designSchalterAnzeigen(_designNormal(_prefLies(_DESIGN_KEY)));
+  // Vorschau FriesenRadar: Titel und Namensstellen, falls das Kopfskript html.radar gesetzt hat.
+  _appNameEinsetzen();
 
   _on(notifBtn, 'click', e => {
     e.stopPropagation();
@@ -11570,7 +11653,7 @@ function _flightRowHtml(f, rowAttrs) {
   const distNm = f.distance_nm != null ? Math.round(f.distance_nm) : null;
   const dist = distNm != null && distNm > 0 ? `${distNm} nm` : '—';
   const sourceTag = f.source === 'friesenspy'
-    ? `<span class="source-badge source-fs">${icon('dot-filled')} FriesenSpy</span>`
+    ? `<span class="source-badge source-fs">${icon('dot-filled')} ${_appName()}</span>`
     : `<span class="source-badge source-st">${icon('dot-hollow')} StatSim</span>`;
   // Phase 2b: renderFlightsList zeigt (callsign_prefix='') auch Fremd-Callsigns — die
   // zählen ohnehin nicht in Statistik/Bummel/Kutter (die filtern auf CALLSIGN_PREFIX).
@@ -11681,7 +11764,7 @@ function renderFlightsList(cid, pilotName, flights, statsimStatus) {
       <button class="btn" onclick="closePilotFlights()">${icon('arrow-left')} Zurück</button>
       <span class="flights-panel-title">${escHtml(pilotName || String(cid))}</span>
       <span class="flights-panel-count">${flights.length} Flüge`;
-  if (stCount > 0) html += ` <span class="text-label">(${fsCount} FriesenSpy · ${stCount} StatSim)</span>`;
+  if (stCount > 0) html += ` <span class="text-label">(${fsCount} ${_appName()} · ${stCount} StatSim)</span>`;
   html += `</span>
       <button class="btn-share" style="margin-left:auto;" onclick="copyShareUrl(this)">⎘ Teilen</button>
     </div>`;
@@ -11713,7 +11796,7 @@ function renderFlightsList(cid, pilotName, flights, statsimStatus) {
     </button>
   </div>`;
   }
-  html += `<div class="stats-disclaimer">FriesenSpy-Aufzeichnungen + StatSim-Daten</div>`;
+  html += `<div class="stats-disclaimer">${_appName()}-Aufzeichnungen + StatSim-Daten</div>`;
   container.innerHTML = html;
 
   // Standard-Ansicht: Strecke (GPS) öffnet die GPS-Erfassung, Plan (wenn vorhanden) öffnet
@@ -11863,7 +11946,7 @@ async function _loadAndDrawTrack(source, id, logon, logoff) {
     // positions.length ist eine Zahl, source ein interner Bezeichner -- keine Fremddaten.
     document.getElementById('track-modal-info').innerHTML =
       `${positions.length} Track-Punkte  ·  ${source === 'friesenspy'
-        ? icon('dot-filled') + ' FriesenSpy' : icon('dot-hollow') + ' StatSim'}`;
+        ? icon('dot-filled') + ' ' + _appName() : icon('dot-hollow') + ' StatSim'}`;
   } catch (e) {
     document.getElementById('track-modal-info').textContent = 'Fehler beim Laden des Tracks.';
   }
@@ -14975,7 +15058,7 @@ function renderStatsSummary(stats, days) {
     : '—';
 
   return `
-    <p class="stats-kpi-note" style="margin-bottom:8px;">Nur Flüge mit FRS*-Callsign · nur abgeschlossene Flüge · FriesenSpy-Aufzeichnungen + StatSim-Daten</p>
+    <p class="stats-kpi-note" style="margin-bottom:8px;">Nur Flüge mit FRS*-Callsign · nur abgeschlossene Flüge · <span class="app-name">FriesenSpy</span>-Aufzeichnungen + StatSim-Daten</p>
     <div class="stats-kpi-row" id="stats-kpi-row">
       <div class="stats-kpi-card">
         <span class="stats-kpi-value">${stats.length}</span>

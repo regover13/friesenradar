@@ -24,6 +24,9 @@ DATEI = "app/static/index.html"
 NEU_ERLAUBT = [
     r"design-knopf", r"#einst-design", r"#notif-web-titel", r"mit-push",
     r"^\.notif-zahnrad-panel$", r"^#panel-anzeige \.panel-einst-name:first-of-type$",
+    # Vorschau FriesenRadar (Issue #56): greift nur mit html.radar; .logo-radar versteckt die
+    # neuen Logos im Normalbetrieb.
+    r"^html\.radar[.\s]", r"^\.logo-radar$",
 ]
 
 _KOMMENTAR = re.compile(r"/\*.*?\*/", re.S)
