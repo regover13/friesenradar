@@ -23,6 +23,13 @@ Doku. Release **16.0.0 „Lichtblick“**.
    den Containernamen nennt (Watchtower-Liste in `vaultwarden-setup`) und die Serverdoku, soweit
    sie Pfade und Befehle nennt.
 7. **Forum-Beiträge** bleiben, wie sie sind. Unterforum und Thementitel werden umbenannt.
+8. **Grenze:** Umbenannt wird, was ein Mensch beim Benutzen oder Verwalten liest. Was nur der Code
+   liest, bleibt als technische Konstante: Merker-Schlüssel `friesenspy_*`, Gerätekennung
+   `friesenspy_device`, Schnittstellenwert `source: 'friesenspy'`, Cookie-Namen `fs_*`, Bezeichner
+   im Code (Nutzer 02.10.2026: weniger Risiko). Damit entfallen alle Datenmigrationen.
+9. **Datierte Dokumente** (`docs/superpowers/`, Analysen mit Datum) bleiben als Geschichte. Damit
+   spätere Sitzungen nicht auf den alten Namen zurückfallen, steht in `CLAUDE.md` ausdrücklich:
+   Der Name ist FriesenRadar; „friesenspy“ in Code und alter Doku ist Konstante bzw. Geschichte.
 
 ## Was „nirgends lesen“ technisch bedeutet
 
@@ -35,7 +42,7 @@ Doku. Release **16.0.0 „Lichtblick“**.
 | Server | `/opt/friesenradar`, Container `friesenradar-friesenradar-1`, `friesenradar.db`, nginx-, Zertifikat-, fail2ban-, Backup-Namen | Umzug in einem ruhigen Fenster |
 | Kniebrett-Paket | Ordner `friesenflieger-friesenradar-efb`, Titel, Symbol, Adresse | neue Paketversion 3.0.0 |
 | FriesenBrügge | Texte und Adresse | neue Fassung |
-| Code-Interna | Bezeichner, Merker-Schlüssel, API-Werte | mit Migration, s. u. |
+| Code-Interna | **bleiben** als technische Konstante (Entscheidung 8) | — |
 | Doku im Repo | README, CLAUDE.md, COORDINATION.md, laufende Doku | Text |
 | Claude | Arbeitsordner, venv, Gedächtnis, Freigaben | lokal |
 
@@ -60,35 +67,23 @@ aber am DNS des Vereins.
 
 ## Daten und Merker
 
-Gemessen am 02.10.2026 (Produktions-DB, nur lesend):
-
-| Fundstelle | Anzahl | Umgang |
-|---|---|---|
-| `flight_cache.source = 'friesenspy'` | 1140 | API-Wert wird `radar`; Lesen akzeptiert beide Werte, Cache füllt sich neu |
-| `progress_snapshot.payload_json` | 2 | **eingefrorene, enthüllte Ergebnisse — nie neu berechnen, nie umschreiben**; Code muss den alten Wert beim Lesen verstehen |
-| `panel_diag.payload_json` | 500 | Diagnose-Protokoll, bleibt (räumt sich selbst ab) |
-| `panel_prefs.prefs_json` | 46 | Merker-Schlüssel `friesenspy_*` → `radar_*`: einmalige Migration in der DB beim Start, im Browser Rückfall auf den alten Schlüssel (Cookie `fs_karte`, localStorage) mit Umschreiben |
-
-Kniebrett-Gerätekennung `friesenspy_device` (MSFS-Ablage): Die neue Paketversion liest den
-alten Schlüssel, wenn der neue fehlt, und schreibt ihn unter dem neuen Namen. Damit bleibt jedes
-Tablet gebunden.
-
-Cookie-Namen `fs_*` bleiben (lesen sich nicht als FriesenSpy, ein Umbenennen meldete alle ab).
+Entfällt durch Entscheidung 8: Merker, Gerätekennung, Schnittstellenwerte und gespeicherte Daten
+behalten ihre Schlüssel. Keine Migration, kein Risiko für die zwei eingefrorenen Ergebnisse
+(`progress_snapshot`) und keine erneute Anmeldung von Tablets. Das Kniebrett-Paket 3.0.0 liest
+und schreibt weiter `friesenspy_device`.
 
 ## Reihenfolge
 
-1. **Vorbereitung (unsichtbar):** Code auf neue Interna mit Rückwärtsverstehen (Merker,
-   API-Wert), alles noch unter altem Namen ausgeliefert. Tests.
-2. **Server-Umzug (kurze Unterbrechung, ruhiges Fenster):** Repo und Image umbenennen,
+1. **Server-Umzug (kurze Unterbrechung, ruhiges Fenster):** Repo und Image umbenennen,
    `/opt/friesenradar`, DB-Datei, Container, nginx/Zertifikat/fail2ban/Backup/Watchtower,
    `config.env` (DB_PATH, FORUM_SSO_CALLBACK — **geschützte Datei, nur mit Freigabe**),
    Deploy-Workflow. Gegenprobe: App, Login, Brügge-Meldungen, Backup-Probelauf.
-3. **16.0.0 „Lichtblick“ (sichtbar):** neuer Name überall, Vorschau-Schalter entfällt,
+2. **16.0.0 „Lichtblick“ (sichtbar):** neuer Name überall, Vorschau-Schalter entfällt,
    Widget-Text, Manifest/Symbole, README. Ankündigung im Forum „V16 - Lichtblick“.
    Forum-Umbenennungen und Widget-Einbettung am selben Tag.
-4. **Kniebrett-Paket 3.0.0 und neue Brügge:** neue Adresse, Namen, Migration der Kennung. Das
+3. **Kniebrett-Paket 3.0.0 und neue Brügge:** neue Adresse und Namen; Kennung bleibt. Das
    Paket weist im Tablet selbst auf ein veraltetes Paket hin (vorhandener Mechanismus).
-5. **Aufräumen:** altes GHCR-Paket, altes Zertifikat, Claude-Arbeitsumgebung, Gedächtnis,
+4. **Aufräumen:** altes GHCR-Paket, altes Zertifikat, Claude-Arbeitsumgebung, Gedächtnis,
    Serverdoku. Entscheidung über das Alias erst nach Messung.
 
 ## Risiken und Gegenmittel
@@ -98,17 +93,12 @@ Cookie-Namen `fs_*` bleiben (lesen sich nicht als FriesenSpy, ein Umbenennen mel
 - **Backup läuft ins Leere:** Probelauf des Backup-Skripts direkt nach dem Umzug.
 - **fail2ban/Watchtower greifen still nicht mehr:** jeweils Gegenprobe (fail2ban-regex,
   Watchtower-Liste gegen `docker ps`).
-- **Eingefrorene Ergebnisse:** Snapshot-Version nicht erhöhen; Test, der den alten Wert liest.
+- **Eingefrorene Ergebnisse:** werden nicht angefasst (keine Migration).
 - **Mitglieder mit alter App/altem Paket:** stilles Alias; installierte PWAs behalten ihren Namen
   bis zur Neuinstallation — gehört in die Ankündigung.
 - **Parallele Sitzungen:** COORDINATION.md-Eintrag vor dem Umzug, Pfade ändern sich für alle.
 
-## Offene Fragen an den Nutzer
+## Zeitpunkt
 
-1. **Laufende Doku vs. Geschichte im Repo:** Datierte Specs, Pläne und Analysen unter
-   `docs/superpowers/` (rund 570 Stellen) — als Geschichte stehen lassen wie den CHANGELOG, oder
-   umschreiben? Vorschlag: datierte Dokumente bleiben, laufende Doku (README, CLAUDE.md,
-   COORDINATION.md, `docs/*.md` ohne Datum) wird umgeschrieben.
-2. **Interne API-Werte und Bezeichner** (`source: 'friesenspy'`, Funktionsnamen): mit umbenennen
-   (Vorschlag: ja, mit Rückwärtsverstehen) oder nur, was ein Mensch liest?
-3. **Zeitfenster** für den Server-Umzug (ein paar Minuten Ausfall).
+Server-Umzug, wenn der Nutzer Zeit hat — er gibt Bescheid. Alles davor (Vorbereitung im Code,
+Plan, Tests) läuft unabhängig davon.
