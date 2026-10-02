@@ -86,3 +86,53 @@ def test_kniebrett_leiste_zeigt_das_logo():
     r = re.search(r"html\.radar\.vr-panel \.panel-topbar::before \{([^}]*)\}", INDEX).group(1)
     assert "/static/logo/friesenradar-weissrot.svg" in r
     assert "content: ''" in r
+
+
+# --- App-Symbol und App-Name fuer die installierte App (Entscheidung 02.10.2026) -------------
+# Rotes Flugzeug aus dem Logo, unveraendert, auf Weiss. Android liest Name und Symbole aus dem
+# Manifest, iOS aus apple-touch-icon und apple-mobile-web-app-title -- beide erst beim
+# Installieren, deshalb genuegt es, die Verweise vorher umzustellen.
+
+def _ausschnitt(anfang):
+    a = INDEX.index(anfang)
+    return INDEX[a:INDEX.index("\n}\n", a) + 2]
+
+
+_KOPF = """
+const els = {
+  'link[rel="manifest"]': { href: '/static/manifest.webmanifest', setAttribute(k, v) { this[k] = v; } },
+  'link[rel="apple-touch-icon"]': { href: '/static/apple-touch-icon.png', setAttribute(k, v) { this[k] = v; } },
+  'link[rel="icon"][sizes="192x192"]': { href: '/static/icon-192.png', setAttribute(k, v) { this[k] = v; } },
+  'meta[name="apple-mobile-web-app-title"]': { content: 'FriesenSpy', setAttribute(k, v) { this[k] = v; } },
+  'meta[name="application-name"]': { content: 'FriesenSpy', setAttribute(k, v) { this[k] = v; } },
+};
+const klassen = new Set(%s);
+global.document = { title: '', documentElement: { classList: { contains: (k) => klassen.has(k) } },
+  querySelector: (s) => els[s] || null, querySelectorAll: () => [] };
+"""
+
+
+@ohne_node
+@pytest.mark.parametrize("radar", [True, False])
+def test_installierte_app_heisst_friesenradar_mit_flugzeug(radar):
+    js = (_KOPF % ('["radar"]' if radar else '[]')) + _ausschnitt("function _appName()") \
+        + "\n" + _ausschnitt("function _appNameEinsetzen()") + """
+_appNameEinsetzen();
+console.log(JSON.stringify(Object.keys(els).map(k => els[k].href || els[k].content)));"""
+    r = subprocess.run([_NODE, "-e", js], capture_output=True, text=True, timeout=20)
+    assert r.returncode == 0, r.stderr
+    werte = json.loads(r.stdout.strip().splitlines()[-1])
+    if radar:
+        assert werte == ["/static/radar/manifest.webmanifest", "/static/radar/apple-touch-icon.png",
+                         "/static/radar/icon-192.png", "FriesenRadar", "FriesenRadar"]
+    else:
+        assert werte == ["/static/manifest.webmanifest", "/static/apple-touch-icon.png",
+                         "/static/icon-192.png", "FriesenSpy", "FriesenSpy"]
+
+
+def test_symbole_und_manifest_liegen_bereit():
+    m = json.loads((STATIC / "radar" / "manifest.webmanifest").read_text(encoding="utf-8"))
+    assert m["name"] == m["short_name"] == "FriesenRadar"
+    for i in m["icons"]:
+        assert (STATIC / i["src"].replace("/static/", "")).is_file(), i["src"]
+    assert (STATIC / "radar" / "apple-touch-icon.png").is_file()

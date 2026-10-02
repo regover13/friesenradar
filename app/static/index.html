@@ -5677,6 +5677,19 @@ function _appNameEinsetzen() {
   // Array.prototype.forEach statt NodeList.forEach: Das kennt Coherent GT (Chrome 49) noch nicht.
   Array.prototype.forEach.call(document.querySelectorAll('.app-name'),
                                function (el) { el.textContent = n; });
+  // Installierte App: Android liest Name und Symbole aus dem Manifest, iOS aus apple-touch-icon und
+  // apple-mobile-web-app-title -- beides erst beim Installieren. Rotes Flugzeug aus dem Logo,
+  // unveraendert, auf Weiss (Entscheidung 02.10.2026, Issue #51).
+  if (n !== 'FriesenRadar') return;
+  function setze(sel, attr, wert) {
+    const el = document.querySelector(sel);
+    if (el) el.setAttribute(attr, wert);
+  }
+  setze('link[rel="manifest"]', 'href', '/static/radar/manifest.webmanifest');
+  setze('link[rel="apple-touch-icon"]', 'href', '/static/radar/apple-touch-icon.png');
+  setze('link[rel="icon"][sizes="192x192"]', 'href', '/static/radar/icon-192.png');
+  setze('meta[name="apple-mobile-web-app-title"]', 'content', n);
+  setze('meta[name="application-name"]', 'content', n);
 }
 
 function _radarAnwenden() {
