@@ -77,7 +77,15 @@ kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch l�
 - [ ] **Step 7:** `gh repo rename friesenradar -R regover13/friesenspy --yes`, Remote auf `regover13/friesenradar`. Discord vorwarnen: Der folgende Deploy meldet rot.
 - [ ] **Step 8:** `umzug` nach `main` (Rebase, Suite grün, Push). Der Workflow testet und baut `ghcr.io/regover13/friesenradar:latest`; sein Deploy-Schritt scheitert an `cd /opt/friesenradar` (gibt es noch nicht), der alte Container bleibt unberührt. Gegenprobe: `gh api user/packages/container/friesenradar` zeigt das Paket, `visibility: private`. **Ist der Bau rot, hier aufhören** — nichts ist bis dahin verändert außer dem Repo-Namen.
 
-**Ausfall (~1 min):**
+**Ausfall (~1 min):** Steps 9–15 führt `deploy/umzug-friesenradar.sh` (Branch `umzug`) in einem
+Zug aus, mit Abbruch bei jedem Fehler und dem Rückweg in der Ausgabe. **Generalprobe am
+03.10.2026 bestanden:** dasselbe Skript gegen eine Kopie im alten Aufbau (`PROBE=1`, Container
+ohne Netzwerk, echte App unberührt) — Health nach 10 s, DB im Container 128 MB unter dem neuen
+Pfad, alle Zählungen gleich (19 Snapshots unverändert), Website/Admin/Kniebrett/Widget/Download/
+Kartenblatt/Badge mit 200, ohne Login 401. Backup-Teil (Branch `friesenradar` im Repo
+`server-backup`) gegen die Probe-DB: Archiv vollständig; fehlende Datei → Abbruch ohne leere
+Sicherung. Reste unter `/root/umzug-probe-2026-10-03/` (0700), Probe-Image
+`ghcr.io/regover13/friesenradar:probe` — beides nach dem Umzug löschen.
 - [ ] **Step 9:** `PRAGMA integrity_check` auf der laufenden DB, Ergebnis `ok`. Zeilenzahlen und `MAX(id)` notieren: `flights`, `position_history`, `panel_prefs`, `panel_devices`, `push_subscriptions`, `progress_snapshot` (dazu `COUNT(*)` und `MAX(computed_at)`, die 19 Snapshots dürfen sich nie ändern).
 - [ ] **Step 10:** `cd /opt/friesenspy && docker compose down`. Gegenprobe: `docker ps | grep friesenspy` leer.
 - [ ] **Step 11:** Checkpoint und Sicherung als `containersvc` mit absoluten Pfaden: `PRAGMA wal_checkpoint(TRUNCATE)`, `.backup /root/umzug-friesenradar-<datum>/friesenspy.db` (nicht unter `/opt/backup`, sonst hält `backup_status.sh` die Handkopie für die jüngste Sicherung). Alte Compose nach `/root/umzug-friesenradar-<datum>/`, ebenso `config.env`.
