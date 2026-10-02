@@ -33,8 +33,8 @@ from pathlib import Path
 import pytest
 
 WURZEL = Path(__file__).resolve().parents[1]
-SHELL = (WURZEL / "msfs-panel" / "PackageSources" / "FriesenSpy" / "src"
-         / "FriesenSpy.tsx").read_text(encoding="utf-8")
+SHELL = (WURZEL / "msfs-panel" / "PackageSources" / "FriesenRadar" / "src"
+         / "FriesenRadar.tsx").read_text(encoding="utf-8")
 _NODE = shutil.which("node")
 
 

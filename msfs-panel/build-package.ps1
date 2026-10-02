@@ -1,16 +1,16 @@
-# build-package.ps1 -- baut msfs-panel/Package/ aus PackageSources/FriesenSpy/dist.
+# build-package.ps1 -- baut msfs-panel/Package/ aus PackageSources/FriesenRadar/dist.
 # Ausfuehren aus msfs-panel/ (oder per vollem Pfad, Skript ist ortsunabhaengig via $PSScriptRoot).
 $ErrorActionPreference = "Stop"
 
 $root = $PSScriptRoot
-$dist = Join-Path $root "PackageSources\FriesenSpy\dist"
-$manifestSrc = Join-Path $root "PackageSources\FriesenSpy\manifest.json"
+$dist = Join-Path $root "PackageSources\FriesenRadar\dist"
+$manifestSrc = Join-Path $root "PackageSources\FriesenRadar\manifest.json"
 $pkg = Join-Path $root "Package"
-$appOut = Join-Path $pkg "html_ui\efb_ui\efb_apps\FriesenSpy"
+$appOut = Join-Path $pkg "html_ui\efb_ui\efb_apps\FriesenRadar"
 $layoutGen = "D:\User\Tobias\OneDrive\GIT\ga-inventory\MSFSLayoutGenerator.exe"
 
 if (-not (Test-Path $dist)) {
-    throw "dist-Ordner fehlt: $dist -- erst 'npm run build' in PackageSources\FriesenSpy ausfuehren (Task 2)."
+    throw "dist-Ordner fehlt: $dist -- erst 'npm run build' in PackageSources\FriesenRadar ausfuehren (Task 2)."
 }
 if (-not (Test-Path $layoutGen)) {
     throw "MSFSLayoutGenerator.exe nicht gefunden unter: $layoutGen"

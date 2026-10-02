@@ -22,10 +22,10 @@ import pytest
 
 WURZEL = Path(__file__).resolve().parents[1]
 INDEX = (WURZEL / "app" / "static" / "index.html").read_text(encoding="utf-8")
-SHELL = (WURZEL / "msfs-panel" / "PackageSources" / "FriesenSpy" / "src"
-         / "FriesenSpy.tsx").read_text(encoding="utf-8")
+SHELL = (WURZEL / "msfs-panel" / "PackageSources" / "FriesenRadar" / "src"
+         / "FriesenRadar.tsx").read_text(encoding="utf-8")
 MANIFEST = json.loads(
-    (WURZEL / "msfs-panel" / "PackageSources" / "FriesenSpy" / "manifest.json")
+    (WURZEL / "msfs-panel" / "PackageSources" / "FriesenRadar" / "manifest.json")
     .read_text(encoding="utf-8")
 )
 
@@ -206,7 +206,7 @@ def test_kein_mal_zeichen_im_kniebrett():
 def test_adresse_steht_als_text_nicht_als_link():
     """Im Tablet lässt sich nichts herunterladen -- die Adresse muss man am PC eintippen.
     Ein Klick-Ziel wäre ein leeres Versprechen."""
-    stelle = INDEX.index("function _paketHinweisPruefen(")
+    stelle = INDEX.index("function _paketHinweisText(")
     rumpf = INDEX[stelle:INDEX.index("\n}", stelle)]
     assert "friesenradar.devprops.de/download" in rumpf
     assert "<a " not in rumpf and "window.open" not in rumpf

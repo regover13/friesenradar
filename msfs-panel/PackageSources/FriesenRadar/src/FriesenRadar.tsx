@@ -13,7 +13,7 @@ import {
 } from "@efb/efb-api";
 import { DataStore, FSComponent, VNode } from "@microsoft/msfs-sdk";
 
-import "./FriesenSpy.scss";
+import "./FriesenRadar.scss";
 
 /**
  * BASE_URL ist eine globale Variable aus build.js, zeigt im gebauten Package
@@ -21,9 +21,15 @@ import "./FriesenSpy.scss";
  */
 declare const BASE_URL: string;
 
-const PANEL_URL = "https://friesenspy.devprops.de/panel";
+const PANEL_URL = "https://friesenradar.devprops.de/panel";
 
-/** Schluessel im MSFS-Datenspeicher, unter dem die Geraete-ID liegt. */
+/**
+ * Schluessel im MSFS-Datenspeicher, unter dem die Geraete-ID liegt.
+ *
+ * BLEIBT "friesenspy_device", obwohl die App seit 3.0.0 FriesenRadar heisst: Unter diesem
+ * Schluessel liegt die Bindung jedes Tablets. Ein neuer Schluessel hiesse, dass sich jedes
+ * Geraet neu anmelden muss. Technische Konstante, kein Name (CLAUDE.md, Abschnitt "Name").
+ */
 const DEVICE_KEY = "friesenspy_device";
 
 /**
@@ -36,7 +42,7 @@ const DEVICE_KEY = "friesenspy_device";
  * WICHTIG fuer die Auswertung auf der Seite: Ein Paket VOR 2.0.0 schickt dieses Feld gar
  * nicht. Sein Fehlen ist deshalb kein Fehler, sondern die Aussage "aelter als 2.0.0".
  */
-const PAKET_VERSION = "2.3.2";
+const PAKET_VERSION = "3.0.0";
 
 /**
  * Das globale Objekt -- OHNE sich auf `globalThis` zu verlassen.
@@ -140,6 +146,38 @@ function getOrCreateDeviceId(): string {
  * Ziel-Adresse fuers iframe. Mit Geraete-ID ueber /auth/device (meldet automatisch an, wenn
  * das Geraet bereits gebunden ist), sonst direkt aufs Panel wie bisher.
  */
+/**
+ * Liegt neben diesem Paket noch das alte (bis 2.x)? Seit 3.0.0 heissen Paketordner und
+ * App-Klasse FriesenRadar (Nutzerentscheidung 03.10.2026, Variante B). Wer beim Update den
+ * alten Ordner `friesenflieger-friesenspy-efb` nicht loescht, hat zwei Apps im Tablet.
+ *
+ * Erkannt am internen Namen, den die EFB fuer jede App fuehrt (Klassenname, s.
+ * `App.internalName` in efb_api). `Efb.apps()` ist dort als intern markiert -- deshalb
+ * vorsichtig: Fehlt die Liste oder wirft sie, heisst das "unbekannt" (`undefined`), nicht
+ * "kein altes Paket".
+ */
+function altesPaketDa(): boolean | undefined {
+  try {
+    const efb = Efb as unknown as { apps?: () => { getArray?: () => Array<{ internalName?: string }> } };
+    if (typeof efb.apps !== "function") {
+      return undefined;
+    }
+    const sammlung = efb.apps();
+    if (!sammlung || typeof sammlung.getArray !== "function") {
+      return undefined;
+    }
+    const liste = sammlung.getArray();
+    for (let i = 0; i < liste.length; i++) {
+      if (liste[i] && liste[i].internalName === "FriesenSpy") {
+        return true;
+      }
+    }
+    return false;
+  } catch (_e) {
+    return undefined;
+  }
+}
+
 function buildPanelUrl(): string {
   const id = getOrCreateDeviceId();
   if (!id) {
@@ -154,7 +192,7 @@ function buildPanelUrl(): string {
   // fest (panel_devices.paket_version) und kann damit im Admin zeigen, wer noch ein altes
   // Paket faehrt -- von aussen war das vorher ueberhaupt nicht erkennbar. Ein Paket vor
   // 2.0.0 schickt den Parameter nicht; die Spalte bleibt dann leer, was genau das aussagt.
-  return "https://friesenspy.devprops.de/auth/device?device=" + encodeURIComponent(id)
+  return "https://friesenradar.devprops.de/auth/device?device=" + encodeURIComponent(id)
     + "&next=" + encodeURIComponent("/panel")
     + "&paket=" + encodeURIComponent(PAKET_VERSION);
 }
@@ -311,7 +349,7 @@ interface SimVerkehrEintrag {
   gnd: boolean;
 }
 
-class FriesenSpyView extends AppView<RequiredProps<AppViewProps, "bus">> {
+class FriesenRadarView extends AppView<RequiredProps<AppViewProps, "bus">> {
   /** Das eingebettete Fenster -- Empfaenger der Positionsmeldungen. */
   private readonly rahmenRef = FSComponent.createRef<HTMLIFrameElement>();
 
@@ -367,6 +405,9 @@ class FriesenSpyView extends AppView<RequiredProps<AppViewProps, "bus">> {
         try {
           quelle.postMessage(
             { quelle: "friesenspy-shell", art: "pong", paketVersion: PAKET_VERSION,
+              // Liegt das alte Paket (bis 2.x, App-Klasse "FriesenSpy") noch im Community-
+              // Ordner, zeigt das Tablet zwei Apps. Die Seite bittet dann ums Loeschen.
+              altesPaket: altesPaketDa(),
               // Leer heisst "Bindung in Ordnung". Steht hier etwas, erklaert es, warum
               // sich der Nutzer bei jedem Start neu anmelden muss.
               geraeteIdGrund: geraeteIdGrund },
@@ -393,7 +434,7 @@ class FriesenSpyView extends AppView<RequiredProps<AppViewProps, "bus">> {
     if (d.art !== "notify") {
       return;
     }
-    const titel = d.titel || "FriesenSpy";
+    const titel = d.titel || "FriesenRadar";
     const text = d.text || "";
     const antwort = e.source as Window | null;
     try {
@@ -929,9 +970,9 @@ class FriesenSpyView extends AppView<RequiredProps<AppViewProps, "bus">> {
   }
 }
 
-class FriesenSpy extends App {
+class FriesenRadar extends App {
   public get name(): string {
-    return FriesenSpy.name;
+    return FriesenRadar.name;
   }
 
   public get icon(): string {
@@ -958,7 +999,7 @@ class FriesenSpy extends App {
   public SuspendMode = AppSuspendMode.SLEEP;
 
   public async install(_props: AppInstallProps): Promise<void> {
-    Efb.loadCss(`${BASE_URL}/FriesenSpy.css`);
+    Efb.loadCss(`${BASE_URL}/FriesenRadar.css`);
     return Promise.resolve();
   }
 
@@ -966,10 +1007,10 @@ class FriesenSpy extends App {
     return undefined;
   }
 
-  public render(): TVNode<FriesenSpyView> {
+  public render(): TVNode<FriesenRadarView> {
     // Der Benachrichtigungs-Verwalter MUSS von hier an die View gereicht werden: Die View
     // bekommt nur die Props, die hier im JSX stehen -- und die Instanz, die das Tablet
-    // anzeigt, gibt es nur ueber diesen Weg (s. langer Kommentar in FriesenSpyView).
+    // anzeigt, gibt es nur ueber diesen Weg (s. langer Kommentar in FriesenRadarView).
     // Der Getter wirft, wenn die Shell ihn nicht gesetzt hat; daran darf das Rendern der
     // ganzen App nicht scheitern.
     let verwaltung: NotificationManager | undefined;
@@ -978,8 +1019,8 @@ class FriesenSpy extends App {
     } catch (_e) {
       verwaltung = undefined;
     }
-    return <FriesenSpyView bus={this.bus} notificationManager={verwaltung} />;
+    return <FriesenRadarView bus={this.bus} notificationManager={verwaltung} />;
   }
 }
 
-Efb.use(FriesenSpy);
+Efb.use(FriesenRadar);

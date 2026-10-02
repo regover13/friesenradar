@@ -16,7 +16,7 @@ const env = {
 };
 
 const baseConfig = {
-  entryPoints: ["src/FriesenSpy.tsx"],
+  entryPoints: ["src/FriesenRadar.tsx"],
   keepNames: true,
   bundle: true,
   outdir: "dist",
@@ -27,7 +27,7 @@ const baseConfig = {
     ".html": "copy",
   },
   target: "es2017",
-  define: { BASE_URL: `"coui://html_ui/efb_ui/efb_apps/FriesenSpy"` },
+  define: { BASE_URL: `"coui://html_ui/efb_ui/efb_apps/FriesenRadar"` },
   plugins: [
     copyStaticFiles({
       src: "./src/Assets",

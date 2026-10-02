@@ -23,6 +23,9 @@ def test_kein_alter_name_wo_menschen_lesen():
         t = re.sub(r"friesenspy_[a-z_]+|'friesenspy[-a-z_]*'|\"friesenspy[-a-z_]*\"", "", t)
         # Das stille Alias darf genau dort stehen, wo es auf die neue Adresse umgebogen wird.
         t = t.replace("location.origin === 'https://friesenspy.devprops.de'", "")
+        # Kniebrett-Paket 3.0.0 (Variante B): Die Bitte, den alten Ordner zu loeschen, muss ihn
+        # beim Namen nennen -- die einzige erlaubte Nennung, an genau diese Formulierung gebunden.
+        t = re.sub(r"(?:alten )?Ordner\s+(?:<code>)?friesenflieger-friesenspy-efb", "", t)
         assert not re.search(r"friesen ?spy", t, re.I), rel
 
 

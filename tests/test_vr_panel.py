@@ -24,7 +24,7 @@ INDEX = (STATIC / "index.html").read_text(encoding="utf-8")
 # Die MSFS-App. Bewusst NICHT bedingungslos gelesen: Fehlt msfs-panel/ in irgendeiner
 # Umgebung, braeche sonst das Sammeln der ganzen Datei ab, nicht nur der Panel-Tests.
 _TSX_PFAD = (Path(__file__).resolve().parents[1] / "msfs-panel" / "PackageSources"
-             / "FriesenSpy" / "src" / "FriesenSpy.tsx")
+             / "FriesenRadar" / "src" / "FriesenRadar.tsx")
 PANEL_TSX = _TSX_PFAD.read_text(encoding="utf-8") if _TSX_PFAD.exists() else ""
 ohne_panel = pytest.mark.skipif(not _TSX_PFAD.exists(), reason="msfs-panel nicht vorhanden")
 
@@ -876,8 +876,8 @@ def test_shell_bestaetigung_verlangt_einen_zaehlerstand():
 def test_efb_app_nutzt_den_durchgereichten_verwalter():
     """Nur die von der Shell gelieferte Instanz rendert auch. getManager() legt eine zweite an,
     die niemand anzeigt -- genau der Fehler des ersten Versuchs."""
-    tsx = (Path(__file__).resolve().parents[1] / "msfs-panel" / "PackageSources" / "FriesenSpy"
-           / "src" / "FriesenSpy.tsx").read_text(encoding="utf-8")
+    tsx = (Path(__file__).resolve().parents[1] / "msfs-panel" / "PackageSources" / "FriesenRadar"
+           / "src" / "FriesenRadar.tsx").read_text(encoding="utf-8")
     assert "this.props.notificationManager" in tsx
     assert "notificationManager={verwaltung}" in tsx, "View bekommt den Verwalter nicht"
     # Nur echte Aufrufe verbieten -- im Kommentar daneben MUSS der Name stehen bleiben, sonst
@@ -3260,10 +3260,10 @@ def test_paketversion_gehoben_und_gleichlaufend():
     import json
     from pathlib import Path
     manifest = json.loads(
-        (Path(__file__).resolve().parents[1] / "msfs-panel" / "PackageSources" / "FriesenSpy"
+        (Path(__file__).resolve().parents[1] / "msfs-panel" / "PackageSources" / "FriesenRadar"
          / "manifest.json").read_text(encoding="utf-8"))
-    assert 'const PAKET_VERSION = "2.3.2"' in PANEL_TSX
-    assert manifest["package_version"] == "2.3.2"
+    assert 'const PAKET_VERSION = "3.0.0"' in PANEL_TSX
+    assert manifest["package_version"] == "3.0.0"
 
 
 def test_seite_nimmt_den_brueckenzustand_entgegen():

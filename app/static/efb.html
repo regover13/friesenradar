@@ -122,7 +122,12 @@
       <li>Diesen Ordner <strong>als Ganzes</strong> in den Community-Ordner des
         Simulators kopieren; bei einem Update den alten ersetzen. Steht hinter
         seinem Namen ein „(1)“, weil die Datei schon einmal im Download-Ordner lag, vorher das „ (1)“ entfernen — sonst liegt das Paket zweimal im
-        Simulator. Der Community-Ordner liegt je nach Kaufquelle woanders:
+        Simulator.
+        <span id="alter-ordner" hidden><strong>Update von einer Fassung vor 3.0.0:</strong> Seit
+        3.0.0 heißt der Ordner anders. Bitte den alten Ordner
+        <code>friesenflieger-friesenspy-efb</code> löschen — sonst stehen zwei Apps im
+        Tablet.</span>
+        Der Community-Ordner liegt je nach Kaufquelle woanders:
         <ul>
           <li>Microsoft Store:
             <code>%LOCALAPPDATA%\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\Community</code></li>
@@ -268,6 +273,11 @@
           }
           var teile = [];
           if (d.version) teile.push('Version ' + d.version);
+          // Ab 3.0.0 heisst der Paketordner anders (Variante B) -- der Satz zum alten Ordner
+          // erscheint erst, wenn auch wirklich ein solches Paket ausgeliefert wird.
+          if (d.version && Number(String(d.version).split('.')[0]) >= 3) {
+            document.getElementById('alter-ordner').hidden = false;
+          }
           if (d.groesse_kb) teile.push(d.groesse_kb + ' kB');
           if (d.stand) teile.push('Stand ' + d.stand);
           info.textContent = teile.join('  ·  ');
