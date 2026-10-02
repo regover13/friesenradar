@@ -14,9 +14,12 @@ Wo „friesenspy“ trotzdem steht, ist es eines von zwei Dingen, und keins davo
 - **Technische Konstante** (Nutzerentscheidung 02.10.2026, weniger Risiko, keine Migration):
   Merker-Schlüssel `friesenspy_*`, Gerätekennung `friesenspy_device`, Schnittstellenwert
   `source: 'friesenspy'`, `quelle: 'friesenspy'` im postMessage, Cookie-Namen `fs_*`, Bezeichner im
-  Code, und **der Kniebrett-Paketordner `friesenflieger-friesenspy-efb` samt Klasse und
-  `efb_apps/FriesenSpy`** (Entscheidung 03.10.2026: ein neuer Ordner gäbe nach dem Update zwei Apps
-  im Tablet und verlöre die Anheftung; im Tablet steht trotzdem „FriesenRadar“). **Nicht „aufräumen“** — das wäre eine Datenmigration, die niemand beschlossen hat.
+  Code.
+- **Ausnahme Kniebrett-Paket (Variante B, Nutzer 03.10.2026):** Ab 3.0.0 heißen Paketordner,
+  Klasse und `efb_apps/` **FriesenRadar** (`friesenflieger-friesenradar-efb`). Der Download-Name
+  folgt dem Ordner in der ZIP (`_efb_download_name`), damit er erst mit dem neuen Paket wechselt.
+  Bekannte Folgen, die 3.0.0 auffangen muss: Neben einem nicht gelöschten alten Ordner zeigt das
+  Tablet zwei Apps, und die Anheftung der App geht einmal verloren. **Nicht „aufräumen“** — das wäre eine Datenmigration, die niemand beschlossen hat.
 - **Geschichte:** CHANGELOG-Einträge vor 16.0.0, datierte Specs/Pläne/Analysen unter `docs/`,
   Commit-Historie, alte Forumsbeiträge, Kommentare in anderen Repos. Sie nennen den alten Namen,
   weil er damals galt.
@@ -664,7 +667,7 @@ unauffällig und seit dem 13.09.2026 ohnehin auf 5 × 20 MB gedeckelt.
 - `app/poller.py` — APScheduler, Flug-State-Machine, SSE-Queue
 - `app/main.py` — FastAPI-App, REST + SSE-Endpoints
 - `app/static/index.html` — Vanilla-JS-SPA (4 Tabs)
-- `msfs-panel/` — MSFS-2024-EFB-App, im Tablet „FriesenRadar“ (Ordner und Klasse `FriesenSpy` sind Konstante, s. „Name“; Coherent-GT-Panel, rendert `/panel` per
+- `msfs-panel/` — MSFS-2024-EFB-App „FriesenRadar“ (bis 2.x Ordner und Klasse `FriesenSpy`, s. „Name“; Coherent-GT-Panel, rendert `/panel` per
   iframe); eigener Node/esbuild-Build, s. `docs/superpowers/specs/2026-08-12-msfs-efb-panel-design.md`
 - `friesenbruegge/` — die Sim-Brücke: setzt Objekte im Simulator und meldet die Position
   zurück. **Event-unabhängig und für MSFS 2020/2024 + X-Plane gedacht** (GitHub-Issue #25);

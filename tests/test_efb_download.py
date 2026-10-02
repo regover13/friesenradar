@@ -127,6 +127,20 @@ def test_download_liefert_das_zip_unter_sprechendem_namen(env):
     assert zipfile.ZipFile(__import__("io").BytesIO(r.content)).namelist()
 
 
+def test_download_name_folgt_dem_ordner_im_paket(env):
+    """Variante B (Nutzer 03.10.2026): Ab 3.0.0 heisst der Paketordner
+    friesenflieger-friesenradar-efb. Der Download-Name muss dem Inhalt folgen, nicht dem Code --
+    sonst entsteht beim Entpacken ein neuer Ordner mit dem ALTEN Paket darin, also zwei
+    gleiche Apps im Tablet."""
+    ziel = main._efb_zip_path(env.settings)
+    ziel.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(ziel, "w") as z:
+        z.writestr("friesenflieger-friesenradar-efb/manifest.json",
+                   json.dumps({"title": "FriesenRadar", "package_version": "3.0.0"}))
+    r = env.client.get("/download/efb")
+    assert 'filename="friesenflieger-friesenradar-efb.zip"' in r.headers["content-disposition"]
+
+
 def test_seite_und_download_liegen_hinter_dem_gate(env):
     """Beides gehört den Mitgliedern. /static/ ist gate-frei — deshalb liegt die Seite
     bewusst unter /download (und ihrer alten URL /efb) und nicht unter /static/efb.html."""

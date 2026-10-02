@@ -23,9 +23,6 @@ def test_kein_alter_name_wo_menschen_lesen():
         t = re.sub(r"friesenspy_[a-z_]+|'friesenspy[-a-z_]*'|\"friesenspy[-a-z_]*\"", "", t)
         # Das stille Alias darf genau dort stehen, wo es auf die neue Adresse umgebogen wird.
         t = t.replace("location.origin === 'https://friesenspy.devprops.de'", "")
-        # Ordnername des Kniebrett-Pakets: technische Konstante (Nutzerentscheidung 03.10.2026,
-        # Variante A). Ein neuer Name legte nach dem Update eine zweite App neben die alte.
-        t = t.replace("friesenflieger-friesenspy-efb", "")
         assert not re.search(r"friesen ?spy", t, re.I), rel
 
 

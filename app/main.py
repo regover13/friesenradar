@@ -810,13 +810,30 @@ def _paket_ausliefern(pfad: Path, dateiname: str):
                     headers={"Content-Disposition": f'attachment; filename="{dateiname}"'})
 
 
+def _efb_download_name(pfad: Path) -> str:
+    """Download-Name = Paketordner in der ZIP, also der Ordner, den das Entpacken anlegt.
+
+    Bis 2.x heisst er ``friesenflieger-friesenspy-efb``, ab 3.0.0 ``friesenflieger-friesenradar-efb``
+    (Variante B, Nutzer 03.10.2026). Am Inhalt statt im Code festgemacht, damit der neue Name
+    erst mit dem neuen Paket erscheint -- sonst laege nach dem Update das ALTE Paket unter
+    neuem Ordnernamen neben dem alten, und das Tablet zeigte zwei gleiche Apps."""
+    try:
+        with zipfile.ZipFile(pfad) as z:
+            oben = {n.split("/", 1)[0] for n in z.namelist() if "/" in n}
+    except (zipfile.BadZipFile, OSError):
+        oben = set()
+    if len(oben) == 1:
+        return next(iter(oben)) + ".zip"
+    return "friesenflieger-friesenradar-efb.zip"
+
+
 @app.get("/download/efb", include_in_schema=False)
 async def efb_download():
     """Das Community-Package als ZIP. Liegt hinter dem Gate wie der Rest der App."""
     pfad = _efb_zip_path(get_settings())
     if not pfad.is_file():
         raise HTTPException(status_code=404, detail="Kein EFB-Paket hinterlegt")
-    return _paket_ausliefern(pfad, "friesenflieger-friesenspy-efb.zip")
+    return _paket_ausliefern(pfad, _efb_download_name(pfad))
 
 
 # Die Bruegge liegt nach demselben Muster wie das EFB-Paket: als ZIP im Volume, von Hand
