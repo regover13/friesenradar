@@ -27,8 +27,8 @@
 
 Vierfach geprüft am 02./03.10.2026: Betrieb (Tasks 1, 2, 7, 8) und Verträglichkeit für Mitglieder
 (Tasks 3–6, Spec), jeweils von Fable und Opus. Alle blockierenden Befunde sind unten eingearbeitet;
-die Nummern in Klammern (B = Betrieb, V = Verträglichkeit) verweisen auf die Berichte. Offen ist
-eine Entscheidung des Nutzers: **der Ordnername des Kniebrett-Pakets (Task 5)**.
+die Nummern in Klammern (B = Betrieb, V = Verträglichkeit) verweisen auf die Berichte. Der
+Ordnername des Kniebrett-Pakets ist entschieden: **Variante A** (Nutzer, 03.10.2026, Task 5).
 
 ## Review Focus
 
@@ -116,9 +116,9 @@ mit den alten überschrieben); Changelog 16.0.0 „Lichtblick“ (`highlight: fa
 Adresse nennt das Kniebrett als Text: `friesenradar.devprops.de/download`. Widget-Einbettung:
 `https://friesenradar.devprops.de/widget` (technische Heimat, liest kein Mitglied). Wächtertest
 `tests/test_name_friesenradar.py` prüft Seiten, README (inkl. Überschriften) und Server-Code.
-Suite: 1 rot — der Ordnername des Pakets in `efb.html`, abhängig von Task 5.
+Suite grün (3900).
 
-- [ ] **Step 1:** Ordnername in `efb.html` und README nach der Entscheidung aus Task 5.
+- [x] **Step 1:** Ordnername in `efb.html` und README bleibt (Variante A), Wächtertest kennt ihn als Ausnahme.
 - [ ] **Step 2:** **Sim-Prüfung des Logos im Kniebrett, vor dem Ausliefern:** Bisher ist das Radar-Kniebrett nie in Coherent GT gelaufen (0 Abrufe der Logo-Dateien mit `CoherentGT` im Log). Prüfung über die Vorschau, die heute auf `main` für die CID des Nutzers aktiv ist: hell und dunkel, mit Statusleiste und geöffneten Fenstern. (V9)
 - [ ] **Step 3:** Teilen- und Badge-Codes bauen ihre Adresse aus `location.origin`; wer über das Alias kommt, verbreitet die alte Adresse weiter. Abbilden: aus `friesenspy.devprops.de` wird beim Kopieren `friesenradar.devprops.de`, mit Test. (V7)
 - [ ] **Step 4:** Vor dem Ausliefern: Rebase auf `main` (nach Task 2), Datum im Changelog auf den Releasetag, Suite grün, Flugbetrieb prüfen. Nach dem Ausliefern im Admin **16.0.0 als Banner wählen** — sonst zeigt der Neuigkeiten-Kasten weiter den Text von Luftschloss, und darin steht der alte Name.
@@ -138,7 +138,7 @@ Alles auf friesenflieger.de nur mit Freigabe; Schreiben einzeln erfragen.
 
 ---
 
-### Task 5: Kniebrett-Paket 3.0.0 — **Entscheidung des Nutzers offen**
+### Task 5: Kniebrett-Paket 3.0.0 — Variante A (entschieden 03.10.2026)
 
 Was die Prüfung ergab (V2): Die EFB merkt sich angeheftete Apps über den Klassennamen; das CSS-Präfix
 kommt aus dem Ordnernamen; Ordner, Klasse und `efb_apps/<Name>` müssen gleich heißen. Liegen alter
@@ -146,8 +146,8 @@ und neuer Ordner nebeneinander, zeigt das Tablet zwei Apps; der Hinweis auf das 
 nur in der alten. Ob `SetStoredData` paketübergreifend gilt (Gerätebindung), ist plausibel, aber
 nicht belegt.
 
-- **(A) empfohlen:** Paketordner, Klasse und Quellordner bleiben `FriesenSpy`/`friesenflieger-friesenspy-efb` als technische Konstante. Geändert werden der angezeigte Name (`get name()`), `manifest.title`, Symbol, URL. Das Update ersetzt das alte Paket an Ort und Stelle; Bindung und Anheftung bleiben sicher. Sichtbar bleibt der Ordnername beim Einbauen.
-- **(B) neuer Ordner:** Dann zusätzlich: Erkennung des alten Pakets in 3.0.0 mit nicht wegklickbarem Hinweis, Sim-Prüfung „nur neues Paket“ (dieselbe `device=`-Kennung bei `/auth/device`) und „beide installiert“.
+- **(A) gewählt:** Paketordner, Klasse und Quellordner bleiben `FriesenSpy`/`friesenflieger-friesenspy-efb` als technische Konstante. Geändert werden der angezeigte Name (`get name()`), `manifest.title`, Symbol, URL. Das Update ersetzt das alte Paket an Ort und Stelle; Bindung und Anheftung bleiben sicher. Sichtbar bleibt der Ordnername beim Einbauen.
+- ~~(B) neuer Ordner~~ (verworfen): Dann zusätzlich: Erkennung des alten Pakets in 3.0.0 mit nicht wegklickbarem Hinweis, Sim-Prüfung „nur neues Paket“ (dieselbe `device=`-Kennung bei `/auth/device`) und „beide installiert“.
 
 In beiden Fällen: URL auf `https://friesenradar.devprops.de/panel`, `DEVICE_KEY` bleibt `friesenspy_device`, `PAKET_VERSION` 3.0.0, Symbol aus `app/static/logo/friesenradar-symbol.svg`. Die Sperre `_paketSperrePruefen` bleibt unverändert (sie gilt nur für Pakete ohne Version); 2.3.2 wird **nicht** gesperrt, nur per Hinweis gebeten zu aktualisieren — mit Test. (V3 Fable) Die Release-Notizen älterer Fassungen im Paket bleiben als Geschichte.
 
