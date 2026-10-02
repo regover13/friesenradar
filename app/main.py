@@ -5311,6 +5311,26 @@ async def auth_device_bind(request: Request):
     return RedirectResponse(dest, status_code=303, headers=_HTML_NO_CACHE)
 
 
+# Unter diesen Namen ist die App erreichbar (Umbenennung in FriesenRadar, 02.10.2026). Der
+# Forum-Login springt auf genau den Namen zurueck, ueber den man gekommen ist -- sonst landete,
+# wer friesenradar.devprops.de aufrief, nach dem Login auf friesenspy.devprops.de (Nutzerfund),
+# denn die Sitzung haengt an der Domain. MUSS der Liste $CALLBACKS in deploy/forum/sso.php
+# entsprechen (test_hostliste_entspricht_der_sso_php), sonst antwortet das Forum "bad redirect".
+# Ein fremder Host faellt auf FORUM_SSO_CALLBACK zurueck.
+_SSO_RUECKSPRUNG_HOSTS = (
+    "friesenspy.devprops.de",
+    "friesenradar.devprops.de",
+    "radar.friesenflieger.de",
+)
+
+
+def _sso_ruecksprung(request: Request, settings) -> str:
+    host = (request.url.hostname or "").lower()
+    if host in _SSO_RUECKSPRUNG_HOSTS:
+        return f"https://{host}/auth/forum/callback"
+    return settings.FORUM_SSO_CALLBACK
+
+
 @app.get("/auth/forum/login")
 async def forum_login(request: Request):
     """Startet den Board-Login: Redirect zur Forum-Bridge mit state + Callback.
@@ -5327,7 +5347,7 @@ async def forum_login(request: Request):
     if not active:
         return RedirectResponse("/", status_code=302)
     state = secrets.token_urlsafe(24)
-    target = (f"{settings.FORUM_SSO_URL}?redirect={quote(settings.FORUM_SSO_CALLBACK, safe='')}"
+    target = (f"{settings.FORUM_SSO_URL}?redirect={quote(_sso_ruecksprung(request, settings), safe='')}"
               f"&state={quote(state, safe='')}")
     resp = RedirectResponse(target, status_code=302)
     resp.set_cookie("fs_sso_state", state, httponly=True, secure=_is_https(request),

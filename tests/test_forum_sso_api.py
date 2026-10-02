@@ -570,3 +570,40 @@ def test_ablehnung_im_browser_fuehrt_zur_startseite(env):
     assert r.status_code == 401
     assert r.headers["content-type"].startswith("text/html")
     assert 'href="/auth/forum/login"' in r.text
+
+
+# --- Ruecksprung auf die Adresse, ueber die man gekommen ist (FriesenRadar, 02.10.2026) -------
+# FriesenSpy ist unter drei Namen erreichbar. Vorher gab der Login immer FORUM_SSO_CALLBACK
+# (friesenspy.devprops.de) mit -- wer ueber friesenradar.devprops.de kam, landete nach dem
+# Forum-Login auf der alten Domain (Nutzerfund). Die Liste muss der in deploy/forum/sso.php
+# entsprechen, sonst lehnt das Forum den Ruecksprung mit "bad redirect" ab.
+
+def _redirect_param(location: str) -> str:
+    from urllib.parse import parse_qs, urlparse
+    return parse_qs(urlparse(location).query)["redirect"][0]
+
+
+@pytest.mark.parametrize("host", ["friesenradar.devprops.de", "radar.friesenflieger.de",
+                                  "friesenspy.devprops.de"])
+def test_login_springt_auf_die_eigene_adresse_zurueck(env, host):
+    conn = get_connection(env.db); set_app_setting(conn, "forum_login_enabled", "1"); conn.commit(); conn.close()
+    main._reset_gate_cache()
+    r = env.client.get("/auth/forum/login", headers={"host": host}, follow_redirects=False)
+    assert r.status_code == 302
+    assert _redirect_param(r.headers["location"]) == f"https://{host}/auth/forum/callback"
+
+
+def test_login_mit_fremdem_host_nimmt_die_feste_adresse(env):
+    conn = get_connection(env.db); set_app_setting(conn, "forum_login_enabled", "1"); conn.commit(); conn.close()
+    main._reset_gate_cache()
+    r = env.client.get("/auth/forum/login", headers={"host": "boese.example.com"},
+                       follow_redirects=False)
+    assert _redirect_param(r.headers["location"]) == CALLBACK
+
+
+def test_hostliste_entspricht_der_sso_php():
+    from pathlib import Path
+    php = (Path(__file__).resolve().parents[1] / "deploy" / "forum" / "sso.php").read_text(encoding="utf-8")
+    import re
+    in_php = set(re.findall(r"'https://([^/']+)/auth/forum/callback'", php))
+    assert in_php == set(main._SSO_RUECKSPRUNG_HOSTS)
