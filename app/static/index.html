@@ -4322,7 +4322,8 @@
     /* Breite Bildschirme, nur Website (Nutzer 03.10.2026: „die Boxen haben unterschiedliche
        Groessen“; Handy und Kniebrett bleiben, wie sie sind):
          - Name ganz links (die linke Spalte war leer),
-         - rechts LIVE vor Zahnrad, beide Kaesten gleich hoch,
+         - rechts Uhr vor Zahnrad; der Verbindungskasten steht davor und erscheint nur bei
+           Abriss (s. u.), beide Kaesten gleich hoch,
          - Hilfe als Textzeile unter der Version, in deren Schrift und Groesse.
        Reihenfolge und Zeilen kommen aus dem Raster -- das Markup bleibt fuer Handy und
        Kniebrett unveraendert. */
@@ -4339,8 +4340,8 @@
         align-items: center;
       }
       html:not(.vr-panel) header #sse-badge  { grid-column: 1; grid-row: 1 / 3; }
-      html:not(.vr-panel) header #notif-btn  { grid-column: 2; grid-row: 1 / 3; }
-      html:not(.vr-panel) header #utc-clock  { grid-column: 3; grid-row: 1 / 3; }
+      html:not(.vr-panel) header #utc-clock  { grid-column: 2; grid-row: 1 / 3; }
+      html:not(.vr-panel) header #notif-btn  { grid-column: 3; grid-row: 1 / 3; }
       html:not(.vr-panel) header #app-version { grid-column: 4; grid-row: 1; align-self: end; }
       html:not(.vr-panel) header .help-btn {
         grid-column: 4; grid-row: 2; align-self: start; justify-self: end;
@@ -4356,6 +4357,11 @@
         padding-top: 0; padding-bottom: 0;
       }
     }
+    /* Verbindungsanzeige auf der Website nur bei Abriss (Nutzer 03.10.2026). „LIVE“ sagte nur,
+       dass die Dauerverbindung zum Server steht -- der Normalfall, und direkt darunter heisst
+       ein Reiter genauso. Gezeigt wird deshalb allein das rote „GETRENNT“. Im Kniebrett
+       traegt weiterhin das Zahnrad den Zustand ueber seine Farbe. */
+    html:not(.vr-panel) header #sse-badge:not(.disconnected) { display: none; }
     /* Kniebrett: Logo statt Schriftzug im Streifen ueber der Leiste. Der Streifen waechst von 26
        auf 42 px -- alles, was sich an der Leistenhoehe ausrichtet, rueckt um dieselben 16 px. */
     html.vr-panel .panel-topbar { padding-top: 42px; }

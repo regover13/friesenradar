@@ -23,9 +23,17 @@ def test_alles_nur_fuer_die_website():
             assert zeile.strip().startswith("html:not(.vr-panel) header"), zeile
 
 
-def test_live_steht_vor_dem_zahnrad():
+def test_reihenfolge_getrennt_uhr_zahnrad():
     assert "grid-column: 1" in _regel("header #sse-badge ")
-    assert "grid-column: 2" in _regel("header #notif-btn ")
+    assert "grid-column: 2" in _regel("header #utc-clock ")
+    assert "grid-column: 3" in _regel("header #notif-btn ")
+
+
+def test_verbindungskasten_nur_bei_abriss():
+    """Verbunden ist der Normalfall und wird nicht angezeigt; nur das rote GETRENNT erscheint.
+    Im Markup startet der Kasten als .disconnected -- bis die Verbindung steht, ist er also da."""
+    assert "html:not(.vr-panel) header #sse-badge:not(.disconnected) { display: none; }" in INDEX
+    assert '<div id="sse-badge" class="sse-badge disconnected">' in INDEX
 
 
 def test_hilfe_unter_der_version_in_derselben_schrift():
