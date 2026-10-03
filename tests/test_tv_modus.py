@@ -265,3 +265,8 @@ def test_folgen_schaltet_den_echten_folgemodus_ein():
     a = _funktion("_tvAusschnittAnwenden")
     assert "_movingMap = true; _naviTakt(true)" in a
     assert "_naviMerke" not in a, "nicht als Merker speichern -- der gilt auch fuer PC und Handy"
+
+
+def test_rundgang_tempo():
+    b = _block()
+    assert "_TV_RUNDGANG_TAKT_MS = 24000" in b and "_TV_RUNDGANG_ZOOM = 12" in b and "_TV_RUNDGANG_SCHWENK_S = 5" in b

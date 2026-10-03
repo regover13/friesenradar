@@ -17726,7 +17726,10 @@ function _tvAusschnittAnwenden() {
 var _tvRundgangAn = false;
 var _tvRundgangLetzter = null;
 var _tvRundgangText = '';
-var _TV_RUNDGANG_TAKT_MS = 12000;
+// Nutzer 03.10.2026: doppelt so lange je Flugzeug, langsamer schwenken, naeher heran.
+var _TV_RUNDGANG_TAKT_MS = 24000;
+var _TV_RUNDGANG_ZOOM = 12;
+var _TV_RUNDGANG_SCHWENK_S = 5;
 
 /** Naechster Flug nach `letzter` (Rufzeichen), alphabetisch, am Ende wieder von vorn.
  *  Gezeigt wird, wer sich bewegt -- auch wer erst rollt (Nutzer 03.10.2026). Steht alles
@@ -17767,7 +17770,7 @@ function _tvRundgangSchritt() {
     _tvRundgangLetzter = w.callsign;
     _tvRundgangText = 'Rundgang ' + w.nr + '/' + w.von + ' · ' + w.callsign
       + (w.muster ? ' · ' + w.muster : '') + (w.strecke ? ' · ' + w.strecke : '');
-    karte.flyTo([w.lat, w.lon], 10, { duration: 2 });
+    karte.flyTo([w.lat, w.lon], _TV_RUNDGANG_ZOOM, { duration: _TV_RUNDGANG_SCHWENK_S });
   }
   _tvHinweis();
 }
