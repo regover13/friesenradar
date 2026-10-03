@@ -49,7 +49,7 @@ App-Branches bilden eine Kette, jeder baut auf dem vorigen auf; ausgeliefert wir
 Suite auf `bruegge-radar`: 3915 grün. Abschluss-Review (Opus) am 03.10.2026: 1 blockierender
 Befund (altes Kniebrett-Symbol) und 6 wichtige — alle eingearbeitet.
 
-**Offen beim Nutzer:** Termin Umzug, Freigabe der zwei `config.env`-Zeilen, Sim-Prüfung
+**Offen beim Nutzer:** Termin Umzug (config.env freigegeben 03.10.), Sim-Prüfung
 Paket 3.0.0 nach der Übergabe (Logo in der Vorschau: erledigt 03.10.), Forum (Task 4).
 
 ## Review Focus
@@ -90,7 +90,7 @@ kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch l�
 - [ ] **Step 1:** `server-backup`: Änderung auf einem Branch vorbereiten (`FS_DIR=/opt/backup/friesenradar`, Archiv `friesenradar-${DATE}.tar.gz`, Quelle `/opt/friesenradar/data/friesenradar.db`, Ziel `onedrive:/Server-Backup/friesenradar/`), dazu eine Prüfung `[ -s "$DB" ]` vor dem `.backup`, damit nie eine leere Datei gesichert wird. `rclone`-Pfade als Literal. (B4)
 - [ ] **Step 2:** `vaultwarden-setup`: Watchtower-Liste auf `friesenradar-friesenradar-1` auf einem Branch vorbereiten. Einspielen vor dem nächsten Sonntag 04:00.
 - [ ] **Step 3:** `fail2ban` im Repo `devprops.de`: Jail und Filter `friesenradar` vorbereiten (Filter kennt alle drei Hosts schon, `efa4b5e`).
-- [ ] **Step 4:** `config.env`-Änderung dem Nutzer zeigen und **Freigabe holen**: `DB_PATH=/opt/friesenradar/data/friesenradar.db`, `FORUM_SSO_CALLBACK=https://friesenradar.devprops.de/auth/forum/callback`. Ohne Freigabe kein Umzug.
+- [x] **Step 4:** **Freigegeben vom Nutzer am 03.10.2026 („ja“)**, gilt für den Umzug. Ursprünglich: `config.env`-Änderung dem Nutzer zeigen und **Freigabe holen**: `DB_PATH=/opt/friesenradar/data/friesenradar.db`, `FORUM_SSO_CALLBACK=https://friesenradar.devprops.de/auth/forum/callback`. Ohne Freigabe kein Umzug.
 - [ ] **Step 4b:** Der Sitzung auf dem Simulator-Rechner Bescheid geben: `paket.ps1` lädt ab dem Umzug nach `/opt/friesenradar/...`; ein Upload mit altem Stand scheitert laut. (K6)
 - [ ] **Step 5:** `COORDINATION.md`-Eintrag mit Termin; Vorbedingung für Task 7: **keine andere Sitzung arbeitet in `~/projects/friesenspy*`**.
 
