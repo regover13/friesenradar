@@ -312,11 +312,22 @@ def test_tv_modus_ohne_dauerlaufende_zierde():
     assert "html.tv body::before { display: none !important; }" in INDEX
 
 
-def test_kacheln_werden_vorgeladen_und_laenger_behalten():
-    v = _funktion("_tvKachelnVorladen")
-    assert "L.TileLayer" in v and "new Image().src" in v and "maxNativeZoom" in v
-    assert "_tvKachelnVorladen(karte, ziel[0], ziel[1]" in _funktion("_tvRundgangSchritt")
+def test_schwenk_hat_eine_kachel_unterlage():
+    """Fund 03.10.2026 (gemessen mit der Kennung des Sticks): Beim Heraus- und Hereinzoomen des
+    Schwenks stand sekundenlang nichts da -- die Kacheln sind nicht zwischenspeicherbar, und
+    Leaflet laedt dort erst nach der Bewegung. Deshalb haelt der Rundgang Weg und Ziel in
+    eigenen Kachel-Ebenen UNTER der Grundkarte vor."""
+    assert "_tvKachelnVorladen" not in INDEX, "vorab geholte Bilder nuetzen nichts -- der Server schickt keine Cache-Angaben"
+    u = _funktion("_tvUnterlage")
+    assert "minNativeZoom: stufe, maxNativeZoom: stufe" in u and "e._update = function () {}" in u
+    assert "feld.style.zIndex = 150" in u, "unter der Grundkarte (tilePane = 200)"
+    v = _funktion("_tvUnterlageVorhalten")
+    assert "_TV_RUNDGANG_ZOOM" in v and "_removeTile" in v
+    schritt = _funktion("_tvRundgangSchritt")
+    assert schritt.index("_tvUnterlageVorhalten(") < schritt.index("karte.flyTo(")
+    assert "_tvUnterlageZeigen(karte, false)" in schritt, "die Flugkarte ist durchsichtig -- nach dem Schwenk muss die Unterlage weg"
     assert "keepBuffer = 4" in _funktion("_tvStart")
+    assert "liveMap._fsGrundkarten = liveLayers" in INDEX
 
 
 def test_logo_steht_oben_mittig_solange_die_schaltflaechen_ausgeblendet_sind():
@@ -334,3 +345,18 @@ def test_logo_steht_oben_mittig_solange_die_schaltflaechen_ausgeblendet_sind():
     assert re.search(r"html\.tv\.tv-ruhe \.tv-logo \{[^}]*opacity: 1", INDEX)
     # Ausserhalb des TV-Modus gibt es das Element nicht zu sehen.
     assert re.search(r"\n    \.tv-hinweis, \.tv-logo \{ display: none; \}", INDEX)
+
+
+def test_tv_modus_hat_einen_schalter_in_den_einstellungen():
+    """Nutzer 03.10.2026: In den Einstellungen gibt es TV-Modus An/Aus -- damit schaltet man ihn
+    an oder aus; der Parameter ?tv=1 geht weiter. Im Kniebrett und auf dem Handy ausgeblendet.
+    Ein eigener Knopf auf der Karte ist dafuer NICHT vorgesehen."""
+    assert INDEX.index('id="einst-design"') < INDEX.index('id="einst-tv"') < INDEX.index('id="panel-anzeige"')
+    assert 'id="tv-an">An<' in INDEX and 'id="tv-aus">Aus<' in INDEX
+    assert re.search(r"html\.vr-panel #einst-tv \{ display: none", INDEX)
+    assert re.search(r"@media \(max-width: 600px\) \{\s*#einst-tv \{ display: none", INDEX)
+    f = _funktion("_tvModusSetzen")
+    assert "location.pathname + '?tv=1'" in f and ": location.pathname" in f and "rundgang" not in f
+    e = _funktion("_tvSchalterEinrichten")
+    assert "_tvModusSetzen(true)" in e and "_tvModusSetzen(false)" in e
+    assert "tv-beenden" not in INDEX

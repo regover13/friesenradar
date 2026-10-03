@@ -28,6 +28,7 @@ VATSIM Live-Tracker für die FriesenFlieger Virtual Airline. Zeigt wer von der G
   - [Kniebrett](#kniebrett)
   - [Diagnose](#diagnose)
 - [🌗 Helles Design](#-helles-design)
+- [📺 TV-Modus](#-tv-modus)
 - [🔔 Benachrichtigungen (Push Notifications)](#-benachrichtigungen-push-notifications)
 - [TS-Login-Benachrichtigung (Phase 1)](#ts-login-benachrichtigung-phase-1)
 - [🗺️ Karten-Layer](#️-karten-layer)
@@ -631,6 +632,17 @@ FriesenRadar gibt es dunkel wie bisher oder hell in den Farben des Forums. Umsch
 - **Die Wahl wird gemerkt** — auf der Website und im Kniebrett getrennt, du kannst also am PC hell und im Cockpit dunkel fliegen. Mit Forum-Anmeldung hängt sie an deinem Konto, ohne Anmeldung merkt sie sich der Browser.
 - **Die Karte bleibt, wie sie ist.** Flugzeuge, Spuren, Platzrunden und Beschriftungen auf der Karte behalten ihre Farben; die Grundkarte wählst du wie gewohnt über die Ebenen-Auswahl (dort gibt es auch eine helle Karte). Popups und Bedienelemente der Karte folgen dem Design.
 - **Im Kniebrett** erscheint beim Start kurz das dunkle Design, bis die gespeicherte Wahl geladen ist.
+
+---
+
+## 📺 TV-Modus
+
+FriesenRadar für den Fernseher: die Karte im Vollbild, bedienbar mit Pfeiltasten oder einer Fernbedienung. An- und ausschalten über das **Zahnrad ⚙ oben rechts** → **Einstellungen** → **Anzeige** → **TV-Modus: An / Aus** (auf dem Handy und im Kniebrett gibt es den Schalter nicht). Geräte ohne Maus, etwa ein Fire TV Stick, öffnen die Seite gleich mit `?tv=1` am Ende der Adresse.
+
+- **Was die Karte zeigt:** Fliegst du selbst, folgt sie deinem Flugzeug. Sonst zeigt sie die Friesen, die gerade unterwegs sind.
+- **Bedienung:** Die Pfeile springen zum nächsten Knopf, ein oranger Rahmen zeigt, wo du bist. **OK** löst aus, **Zurück** schließt Fenster und Listen. Steht der Rahmen auf der Karte, verschieben die Pfeile die Karte; die Spultasten der Fernbedienung zoomen.
+- **Rundgang:** Der Knopf **▶ Rundgang** unten links schaltet die Karte nacheinander zu jedem Friesen, der sich bewegt, und bleibt eine halbe Minute bei ihm.
+- **Ruhe:** Wird eine Weile keine Taste gedrückt, verschwinden die Knöpfe, und oben steht das FriesenRadar-Logo. Die nächste Taste holt die Knöpfe zurück.
 
 ---
 

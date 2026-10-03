@@ -4419,6 +4419,11 @@
       font-family: var(--text-display); font-size: 0.75rem; letter-spacing: 0.08em;
       padding: 5px 12px; min-height: 30px;
     }
+    .einst-tv-text { font-size: 0.8rem; color: var(--text-dim); margin: 2px 0 6px; }
+    html.vr-panel #einst-tv { display: none; }
+    @media (max-width: 600px) {
+      #einst-tv { display: none; }
+    }
     html.tv .tv-hinweis {
       display: block; position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%);
       z-index: 999999; padding: 6px 16px; pointer-events: none;
@@ -4713,6 +4718,15 @@
       <div class="panel-zoom-reihe">
         <button type="button" class="design-knopf" id="design-dunkel">Dunkel</button>
         <button type="button" class="design-knopf" id="design-hell">Hell</button>
+      </div>
+    </div>
+    <!-- TV-MODUS: nur auf breiten Bildschirmen der Website (nicht Kniebrett, nicht Handy). -->
+    <div id="einst-tv">
+      <div class="panel-einst-name">TV-Modus</div>
+      <div class="einst-tv-text">Karte im Vollbild f&uuml;r den Fernseher, Bedienung mit Pfeiltasten oder Fernbedienung.</div>
+      <div class="panel-zoom-reihe">
+        <button type="button" class="design-knopf" id="tv-an">An</button>
+        <button type="button" class="design-knopf" id="tv-aus">Aus</button>
       </div>
     </div>
     <div id="panel-anzeige" hidden>
@@ -14519,6 +14533,7 @@ async function initLiveMap() {
   _diagKarte(liveMap, 'live', liveAIP);
   _diagFlackern(liveMap);
   _setupOFMAutoSwitch(liveMap, liveLayers);
+  liveMap._fsGrundkarten = liveLayers;   // der TV-Modus baut daraus seine Kachel-Unterlage
 
   // Die Gestaltung der Leaflet-Bedienelemente stand hier frueher als per JS erzeugter
   // <style>-Block. Sie liegt jetzt im Stylesheet (s. ".leaflet-control-zoom a") -- dort gilt
@@ -17835,47 +17850,137 @@ function _tvRundgangSchritt() {
     _tvRundgangText = 'Rundgang ' + w.nr + '/' + w.von + ' · ' + w.callsign
       + (w.muster ? ' · ' + w.muster : '') + (w.strecke ? ' · ' + w.strecke : '');
     var ziel = _tvRundgangOrt(w.callsign) || [w.lat, w.lon];
-    _tvKachelnVorladen(karte, ziel[0], ziel[1], _TV_RUNDGANG_ZOOM);
-    // ... und schon die des UEBERNAECHSTEN holen: Die 30 s Verweilzeit reichen dafuer.
-    var danach = _tvRundgangWahl(liveData, w.callsign);
-    if (danach && danach.callsign !== w.callsign) {
-      setTimeout(function () {
-        _tvKachelnVorladen(karte, danach.lat, danach.lon, _TV_RUNDGANG_ZOOM);
-      }, (_TV_RUNDGANG_SCHWENK_S + 3) * 1000);
-    }
+    var hier = karte.getCenter();
+    // Die Unterlage fuer DIESEN Schwenk (steht meist schon, s. unten) und sichtbar machen.
+    _tvUnterlageVorhalten(karte, [hier.lat, hier.lng], ziel);
+    _tvUnterlageZeigen(karte, true);
+    var lauf = ++_tvRundgangLauf;
+    setTimeout(function () {
+      if (lauf !== _tvRundgangLauf) return;
+      // Angekommen: Unterlage weg, sobald die Grundkarte ihre Kacheln hat (spaetestens nach 8 s).
+      var basis = _tvGrundkarte(karte), fertig = false;
+      function aus() {
+        if (fertig || lauf !== _tvRundgangLauf) return;
+        fertig = true;
+        _tvUnterlageZeigen(karte, false);
+        // ... und in der Verweilzeit schon die fuer den NAECHSTEN holen.
+        var danach = _tvRundgangWahl(liveData, w.callsign);
+        if (danach && danach.callsign !== w.callsign) {
+          var m = karte.getCenter();
+          _tvUnterlageVorhalten(karte, [m.lat, m.lng],
+                                _tvRundgangOrt(danach.callsign) || [danach.lat, danach.lon]);
+        }
+      }
+      if (basis && basis.isLoading && basis.isLoading()) basis.once('load', aus);
+      else setTimeout(aus, 1500);
+      setTimeout(aus, 8000);
+    }, _TV_RUNDGANG_SCHWENK_S * 1000 + 300);
     _tvRundgangSchwenkBis = Date.now() + _TV_RUNDGANG_SCHWENK_S * 1000;
     karte.flyTo(ziel, _TV_RUNDGANG_ZOOM, { duration: _TV_RUNDGANG_SCHWENK_S });
   }
   _tvHinweis();
 }
 
-/** Kacheln eines Ziels vorab holen, damit der Schwenk nicht in weisse Flecken faehrt.
- *  Fuer jede sichtbare Kachel-Ebene die Kacheln rund um das Ziel in der Zielstufe und den
- *  zwei Stufen darueber (der Schwenk zoomt unterwegs heraus). Der Browser legt sie in seinen
- *  Zwischenspeicher; Leaflet findet sie dort, wenn es sie braucht. */
-function _tvKachelnVorladen(karte, lat, lon, zoom) {
+/** KACHEL-UNTERLAGE fuer den Schwenk (Fund 03.10.2026, gemessen): Der Kachelserver der
+ *  Flugkarte schickt keine Cache-Angaben -- ein vorab geholtes Bild ist beim zweiten Mal
+ *  wieder ein Netzabruf. Und Leaflet laedt auf Geraeten wie dem Fire TV erst, wenn die
+ *  Bewegung endet. Beim Heraus- und Hereinzoomen des Schwenks stand deshalb sekundenlang
+ *  nichts da. Vorhalten hilft nur IM Dokument: eigene Kachel-Ebenen UNTER der Grundkarte, je
+ *  eine feste Stufe, die nichts von selbst laden -- gefuellt wird gezielt fuer Weg und Ziel. */
+var _tvRundgangLauf = 0;     // zaehlt die Schwenks; ein ueberholter raeumt nichts mehr
+var _tvUnterlagen = {};      // {stufe: L.TileLayer}
+var _tvUnterlageUrl = '';
+function _tvGrundkarte(karte) {
+  var g = karte._fsGrundkarten || {};
+  for (var k in g) {
+    if (g[k] && karte.hasLayer(g[k]) && g[k]._url && !g[k].wmsParams) return g[k];
+  }
+  return null;
+}
+function _tvUnterlageWeg(karte) {
+  for (var k in _tvUnterlagen) { try { karte.removeLayer(_tvUnterlagen[k]); } catch (_e) {} }
+  _tvUnterlagen = {};
+}
+function _tvUnterlage(karte, stufe) {
+  var basis = _tvGrundkarte(karte);
+  if (!basis) return null;
+  if (_tvUnterlageUrl !== basis._url) { _tvUnterlageWeg(karte); _tvUnterlageUrl = basis._url; }
+  if (_tvUnterlagen[stufe]) return _tvUnterlagen[stufe];
+  if (!karte.getPane('tvUnterlage')) {
+    var feld = karte.createPane('tvUnterlage', karte.getPane('tilePane').parentNode);
+    feld.style.zIndex = 150;            // unter den Kacheln der Grundkarte (200)
+    feld.style.pointerEvents = 'none';
+    feld.style.transition = 'opacity 0.5s ease';
+  }
+  var o = L.Util.extend({}, basis.options, {
+    pane: 'tvUnterlage', minNativeZoom: stufe, maxNativeZoom: stufe,
+    minZoom: 0, maxZoom: 22, attribution: '', keepBuffer: 2
+  });
+  var e = L.tileLayer(basis._url, o);
+  e._update = function () {};           // laedt nichts von selbst
+  e.addTo(karte);
+  _tvUnterlagen[stufe] = e;
+  return e;
+}
+/** Die Kacheln einer Stufe fuer ein Gebiet anlegen. Liefert die Schluessel, oder null, wenn
+ *  es mehr als `hoechstens` waeren (dann nimmt der Aufrufer eine groebere Stufe). */
+function _tvUnterlageFuellen(karte, stufe, gebiet, hoechstens) {
+  var e = _tvUnterlage(karte, stufe);
+  if (!e || !e._level) return null;
+  var ts = e.getTileSize();
+  var a = karte.project(gebiet.getNorthWest(), stufe).unscaleBy(ts).floor();
+  var b = karte.project(gebiet.getSouthEast(), stufe).unscaleBy(ts).floor();
+  if ((b.x - a.x + 1) * (b.y - a.y + 1) > hoechstens) return null;
+  var stueck = document.createDocumentFragment(), schluessel = [];
+  for (var x = a.x; x <= b.x; x++) {
+    for (var y = a.y; y <= b.y; y++) {
+      var c = new L.Point(x, y); c.z = stufe;
+      var key = e._tileCoordsToKey(c);
+      schluessel.push(key);
+      if (!e._tiles[key]) e._addTile(c, stueck);
+    }
+  }
+  e._level.el.appendChild(stueck);
+  return schluessel;
+}
+/** Weg und Ziel eines Schwenks vorhalten; alles andere faellt weg. `von`/`nach` = [lat, lon]. */
+function _tvUnterlageVorhalten(karte, von, nach) {
   try {
-    karte.eachLayer(function (ebene) {
-      if (!(ebene instanceof L.TileLayer) || !ebene._url || ebene.wmsParams) return;
-      var o = ebene.options;
-      for (var dz = 0; dz <= 2; dz++) {
-        var z = Math.round(zoom) - dz;
-        if (o.maxNativeZoom != null && z > o.maxNativeZoom) z = o.maxNativeZoom;
-        if (o.minZoom != null && z < o.minZoom) continue;
-        var mitte = karte.project([lat, lon], z).divideBy(256).floor();
-        for (var dx = -2; dx <= 2; dx++) {
-          for (var dy = -1; dy <= 1; dy++) {
-            var k = { x: mitte.x + dx, y: mitte.y + dy, z: z };
-            var url = L.Util.template(ebene._url, L.Util.extend({
-              s: ebene._getSubdomain(k), x: k.x, y: k.y, z: k.z,
-              r: (L.Browser.retina && o.detectRetina) ? '@2x' : ''
-            }, o));
-            new Image().src = url;
-          }
-        }
+    var bedarf = {};
+    function merken(stufe, keys) {
+      if (!keys) return false;
+      bedarf[stufe] = bedarf[stufe] || {};
+      for (var i = 0; i < keys.length; i++) bedarf[stufe][keys[i]] = 1;
+      return true;
+    }
+    var gross = karte.getSize();
+    function umZiel(stufe, faktor) {
+      var m = karte.project(nach, stufe), h = gross.multiplyBy(faktor / 2);
+      return L.latLngBounds(karte.unproject(m.subtract(h), stufe), karte.unproject(m.add(h), stufe));
+    }
+    // Ziel: die Stufe des Rundgangs und zwei darueber (das Hereinzoomen am Ende).
+    merken(_TV_RUNDGANG_ZOOM, _tvUnterlageFuellen(karte, _TV_RUNDGANG_ZOOM, umZiel(_TV_RUNDGANG_ZOOM, 1.3), 60));
+    merken(_TV_RUNDGANG_ZOOM - 2, _tvUnterlageFuellen(karte, _TV_RUNDGANG_ZOOM - 2, umZiel(_TV_RUNDGANG_ZOOM - 2, 1.5), 40));
+    // Weg: die feinste Stufe, die das ganze Gebiet mit hoechstens 42 Kacheln deckt. Grosszuegig
+    // gefasst -- am weitesten Punkt des Schwenks sieht man ein Mehrfaches der Strecke.
+    var weg = L.latLngBounds([von, nach]).pad(0.9);
+    for (var s = _TV_RUNDGANG_ZOOM - 3; s >= 4; s--) {
+      if (merken(s, _tvUnterlageFuellen(karte, s, weg, 42))) break;
+    }
+    // Aufraeumen: was dieser Schwenk nicht braucht, kommt weg.
+    for (var st in _tvUnterlagen) {
+      var e = _tvUnterlagen[st];
+      for (var key in e._tiles) {
+        if (!bedarf[st] || !bedarf[st][key]) e._removeTile(key);
       }
-    });
+    }
   } catch (_e) {}
+}
+/** Sichtbar nur rund um den Schwenk: Die Kacheln der Flugkarte sind durchsichtig, eine grobe
+ *  Unterlage schiene sonst dauerhaft durch. */
+function _tvUnterlageZeigen(karte, an) {
+  var feld = karte.getPane('tvUnterlage');
+  if (feld) feld.style.opacity = an ? '1' : '0';
 }
 
 /** Wo das Flugzeug JETZT auf der Karte steht: die Marke (sie wird laufend nachgefuehrt),
@@ -17916,7 +18021,11 @@ function _tvRundgangSchalten(an) {
   var knopf = document.getElementById('tv-rundgang');
   if (knopf) knopf.textContent = _tvRundgangAn ? '■ Rundgang' : '▶ Rundgang';
   if (_tvRundgangAn) { _tvRundgangSchritt(); }
-  else { _tvRundgangText = ''; _tvFolgtSchon = false; _tvAusschnittAnwenden(); _tvHinweis(); }
+  else {
+    _tvRundgangLauf++;
+    if (typeof liveMap !== 'undefined' && liveMap) { _tvUnterlageZeigen(liveMap, false); _tvUnterlageWeg(liveMap); }
+    _tvRundgangText = ''; _tvFolgtSchon = false; _tvAusschnittAnwenden(); _tvHinweis();
+  }
 }
 
 /** Start: Kartenvollbild mit dem Ausschnitt aus _tvAusschnittWahl. Wer einen festen Ausschnitt
@@ -18002,6 +18111,22 @@ function _tvStart() {
     _tvDiag('bereit', 'fokus=' + _tvDiagElement(document.activeElement));
   }, 250);
 }
+
+/** TV-Modus An/Aus in den Einstellungen (Nutzer 03.10.2026). Der Modus haengt an der Adresse
+ *  (?tv=1), also neu laden; der Parameter allein geht weiter. */
+function _tvModusSetzen(an) {
+  if (!!an === _tvAn()) return;
+  location.href = an ? location.pathname + '?tv=1' : location.pathname;
+}
+
+function _tvSchalterEinrichten() {
+  var an = document.getElementById('tv-an'), aus = document.getElementById('tv-aus');
+  if (!an || !aus) return;
+  an.classList.toggle('an', _tvAn());
+  aus.classList.toggle('an', !_tvAn());
+  an.addEventListener('click', function () { _tvModusSetzen(true); });
+  aus.addEventListener('click', function () { _tvModusSetzen(false); });
+}
 // ==========================================================================
 //  ENDE TV-MODUS
 // ==========================================================================
@@ -18017,6 +18142,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Haengt einen eigenen Knoten an document.body -- der existiert erst, wenn das Dokument
   // fertig geparst ist. Die Wache im Innern haelt sie ausserhalb der installierten App an.
   _ziehAktualisierenBinden();
+  _tvSchalterEinrichten();
   _tvStart();
 });
 
