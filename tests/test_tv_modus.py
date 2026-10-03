@@ -270,3 +270,13 @@ def test_folgen_schaltet_den_echten_folgemodus_ein():
 def test_rundgang_tempo():
     b = _block()
     assert "_TV_RUNDGANG_TAKT_MS = 30000" in b and "_TV_RUNDGANG_ZOOM = 13" in b and "_TV_RUNDGANG_SCHWENK_S = 5" in b
+
+
+def test_schaltflaechen_gehen_in_die_ruhe_und_kommen_mit_einer_taste_zurueck():
+    """Nutzer 03.10.2026: Schaltflaechen nach einer Zeit ausblenden, erst mit Tastendruck wieder."""
+    b = _block()
+    assert "_TV_RUHE_NACH_MS = 10000" in b
+    taste = _funktion("_tvTaste")
+    assert "_tvRuheBeenden()" in taste and taste.index("_tvRuheBeenden()") < taste.index("var t = e.key")
+    assert re.search(r"html\.tv\.tv-ruhe \.map-is-fullscreen \.leaflet-control:not\(\.leaflet-control-attribution\)", INDEX)
+    assert "tv-hinweis-bleibt" in _funktion("_tvHinweis")

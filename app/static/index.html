@@ -4379,6 +4379,18 @@
       outline: 3px solid #D75F28; outline-offset: 1px; background: rgba(215,95,40,0.28);
     }
     html.tv, html.tv * { cursor: none !important; }
+    /* Ruhe: Nach einigen Sekunden ohne Tastendruck verschwinden die Schaltflaechen der
+       Vollbild-Karte; die naechste Taste holt sie zurueck (Nutzer 03.10.2026). Die
+       Quellenangabe der Karte bleibt stehen -- sie ist Lizenzpflicht. */
+    html.tv .map-is-fullscreen .leaflet-control,
+    html.tv .map-is-fullscreen .map-fullscreen-btn,
+    html.tv .map-is-fullscreen .tv-rundgang-btn,
+    html.tv .tv-hinweis { transition: opacity 0.6s ease; }
+    html.tv.tv-ruhe .map-is-fullscreen .leaflet-control:not(.leaflet-control-attribution),
+    html.tv.tv-ruhe .map-is-fullscreen .map-fullscreen-btn,
+    html.tv.tv-ruhe .map-is-fullscreen .tv-rundgang-btn,
+    html.tv.tv-ruhe .tv-hinweis:not(.tv-hinweis-bleibt) { opacity: 0; pointer-events: none; }
+    html.tv.tv-ruhe .leaflet-container:focus { outline: none !important; }
     .tv-hinweis { display: none; }
     /* Eigener Knopf, bewusst NICHT .map-fullscreen-btn: Nach der Klasse sucht der Code den
        Vollbild-Knopf. */
@@ -17484,6 +17496,8 @@ function _tvHinweis() {
     h.textContent = 'Hoch/Runter = wählen · OK = an/aus · Links = schließen';
     return;
   }
+  // Die Rundgang-Zeile sagt, wer gerade zu sehen ist -- sie bleibt auch in der Ruhe stehen.
+  h.classList.toggle('tv-hinweis-bleibt', !!(_tvRundgangAn && _tvRundgangText));
   if (_tvRundgangAn && _tvRundgangText) { h.textContent = _tvRundgangText; return; }
   h.textContent = (a && a.classList && a.classList.contains('leaflet-container')
                    && a.getBoundingClientRect().width > 0)
@@ -17620,9 +17634,37 @@ function _tvVollbildAufraeumen() {
   if (knopf) knopf.click();
 }
 
+// --- Ruhe: Schaltflaechen ausblenden, bis wieder eine Taste kommt ---------------------------
+var _TV_RUHE_NACH_MS = 10000;
+var _tvRuheUhr = null;
+function _tvRuheAn() { return document.documentElement.classList.contains('tv-ruhe'); }
+function _tvRuheStellen() {
+  clearTimeout(_tvRuheUhr);
+  _tvRuheUhr = setTimeout(function () {
+    // Nur vor der sichtbaren Vollbild-Karte, und nicht, solange eine Liste offen ist.
+    var v = document.querySelector('.map-is-fullscreen');
+    if (!v || v.getBoundingClientRect().width === 0) return;
+    if (_tvBereich() !== v) { _tvRuheStellen(); return; }
+    document.documentElement.classList.add('tv-ruhe');
+  }, _TV_RUHE_NACH_MS);
+}
+/** Holt die Schaltflaechen zurueck. Gibt true zurueck, wenn sie gerade ausgeblendet waren. */
+function _tvRuheBeenden() {
+  var war = _tvRuheAn();
+  document.documentElement.classList.remove('tv-ruhe');
+  _tvRuheStellen();
+  return war;
+}
+
 function _tvTaste(e) {
   if (!_tvAn()) return;
   _tvVollbildAufraeumen();
+  // Die erste Taste nach der Ruhe zeigt nur die Schaltflaechen wieder -- sie loest nichts aus.
+  // Ausnahme: Play/Pause und die Spultasten wirken sofort (Rundgang, Zoom).
+  if (_tvRuheBeenden() && !/^Media/.test(e.key)) {
+    e.preventDefault(); e.stopPropagation();
+    return;
+  }
   _tvDiag('taste', e.key + '/' + e.keyCode + ' ziel=' + _tvDiagElement(e.target)
                    + ' fokus=' + _tvDiagElement(document.activeElement) + ' h=' + _tvHistorieTiefe);
   _tvHistorieAuflegen();
@@ -17850,6 +17892,7 @@ function _tvStart() {
     setInterval(_tvRundgangSchritt, _TV_RUNDGANG_TAKT_MS);
     if (qs.get('rundgang') === '1') _tvRundgangSchalten(true);
     _tvFokus(karte.getContainer());
+    _tvRuheStellen();
     _tvDiag('bereit', 'fokus=' + _tvDiagElement(document.activeElement));
   }, 250);
 }
