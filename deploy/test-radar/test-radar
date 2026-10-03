@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# Testinstanz von FriesenRadar: test-radar.devprops.de (installiert als /usr/local/bin/test-radar).
+#
+#   test-radar start         frische Datenkopie, Container hoch, Ende nach 2 h vormerken
+#   test-radar stop          Container weg, Datenbank-Kopie und Konfiguration loeschen
+#   test-radar status        Stand zeigen
+#   test-radar aktualisieren laeuft sie gerade, mit dem neu gebauten Image neu starten
+#   test-radar anforderung   Wunsch aus dem Admin der echten App abarbeiten (systemd-Pfadwaechter)
+#
+# Das Image `test-radar:aktuell` kommt vom Workflow test-image.yml (Zweig `test`).
+#
+# Was die Kopie NICHT kann, mit Absicht: Benachrichtigungen verschicken (Schluessel geleert,
+# Abos geloescht), Telegram, KI-Abfragen, TeamSpeak, Forum-Login. Der Zugang laeuft ueber ein
+# Passwort in nginx (Benutzer admin, Admin-Passwort der App).
+set -euo pipefail
+
+ORT=/opt/test-radar
+PORT=8092
+HTPASSWD=/etc/nginx/test-radar.htpasswd
+ENDE_UNIT=test-radar-ende
+LEEREN="VAPID_PRIVATE_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID ANTHROPIC_API_KEY SSO_SECRET FORUM_SSO_URL FORUM_SSO_CALLBACK TS_QUERY_PASS"
+
+# Die echte App: nach dem Umzug /opt/friesenradar, davor /opt/friesenspy.
+if [ -f /opt/friesenradar/data/friesenradar.db ]; then
+  PROD=/opt/friesenradar; PROD_DB=$PROD/data/friesenradar.db
+else
+  PROD=/opt/friesenspy;   PROD_DB=$PROD/data/friesenspy.db
+fi
+UEBERGABE=$PROD/data/testinstanz
+compose=(docker compose --project-directory "$ORT" -f "$ORT/docker-compose.yml")
+
+[ "$(id -u)" = 0 ] || { echo "als root ausfuehren" >&2; exit 1; }
+
+laeuft() { [ -n "$(docker ps -q --filter name='^test-radar-test-radar-1$')" ]; }
+
+stand_schreiben() {   # $1 true|false, $2 Meldung
+  local seit="" bis="" version=""
+  if [ "$1" = true ]; then
+    seit=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    bis=$(date -u -d '+2 hours' +%Y-%m-%dT%H:%M:%SZ)
+    version=$(docker exec test-radar-test-radar-1 python -c "from app.version import VERSION; print(VERSION)" 2>/dev/null || true)
+  fi
+  mkdir -p "$UEBERGABE"
+  python3 - "$UEBERGABE/status.json" "$1" "$seit" "$bis" "$version" "${2:-}" <<'PY'
+import json, sys
+ziel, laeuft, seit, bis, version, meldung = sys.argv[1:7]
+json.dump({"laeuft": laeuft == "true", "seit": seit or None, "bis": bis or None,
+           "version": version or None, "meldung": meldung or None}, open(ziel, "w"))
+PY
+  chown -R containersvc:containersvc "$UEBERGABE"; chmod 644 "$UEBERGABE/status.json"
+}
+
+ende_abbestellen() {
+  systemctl stop "$ENDE_UNIT.timer" 2>/dev/null || true
+  systemctl reset-failed "$ENDE_UNIT.service" 2>/dev/null || true
+}
+
+starten() {
+  if ! docker image inspect test-radar:aktuell >/dev/null 2>&1; then
+    stand_schreiben false "Noch kein Stand gebaut (Zweig test)."; echo "kein Image test-radar:aktuell" >&2; exit 1
+  fi
+  [ -s "$PROD_DB" ] || { stand_schreiben false "Datenbank der echten App nicht gefunden."; exit 1; }
+  "${compose[@]}" down 2>/dev/null || true
+
+  # Daten: alles ausser Datenbank und Uebergabeordner; beim zweiten Mal nur die Unterschiede.
+  mkdir -p "$ORT/data"
+  rsync -a --delete --exclude '*.db' --exclude '*.db-wal' --exclude '*.db-shm' \
+        --exclude 'testinstanz' "$PROD/data/" "$ORT/data/"
+  # Datenbank: nie per cp (WAL), immer .backup -- lesend, die echte App merkt nichts.
+  tmp=$(mktemp -u /tmp/test-radar-XXXXXX.db)
+  sudo -u containersvc sqlite3 -readonly "$PROD_DB" ".backup '$tmp'"
+  # Auch das Aendern als containersvc: In /tmp darf root die Datei eines anderen Benutzers
+  # nicht zum Schreiben oeffnen (fs.protected_regular).
+  sudo -u containersvc sqlite3 "$tmp" "DELETE FROM push_subscriptions;
+                  INSERT INTO app_settings(key, value) VALUES('forum_login_enabled', '0')
+                    ON CONFLICT(key) DO UPDATE SET value = '0';"
+  rm -f "$ORT"/data/radar.db*
+  mv "$tmp" "$ORT/data/radar.db"
+  chown -R containersvc:containersvc "$ORT/data"
+
+  # Konfiguration: Kopie der echten, alles geleert, was nach aussen wirkt.
+  install -m 600 -o root -g root "$PROD/config.env" "$ORT/config.env"
+  for k in $LEEREN; do sed -i "s|^$k=.*|$k=|" "$ORT/config.env"; done
+  sed -i "s|^TS_NOTIFY_ENABLED=.*|TS_NOTIFY_ENABLED=false|; s|^DB_PATH=.*|DB_PATH=/daten/radar.db|" "$ORT/config.env"
+  grep -q '^DB_PATH=/daten/radar.db$' "$ORT/config.env" || echo 'DB_PATH=/daten/radar.db' >> "$ORT/config.env"
+  for k in VAPID_PRIVATE_KEY TELEGRAM_BOT_TOKEN ANTHROPIC_API_KEY SSO_SECRET; do
+    ! grep -q "^$k=." "$ORT/config.env" || { echo "$k nicht geleert" >&2; exit 1; }
+  done
+
+  # Zugang: Benutzer admin, Admin-Passwort der App. Das Passwort geht per Pipe an htpasswd
+  # und erscheint nirgends in einer Ausgabe oder Befehlszeile.
+  grep '^ADMIN_PASSWORD=' "$PROD/config.env" | head -1 | cut -d= -f2- | tr -d '\n' \
+    | htpasswd -Bic "$HTPASSWD" admin 2>/dev/null
+  chown root:www-data "$HTPASSWD"; chmod 640 "$HTPASSWD"
+
+  "${compose[@]}" up -d
+  for i in $(seq 1 24); do
+    sleep 5
+    curl -sf "http://127.0.0.1:$PORT/health" | grep -q '"ok"' && break
+    [ "$i" -lt 24 ] || { "${compose[@]}" logs --tail 30; "${compose[@]}" down; stand_schreiben false "Start gescheitert."; exit 1; }
+  done
+
+  ende_abbestellen
+  systemd-run --quiet --unit="$ENDE_UNIT" --on-active=2h /usr/local/bin/test-radar stop
+  stand_schreiben true ""
+  echo "Testinstanz laeuft: https://test-radar.devprops.de (endet in 2 h)"
+}
+
+stoppen() {
+  "${compose[@]}" down 2>/dev/null || true
+  rm -f "$ORT"/data/radar.db* "$ORT/config.env"
+  ende_abbestellen
+  stand_schreiben false ""
+  echo "Testinstanz beendet."
+}
+
+case "${1:-}" in
+  start)  starten ;;
+  stop)   stoppen ;;
+  status) if laeuft; then echo "laeuft"; else echo "aus"; fi; cat "$UEBERGABE/status.json" 2>/dev/null; echo ;;
+  aktualisieren)
+    # Neues Image gebaut: Nur wenn sie gerade laeuft, mit denselben Daten neu starten.
+    if laeuft; then "${compose[@]}" up -d; echo "Testinstanz auf neuen Stand gebracht."; fi ;;
+  anforderung)
+    # Die Datei schreibt die echte App (Container). Ihr Inhalt wird NUR verglichen, nie
+    # ausgefuehrt -- und zuerst geloescht, damit der Pfadwaechter nicht in Schleife laeuft.
+    datei="$UEBERGABE/anforderung"
+    wunsch=$(head -c 16 "$datei" 2>/dev/null | tr -cd 'a-z' || true)
+    rm -f "$datei"
+    case "$wunsch" in
+      start|stop) exec /usr/local/bin/test-radar "$wunsch" ;;
+      *) echo "unbekannte Anforderung verworfen" >&2 ;;
+    esac ;;
+  *) echo "Aufruf: test-radar start|stop|status|aktualisieren" >&2; exit 2 ;;
+esac

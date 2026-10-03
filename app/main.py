@@ -4878,6 +4878,63 @@ async def admin_get_forum_login(request: Request):
     return {"enabled": enabled, "configured": _forum_sso_configured(settings)}
 
 
+# ---------------------------------------------------------------------------
+# Testinstanz (test-radar.devprops.de) -- nur anfordern, nicht steuern
+# ---------------------------------------------------------------------------
+# Die App darf Docker nicht steuern: Ein Container mit Zugriff auf den Docker-Socket hat
+# vollen Zugriff auf den Server (Serverdoku, Abschnitt Watchtower). Deshalb legt sie nur eine
+# ANFORDERUNG als Datei neben die Datenbank. Auf dem Server liest ein systemd-Pfadwaechter sie
+# und ruft `test-radar start|stop` (deploy/test-radar/). Der Stand kommt als status.json zurueck.
+_TESTINSTANZ_ADRESSE = "https://test-radar.devprops.de"
+_TESTINSTANZ_FELDER = ("laeuft", "seit", "bis", "version", "meldung")
+
+
+def _testinstanz_ordner() -> Path:
+    return Path(get_settings().DB_PATH).parent / "testinstanz"
+
+
+def _testinstanz_stand() -> dict:
+    ordner = _testinstanz_ordner()
+    stand = {"laeuft": False, "seit": None, "bis": None, "version": None, "meldung": None}
+    try:
+        roh = json.loads((ordner / "status.json").read_text(encoding="utf-8"))
+        if isinstance(roh, dict):
+            for feld in _TESTINSTANZ_FELDER:
+                if feld in roh:
+                    stand[feld] = roh[feld]
+    except (OSError, ValueError):
+        pass
+    stand["laeuft"] = stand["laeuft"] is True
+    try:
+        wunsch = (ordner / "anforderung").read_text(encoding="utf-8").strip()
+    except OSError:
+        wunsch = None
+    stand["angefordert"] = wunsch if wunsch in ("start", "stop") else None
+    stand["adresse"] = _TESTINSTANZ_ADRESSE
+    return stand
+
+
+@app.get("/api/admin/testinstanz")
+async def admin_testinstanz_stand(request: Request):
+    """Laeuft die Testinstanz, und bis wann? (Admin)"""
+    require_admin(request)
+    return _testinstanz_stand()
+
+
+@app.post("/api/admin/testinstanz")
+async def admin_testinstanz_anfordern(request: Request):
+    """Start oder Stopp der Testinstanz anfordern (Admin). Ausgefuehrt wird auf dem Server."""
+    require_admin(request)
+    body = await request.json()
+    aktion = body.get("aktion") if isinstance(body, dict) else None
+    if aktion not in ("start", "stop"):
+        raise HTTPException(status_code=400, detail="aktion muss start oder stop sein")
+    ordner = _testinstanz_ordner()
+    ordner.mkdir(parents=True, exist_ok=True)
+    (ordner / "anforderung").write_text(aktion, encoding="utf-8")
+    return _testinstanz_stand()
+
+
 @app.post("/api/admin/forum-login")
 async def admin_set_forum_login(request: Request):
     """Board-Login an-/ausschalten (Admin)."""

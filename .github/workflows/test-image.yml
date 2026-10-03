@@ -1,0 +1,77 @@
+name: Test-Image
+
+# Teststufe vor der Produktion: Ein Push auf den Zweig `test` laesst die Tests laufen, baut
+# das Image und legt es auf dem Server bereit (lokaler Tag test-radar:aktuell). GESTARTET wird
+# dabei nichts -- die Testinstanz laeuft nur bei Bedarf (Admin -> Betrieb -> Testinstanz bzw.
+# `test-radar start`, s. deploy/test-radar/). Laeuft sie gerade, bekommt sie den neuen Stand.
+#
+# Ablauf Test -> Prod: Stand auf `test` pushen, ansehen, dann denselben Stand nach `main`.
+
+on:
+  push:
+    branches: [test]
+
+env:
+  # Folgt dem Repo-Namen (friesenspy bzw. nach dem Umzug friesenradar).
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Abhaengigkeiten
+        run: pip install -r requirements-test.txt
+      - name: Tests
+        run: python -m pytest -q -p no:cacheprovider -n 4
+
+  bauen:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v4
+      - name: Build & Push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Nur bereitlegen, nicht starten. Der lokale Tag macht das Startskript unabhaengig vom
+      # Repo-Namen, und der Server braucht keine dauerhaft hinterlegten GHCR-Zugangsdaten.
+      - name: Auf dem Server bereitlegen
+        uses: appleboy/ssh-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          IMAGE: ${{ env.IMAGE }}
+        with:
+          host: 167.86.127.129
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GITHUB_TOKEN,GITHUB_ACTOR,IMAGE
+          script: |
+            set -eu
+            echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+            docker pull "$IMAGE:test"
+            docker logout ghcr.io
+            docker tag "$IMAGE:test" test-radar:aktuell
+            if [ -x /usr/local/bin/test-radar ]; then /usr/local/bin/test-radar aktualisieren; fi

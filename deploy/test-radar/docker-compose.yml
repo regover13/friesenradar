@@ -1,0 +1,11 @@
+# Testinstanz (test-radar.devprops.de) -- gestartet nur bei Bedarf ueber /usr/local/bin/test-radar.
+services:
+  test-radar:
+    image: test-radar:aktuell       # lokaler Tag, gesetzt vom Workflow test-image.yml
+    pull_policy: never
+    ports:
+      - "127.0.0.1:8092:8091"
+    volumes:
+      - ./data:/daten
+    env_file: config.env
+    restart: "no"                   # nach einem Reboot bleibt sie aus

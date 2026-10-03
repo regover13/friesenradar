@@ -1,0 +1,7 @@
+[Unit]
+Description=Testinstanz FriesenRadar: Anforderung abarbeiten
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/test-radar anforderung
+TimeoutStartSec=600

@@ -1,0 +1,11 @@
+[Unit]
+Description=Testinstanz FriesenRadar: Anforderung aus dem Admin der echten App
+
+[Path]
+# Beide Orte: vor und nach dem Umzug nach /opt/friesenradar.
+PathExists=/opt/friesenspy/data/testinstanz/anforderung
+PathExists=/opt/friesenradar/data/testinstanz/anforderung
+Unit=test-radar-anforderung.service
+
+[Install]
+WantedBy=multi-user.target

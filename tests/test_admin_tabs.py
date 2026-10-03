@@ -108,7 +108,7 @@ def test_alle_panels_sind_noch_da():
     19), und faellt nur, wenn beim Umsortieren eines verlorengegangen ist. Genau deshalb steht
     hier eine Zahl und keine Untergrenze.
     """
-    assert len(_baum().panels) == 19
+    assert len(_baum().panels) == 20
 
 
 # --------------------------------------------------- Laden erst beim Oeffnen
