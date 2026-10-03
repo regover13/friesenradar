@@ -208,3 +208,12 @@ def test_version_aus_der_kopie_wird_auf_ziffern_beschraenkt():
     sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
     stelle = sk.index("from app.version import VERSION")
     assert "tr -cd '0-9.'" in sk[stelle:stelle + 200] and "head -n 1" in sk[stelle:stelle + 200]
+
+
+def test_sitzung_steht_hinter_den_browser_cookies():
+    """Nutzerfund 03.10.2026: Download, Impressum und Datenschutz fuehrten zum Forum-Login und
+    von dort in die echte App -- im Browser lag noch eine fs_user-Marke vom vorigen Lauf."""
+    conf = (WURZEL / "deploy" / "test-radar" / "test-radar.devprops.de.conf").read_text(encoding="utf-8")
+    assert 'proxy_set_header Cookie "$http_cookie$tr_sitzung";' in conf
+    sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
+    assert '"${marke:+; fs_user=$marke}"' in sk
