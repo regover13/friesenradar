@@ -15,8 +15,10 @@ Wo „friesenspy“ trotzdem steht, ist es eines von zwei Dingen, und keins davo
   Merker-Schlüssel `friesenspy_*`, Gerätekennung `friesenspy_device`, Schnittstellenwert
   `source: 'friesenspy'`, `quelle: 'friesenspy'` im postMessage, Cookie-Namen `fs_*`, Bezeichner im
   Code.
-- **Ausnahme Kniebrett-Paket (Variante B, Nutzer 03.10.2026):** Ab 3.0.0 heißen Paketordner,
-  Klasse und `efb_apps/` **FriesenRadar** (`friesenflieger-friesenradar-efb`). Der Download-Name
+- **Ausnahme Kniebrett-Paket (Variante B, Nutzer 03.10.2026):** Ab 3.0.0 heißen Klasse und
+  `efb_apps/` **FriesenRadar**; Paketordner, Download und abgelegte Datei heißen
+  **`friesenkniebrett`** (Nutzer 03.10.2026 abends: nach dem Ding benannt wie `friesenbruegge`,
+  nicht nach der App — dann muss der Ordner nie wieder wechseln). Der Download-Name
   folgt dem Ordner in der ZIP (`_efb_download_name`), damit er erst mit dem neuen Paket wechselt.
   Bekannte Folgen, die 3.0.0 auffangen muss: Neben einem nicht gelöschten alten Ordner zeigt das
   Tablet zwei Apps, und die Anheftung der App geht einmal verloren. **Nicht „aufräumen“** — das wäre eine Datenmigration, die niemand beschlossen hat.

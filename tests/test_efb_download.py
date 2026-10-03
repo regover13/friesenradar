@@ -67,7 +67,7 @@ def test_standardablage_liegt_neben_der_datenbank(env):
     Release ersetzt."""
     pfad = main._efb_zip_path(env.settings)
     assert pfad.parent.parent == Path(env.settings.DB_PATH).parent
-    assert pfad.name == "friesenradar-efb.zip"
+    assert pfad.name == "friesenkniebrett.zip"
 
 
 def test_eigener_pfad_hat_vorrang(env):
@@ -129,16 +129,16 @@ def test_download_liefert_das_zip_unter_sprechendem_namen(env):
 
 def test_download_name_folgt_dem_ordner_im_paket(env):
     """Variante B (Nutzer 03.10.2026): Ab 3.0.0 heisst der Paketordner
-    friesenflieger-friesenradar-efb. Der Download-Name muss dem Inhalt folgen, nicht dem Code --
+    friesenkniebrett. Der Download-Name muss dem Inhalt folgen, nicht dem Code --
     sonst entsteht beim Entpacken ein neuer Ordner mit dem ALTEN Paket darin, also zwei
     gleiche Apps im Tablet."""
     ziel = main._efb_zip_path(env.settings)
     ziel.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(ziel, "w") as z:
-        z.writestr("friesenflieger-friesenradar-efb/manifest.json",
+        z.writestr("friesenkniebrett/manifest.json",
                    json.dumps({"title": "FriesenRadar", "package_version": "3.0.0"}))
     r = env.client.get("/download/efb")
-    assert 'filename="friesenflieger-friesenradar-efb.zip"' in r.headers["content-disposition"]
+    assert 'filename="friesenkniebrett.zip"' in r.headers["content-disposition"]
 
 
 def test_download_name_bei_zip_ohne_oberordner(env):
@@ -152,7 +152,7 @@ def test_download_name_bei_zip_ohne_oberordner(env):
         z.writestr("layout.json", "{}")
         z.writestr("html_ui/efb_ui/efb_apps/FriesenRadar/FriesenRadar.js", "//")
     r = env.client.get("/download/efb")
-    assert 'filename="friesenflieger-friesenradar-efb.zip"' in r.headers["content-disposition"]
+    assert 'filename="friesenkniebrett.zip"' in r.headers["content-disposition"]
 
 
 def test_seite_und_download_liegen_hinter_dem_gate(env):
@@ -268,15 +268,15 @@ def test_die_seite_beschreibt_den_ordner_richtig():
 
 
 # --- Umzug FriesenRadar (Plan 2026-10-02, Task 1) -----------------------------------------
-# Die Paketdatei im Volume heisst kuenftig friesenradar-efb.zip. Bis das neue Paket gebaut
+# Die Paketdatei im Volume heisst kuenftig friesenkniebrett.zip. Bis das neue Paket gebaut
 # ist (Task 5), liegt dort nur die alte friesenspy-efb.zip -- sie muss weiter ausgeliefert
 # werden, sonst ist der Download nach dem Umzug ein 404.
 
 def test_neue_paketdatei_hat_vorrang(env):
     daten = Path(env.settings.DB_PATH).parent
     _paket_bauen(daten / "efb" / "friesenspy-efb.zip", version="2.3.2")
-    _paket_bauen(daten / "efb" / "friesenradar-efb.zip", version="3.0.0")
-    assert main._efb_zip_path(env.settings) == daten / "efb" / "friesenradar-efb.zip"
+    _paket_bauen(daten / "efb" / "friesenkniebrett.zip", version="3.0.0")
+    assert main._efb_zip_path(env.settings) == daten / "efb" / "friesenkniebrett.zip"
 
 
 def test_ohne_neue_paketdatei_kommt_die_alte(env):
@@ -288,4 +288,4 @@ def test_ohne_neue_paketdatei_kommt_die_alte(env):
 def test_ganz_ohne_paket_zeigt_auf_die_neue_datei(env):
     # Wohin ein neues Paket abgelegt werden soll -- und wo der 404 herkommt.
     daten = Path(env.settings.DB_PATH).parent
-    assert main._efb_zip_path(env.settings) == daten / "efb" / "friesenradar-efb.zip"
+    assert main._efb_zip_path(env.settings) == daten / "efb" / "friesenkniebrett.zip"

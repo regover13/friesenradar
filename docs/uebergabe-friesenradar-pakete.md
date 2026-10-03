@@ -13,7 +13,7 @@ prüfen geht vorher.
 
 ## 1. Kniebrett 3.0.0 — neuer Ordner (Variante B, Nutzer 03.10.2026)
 
-Was sich ändert: Paketordner `friesenflieger-friesenradar-efb`, Quellordner
+Was sich ändert: Paketordner `friesenkniebrett`, Quellordner
 `msfs-panel/PackageSources/FriesenRadar/`, App-Klasse `FriesenRadar`, `efb_apps/FriesenRadar`,
 Adresse `friesenradar.devprops.de`, Titel und Symbol. **Die Gerätekennung bleibt
 `friesenspy_device`** — daran hängt die Anmeldung jedes Tablets.
@@ -32,14 +32,14 @@ cd ..\..
 .\build-package.ps1         # baut msfs-panel\Package\
 ```
 
-Danach `Package` in **`friesenflieger-friesenradar-efb`** umbenennen und so packen wie bisher
+Danach `Package` in **`friesenkniebrett`** umbenennen und so packen wie bisher
 `friesenspy-efb.zip` — nur mit diesem Ordnernamen als oberster Ebene. Name der Datei:
-**`friesenradar-efb.zip`**. Gegenprobe (Python):
+**`friesenkniebrett.zip`**. Gegenprobe (Python):
 
 ```python
-import zipfile; n = zipfile.ZipFile("friesenradar-efb.zip").namelist()
-assert all(x.startswith("friesenflieger-friesenradar-efb/") for x in n), n[:3]
-assert "friesenflieger-friesenradar-efb/manifest.json" in n
+import zipfile; n = zipfile.ZipFile("friesenkniebrett.zip").namelist()
+assert all(x.startswith("friesenkniebrett/") for x in n), n[:3]
+assert "friesenkniebrett/manifest.json" in n
 assert any("efb_apps/FriesenRadar/FriesenRadar.js" in x for x in n)
 ```
 
@@ -58,6 +58,9 @@ Ob die Gerätebindung einen neuen Paketordner übersteht, ist **nicht belegt**
    öffnen.
    - Erwartet: **keine** neue Anmeldung, und im nginx-Log steht
      `/auth/device?device=<DIESELBE Kennung>&…&paket=3.0.0`.
+   - Im Paket (`manifest.json`, „LastUpdate“) steht der Satz „Die Anmeldung des Tablets bleibt
+     erhalten“ — auf Wunsch des Nutzers (03.10.2026). **Scheitert diese Prüfung, muss der Satz
+     raus, bevor irgendetwas verteilt wird.**
    - **Kommt eine neue Kennung oder fragt das Tablet nach der Anmeldung: STOPP.** Nicht
      hochladen, der Server-Sitzung melden. Dann ist die Bindung paketgebunden, und Variante B
      braucht eine neue Entscheidung des Nutzers.
@@ -76,9 +79,9 @@ Ob die Gerätebindung einen neuen Paketordner übersteht, ist **nicht belegt**
    mit Logo im Streifen, hell und dunkel, Fenster lassen sich schließen.
 6. **App neu anheften** — die alte Anheftung gilt nicht für die neue Klasse.
 
-Erst nach 1–5 hochladen: `friesenradar-efb.zip` nach `/opt/friesenradar/data/efb/`. Das
+Erst nach 1–5 hochladen: `friesenkniebrett.zip` nach `/opt/friesenradar/data/efb/`. Das
 macht die Server-Sitzung auf Wort des Nutzers. Danach dort: `curl -sI` auf `/download/efb`
-zeigt `friesenflieger-friesenradar-efb.zip`.
+zeigt `friesenkniebrett.zip`.
 
 Erst dann prüfbar: Die **alte** App (2.x) zeigt im Hinweis unten links „… Danach den alten
 Ordner friesenflieger-friesenspy-efb im Community-Ordner löschen.“

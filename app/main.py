@@ -706,10 +706,10 @@ def _efb_zip_path(settings) -> Path:
     if eigen:
         return Path(eigen)
     efb = Path(settings.DB_PATH).parent / "efb"
-    # Umzug FriesenRadar (02.10.2026): Die Datei heisst kuenftig friesenradar-efb.zip. Bis das
+    # Umzug FriesenRadar (02.10.2026): Die Datei heisst kuenftig friesenkniebrett.zip. Bis das
     # neue Paket gebaut und abgelegt ist, liegt nur die alte vor -- dann die ausliefern, sonst
     # waere der Download nach dem Umzug ein 404.
-    neu = efb / "friesenradar-efb.zip"
+    neu = efb / "friesenkniebrett.zip"
     alt = efb / "friesenspy-efb.zip"
     if not neu.is_file() and alt.is_file():
         return alt
@@ -813,7 +813,7 @@ def _paket_ausliefern(pfad: Path, dateiname: str):
 def _efb_download_name(pfad: Path) -> str:
     """Download-Name = Paketordner in der ZIP, also der Ordner, den das Entpacken anlegt.
 
-    Bis 2.x heisst er ``friesenflieger-friesenspy-efb``, ab 3.0.0 ``friesenflieger-friesenradar-efb``
+    Bis 2.x heisst er ``friesenflieger-friesenspy-efb``, ab 3.0.0 ``friesenkniebrett``
     (Variante B, Nutzer 03.10.2026). Am Inhalt statt im Code festgemacht, damit der neue Name
     erst mit dem neuen Paket erscheint -- sonst laege nach dem Update das ALTE Paket unter
     neuem Ordnernamen neben dem alten, und das Tablet zeigte zwei gleiche Apps."""
@@ -828,7 +828,7 @@ def _efb_download_name(pfad: Path) -> str:
     oben = {n.split("/", 1)[0] for n in namen}
     if namen and len(oben) == 1 and all("/" in n for n in namen):
         return next(iter(oben)) + ".zip"
-    return "friesenflieger-friesenradar-efb.zip"
+    return "friesenkniebrett.zip"
 
 
 @app.get("/download/efb", include_in_schema=False)

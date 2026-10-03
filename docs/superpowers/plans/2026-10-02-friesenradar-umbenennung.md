@@ -67,12 +67,12 @@ Paket 3.0.0 nach der Übergabe (Logo in der Vorschau: erledigt 03.10.), Forum (T
 Stand `5aaeb47` auf `origin/umzug`, Suite 3910 grün. Umgesetzt: Compose (Dienst `friesenradar`,
 Image `ghcr.io/regover13/friesenradar`, Volume `./data:/opt/friesenradar/data`), `deploy.yml`,
 `config.py` (Vorgabe `/opt/friesenradar/data/friesenradar.db`), **Dockerfile** (Benutzer, `WORKDIR`,
-`ENV DB_PATH`), nginx-Datei umbenannt, Paketskripte, Paketdatei `efb/friesenradar-efb.zip` mit
+`ENV DB_PATH`), nginx-Datei umbenannt, Paketskripte, Paketdatei `efb/friesenkniebrett.zip` mit
 Rückfall auf `friesenspy-efb.zip`.
 
 **Der Download-Name folgt dem Paketordner in der abgelegten ZIP** (`_efb_download_name`, Branch
 `lichtblick`): bis 2.x `friesenflieger-friesenspy-efb.zip`, ab 3.0.0
-`friesenflieger-friesenradar-efb.zip`. Er ist zugleich der Ordnername nach dem Entpacken; so
+`friesenkniebrett.zip`. Er ist zugleich der Ordnername nach dem Entpacken; so
 wechselt er erst mit dem neuen Paket (V1, Variante B).
 
 - [ ] **Nachtrag 1:** `deploy.yml` Skript mit `set -euo pipefail` beginnen, damit ein fehlendes Verzeichnis den Lauf abbricht statt in `$HOME` weiterzumachen.
@@ -177,7 +177,7 @@ Alles auf friesenflieger.de nur mit Freigabe; Schreiben einzeln erfragen.
 
 ### Task 5: Kniebrett-Paket 3.0.0 — Variante B (Nutzer 03.10.2026, nach erst A)
 
-**Neuer Ordner:** Paketordner `friesenflieger-friesenradar-efb`, Quellordner
+**Neuer Ordner:** Paketordner `friesenkniebrett`, Quellordner
 `msfs-panel/PackageSources/FriesenRadar/`, Klasse `FriesenRadar`, `efb_apps/FriesenRadar` —
 alle drei gleich, weil das CSS-Präfix aus dem Ordnernamen kommt und die EFB Apps über den
 Klassennamen führt. URL `https://friesenradar.devprops.de/panel`, `manifest.title`
@@ -200,7 +200,7 @@ keinen Ordnernamen mehr.
 - [ ] **Step 5: Sim-Prüfung, harte Schranke vor der Ablage** (Übergabe an die Sitzung auf dem Simulator-Rechner, `docs/uebergabe-msfs-build.md` nachziehen):
   - **nur neues Paket** (alter Ordner gelöscht): `/auth/device` im nginx-Log mit **derselben** `device=`-Kennung wie vorher und `paket=3.0.0`. Kommt eine neue Kennung, ist die Bindung paketgebunden — dann nicht ablegen, sondern neu entscheiden.
   - **beide installiert:** der Hinweis aus Step 1 erscheint in der neuen App, der aus Step 2 in der alten.
-- [ ] **Step 6:** Ablage als `/opt/friesenradar/data/efb/friesenradar-efb.zip`; Download heißt danach `friesenflieger-friesenradar-efb.zip` (Gegenprobe mit `curl -sI`). Alte `friesenspy-efb.zip` nach Bewährung löschen. Die Release-Notizen älterer Fassungen im Paket bleiben als Geschichte.
+- [ ] **Step 6:** Ablage als `/opt/friesenradar/data/efb/friesenkniebrett.zip`; Download heißt danach `friesenkniebrett.zip` (Gegenprobe mit `curl -sI`). Alte `friesenspy-efb.zip` nach Bewährung löschen. Die Release-Notizen älterer Fassungen im Paket bleiben als Geschichte.
 
 ---
 
