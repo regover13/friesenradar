@@ -190,7 +190,8 @@ print(make_user_token(get_settings().SECRET_KEY, os.environ['TEST_NAME'], os.env
     printf 'set $tr_sitzung "%s";\n' "${marke:+; fs_user=$marke}"
     printf 'location = /_zugang/%s {\n  access_log off;\n' "$ZUGANG"
     printf '  add_header Set-Cookie "tr_zugang=%s; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=7500" always;\n' "$ZUGANG"
-    printf '  return 302 /;\n}\n'
+    # Angaben hinter dem Link wandern mit: .../_zugang/<zufall>?tv=1 fuehrt auf /?tv=1.
+    printf '  return 302 /$is_args$args;\n}\n'
   } > "$SITZUNG"
   chown root:root "$SITZUNG"; chmod 600 "$SITZUNG"
   nginx -t 2>/dev/null || { sitzung_zu; return 1; }
