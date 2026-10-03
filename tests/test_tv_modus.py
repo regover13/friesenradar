@@ -374,3 +374,12 @@ def test_schalter_merkt_sich_das_geraet_nicht_das_konto():
     assert "localStorage.setItem('friesenradar_tv', '1')" in f
     assert "localStorage.removeItem('friesenradar_tv')" in f
     assert "_prefSchreib" not in f, "nicht ans Konto haengen"
+
+
+def test_fuer_den_nutzer_heisst_es_rundflug():
+    """Nutzer 03.10.2026: "benenne Rundgang in Rundflug um". Im Code bleiben die Bezeichner,
+    der alte Adress-Parameter gilt weiter."""
+    b = _block()
+    assert "'Rundgang" not in b and "Rundgang'" not in b, "kein sichtbarer Text mehr mit dem alten Wort"
+    assert "'▶ Rundflug'" in b and "'Rundflug ' + w.nr" in b
+    assert "qs.get('rundflug') === '1' || qs.get('rundgang') === '1'" in _funktion("_tvStart")

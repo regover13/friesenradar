@@ -222,7 +222,7 @@ def test_sitzung_steht_hinter_den_browser_cookies():
 def test_admin_zeigt_die_varianten_als_links():
     """Nutzer 03.10.2026: alle Parameter-Varianten anklickbar, der feste Ausschnitt nur als Text."""
     admin = (WURZEL / "app" / "static" / "admin.html").read_text(encoding="utf-8")
-    for v in ['data-variante=""', 'data-variante="?tv=1"', 'data-variante="?tv=1&amp;rundgang=1"', 'data-variante="?vr=1"']:
+    for v in ['data-variante=""', 'data-variante="?tv=1"', 'data-variante="?tv=1&amp;rundflug=1"', 'data-variante="?vr=1"']:
         assert v in admin, v
     assert "mitte=Breite,Länge" in admin and 'data-variante="?tv=1&amp;mitte' not in admin
     assert "varianten.hidden = !(d.laeuft && d.zugang)" in admin

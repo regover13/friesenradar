@@ -641,7 +641,7 @@ FriesenRadar für den Fernseher: die Karte im Vollbild, bedienbar mit Pfeiltaste
 
 - **Was die Karte zeigt:** Fliegst du selbst, folgt sie deinem Flugzeug. Sonst zeigt sie die Friesen, die gerade unterwegs sind.
 - **Bedienung:** Die Pfeile springen zum nächsten Knopf, ein oranger Rahmen zeigt, wo du bist. **OK** löst aus, **Zurück** schließt Fenster und Listen. Steht der Rahmen auf der Karte, verschieben die Pfeile die Karte; die Spultasten der Fernbedienung zoomen.
-- **Rundgang:** Der Knopf **▶ Rundgang** unten links schaltet die Karte nacheinander zu jedem Friesen, der sich bewegt, und bleibt eine halbe Minute bei ihm.
+- **Rundflug:** Der Knopf **▶ Rundflug** unten links schaltet die Karte nacheinander zu jedem Friesen, der sich bewegt, und bleibt eine halbe Minute bei ihm.
 - **Ruhe:** Wird eine Weile keine Taste gedrückt, verschwinden die Knöpfe, und oben steht das FriesenRadar-Logo. Die nächste Taste holt die Knöpfe zurück.
 
 ---

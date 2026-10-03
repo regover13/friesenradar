@@ -17849,11 +17849,11 @@ function _tvRundgangSchritt() {
   if (!karte || Date.now() - _tvHandZuletzt < _TV_HAND_PAUSE_MS) return;
   var w = _tvRundgangWahl(liveData, _tvRundgangLetzter);
   if (!w) {
-    _tvRundgangText = 'Rundgang: gerade fliegt niemand';
+    _tvRundgangText = 'Rundflug: gerade fliegt niemand';
     karte.fitBounds(_tvAusschnittWahl([], null).grenzen, { padding: [60, 60] });
   } else {
     _tvRundgangLetzter = w.callsign;
-    _tvRundgangText = 'Rundgang ' + w.nr + '/' + w.von + ' · ' + w.callsign
+    _tvRundgangText = 'Rundflug ' + w.nr + '/' + w.von + ' · ' + w.callsign
       + (w.muster ? ' · ' + w.muster : '') + (w.strecke ? ' · ' + w.strecke : '');
     var ziel = _tvRundgangOrt(w.callsign) || [w.lat, w.lon];
     var hier = karte.getCenter();
@@ -18025,7 +18025,7 @@ function _tvRundgangSchalten(an) {
   _tvRundgangAn = (an === undefined) ? !_tvRundgangAn : !!an;
   _tvHandZuletzt = 0;
   var knopf = document.getElementById('tv-rundgang');
-  if (knopf) knopf.textContent = _tvRundgangAn ? '■ Rundgang' : '▶ Rundgang';
+  if (knopf) knopf.textContent = _tvRundgangAn ? '■ Rundflug' : '▶ Rundflug';
   if (_tvRundgangAn) { _tvRundgangSchritt(); }
   else {
     _tvRundgangLauf++;
@@ -18097,7 +18097,7 @@ function _tvStart() {
     // Knopf fuer den Rundgang, neben dem Vollbild-Knopf (nur im TV-Modus vorhanden).
     var rk = document.createElement('button');
     rk.id = 'tv-rundgang'; rk.className = 'tv-rundgang-btn';
-    rk.textContent = '▶ Rundgang';
+    rk.textContent = '▶ Rundflug';
     rk.addEventListener('click', function () { _tvRundgangSchalten(); });
     wrap.appendChild(rk);
     // Mehr Kacheln rund um den Ausschnitt behalten (Vorgabe 2) -- weniger Flecken beim Schieben.
@@ -18109,7 +18109,8 @@ function _tvStart() {
     });
     setInterval(_tvRundgangSchritt, _TV_RUNDGANG_TAKT_MS);
     setInterval(_tvRundgangNachfuehren, 1000);
-    if (qs.get('rundgang') === '1') _tvRundgangSchalten(true);
+    // Fuer den Nutzer heisst es "Rundflug" (03.10.2026); der alte Parameter gilt weiter.
+    if (qs.get('rundflug') === '1' || qs.get('rundgang') === '1') _tvRundgangSchalten(true);
     // Im Standard NICHT die Kartensteuerung (Nutzer 03.10.2026): Der Fokus liegt auf dem
     // Rundgang-Knopf, die Pfeile waehlen Schaltflaechen. Die Karte bewegt, wer "Zurueck" drueckt.
     _tvFokus(rk);
