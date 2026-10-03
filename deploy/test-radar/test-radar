@@ -69,7 +69,10 @@ stand_schreiben() {   # $1 true|false, $2 Meldung
   if [ "$1" = true ]; then
     seit=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     bis=$(date -u -d '+2 hours' +%Y-%m-%dT%H:%M:%SZ)
-    version=$(docker exec test-radar-test-radar-1 python -c "from app.version import VERSION; print(VERSION)" 2>/dev/null || true)
+    # Die Antwort kommt aus der Kopie (ungepruefter Code): nur Ziffern und Punkte, eine Zeile.
+    # Sonst koennte ein Zeilenumbruch darin die Felder unten verschieben.
+    version=$(docker exec test-radar-test-radar-1 python -c "from app.version import VERSION; print(VERSION)" 2>/dev/null \
+              | head -n 1 | tr -cd '0-9.' | cut -c1-20 || true)
   fi
   # Der Uebergabeordner gehoert dem Container. Alles darin geschieht deshalb als containersvc
   # und nie als root: Ein dort untergeschobener Symlink koennte root sonst eine beliebige

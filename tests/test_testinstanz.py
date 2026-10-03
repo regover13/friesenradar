@@ -202,3 +202,9 @@ def test_geheimes_steht_nie_in_einer_befehlszeile():
     for zeile in sk.splitlines():
         if "datei_schreiben " in zeile and not zeile.startswith("datei_schreiben()"):
             assert zeile.strip().startswith("| datei_schreiben"), zeile
+
+
+def test_version_aus_der_kopie_wird_auf_ziffern_beschraenkt():
+    sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
+    stelle = sk.index("from app.version import VERSION")
+    assert "tr -cd '0-9.'" in sk[stelle:stelle + 200] and "head -n 1" in sk[stelle:stelle + 200]
