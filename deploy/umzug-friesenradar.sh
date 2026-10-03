@@ -147,8 +147,11 @@ ergebnis=$(als_dienst sqlite3 "$ALT/data/$DB_ALT_NAME" "PRAGMA integrity_check")
 [ "$ergebnis" = ok ] || abbruch "integrity_check: $ergebnis"
 als_dienst sqlite3 "$ALT/data/$DB_ALT_NAME" "PRAGMA wal_checkpoint(TRUNCATE)" >/dev/null
 zaehlen "$ALT/data/$DB_ALT_NAME" | tee "$SICHERUNG/zaehlung-vorher.txt"
-tmp=$(mktemp -u /tmp/umzug-sicherung-XXXXXX.db)
-als_dienst sqlite3 "$ALT/data/$DB_ALT_NAME" ".backup '$tmp'"
+# Zwischenablage im Datenordner selbst, nicht in /tmp: Dort waere die Kopie der
+# Mitgliederdaten fuer jeden Benutzer der Maschine lesbar.
+tmp="$ALT/data/.umzug-sicherung.db"
+rm -f "$tmp"
+( umask 077; als_dienst sqlite3 "$ALT/data/$DB_ALT_NAME" ".backup '$tmp'" )
 mv "$tmp" "$SICHERUNG/$DB_ALT_NAME"
 cp -p "$ALT/docker-compose.yml" "$SICHERUNG/docker-compose.yml.alt"
 cp -p "$ALT/config.env" "$SICHERUNG/config.env.alt"
