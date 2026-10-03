@@ -388,12 +388,11 @@ def test_fuer_den_nutzer_heisst_es_rundflug():
     assert "qs.get('rundflug') === '1' || qs.get('rundgang') === '1'" in _funktion("_tvStart")
 
 
-def test_rundflug_zeile_traegt_denselben_schein_wie_der_fokus():
-    """Nutzer 03.10.2026: "diesen Schein auch um Rundflug" -- die Zeile am unteren Rand hat
-    keinen harten Rahmen mehr, sondern den orangen Schein."""
+def test_rundflug_zeile_ist_schlicht():
+    """Nutzer 03.10.2026: an der Zeile am unteren Rand kein Schein und kein oranger Rahmen."""
     regel = [m.group(1) for m in re.finditer(r"html\.tv \.tv-hinweis \{([^}]*)\}", INDEX)
              if "position: fixed" in m.group(1)][0]
-    assert "border: 0" in regel and "box-shadow: 0 0 5px 3px rgba(215,95,40,0.95)" in regel
+    assert "border: 0" in regel and "box-shadow" not in regel and "#D75F28" not in regel
 
 
 def test_alles_anklickbare_ist_anwaehlbar_nicht_nur_eine_klassenliste():
