@@ -10,15 +10,22 @@
 # Das Image `test-radar:aktuell` kommt vom Workflow test-image.yml (Zweig `test`).
 #
 # Was die Kopie NICHT kann, mit Absicht: Benachrichtigungen verschicken (Schluessel geleert,
-# Abos geloescht), Telegram, KI-Abfragen, TeamSpeak, Forum-Login. Der Zugang laeuft ueber ein
-# Passwort in nginx (Benutzer admin, Admin-Passwort der App).
+# Abos geloescht), Telegram, KI-Abfragen, TeamSpeak. Der Zugang laeuft ueber ein Passwort in
+# nginx (Benutzer admin, Admin-Passwort der App).
+#
+# Wer das Passwort kennt, ist in der Kopie zugleich als Mitglied angemeldet: Das Forum kennt
+# die Testadresse nicht, also gibt nginx jeder Anfrage eine fuer diesen Lauf ausgestellte
+# Sitzung mit (Name und CID aus /opt/test-radar/benutzer.env, nicht im Repo). So sieht die
+# Testinstanz aus wie die echte App fuer ein angemeldetes Mitglied -- Name in der Kopfzeile,
+# eigene Einstellungen.
 set -euo pipefail
 
 ORT=/opt/test-radar
 PORT=8092
 HTPASSWD=/etc/nginx/test-radar.htpasswd
 ENDE_UNIT=test-radar-ende
-LEEREN="VAPID_PRIVATE_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID ANTHROPIC_API_KEY SSO_SECRET FORUM_SSO_URL FORUM_SSO_CALLBACK TS_QUERY_PASS"
+SITZUNG=/etc/nginx/test-radar-sitzung.conf
+LEEREN="VAPID_PRIVATE_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID ANTHROPIC_API_KEY TS_QUERY_PASS"
 
 # Die echte App: nach dem Umzug /opt/friesenradar, davor /opt/friesenspy.
 if [ -f /opt/friesenradar/data/friesenradar.db ]; then
@@ -77,9 +84,7 @@ starten() {
   chown containersvc:containersvc "$ORT/data"; chmod 700 "$ORT/data"
   ( umask 077
     sudo -u containersvc sqlite3 -readonly "$PROD_DB" ".backup '$ORT/data/radar.db'" )
-  sudo -u containersvc sqlite3 "$ORT/data/radar.db" "DELETE FROM push_subscriptions;
-                  INSERT INTO app_settings(key, value) VALUES('forum_login_enabled', '0')
-                    ON CONFLICT(key) DO UPDATE SET value = '0';"
+  sudo -u containersvc sqlite3 "$ORT/data/radar.db" "DELETE FROM push_subscriptions;"
   chown -R containersvc:containersvc "$ORT/data"
   sudo -u containersvc chmod 600 "$ORT/data/radar.db"
 
@@ -88,7 +93,7 @@ starten() {
   for k in $LEEREN; do sed -i "s|^$k=.*|$k=|" "$ORT/config.env"; done
   sed -i "s|^TS_NOTIFY_ENABLED=.*|TS_NOTIFY_ENABLED=false|; s|^DB_PATH=.*|DB_PATH=/daten/radar.db|" "$ORT/config.env"
   grep -q '^DB_PATH=/daten/radar.db$' "$ORT/config.env" || echo 'DB_PATH=/daten/radar.db' >> "$ORT/config.env"
-  for k in VAPID_PRIVATE_KEY TELEGRAM_BOT_TOKEN ANTHROPIC_API_KEY SSO_SECRET; do
+  for k in VAPID_PRIVATE_KEY TELEGRAM_BOT_TOKEN ANTHROPIC_API_KEY; do
     ! grep -q "^$k=." "$ORT/config.env" || { echo "$k nicht geleert" >&2; exit 1; }
   done
 
@@ -105,13 +110,35 @@ starten() {
     [ "$i" -lt 24 ] || { "${compose[@]}" logs --tail 30; "${compose[@]}" down; stand_schreiben false "Start gescheitert."; exit 1; }
   done
 
+  sitzung_ausstellen
   ende_abbestellen
   systemd-run --quiet --unit="$ENDE_UNIT" --on-active=2h /usr/local/bin/test-radar stop
   stand_schreiben true ""
   echo "Testinstanz laeuft: https://test-radar.devprops.de (endet in 2 h)"
 }
 
+sitzung_ausstellen() {
+  # Sitzung fuer diesen Lauf (2 h + 5 min), signiert mit dem Schluessel der Kopie. nginx haengt
+  # sie an jede Anfrage; ohne benutzer.env bleibt es beim Forum-Login (der hier nicht geht).
+  : > "$SITZUNG"
+  if [ -f "$ORT/benutzer.env" ]; then
+    local marke
+    marke=$(docker exec -i --env-file "$ORT/benutzer.env" test-radar-test-radar-1 python -c "
+import os, time
+from app.config import get_settings
+from app.forum_sso import make_user_token
+print(make_user_token(get_settings().SECRET_KEY, os.environ['TEST_NAME'], os.environ['TEST_CID'], True, time.time() + 7500))")
+    case "$marke" in
+      *[!A-Za-z0-9._=-]*|"") echo "Sitzung nicht ausgestellt" >&2 ;;
+      *) printf 'proxy_set_header Cookie "fs_user=%s; $http_cookie";\n' "$marke" > "$SITZUNG" ;;
+    esac
+  fi
+  chown root:root "$SITZUNG"; chmod 600 "$SITZUNG"
+  nginx -t 2>/dev/null && systemctl reload nginx
+}
+
 stoppen() {
+  : > "$SITZUNG"; nginx -t 2>/dev/null && systemctl reload nginx
   "${compose[@]}" down 2>/dev/null || true
   rm -f "$ORT"/data/radar.db* "$ORT/config.env"
   ende_abbestellen

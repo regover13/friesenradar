@@ -97,7 +97,7 @@ def test_host_skript_nimmt_nur_start_und_stop_aus_der_datei():
     rumpf = sk[sk.index("anforderung)"):]
     assert 'case "$wunsch" in' in rumpf and "start|stop)" in rumpf
     assert "eval" not in sk
-    for k in ["VAPID_PRIVATE_KEY", "TELEGRAM_BOT_TOKEN", "ANTHROPIC_API_KEY", "SSO_SECRET"]:
+    for k in ["VAPID_PRIVATE_KEY", "TELEGRAM_BOT_TOKEN", "ANTHROPIC_API_KEY"]:
         assert k in sk, f"{k} muss in der Kopie geleert werden"
     assert "DELETE FROM push_subscriptions" in sk
     assert "--on-active=2h" in sk
@@ -125,3 +125,14 @@ def test_im_uebergabeordner_arbeitet_nie_root():
             if z.startswith(("#", "UEBERGABE=", "datei=", "status)")):
                 continue
             assert "sudo -u containersvc" in z, zeile
+
+
+def test_sitzung_der_testinstanz_wird_geprueft_und_beim_stoppen_geleert():
+    """Die Marke landet in einer nginx-Datei -- nur ein Wert aus erlaubten Zeichen darf hinein,
+    und nach dem Stoppen darf keine gueltige Sitzung liegen bleiben. Name und CID stehen nicht
+    im (oeffentlichen) Repo."""
+    sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
+    assert "*[!A-Za-z0-9._=-]*" in sk
+    stop = sk[sk.index("stoppen() {"):]
+    assert stop.index(': > "$SITZUNG"') < stop.index("down")
+    assert "TEST_NAME=" not in sk and "TEST_CID=" not in sk
