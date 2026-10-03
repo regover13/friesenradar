@@ -17423,8 +17423,13 @@ function _tvBereich() {
   }
   // Offene Ebenen-Liste: Die Pfeile bleiben in ihr, bis sie geschlossen wird.
   var ebenen = document.querySelector('.leaflet-control-layers-expanded');
-  if (ebenen) return ebenen;
-  return document.querySelector('.map-is-fullscreen') || document.body;
+  if (ebenen && ebenen.getBoundingClientRect().width > 0) return ebenen;
+  // Nur eine SICHTBARE Vollbild-Karte zaehlt. Steht die Klasse noch an einer Karte, deren
+  // Reiter gar nicht offen ist, laege der Bereich im Unsichtbaren: kein einziges Sprungziel,
+  // keine Taste bewirkte etwas (Fund am Fire TV, 03.10.2026 -- Live-Tab, Pfeile tot).
+  var vollbild = document.querySelector('.map-is-fullscreen');
+  if (vollbild && vollbild.getBoundingClientRect().width > 0) return vollbild;
+  return document.body;
 }
 
 function _tvFokussierbarMachen(bereich) {
@@ -17448,6 +17453,9 @@ function _tvKandidaten(bereich) {
     // Die Karte selbst ist kein Sprungziel: Sie liegt unter allem und finge jeden Pfeil ab
     // (auf ihr verschieben die Pfeile die Karte). Zu ihr fuehrt Zurueck, von ihr weg OK.
     if (el.classList.contains('leaflet-container')) continue;
+    // Links, die aus FriesenRadar hinausfuehren (Kartenquellen, Hilfe, Mithoeren), sind am
+    // Fernseher eine Falle: OK darauf verliesse die Seite, und zurueck fuehrt dort kein Weg.
+    if (el.tagName === 'A' && el.host && el.host !== location.host) continue;
     aus.push(el);
   }
   return aus;
@@ -17477,9 +17485,10 @@ function _tvHinweis() {
     return;
   }
   if (_tvRundgangAn && _tvRundgangText) { h.textContent = _tvRundgangText; return; }
-  h.textContent = (a && a.classList && a.classList.contains('leaflet-container'))
+  h.textContent = (a && a.classList && a.classList.contains('leaflet-container')
+                   && a.getBoundingClientRect().width > 0)
     ? 'Karte: Pfeile verschieben · Spulen zoomt · OK = Bedienelemente'
-    : (document.querySelector('.map-is-fullscreen')
+    : (_tvBereich().classList.contains('map-is-fullscreen')
         ? 'Pfeile = wählen · OK = auslösen · Zurück = Karte bewegen'
         : 'Pfeile = wählen · OK = auslösen · Zurück = schließen');
 }
@@ -17575,16 +17584,51 @@ function _tvAusloesen(el) {
 // Tasten gedrueckt wurden.
 var _tvHistorieTiefe = 0;
 var _TV_HISTORIE_MAX = 12;
+// Abschaltbar mit &zurueck=0 -- fuer den Fall, dass das Geraet auf Historien-Eintraege
+// empfindlich reagiert (Nutzerfund 03.10.2026: nach diesem Einbau ging auf dem Fire TV
+// zeitweise gar keine Taste mehr; Ursache am Geraet noch nicht belegt).
+var _tvHistorieAus = /[?&]zurueck=0(&|$)/.test(location.search);
 function _tvHistorieAuflegen() {
-  if (_tvHistorieTiefe >= _TV_HISTORIE_MAX) return;
+  if (_tvHistorieAus || _tvHistorieTiefe >= _TV_HISTORIE_MAX) return;
   try { history.pushState({ tv: _tvHistorieTiefe + 1 }, ''); _tvHistorieTiefe++; } catch (_e) {}
+}
+
+// Fernsicht fuer die Fehlersuche (&diag=1): Am Fire TV gibt es keine Konsole. Jede Taste und
+// jeder Fehler geht als winziger Abruf an den Server und steht dort im Zugriffslog -- nur der
+// Tastenname und das Element mit dem Fokus, nichts Persoenliches. Gedeckelt.
+var _tvDiagAn = /[?&]diag=1(&|$)/.test(location.search);
+var _tvDiagZahl = 0;
+function _tvDiag(art, text) {
+  if (!_tvDiagAn || _tvDiagZahl >= 400) return;
+  _tvDiagZahl++;
+  try {
+    new Image().src = '/api/tv-diag?n=' + _tvDiagZahl + '&a=' + encodeURIComponent(art)
+                    + '&t=' + encodeURIComponent(String(text).slice(0, 160));
+  } catch (_e) {}
+}
+function _tvDiagElement(el) {
+  if (!el || !el.tagName) return '-';
+  return el.tagName + '.' + String(el.className || '').split(' ')[0] + '#' + (el.id || '');
+}
+
+/** Haengt die Vollbild-Klasse an einer Karte, deren Reiter nicht offen ist, das Vollbild
+ *  ordentlich verlassen -- sonst bleibt die Seite gesperrt (body rollt nicht mehr). */
+function _tvVollbildAufraeumen() {
+  var v = document.querySelector('.map-is-fullscreen');
+  if (!v || v.getBoundingClientRect().width > 0) return;
+  var knopf = v.querySelector('.map-fullscreen-btn');
+  if (knopf) knopf.click();
 }
 
 function _tvTaste(e) {
   if (!_tvAn()) return;
+  _tvVollbildAufraeumen();
+  _tvDiag('taste', e.key + '/' + e.keyCode + ' ziel=' + _tvDiagElement(e.target)
+                   + ' fokus=' + _tvDiagElement(document.activeElement) + ' h=' + _tvHistorieTiefe);
   _tvHistorieAuflegen();
   var t = e.key, ziel = e.target;
-  var aufKarte = ziel && ziel.classList && ziel.classList.contains('leaflet-container');
+  var aufKarte = ziel && ziel.classList && ziel.classList.contains('leaflet-container')
+                 && ziel.getBoundingClientRect().width > 0;
   var imTextfeld = ziel && (ziel.tagName === 'TEXTAREA'
     || (ziel.tagName === 'INPUT' && /^(text|search|number|password|email|)$/.test(ziel.type || '')));
   if (t === 'Escape' || t === 'GoBack' || t === 'BrowserBack' || (t === 'Backspace' && !imTextfeld)) {
@@ -17606,7 +17650,9 @@ function _tvTaste(e) {
   }
   var richtung = { ArrowRight: 'rechts', ArrowLeft: 'links', ArrowDown: 'unten', ArrowUp: 'oben' }[t];
   if (richtung) {
-    if (imTextfeld && (richtung === 'links' || richtung === 'rechts')) return;   // Schreibmarke
+    // Im Textfeld bewegen Links/Rechts die Schreibmarke -- aber nur, wenn etwas drinsteht.
+    // Ein leeres Feld hielte die Pfeile sonst fest (die Fernbedienung kann nichts eintippen).
+    if (imTextfeld && ziel.value && (richtung === 'links' || richtung === 'rechts')) return;
     e.preventDefault(); e.stopPropagation();
     _tvBewegen(richtung);
     return;
@@ -17739,30 +17785,49 @@ function _tvStart() {
   hinweis.id = 'tv-hinweis'; hinweis.className = 'tv-hinweis';
   document.body.appendChild(hinweis);
   document.addEventListener('keydown', _tvTaste, true);
+  window.addEventListener('error', function (ev) {
+    _tvDiag('fehler', (ev && ev.message) + ' @' + (ev && ev.lineno));
+  });
+  _tvDiag('start', 'zurueck=' + (_tvHistorieAus ? 'aus' : 'an') + ' ' + navigator.userAgent.slice(-60));
   document.addEventListener('focusin', _tvHinweis);
   // Zurueck in Fully Kiosk = Historie zurueck; die Eintraege dafuer legt _tvHistorieAuflegen
   // bei jedem Tastendruck an (Begruendung dort).
   window.addEventListener('popstate', function () {
     if (_tvHistorieTiefe > 0) _tvHistorieTiefe--;
+    _tvDiag('popstate', 'h=' + _tvHistorieTiefe + ' fokus=' + _tvDiagElement(document.activeElement));
     _tvZurueck();
   });
-  var tab = document.querySelector('.tab-btn[data-tab="karte"]');
-  if (tab) tab.click();
   var qs = new URLSearchParams(location.search);
   var mitte = (qs.get('mitte') || '').split(',').map(Number);
   var zoom = Number(qs.get('zoom'));
-  var versuche = 0;
+  // Kartenvollbild ERZWINGEN, unabhaengig vom gemerkten Zustand (Fund am Fire TV: spaetere
+  // Aufrufe landeten auf dem Live-Tab). Der gemerkte Reiter kommt erst mit den Merkern vom
+  // Server und schaltet dann um -- ein einzelner Klick beim Start wird davon ueberholt.
+  // Deshalb nachfassen, bis Reiter UND Vollbild zweimal hintereinander stimmen; ein
+  // Tastendruck des Nutzers beendet das Nachfassen sofort (dann fuehrt er).
+  var versuche = 0, stimmt = 0, getippt = false;
+  document.addEventListener('keydown', function () { getippt = true; }, true);
   var warten = setInterval(function () {
     versuche++;
+    var tab = document.querySelector('.tab-btn[data-tab="karte"]');
     var wrap = document.getElementById(_ZUSTAND_KARTE_WRAP);
     var karte = (typeof liveMap !== 'undefined' && liveMap) ? liveMap : null;
-    if ((!wrap || !karte) && versuche < 40) return;
+    var imTab = tab && tab.classList.contains('active');
+    var imVollbild = wrap && wrap.classList.contains('map-is-fullscreen')
+                     && wrap.getBoundingClientRect().width > 0;
+    if (!getippt && versuche < 60) {
+      if (!imTab) { if (tab) tab.click(); stimmt = 0; return; }
+      if (!karte || !wrap) { stimmt = 0; return; }
+      if (!imVollbild) {
+        var knopf = wrap.querySelector('.map-fullscreen-btn');
+        if (knopf && !wrap.classList.contains('map-is-fullscreen')) knopf.click();
+        stimmt = 0; return;
+      }
+      stimmt++;
+      if (stimmt < 4) return;          // 1 s lang stabil
+    }
     clearInterval(warten);
     if (!wrap || !karte) return;
-    if (!wrap.classList.contains('map-is-fullscreen')) {
-      var knopf = wrap.querySelector('.map-fullscreen-btn');
-      if (knopf) knopf.click();
-    }
     if (mitte.length === 2 && isFinite(mitte[0]) && isFinite(mitte[1]) && (mitte[0] || mitte[1])) {
       karte.setView([mitte[0], mitte[1]], isFinite(zoom) && zoom > 0 ? zoom : karte.getZoom());
     } else {
@@ -17778,6 +17843,7 @@ function _tvStart() {
     setInterval(_tvRundgangSchritt, _TV_RUNDGANG_TAKT_MS);
     if (qs.get('rundgang') === '1') _tvRundgangSchalten(true);
     _tvFokus(karte.getContainer());
+    _tvDiag('bereit', 'fokus=' + _tvDiagElement(document.activeElement));
   }, 250);
 }
 // ==========================================================================

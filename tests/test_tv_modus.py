@@ -105,6 +105,8 @@ def test_seite_rollt_mit_und_start_im_kartenvollbild():
     assert "scrollIntoView" in b
     start = _funktion("_tvStart")
     assert 'data-tab="karte"' in start and "map-fullscreen-btn" in start
+    # nachfassen, bis es stabil stimmt -- der gemerkte Reiter schaltet spaeter noch einmal um
+    assert "stimmt < 4" in start and "getippt" in start
 
 
 def test_kein_neuer_sprachumfang_fuer_das_kniebrett():
@@ -228,3 +230,31 @@ def test_ebenen_liste_laesst_sich_mit_links_schliessen_und_haelt_die_pfeile():
 def test_ok_schaltet_ankreuzfelder():
     """Im Browser gemessen: Enter schaltet ein Ankreuzfeld nicht (nur die Leertaste)."""
     assert "/^(checkbox|radio)$/.test(ziel.type)" in _funktion("_tvTaste")
+
+
+def test_fernsicht_und_historie_sind_schaltbar():
+    b = _block()
+    assert "zurueck=0" in b and "if (_tvHistorieAus ||" in b
+    d = _funktion("_tvDiag")
+    assert "if (!_tvDiagAn ||" in d and "/api/tv-diag" in d
+
+
+def test_unsichtbare_vollbild_karte_ist_kein_bereich():
+    """Fund am Fire TV 03.10.2026: Auf dem Live-Tab bewirkte keine Taste etwas -- die
+    Vollbild-Klasse hing noch an der (nicht sichtbaren) Karte, der Bereich war leer."""
+    b = _funktion("_tvBereich")
+    assert "vollbild.getBoundingClientRect().width > 0" in b
+    assert "_tvBereich().classList.contains('map-is-fullscreen')" in _funktion("_tvHinweis")
+
+
+def test_haengendes_vollbild_wird_beim_naechsten_tastendruck_verlassen():
+    taste = _funktion("_tvTaste")
+    assert taste.index("_tvVollbildAufraeumen()") < taste.index("var t = e.key")
+    assert "getBoundingClientRect().width > 0" in _funktion("_tvVollbildAufraeumen")
+
+
+def test_keine_fallen_fremde_links_und_leeres_suchfeld():
+    """Im Browser nachgestellt 03.10.2026: OK auf dem Leaflet-Link verliess die Seite; im
+    leeren Suchfeld hingen Links/Rechts fest."""
+    assert "el.host !== location.host" in _funktion("_tvKandidaten")
+    assert "imTextfeld && ziel.value &&" in _funktion("_tvTaste")
