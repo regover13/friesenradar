@@ -136,3 +136,14 @@ def test_sitzung_der_testinstanz_wird_geprueft_und_beim_stoppen_geleert():
     stop = sk[sk.index("stoppen() {"):]
     assert stop.index(': > "$SITZUNG"') < stop.index("down")
     assert "TEST_NAME=" not in sk and "TEST_CID=" not in sk
+
+
+def test_kopie_bekommt_eigene_schluessel_und_das_ende_steht_vor_dem_start():
+    """Sicherheitspruefung 03.10.2026: Eine in der Kopie ausgestellte Sitzung darf in der
+    echten App nichts gelten (eigener SECRET_KEY je Lauf). Und das automatische Ende wird
+    vorgemerkt, BEVOR etwas scheitern kann -- sonst liefe eine halb gestartete Kopie weiter."""
+    sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
+    start = sk[sk.index("starten() {"):sk.index("sitzung_ausstellen() {")]
+    assert "for k in SECRET_KEY SSO_SECRET; do" in start and "/dev/urandom" in start
+    assert start.index("--on-active=2h") < start.index('"${compose[@]}" up -d')
+    assert "sitzung_ausstellen ||" in start

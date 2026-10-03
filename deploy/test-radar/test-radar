@@ -64,6 +64,8 @@ ende_abbestellen() {
   systemctl reset-failed "$ENDE_UNIT.service" 2>/dev/null || true
 }
 
+abbruch_start() { echo "$*" >&2; rm -f "$ORT/config.env"; stand_schreiben false "Start gescheitert."; exit 1; }
+
 starten() {
   if ! docker image inspect test-radar:aktuell >/dev/null 2>&1; then
     stand_schreiben false "Noch kein Stand gebaut (Zweig test)."; echo "kein Image test-radar:aktuell" >&2; exit 1
@@ -93,6 +95,15 @@ starten() {
   for k in $LEEREN; do sed -i "s|^$k=.*|$k=|" "$ORT/config.env"; done
   sed -i "s|^TS_NOTIFY_ENABLED=.*|TS_NOTIFY_ENABLED=false|; s|^DB_PATH=.*|DB_PATH=/daten/radar.db|" "$ORT/config.env"
   grep -q '^DB_PATH=/daten/radar.db$' "$ORT/config.env" || echo 'DB_PATH=/daten/radar.db' >> "$ORT/config.env"
+  # Eigene Schluessel je Lauf: Was die Kopie signiert (Sitzungen, Admin-Cookies), darf in der
+  # echten App nichts gelten -- und umgekehrt. Der Forum-Schluessel wird ebenfalls ersetzt; er
+  # muss nur vorhanden sein, damit die App den Login-Zwang wie in der Produktion zeigt.
+  for k in SECRET_KEY SSO_SECRET; do
+    grep -q "^$k=" "$ORT/config.env" || abbruch_start "$k fehlt in der Konfiguration"
+    sed -i "s|^$k=.*|$k=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')|" "$ORT/config.env"
+  done
+  ! cmp -s <(grep '^SECRET_KEY=' "$PROD/config.env") <(grep '^SECRET_KEY=' "$ORT/config.env") \
+    || abbruch_start "SECRET_KEY der Kopie gleicht dem der echten App"
   for k in VAPID_PRIVATE_KEY TELEGRAM_BOT_TOKEN ANTHROPIC_API_KEY; do
     ! grep -q "^$k=." "$ORT/config.env" || { echo "$k nicht geleert" >&2; exit 1; }
   done
@@ -103,16 +114,17 @@ starten() {
     | htpasswd -Bic "$HTPASSWD" admin 2>/dev/null
   chown root:www-data "$HTPASSWD"; chmod 640 "$HTPASSWD"
 
+  # Das Ende ZUERST vormerken: Was danach auch scheitert, die Instanz beendet sich nach 2 h.
+  ende_abbestellen
+  systemd-run --quiet --unit="$ENDE_UNIT" --on-active=2h /usr/local/bin/test-radar stop
   "${compose[@]}" up -d
   for i in $(seq 1 24); do
     sleep 5
     curl -sf "http://127.0.0.1:$PORT/health" | grep -q '"ok"' && break
-    [ "$i" -lt 24 ] || { "${compose[@]}" logs --tail 30; "${compose[@]}" down; stand_schreiben false "Start gescheitert."; exit 1; }
+    [ "$i" -lt 24 ] || { "${compose[@]}" logs --tail 30; stoppen; stand_schreiben false "Start gescheitert."; exit 1; }
   done
 
-  sitzung_ausstellen
-  ende_abbestellen
-  systemd-run --quiet --unit="$ENDE_UNIT" --on-active=2h /usr/local/bin/test-radar stop
+  sitzung_ausstellen || echo "Sitzung nicht ausgestellt -- Anmeldung in der Kopie geht dann nicht" >&2
   stand_schreiben true ""
   echo "Testinstanz laeuft: https://test-radar.devprops.de (endet in 2 h)"
 }
