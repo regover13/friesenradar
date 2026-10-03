@@ -17421,6 +17421,9 @@ function _tvBereich() {
     var st = getComputedStyle(el);
     if (st.display !== 'none' && st.visibility !== 'hidden' && el.getBoundingClientRect().width > 0) return el;
   }
+  // Offene Ebenen-Liste: Die Pfeile bleiben in ihr, bis sie geschlossen wird.
+  var ebenen = document.querySelector('.leaflet-control-layers-expanded');
+  if (ebenen) return ebenen;
   return document.querySelector('.map-is-fullscreen') || document.body;
 }
 
@@ -17469,6 +17472,10 @@ function _tvHinweis() {
   var h = document.getElementById('tv-hinweis');
   if (!h) return;
   var a = document.activeElement;
+  if (document.querySelector('.leaflet-control-layers-expanded')) {
+    h.textContent = 'Hoch/Runter = wählen · OK = an/aus · Links = schließen';
+    return;
+  }
   if (_tvRundgangAn && _tvRundgangText) { h.textContent = _tvRundgangText; return; }
   h.textContent = (a && a.classList && a.classList.contains('leaflet-container'))
     ? 'Karte: Pfeile verschieben · Spulen zoomt · OK = Bedienelemente'
@@ -17479,6 +17486,13 @@ function _tvHinweis() {
 
 function _tvBewegen(richtung) {
   var bereich = _tvBereich();
+  // In der Ebenen-Liste schliesst Links oder Rechts die Liste -- "Zurueck" allein reicht nicht
+  // als Ausweg (Nutzerfund 03.10.2026: aus dem Menue kam man nicht mehr heraus).
+  if (bereich.classList.contains('leaflet-control-layers-expanded')
+      && (richtung === 'links' || richtung === 'rechts')) {
+    _tvZurueck();
+    return;
+  }
   var liste = _tvKandidaten(bereich);
   var jetzt = document.activeElement;
   if (!jetzt || jetzt === document.body || !bereich.contains(jetzt)) {
@@ -17597,6 +17611,13 @@ function _tvTaste(e) {
     _tvBewegen(richtung);
     return;
   }
+  // Ankreuz- und Auswahlfelder schaltet ein Browser mit der Leertaste, nicht mit Enter --
+  // die Fernbedienung hat aber nur OK.
+  if (t === 'Enter' && ziel && ziel.tagName === 'INPUT' && /^(checkbox|radio)$/.test(ziel.type)) {
+    e.preventDefault();
+    ziel.click();
+    return;
+  }
   if (t === 'Enter' && ziel && !ziel.matches('a[href], button, input, select, textarea')) {
     e.preventDefault();
     _tvAusloesen(ziel);
@@ -17658,14 +17679,15 @@ var _tvRundgangText = '';
 var _TV_RUNDGANG_TAKT_MS = 12000;
 
 /** Naechster Flug nach `letzter` (Rufzeichen), alphabetisch, am Ende wieder von vorn.
- *  Gezeigt wird, wer fliegt (ab 40 kt); steht alles am Boden, dann eben die Stehenden. */
+ *  Gezeigt wird, wer sich bewegt -- auch wer erst rollt (Nutzer 03.10.2026). Steht alles
+ *  still, dann eben die Stehenden. */
 function _tvRundgangWahl(piloten, letzter) {
   var alle = [], inDerLuft = [];
   for (var i = 0; i < (piloten || []).length; i++) {
     var p = piloten[i], lat = Number(p.latitude), lon = Number(p.longitude);
     if (!p.callsign || !isFinite(lat) || !isFinite(lon) || (lat === 0 && lon === 0)) continue;
     alle.push(p);
-    if (Number(p.groundspeed) >= 40) inDerLuft.push(p);
+    if (Number(p.groundspeed) >= 1) inDerLuft.push(p);
   }
   var liste = inDerLuft.length ? inDerLuft : alle;
   if (!liste.length) return null;

@@ -169,7 +169,7 @@ def _rundgang(piloten, letzter):
 FLIEGER = [
     {"callsign": "FRS49", "latitude": 53.5, "longitude": 8.1, "groundspeed": 110},
     {"callsign": "FRS123", "latitude": 28.3, "longitude": -81.4, "groundspeed": 170},
-    {"callsign": "FRS7", "latitude": 54.0, "longitude": 9.0, "groundspeed": 0},      # steht am Boden
+    {"callsign": "FRS7", "latitude": 54.0, "longitude": 9.0, "groundspeed": 0},      # steht
     {"callsign": "FRS217", "latitude": 53.7, "longitude": 7.4, "groundspeed": 95},
 ]
 
@@ -182,6 +182,9 @@ def test_rundgang_schaltet_der_reihe_nach_durch_und_beginnt_von_vorn():
         letzter = w["callsign"]
         folge.append(letzter)
     assert folge == ["FRS123", "FRS217", "FRS49", "FRS123"]
+    # Wer rollt, zaehlt schon mit (Nutzer 03.10.2026: "sobald Bewegung")
+    rollt = FLIEGER + [{"callsign": "FRS8", "latitude": 53.0, "longitude": 8.0, "groundspeed": 9}]
+    assert _rundgang(rollt, "FRS49")["callsign"] == "FRS8"
     assert _rundgang(FLIEGER, None)["von"] == 3 and _rundgang(FLIEGER, "FRS123")["nr"] == 2
 
 
@@ -213,3 +216,15 @@ def test_zurueck_beendet_die_app_nicht():
     assert "pushState" in auflegen and "_TV_HISTORIE_MAX" in auflegen
     start = _funktion("_tvStart")
     assert "pushState" not in start and "_tvHistorieTiefe--" in start
+
+
+def test_ebenen_liste_laesst_sich_mit_links_schliessen_und_haelt_die_pfeile():
+    assert "leaflet-control-layers-expanded" in _funktion("_tvBereich")
+    b = _funktion("_tvBewegen")
+    assert "richtung === 'links' || richtung === 'rechts'" in b and "_tvZurueck()" in b
+    assert "Links = schließen" in _funktion("_tvHinweis")
+
+
+def test_ok_schaltet_ankreuzfelder():
+    """Im Browser gemessen: Enter schaltet ein Ankreuzfeld nicht (nur die Leertaste)."""
+    assert "/^(checkbox|radio)$/.test(ziel.type)" in _funktion("_tvTaste")
