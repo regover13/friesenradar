@@ -75,7 +75,10 @@ def test_alles_haengt_an_der_klasse_tv():
     for m in re.finditer(r"\n\s*([^\n{}]*:focus[^\n{]*)\{", INDEX):
         if "tv" in m.group(1):
             assert m.group(1).strip().startswith("html.tv"), m.group(1)
-    assert re.search(r"html\.tv [^{]*:focus[^{]*\{[^}]*outline:\s*4px solid", INDEX)
+    # Nutzer 03.10.2026: nur ein oranger Schein -- kein harter Rahmen, kein weisser Saum.
+    regel = re.search(r"html\.tv \*:focus \{([^}]*)\}", INDEX).group(1)
+    assert "outline: none" in regel and "rgba(215,95,40" in regel
+    assert "255,255,255" not in regel and "inset" not in regel
 
 
 def test_klickbares_ohne_knopf_wird_fokussierbar():

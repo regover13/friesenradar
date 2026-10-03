@@ -4372,16 +4372,17 @@
        ein Reiter genauso. Gezeigt wird deshalb allein das rote „GETRENNT“. Im Kniebrett
        traegt weiterhin das Zahnrad den Zustand ueber seine Farbe. */
     html:not(.vr-panel) header #sse-badge:not(.disconnected) { display: none; }
-    /* TV-Modus (?tv=1): Der Fokus muss vom Sofa aus zu sehen sein -- Rahmen in FriesenOrange,
-       nach aussen ein oranger Schein, nach innen ein weicher Verlauf nach Weiss (Nutzer
-       03.10.2026: der harte weisse Saum gefiel nicht). Kein Mauszeiger. */
+    /* TV-Modus (?tv=1): Der Fokus muss vom Sofa aus zu sehen sein -- ein oranger Schein um
+       das Element, sonst nichts (Nutzer 03.10.2026: kein harter Rahmen, kein weisser Saum).
+       Innen dicht, nach aussen weich auslaufend. Kein Mauszeiger. */
     html.tv *:focus {
-      outline: 4px solid #D75F28 !important;
-      outline-offset: 0;
-      box-shadow: 0 0 22px 8px rgba(215,95,40,0.75),
-                  inset 0 0 14px 4px rgba(255,255,255,0.7) !important;
+      outline: none !important;
+      box-shadow: 0 0 5px 3px rgba(215,95,40,0.95),
+                  0 0 26px 10px rgba(215,95,40,0.7) !important;
     }
-    html.tv .leaflet-container:focus { outline-offset: -6px; box-shadow: none !important; }
+    html.tv .leaflet-container:focus {
+      outline: 4px solid #D75F28 !important; outline-offset: -6px; box-shadow: none !important;
+    }
     /* Ankreuzfelder sind winzig: die ganze Zeile hervorheben, in der der Fokus steht. */
     html.tv label:focus-within {
       outline: 3px solid #D75F28; outline-offset: 1px; background: rgba(215,95,40,0.28);
