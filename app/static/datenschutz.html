@@ -61,17 +61,19 @@
   <div class="wrap">
     <a class="back" href="/">&larr; Zurück zu FriesenRadar</a>
     <h1>Datenschutzerklärung</h1>
-    <p class="stand">Stand: 14. Juli 2026</p>
+    <p class="stand">Stand: 3. Oktober 2026</p>
 
     <p>
       Diese Erklärung informiert gemäß Art. 13 DSGVO über die Verarbeitung personenbezogener
-      Daten bei der Nutzung von FriesenRadar (<span class="label">friesenradar.devprops.de</span>).
+      Daten bei der Nutzung von FriesenRadar. Der Dienst ist unter
+      <span class="label">friesenradar.devprops.de</span>, <span class="label">radar.friesenflieger.de</span>
+      sowie unter seiner früheren Adresse erreichbar; es ist überall dieselbe Anwendung.
     </p>
 
     <h2>1. Verantwortlicher</h2>
     <p class="addr">
       Tobias Wäschle<br />
-      Venloer Str. 156A, 50679 Köln<br />
+      Venloer Str. 156A, 50672 Köln<br />
       E-Mail: <span class="mail" data-u="webmaster" data-d="devprops.de">webmaster&#160;(at)&#160;devprops.de</span>
     </p>
 
@@ -91,12 +93,62 @@
       Online-Flugsimulationsnetzwerk VATSIM: VATSIM-ID (CID), Rufzeichen (Callsign),
       Positions- und Flugverlaufsdaten sowie daraus abgeleitete Statistiken und
       Event-Wertungen. Diese Daten stammen aus den öffentlich bereitgestellten
-      VATSIM-Datenschnittstellen. Zweck: Live-Anzeige und Auswertung des Flugbetriebs für die
+      VATSIM-Datenschnittstellen; die Flughistorie wird zusätzlich aus dem öffentlichen
+      Statistikdienst StatSim (statsim.net) ergänzt. Zweck: Live-Anzeige und Auswertung des Flugbetriebs für die
       Gruppe. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.
     </p>
     <p class="label">
       Hinweis: Der bei VATSIM angezeigte Name lässt sich in den VATSIM-Kontoeinstellungen
       kürzen oder verbergen (VATSIM Code of Conduct A4).
+    </p>
+
+    <h3>Kniebrett im Flugsimulator (optional)</h3>
+    <p>
+      Wer das Kniebrett-Paket im Microsoft Flight Simulator installiert, nutzt FriesenRadar als
+      App im Tablet des Simulators. Damit die Anmeldung einen Neustart des Simulators übersteht,
+      legt die App im Simulator eine zufällige Gerätekennung ab; auf dem Server werden dazu die
+      zugehörige VATSIM-ID, der Anzeigename, der Zeitpunkt der letzten Nutzung und die Version
+      des Pakets gespeichert. Das Kniebrett übermittelt außerdem die Position des eigenen
+      Flugzeugs aus dem Simulator (Position, Höhe, Kurs, Geschwindigkeit) und, wenn dies in den
+      Einstellungen eingeschaltet ist, die Positionen der Flugzeuge, die der Simulator in der
+      Umgebung zeigt. Zur Fehlersuche werden technische Diagnosedaten des Tablets
+      (Browserkennung, Funktionsumfang, Fehlermeldungen) gespeichert. Zweck: dauerhafte
+      Anmeldung, genaue Live-Anzeige, Fehlerbehebung. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO;
+      die Gerätekennung ist für die gewünschte Funktion unbedingt erforderlich (§ 25 Abs. 2 TDDDG).
+    </p>
+
+    <h3>FriesenBrügge (optional)</h3>
+    <p>
+      Die FriesenBrügge ist ein Zusatzpaket für den Flugsimulator. Sie meldet, solange der
+      Simulator läuft, etwa einmal pro Sekunde die Position des eigenen Flugzeugs (Position,
+      Höhe über Meer und über Grund, Geschwindigkeit, Kurs, am Boden oder in der Luft), den
+      Simulator und ihre Version. Jede Installation hat eine zufällige Kennung; der Server
+      ordnet sie anhand der Position der VATSIM-ID des Piloten zu. Zweck: sekundengenaue
+      Live-Anzeige, Wertung von Events und das Setzen von Event-Objekten im Simulator.
+      Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.
+    </p>
+
+    <h3>Gespeicherte Einstellungen</h3>
+    <p>
+      Persönliche Einstellungen der Oberfläche (z. B. helles oder dunkles Design, gewählte
+      Kartenebenen, zuletzt geöffneter Bereich) werden bei angemeldeten Mitgliedern auf dem
+      Server unter der VATSIM-ID gespeichert, damit sie auf jedem Gerät und im Kniebrett
+      gelten, und zusätzlich im Speicher des Browsers abgelegt. Zweck: die gewählte Darstellung
+      beibehalten. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO; für die gewünschte Funktion
+      unbedingt erforderlich (§ 25 Abs. 2 TDDDG).
+    </p>
+
+    <h3>Karten und eingebundene Bibliotheken</h3>
+    <p>
+      Die Karten werden direkt von den jeweiligen Kartenanbietern geladen; dabei erfährt der
+      Anbieter die IP-Adresse des Browsers und den abgerufenen Kartenausschnitt. Je nach
+      gewählter Kartenebene sind das: CARTO (Grundkarte hell/dunkel), OpenFlightMaps
+      (Luftfahrtkarte), Esri/ArcGIS (Satellitenbild), OpenTopoMap (Geländekarte) und OpenAIP
+      (Luftraumdaten). Zwei Programmbibliotheken werden von Auslieferungsdiensten geladen:
+      die Kartenbibliothek Leaflet von unpkg.com und die Diagrammbibliothek Chart.js von
+      cdn.jsdelivr.net; auch dabei wird die IP-Adresse an den jeweiligen Dienst übertragen.
+      Schriften und Symbole liefert FriesenRadar selbst aus. Zweck: Darstellung der Karte und
+      der Statistiken. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.
     </p>
 
     <h3>Push-Benachrichtigungen (optional)</h3>
@@ -156,7 +208,11 @@
       Der Dienst wird auf einem Server der Contabo GmbH (Deutschland) betrieben; in diesem
       Rahmen werden die genannten Daten dort verarbeitet. Flug- und Positionsdaten stammen von
       VATSIM als Datenquelle; bei aktiviertem Login bestätigt das FriesenFlieger-Forum die
-      Mitgliedschaft und liefert die zugehörige VATSIM-CID und das FRS-Rufzeichen. Für die
+      Mitgliedschaft und liefert die zugehörige VATSIM-CID und das FRS-Rufzeichen. Die
+      Flughistorie wird aus dem Statistikdienst StatSim ergänzt. Beim Anzeigen der Karte und
+      beim Laden der oben genannten Bibliotheken erhalten die jeweiligen Anbieter (CARTO,
+      OpenFlightMaps, Esri, OpenTopoMap, OpenAIP, unpkg, jsDelivr) die IP-Adresse des Browsers;
+      einzelne davon haben ihren Sitz außerhalb der EU. Für die
       optionalen KI-Sprüche werden einzelne Flug-Kontextdaten an Anthropic PBC (USA)
       übermittelt; die Übermittlung in die USA stützt sich auf die EU-Standardvertragsklauseln
       (Auftragsverarbeitungsvertrag von Anthropic). Eine Weitergabe zu Werbezwecken oder ein
@@ -165,10 +221,15 @@
 
     <h2>4. Speicherdauer</h2>
     <ul>
-      <li>Server-Logfiles: kurzfristig, für Betrieb und Fehleranalyse.</li>
+      <li>Server-Logfiles: 14 Tage, für Betrieb und Fehleranalyse.</li>
       <li>Flug-, Positions- und Statistikdaten: Verarbeitet werden ausschließlich die
           letzten 365 Tage.</li>
       <li>Push-Abonnements: bis zum Widerruf bzw. bis das Abo ungültig wird.</li>
+      <li>Kniebrett: Gerätekennung und Zuordnung bis zur Löschung des Geräts (auf Wunsch
+          jederzeit); Diagnosedaten werden laufend durch neuere ersetzt.</li>
+      <li>FriesenBrügge: die sekundengenaue Spur 12 Stunden; die Zuordnung der Installation
+          zur VATSIM-ID bis sie gelöst oder auf Wunsch gelöscht wird.</li>
+      <li>Gespeicherte Einstellungen: bis sie geändert oder auf Wunsch gelöscht werden.</li>
       <li>Anmeldung/Sitzung: das Login-Cookie endet nach rund 20 Minuten Inaktivität; die
           Zuordnung Rufzeichen↔CID wird bei jeder Anmeldung aktualisiert.</li>
     </ul>
