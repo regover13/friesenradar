@@ -10,7 +10,7 @@
 # Das Image `test-radar:aktuell` kommt vom Workflow test-image.yml (Zweig `test`).
 #
 # Was die Kopie NICHT kann, mit Absicht: Benachrichtigungen verschicken (Schluessel geleert,
-# Abos geloescht), Telegram, KI-Abfragen, TeamSpeak.
+# Abos geloescht), Telegram, KI-Abfragen.
 #
 # Zugang: ein Zugangslink je Lauf (https://test-radar.devprops.de/_zugang/<zufall>), der ein
 # Cookie setzt; ohne Cookie antwortet nginx mit 403. Den Link zeigt der Admin der echten App.
@@ -29,7 +29,9 @@ PORT=8092
 ENDE_UNIT=test-radar-ende
 ZUGANG=""
 SITZUNG=/etc/nginx/test-radar-sitzung.conf
-LEEREN="VAPID_PRIVATE_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID ANTHROPIC_API_KEY TS_QUERY_PASS"
+# TeamSpeak bleibt AN: Die Abfrage liest nur, wer im TeamSpeak ist (Anzeige im Live-Tab). Die
+# Benachrichtigung darueber liefe ueber Push -- und der ist in der Kopie ohne Schluessel und Abos.
+LEEREN="VAPID_PRIVATE_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID ANTHROPIC_API_KEY"
 
 # Die echte App: nach dem Umzug /opt/friesenradar, davor /opt/friesenspy.
 if [ -f /opt/friesenradar/data/friesenradar.db ]; then
@@ -117,7 +119,7 @@ starten() {
   # Konfiguration: Kopie der echten, alles geleert, was nach aussen wirkt.
   install -m 600 -o root -g root "$PROD/config.env" "$ORT/config.env"
   for k in $LEEREN; do sed -i "s|^$k=.*|$k=|" "$ORT/config.env"; done
-  sed -i "s|^TS_NOTIFY_ENABLED=.*|TS_NOTIFY_ENABLED=false|; s|^DB_PATH=.*|DB_PATH=/daten/radar.db|" "$ORT/config.env"
+  sed -i "s|^DB_PATH=.*|DB_PATH=/daten/radar.db|" "$ORT/config.env"
   grep -q '^DB_PATH=/daten/radar.db$' "$ORT/config.env" || echo 'DB_PATH=/daten/radar.db' >> "$ORT/config.env"
   # Eigene Schluessel je Lauf: Was die Kopie signiert (Sitzungen, Admin-Cookies), darf in der
   # echten App nichts gelten -- und umgekehrt. Der Forum-Schluessel wird ebenfalls ersetzt; er
