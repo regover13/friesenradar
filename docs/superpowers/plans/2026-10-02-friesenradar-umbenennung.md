@@ -90,6 +90,14 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 > **Ebenfalls Nutzer 03.10.2026:** Kniebrett 3.0.0 und die neue FriesenBrügge gehören ZU
 > Lichtblick, nicht „mit dem nächsten Paket“ — beide müssen am Simulator-Rechner gebaut und
 > geprüft sein, bevor 16.0.0 hinausgeht.
+> **Kniebrett-Ordner (Nutzer 03.10.2026 abends):** Paketordner, Download und abgelegte Datei
+> heißen **`friesenkniebrett`** (nicht mehr `friesenflieger-friesenradar-efb` /
+> `friesenradar-efb.zip` — wo dieser Plan die alten Namen nennt, gilt der neue; umgesetzt auf
+> `bruegge-radar`, 86199bf). Die Brüggen behalten ihre Ordner.
+> **Merkposten:** Im Paket steht „Die Anmeldung des Tablets bleibt erhalten“ (Wunsch des
+> Nutzers). Scheitert die Prüfung der Gerätebindung am Simulator, muss der Satz aus
+> `manifest.json` heraus, und der Changelog-Punkt zum Kniebrett braucht einen Hinweis auf die
+> neue Anmeldung — vor dem Verteilen.
 
 **Nur, wenn der Nutzer das Fenster freigibt.** Ausfall ~1 min. Die CI liegt **nicht** auf dem
 kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch läuft. (B2)
