@@ -147,3 +147,19 @@ def test_kopie_bekommt_eigene_schluessel_und_das_ende_steht_vor_dem_start():
     assert "for k in SECRET_KEY SSO_SECRET; do" in start and "/dev/urandom" in start
     assert start.index("--on-active=2h") < start.index('"${compose[@]}" up -d')
     assert "sitzung_ausstellen ||" in start
+
+
+def test_admin_der_kopie_sagt_dass_man_in_ihr_ist(env):
+    """Nutzerfund 03.10.2026: Im Admin der Testinstanz stand „Aus.“, waehrend sie lief."""
+    env.ordner.mkdir()
+    (env.ordner / "status.json").write_text(json.dumps({"laeuft": True, "hier": True, "bis": "2026-10-03T10:00:00Z"}))
+    d = env.client.get("/api/admin/testinstanz", cookies=_admin()).json()
+    assert d["hier"] is True
+    admin = (WURZEL / "app" / "static" / "admin.html").read_text(encoding="utf-8")
+    assert "if (d.hier) {" in admin and "Du bist gerade in der Testinstanz" in admin
+    sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
+    assert '"hier": True' in sk and '$ORT/data/testinstanz/status.json' in sk
+
+
+def test_ohne_marke_ist_man_nicht_in_der_kopie(env):
+    assert env.client.get("/api/admin/testinstanz", cookies=_admin()).json()["hier"] is False

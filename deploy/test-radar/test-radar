@@ -124,6 +124,13 @@ starten() {
     [ "$i" -lt 24 ] || { "${compose[@]}" logs --tail 30; stoppen; stand_schreiben false "Start gescheitert."; exit 1; }
   done
 
+  # In der Kopie selbst vermerken, dass man in ihr ist (ihr Admin zeigt das statt „Aus.“).
+  sudo -u containersvc mkdir -p "$ORT/data/testinstanz"
+  sudo -u containersvc python3 - "$ORT/data/testinstanz/status.json" <<'PY'
+import datetime, json, sys
+bis = (datetime.datetime.utcnow() + datetime.timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+json.dump({"laeuft": True, "hier": True, "bis": bis}, open(sys.argv[1], "w"))
+PY
   sitzung_ausstellen || echo "Sitzung nicht ausgestellt -- Anmeldung in der Kopie geht dann nicht" >&2
   stand_schreiben true ""
   echo "Testinstanz laeuft: https://test-radar.devprops.de (endet in 2 h)"

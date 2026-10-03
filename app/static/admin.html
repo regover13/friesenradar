@@ -2789,6 +2789,15 @@
     function _testinstanzZeigen(d) {
       const st = document.getElementById('testinstanzStand');
       let text;
+      if (d.hier) {
+        // Der Admin der Kopie selbst: Von hier aus laesst sie sich nicht steuern.
+        st.textContent = 'Du bist gerade in der Testinstanz'
+          + (d.bis ? ' — sie endet um ' + _testinstanzUhr(d.bis) + ' Uhr' : '')
+          + '. Starten und Beenden geht nur im Admin der echten App.';
+        document.getElementById('testinstanzStart').disabled = true;
+        document.getElementById('testinstanzStop').disabled = true;
+        return;
+      }
       if (d.angefordert === 'start') text = 'Start angefordert …';
       else if (d.angefordert === 'stop') text = 'Beenden angefordert …';
       else if (d.laeuft) text = 'Läuft' + (d.version ? ' (v' + d.version + ')' : '')
@@ -2799,7 +2808,9 @@
       document.getElementById('testinstanzStop').disabled = !!d.angefordert || !d.laeuft;
       // Solange eine Anforderung offen ist, nachsehen, bis der Server sie abgearbeitet hat.
       clearTimeout(_testinstanzTakt);
-      if (d.angefordert) _testinstanzTakt = setTimeout(loadTestinstanz, 5000);
+      // Sonst gemaechlich: Die Instanz endet nach 2 h von selbst oder wird woanders gestartet --
+      // die Anzeige soll dem folgen, ohne dass jemand die Seite neu laedt.
+      _testinstanzTakt = setTimeout(loadTestinstanz, d.angefordert ? 5000 : 20000);
     }
     async function loadTestinstanz() {
       try {

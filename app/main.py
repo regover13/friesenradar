@@ -4886,7 +4886,9 @@ async def admin_get_forum_login(request: Request):
 # ANFORDERUNG als Datei neben die Datenbank. Auf dem Server liest ein systemd-Pfadwaechter sie
 # und ruft `test-radar start|stop` (deploy/test-radar/). Der Stand kommt als status.json zurueck.
 _TESTINSTANZ_ADRESSE = "https://test-radar.devprops.de"
-_TESTINSTANZ_FELDER = ("laeuft", "seit", "bis", "version", "meldung")
+# `hier` setzt das Startskript nur in der KOPIE: Der Admin der Testinstanz soll sagen, dass man
+# gerade in ihr ist, statt „Aus.“ zu zeigen und Knoepfe anzubieten, hinter denen nichts haengt.
+_TESTINSTANZ_FELDER = ("laeuft", "seit", "bis", "version", "meldung", "hier")
 
 
 def _testinstanz_ordner() -> Path:
@@ -4895,7 +4897,8 @@ def _testinstanz_ordner() -> Path:
 
 def _testinstanz_stand() -> dict:
     ordner = _testinstanz_ordner()
-    stand = {"laeuft": False, "seit": None, "bis": None, "version": None, "meldung": None}
+    stand = {"laeuft": False, "seit": None, "bis": None, "version": None, "meldung": None,
+             "hier": False}
     try:
         roh = json.loads((ordner / "status.json").read_text(encoding="utf-8"))
         if isinstance(roh, dict):
@@ -4905,6 +4908,7 @@ def _testinstanz_stand() -> dict:
     except (OSError, ValueError):
         pass
     stand["laeuft"] = stand["laeuft"] is True
+    stand["hier"] = stand["hier"] is True
     try:
         wunsch = (ordner / "anforderung").read_text(encoding="utf-8").strip()
     except OSError:
