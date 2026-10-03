@@ -141,6 +141,20 @@ def test_download_name_folgt_dem_ordner_im_paket(env):
     assert 'filename="friesenflieger-friesenradar-efb.zip"' in r.headers["content-disposition"]
 
 
+def test_download_name_bei_zip_ohne_oberordner(env):
+    """Abschluss-Review 03.10.2026: Eine flach gebaute ZIP (manifest.json oben, html_ui/ als
+    Ordner) ergab den Namen html_ui.zip -- dann laege im Community-Ordner ein Ordner html_ui.
+    Gilt dieselbe Bedingung wie beim Ausliefern: nur ein gemeinsamer Oberordner zaehlt."""
+    ziel = main._efb_zip_path(env.settings)
+    ziel.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(ziel, "w") as z:
+        z.writestr("manifest.json", json.dumps({"package_version": "3.0.0"}))
+        z.writestr("layout.json", "{}")
+        z.writestr("html_ui/efb_ui/efb_apps/FriesenRadar/FriesenRadar.js", "//")
+    r = env.client.get("/download/efb")
+    assert 'filename="friesenflieger-friesenradar-efb.zip"' in r.headers["content-disposition"]
+
+
 def test_seite_und_download_liegen_hinter_dem_gate(env):
     """Beides gehört den Mitgliedern. /static/ ist gate-frei — deshalb liegt die Seite
     bewusst unter /download (und ihrer alten URL /efb) und nicht unter /static/efb.html."""

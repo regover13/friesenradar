@@ -2406,6 +2406,13 @@
   <script>
     'use strict';
 
+    // Adresse fuer Badge- und Teilen-Codes: Wer ueber das stille Alias kommt, soll trotzdem
+    // nur die neue Adresse weitergeben (wie _teilenUrsprung in index.html).
+    function _teilenUrsprung() {
+      return location.origin === 'https://friesenspy.devprops.de'
+        ? 'https://friesenradar.devprops.de' : location.origin;
+    }
+
     // ====================================================================
     // UTILITIES
     // ====================================================================
@@ -4905,7 +4912,7 @@
         if (bbtn) {
           const cid = bbtn.dataset.badgeCid;
           const rid = bbtn.dataset.badgeRace;
-          const code = `[img]${location.origin}/api/bummel/race/${rid}/badge/${cid}.png[/img]`;
+          const code = `[img]${_teilenUrsprung()}/api/bummel/race/${rid}/badge/${cid}.png[/img]`;
           try {
             await navigator.clipboard.writeText(code);
             const old = bbtn.textContent;
@@ -5545,7 +5552,7 @@
 
     async function keCopyLink(id) {
       // Direktlink zum Kutter-Event fürs Forum/Discord (löst die „woher die Event-Nummer?“-Lücke).
-      const url = location.origin + '/#tab=events&kutter=' + id;
+      const url = _teilenUrsprung() + '/#tab=events&kutter=' + id;
       try {
         await navigator.clipboard.writeText(url);
         toast('Kutter-Link kopiert: ' + url);
@@ -7510,7 +7517,7 @@
     async function rdCopyLink(id) {
       // Direktlink fuers Forum/Discord -- dieselbe Luecke wie beim Kutter ("woher die
       // Event-Nummer?").
-      const url = location.origin + '/#tab=events&reddung=' + id;
+      const url = _teilenUrsprung() + '/#tab=events&reddung=' + id;
       try {
         await navigator.clipboard.writeText(url);
         toast('Reddung-Link kopiert: ' + url);

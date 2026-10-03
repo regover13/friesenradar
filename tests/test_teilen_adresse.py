@@ -35,3 +35,11 @@ def test_andere_adressen_bleiben_wie_sie_sind():
 def test_kein_teilen_code_nimmt_location_origin_direkt():
     roh = re.findall(r"\$\{location\.origin\}", INDEX)
     assert roh == [], "Teilen-/Badge-Codes muessen _teilenUrsprung() nehmen"
+
+
+def test_admin_teilt_ebenfalls_nur_die_neue_adresse():
+    admin = (Path(__file__).resolve().parents[1] / "app" / "static" / "admin.html").read_text(encoding="utf-8")
+    assert "location.origin" not in admin.replace("location.origin === 'https://friesenspy.devprops.de'", "") \
+        .replace("? 'https://friesenradar.devprops.de' : location.origin", ""), \
+        "Badge-/Teilen-Codes im Admin muessen _teilenUrsprung() nehmen"
+    assert "function _teilenUrsprung()" in admin

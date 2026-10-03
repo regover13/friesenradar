@@ -2310,12 +2310,14 @@ Windows-Build (`npm run build` + `msfs-panel/build-package.ps1`, letzteres brauc
 pro EFB-Release **einmal ins Volume gelegt** — EFB-Releases sind selten und von den
 Web-Deploys entkoppelt.
 
-Ablage (Standard): `<Verzeichnis der DB>/efb/friesenspy-efb.zip`, auf dem VPS also
-`/opt/friesenspy/data/efb/friesenspy-efb.zip`. Abweichend über `EFB_PACKAGE_PATH`
-in der `config.env`.
+Ablage (Standard): `<Verzeichnis der DB>/efb/friesenradar-efb.zip`, auf dem VPS also
+`/opt/friesenradar/data/efb/friesenradar-efb.zip`. Fehlt sie, wird die alte
+`friesenspy-efb.zip` daneben ausgeliefert (Paket 2.x, bis 3.0.0 abgelegt ist). Abweichend über
+`EFB_PACKAGE_PATH` in der `config.env`.
 
-Das ZIP muss **einen** Ordner auf oberster Ebene enthalten
-(`friesenflieger-friesenspy-efb/`) — genau der wird vom Nutzer nach `Community` kopiert.
+Das ZIP muss **einen** Ordner auf oberster Ebene enthalten — ab 3.0.0
+`friesenflieger-friesenradar-efb/`, bis 2.x `friesenflieger-friesenspy-efb/`. Genau der wird
+vom Nutzer nach `Community` kopiert.
 
 ### GET /download (alt: /efb)
 
@@ -2349,7 +2351,10 @@ ausfallen).
 
 ### GET /download/efb
 
-Liefert das ZIP als `friesenflieger-friesenspy-efb.zip` (`application/zip`).
+Liefert das ZIP unter dem Namen seines Paketordners (`_efb_download_name`): ab 3.0.0
+`friesenflieger-friesenradar-efb.zip`, bis 2.x `friesenflieger-friesenspy-efb.zip`
+(`application/zip`). Hat die ZIP keinen gemeinsamen Oberordner, heißt sie
+`friesenflieger-friesenradar-efb.zip`.
 `404`, wenn kein Paket hinterlegt ist. Liegt hinter dem Gate.
 
 **Ausgeliefert ohne Oberordner** (seit 25.09.2026, gilt auch für `/download/bruegge` und
@@ -2360,14 +2365,15 @@ ZIP an, und lag darin noch einmal der Paketordner, war `manifest.json` nach dem 
 mit Oberordner** — so baut sie der Windows-Build, und `_efb_package_version` liest ihn.
 
 ⚠ Der Dateiname ist damit der Ordnername nach dem Entpacken und muss dem bisherigen
-Paketordner entsprechen: `friesenflieger-friesenspy-efb.zip`, `friesenbruegge.zip`,
+Paketordner entsprechen: `friesenflieger-friesenradar-efb.zip` (ab 3.0.0, bewusst ein neuer
+Ordner — Variante B; das Paket bittet, den alten zu löschen), `friesenbruegge.zip`,
 `FriesenBruegge.zip` (X-Plane; bis 25.09.2026 `friesenbruegge-xplane.zip`). Sonst läge nach einem
 Update ein zweites Paket neben dem alten.
 
 ### Neues Paket hochladen
 
 ```bash
-scp friesenspy-efb.zip server:/opt/friesenspy/data/efb/friesenspy-efb.zip
+scp friesenradar-efb.zip server:/opt/friesenradar/data/efb/friesenradar-efb.zip
 ```
 
 Kein Neustart nötig — Pfad und Version werden bei jedem Aufruf frisch gelesen.
@@ -2378,13 +2384,13 @@ Kein Neustart nötig — Pfad und Version werden bei jedem Aufruf frisch gelesen
 > tatsächlich herunterladen, war eine andere. Deshalb nach jedem Paket-Bump prüfen:
 >
 > ```bash
-> ssh server "unzip -p /opt/friesenspy/data/efb/friesenspy-efb.zip \
->   'friesenflieger-friesenspy-efb/manifest.json' | grep package_version"
+> ssh server "unzip -p /opt/friesenradar/data/efb/friesenradar-efb.zip \
+>   'friesenflieger-friesenradar-efb/manifest.json' | grep package_version"
 > ```
 >
 > Die Zahl muss mit `manifest.json` im Repo **und** mit der im Changelog und im
 > Forumsbeitrag genannten übereinstimmen. Vor dem Überschreiben eine Sicherung anlegen
-> (`cp … friesenspy-efb.zip.<alte-version>.bak`) — die alten liegen bereits dort.
+> (`cp … friesenradar-efb.zip.<alte-version>.bak`) — die alten liegen bereits dort.
 >
 > Der SSH-Zugang läuft über den Alias **`server`** aus `~/.ssh/config`; mit der IP direkt
 > greift der Config-Eintrag nicht und die Anmeldung scheitert mit `Permission denied`.

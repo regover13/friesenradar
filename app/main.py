@@ -817,12 +817,16 @@ def _efb_download_name(pfad: Path) -> str:
     (Variante B, Nutzer 03.10.2026). Am Inhalt statt im Code festgemacht, damit der neue Name
     erst mit dem neuen Paket erscheint -- sonst laege nach dem Update das ALTE Paket unter
     neuem Ordnernamen neben dem alten, und das Tablet zeigte zwei gleiche Apps."""
+    # Dieselbe Bedingung wie in _zip_ohne_oberordner: Nur wenn ALLE Eintraege unter genau
+    # einem Ordner liegen, gibt es einen Paketordner. Eine flach gebaute ZIP ergab sonst den
+    # Namen ihres einzigen Unterordners (html_ui.zip) -- Abschluss-Review 03.10.2026.
     try:
         with zipfile.ZipFile(pfad) as z:
-            oben = {n.split("/", 1)[0] for n in z.namelist() if "/" in n}
+            namen = z.namelist()
     except (zipfile.BadZipFile, OSError):
-        oben = set()
-    if len(oben) == 1:
+        namen = []
+    oben = {n.split("/", 1)[0] for n in namen}
+    if namen and len(oben) == 1 and all("/" in n for n in namen):
         return next(iter(oben)) + ".zip"
     return "friesenflieger-friesenradar-efb.zip"
 
