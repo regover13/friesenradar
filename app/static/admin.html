@@ -2178,6 +2178,17 @@
             <button class="btn btn-sm" id="testinstanzStop">■ Beenden</button>
             <span id="testinstanzStand" style="color:#8aa0b8;font-size:0.82rem;margin-left:10px;"></span>
           </div>
+          <div id="testinstanzVarianten" hidden style="font-size:0.85rem;line-height:1.9;margin-top:6px;">
+            <div style="color:#8aa0b8;font-size:0.82rem;">Direkt öffnen (jeder Link setzt den Zugang für diesen Lauf):</div>
+            <a data-variante="" target="_blank" rel="noopener">Normal</a> ·
+            <a data-variante="?tv=1" target="_blank" rel="noopener">TV-Modus</a> ·
+            <a data-variante="?tv=1&amp;rundgang=1" target="_blank" rel="noopener">TV-Modus mit Rundgang</a> ·
+            <a data-variante="?vr=1" target="_blank" rel="noopener">Kniebrett-Ansicht</a>
+            <div style="color:#8aa0b8;font-size:0.82rem;">
+              Fester Ausschnitt im TV-Modus: an die Adresse <code>&amp;mitte=Breite,Länge&amp;zoom=Stufe</code>
+              anhängen, z.&nbsp;B. <code>?tv=1&amp;mitte=53.5,8.1&amp;zoom=8</code>. Dann wird nicht nachgeführt.
+            </div>
+          </div>
         </div>
 
         <!-- BOARD-LOGIN (v9) -->
@@ -2806,6 +2817,12 @@
       st.textContent = text;
       // Laeuft sie, traegt der Link den Zugang fuer diesen Lauf; sonst die blanke Adresse.
       document.getElementById('testinstanzLink').href = (d.laeuft && d.zugang) ? d.zugang : d.adresse;
+      // Varianten nur, solange sie laeuft -- ohne Zugang fuehrten die Links auf „403“.
+      const varianten = document.getElementById('testinstanzVarianten');
+      varianten.hidden = !(d.laeuft && d.zugang);
+      Array.prototype.forEach.call(varianten.querySelectorAll('a[data-variante]'), function (a) {
+        a.href = (d.zugang || d.adresse) + a.getAttribute('data-variante');
+      });
       document.getElementById('testinstanzStart').disabled = !!d.angefordert;
       document.getElementById('testinstanzStop').disabled = !!d.angefordert || !d.laeuft;
       // Solange eine Anforderung offen ist, nachsehen, bis der Server sie abgearbeitet hat.
