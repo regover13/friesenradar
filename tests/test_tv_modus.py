@@ -269,7 +269,7 @@ def test_folgen_schaltet_den_echten_folgemodus_ein():
 
 def test_rundgang_tempo():
     b = _block()
-    assert "_TV_RUNDGANG_TAKT_MS = 30000" in b and "_TV_RUNDGANG_ZOOM = 13" in b and "_TV_RUNDGANG_SCHWENK_S = 5" in b
+    assert "_TV_RUNDGANG_TAKT_MS = 30000" in b and "_TV_RUNDGANG_ZOOM = 12" in b and "_TV_RUNDGANG_SCHWENK_S = 5" in b
 
 
 def test_schaltflaechen_gehen_in_die_ruhe_und_kommen_mit_einer_taste_zurueck():
