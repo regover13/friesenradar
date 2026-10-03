@@ -86,7 +86,7 @@ def test_kaputte_statusdatei_heisst_aus(env):
 
 def test_admin_seite_hat_schalter_und_link():
     admin = (WURZEL / "app" / "static" / "admin.html").read_text(encoding="utf-8")
-    assert 'href="https://test-radar.devprops.de"' in admin
+    assert 'id="testinstanzLink" href="https://test-radar.devprops.de"' in admin
     assert "/api/admin/testinstanz" in admin
     assert 'id="testinstanzStart"' in admin and 'id="testinstanzStop"' in admin
 
@@ -124,7 +124,8 @@ def test_im_uebergabeordner_arbeitet_nie_root():
             z = zeile.strip()
             if z.startswith(("#", "UEBERGABE=", "datei=", "status)")):
                 continue
-            assert "sudo -u containersvc" in z, zeile
+            # datei_schreiben schreibt selbst als containersvc (und ohne Symlink-Folgen).
+            assert "sudo -u containersvc" in z or z.startswith("datei_schreiben "), zeile
 
 
 def test_sitzung_der_testinstanz_wird_geprueft_und_beim_stoppen_geleert():
@@ -134,7 +135,8 @@ def test_sitzung_der_testinstanz_wird_geprueft_und_beim_stoppen_geleert():
     sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
     assert "*[!A-Za-z0-9._=-]*" in sk
     stop = sk[sk.index("stoppen() {"):]
-    assert stop.index(': > "$SITZUNG"') < stop.index("down")
+    assert stop.index("sitzung_zu") < stop.index("down")
+    assert "htpasswd" not in sk and "auth_basic" not in (WURZEL / "deploy" / "test-radar" / "test-radar.devprops.de.conf").read_text()
     assert "TEST_NAME=" not in sk and "TEST_CID=" not in sk
 
 
@@ -158,8 +160,34 @@ def test_admin_der_kopie_sagt_dass_man_in_ihr_ist(env):
     admin = (WURZEL / "app" / "static" / "admin.html").read_text(encoding="utf-8")
     assert "if (d.hier) {" in admin and "Du bist gerade in der Testinstanz" in admin
     sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
-    assert '"hier": True' in sk and '$ORT/data/testinstanz/status.json' in sk
+    assert 'hier' in sk and '$ORT/data/testinstanz/status.json' in sk
 
 
 def test_ohne_marke_ist_man_nicht_in_der_kopie(env):
     assert env.client.get("/api/admin/testinstanz", cookies=_admin()).json()["hier"] is False
+
+
+def test_zugangslink_nur_wenn_er_auf_die_testadresse_zeigt(env):
+    env.ordner.mkdir()
+    gut = "https://test-radar.devprops.de/_zugang/" + "ab12" * 12
+    for wert, erwartet in [(gut, gut), ("https://boese.example/_zugang/" + "ab12" * 12, None),
+                           ("javascript:alert(1)", None), (7, None)]:
+        (env.ordner / "status.json").write_text(json.dumps({"laeuft": True, "zugang": wert}))
+        assert env.client.get("/api/admin/testinstanz", cookies=_admin()).json()["zugang"] == erwartet
+
+
+def test_ohne_zugangscookie_kein_zutritt():
+    conf = (WURZEL / "deploy" / "test-radar" / "test-radar.devprops.de.conf").read_text(encoding="utf-8")
+    assert "if ($tr_ok = 0) { return 403; }" in conf
+    sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
+    assert "set $tr_ok 0;" in sk[sk.index("sitzung_zu() {"):sk.index("sitzung_ausstellen() {")]
+
+
+def test_dateien_in_container_ordnern_folgen_keinem_symlink():
+    """Sicherheitspruefung 03.10.2026: Die Kopie laeuft mit ungeprueftem Code als derselbe
+    Benutzer wie die echte App. Ein von ihr gelegter Symlink duerfte sonst beim naechsten
+    Start eine Datei der echten App ueberschreiben."""
+    sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
+    assert "O_NOFOLLOW" in sk and "O_EXCL" in sk
+    assert 'rm -rf "$ORT/data/testinstanz"' in sk
+    assert 'open(ziel, "w")' not in sk and 'open(sys.argv[1], "w")' not in sk

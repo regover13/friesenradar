@@ -4888,7 +4888,7 @@ async def admin_get_forum_login(request: Request):
 _TESTINSTANZ_ADRESSE = "https://test-radar.devprops.de"
 # `hier` setzt das Startskript nur in der KOPIE: Der Admin der Testinstanz soll sagen, dass man
 # gerade in ihr ist, statt „Aus.“ zu zeigen und Knoepfe anzubieten, hinter denen nichts haengt.
-_TESTINSTANZ_FELDER = ("laeuft", "seit", "bis", "version", "meldung", "hier")
+_TESTINSTANZ_FELDER = ("laeuft", "seit", "bis", "version", "meldung", "hier", "zugang")
 
 
 def _testinstanz_ordner() -> Path:
@@ -4898,7 +4898,7 @@ def _testinstanz_ordner() -> Path:
 def _testinstanz_stand() -> dict:
     ordner = _testinstanz_ordner()
     stand = {"laeuft": False, "seit": None, "bis": None, "version": None, "meldung": None,
-             "hier": False}
+             "hier": False, "zugang": None}
     try:
         roh = json.loads((ordner / "status.json").read_text(encoding="utf-8"))
         if isinstance(roh, dict):
@@ -4909,6 +4909,11 @@ def _testinstanz_stand() -> dict:
         pass
     stand["laeuft"] = stand["laeuft"] is True
     stand["hier"] = stand["hier"] is True
+    # Der Zugangslink wird nur durchgereicht, wenn er wirklich auf die Testadresse zeigt.
+    zugang = stand["zugang"]
+    if not (isinstance(zugang, str) and re.fullmatch(
+            re.escape(_TESTINSTANZ_ADRESSE) + r"/_zugang/[0-9a-f]{16,64}", zugang)):
+        stand["zugang"] = None
     try:
         wunsch = (ordner / "anforderung").read_text(encoding="utf-8").strip()
     except OSError:

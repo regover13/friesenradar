@@ -10,10 +10,14 @@
 # Das Image `test-radar:aktuell` kommt vom Workflow test-image.yml (Zweig `test`).
 #
 # Was die Kopie NICHT kann, mit Absicht: Benachrichtigungen verschicken (Schluessel geleert,
-# Abos geloescht), Telegram, KI-Abfragen, TeamSpeak. Der Zugang laeuft ueber ein Passwort in
-# nginx (Benutzer admin, Admin-Passwort der App).
+# Abos geloescht), Telegram, KI-Abfragen, TeamSpeak.
 #
-# Wer das Passwort kennt, ist in der Kopie zugleich als Mitglied angemeldet: Das Forum kennt
+# Zugang: ein Zugangslink je Lauf (https://test-radar.devprops.de/_zugang/<zufall>), der ein
+# Cookie setzt; ohne Cookie antwortet nginx mit 403. Den Link zeigt der Admin der echten App.
+# Bewusst KEIN Basic-Auth mehr: Der Browser ruft Manifest und einzelne Pfade ohne Zugangsdaten
+# ab -- das ergab staendige Passwort-Abfragen und einmal eine fail2ban-Sperre des Nutzers.
+#
+# Wer den Link hat, ist in der Kopie zugleich als Mitglied angemeldet: Das Forum kennt
 # die Testadresse nicht, also gibt nginx jeder Anfrage eine fuer diesen Lauf ausgestellte
 # Sitzung mit (Name und CID aus /opt/test-radar/benutzer.env, nicht im Repo). So sieht die
 # Testinstanz aus wie die echte App fuer ein angemeldetes Mitglied -- Name in der Kopfzeile,
@@ -22,8 +26,8 @@ set -euo pipefail
 
 ORT=/opt/test-radar
 PORT=8092
-HTPASSWD=/etc/nginx/test-radar.htpasswd
 ENDE_UNIT=test-radar-ende
+ZUGANG=""
 SITZUNG=/etc/nginx/test-radar-sitzung.conf
 LEEREN="VAPID_PRIVATE_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID ANTHROPIC_API_KEY TS_QUERY_PASS"
 
@@ -40,6 +44,23 @@ compose=(docker compose --project-directory "$ORT" -f "$ORT/docker-compose.yml")
 
 laeuft() { [ -n "$(docker ps -q --filter name='^test-radar-test-radar-1$')" ]; }
 
+datei_schreiben() {   # $1 Ziel, $2 JSON -- als containersvc, ohne einem Symlink zu folgen
+  sudo -u containersvc python3 - "$1" "$2" <<'PY'
+import json, os, sys
+ziel = sys.argv[1]
+daten = json.loads(sys.argv[2])
+# Nie einem Symlink folgen: Der Ordner gehoert einem Container. Alte Datei entfernen, neu und
+# exklusiv anlegen, 600 (im Stand der echten App steht der Zugangslink).
+try:
+    os.unlink(ziel)
+except FileNotFoundError:
+    pass
+fd = os.open(ziel, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+with os.fdopen(fd, "w") as f:
+    json.dump(daten, f)
+PY
+}
+
 stand_schreiben() {   # $1 true|false, $2 Meldung
   local seit="" bis="" version=""
   if [ "$1" = true ]; then
@@ -51,12 +72,10 @@ stand_schreiben() {   # $1 true|false, $2 Meldung
   # und nie als root: Ein dort untergeschobener Symlink koennte root sonst eine beliebige
   # Datei ueberschreiben lassen.
   sudo -u containersvc mkdir -p "$UEBERGABE"
-  sudo -u containersvc python3 - "$UEBERGABE/status.json" "$1" "$seit" "$bis" "$version" "${2:-}" <<'PY'
-import json, sys
-ziel, laeuft, seit, bis, version, meldung = sys.argv[1:7]
-json.dump({"laeuft": laeuft == "true", "seit": seit or None, "bis": bis or None,
-           "version": version or None, "meldung": meldung or None}, open(ziel, "w"))
-PY
+  local daten
+  daten=$(python3 -c 'import json,sys; l,s,b,v,m,z=sys.argv[1:7]; print(json.dumps({"laeuft": l=="true", "seit": s or None, "bis": b or None, "version": v or None, "meldung": m or None, "zugang": z or None}))' \
+          "$1" "$seit" "$bis" "$version" "${2:-}" "${3:-}")
+  datei_schreiben "$UEBERGABE/status.json" "$daten"
 }
 
 ende_abbestellen() {
@@ -108,12 +127,6 @@ starten() {
     ! grep -q "^$k=." "$ORT/config.env" || { echo "$k nicht geleert" >&2; exit 1; }
   done
 
-  # Zugang: Benutzer admin, Admin-Passwort der App. Das Passwort geht per Pipe an htpasswd
-  # und erscheint nirgends in einer Ausgabe oder Befehlszeile.
-  grep '^ADMIN_PASSWORD=' "$PROD/config.env" | head -1 | cut -d= -f2- | tr -d '\n' \
-    | htpasswd -Bic "$HTPASSWD" admin 2>/dev/null
-  chown root:www-data "$HTPASSWD"; chmod 640 "$HTPASSWD"
-
   # Das Ende ZUERST vormerken: Was danach auch scheitert, die Instanz beendet sich nach 2 h.
   ende_abbestellen
   systemd-run --quiet --unit="$ENDE_UNIT" --on-active=2h /usr/local/bin/test-radar stop
@@ -125,39 +138,50 @@ starten() {
   done
 
   # In der Kopie selbst vermerken, dass man in ihr ist (ihr Admin zeigt das statt „Aus.“).
-  sudo -u containersvc mkdir -p "$ORT/data/testinstanz"
-  sudo -u containersvc python3 - "$ORT/data/testinstanz/status.json" <<'PY'
-import datetime, json, sys
-bis = (datetime.datetime.utcnow() + datetime.timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
-json.dump({"laeuft": True, "hier": True, "bis": bis}, open(sys.argv[1], "w"))
-PY
+  # Der Ordner koennte von einem frueheren Lauf der Kopie stammen (ungepruefter Code): erst
+  # entfernen (rm folgt keinem Symlink), dann neu anlegen.
+  sudo -u containersvc rm -rf "$ORT/data/testinstanz"
+  sudo -u containersvc mkdir "$ORT/data/testinstanz"
+  datei_schreiben "$ORT/data/testinstanz/status.json" \
+    "{\"laeuft\": true, \"hier\": true, \"bis\": \"$(date -u -d '+2 hours' +%Y-%m-%dT%H:%M:%SZ)\"}"
   sitzung_ausstellen || echo "Sitzung nicht ausgestellt -- Anmeldung in der Kopie geht dann nicht" >&2
-  stand_schreiben true ""
+  stand_schreiben true "" "https://test-radar.devprops.de/_zugang/$ZUGANG"
   echo "Testinstanz laeuft: https://test-radar.devprops.de (endet in 2 h)"
 }
 
+sitzung_zu() {   # Zustand "aus": niemand kommt hinein, die Variablen gibt es trotzdem (nginx -t)
+  printf 'set $tr_ok 0;\nset $tr_sitzung "";\n' > "$SITZUNG"
+  chown root:root "$SITZUNG"; chmod 600 "$SITZUNG"
+}
+
 sitzung_ausstellen() {
-  # Sitzung fuer diesen Lauf (2 h + 5 min), signiert mit dem Schluessel der Kopie. nginx haengt
-  # sie an jede Anfrage; ohne benutzer.env bleibt es beim Forum-Login (der hier nicht geht).
-  : > "$SITZUNG"
+  # Zugangslink und Mitglieder-Sitzung fuer diesen Lauf (2 h + 5 min). Die Sitzung ist mit dem
+  # Schluessel der Kopie signiert; ohne benutzer.env gibt es nur den Zugang, keine Anmeldung.
+  ZUGANG=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')
+  local marke=""
   if [ -f "$ORT/benutzer.env" ]; then
-    local marke
     marke=$(docker exec -i --env-file "$ORT/benutzer.env" test-radar-test-radar-1 python -c "
 import os, time
 from app.config import get_settings
 from app.forum_sso import make_user_token
-print(make_user_token(get_settings().SECRET_KEY, os.environ['TEST_NAME'], os.environ['TEST_CID'], True, time.time() + 7500))")
-    case "$marke" in
-      *[!A-Za-z0-9._=-]*|"") echo "Sitzung nicht ausgestellt" >&2 ;;
-      *) printf 'proxy_set_header Cookie "fs_user=%s; $http_cookie";\n' "$marke" > "$SITZUNG" ;;
-    esac
+print(make_user_token(get_settings().SECRET_KEY, os.environ['TEST_NAME'], os.environ['TEST_CID'], True, time.time() + 7500))") || marke=""
+    case "$marke" in *[!A-Za-z0-9._=-]*) marke="" ;; esac
   fi
+  {
+    printf 'set $tr_ok 0;\n'
+    printf 'if ($cookie_tr_zugang = "%s") { set $tr_ok 1; }\n' "$ZUGANG"
+    printf 'set $tr_sitzung "%s";\n' "${marke:+fs_user=$marke; }"
+    printf 'location = /_zugang/%s {\n  access_log off;\n' "$ZUGANG"
+    printf '  add_header Set-Cookie "tr_zugang=%s; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=7500" always;\n' "$ZUGANG"
+    printf '  return 302 /;\n}\n'
+  } > "$SITZUNG"
   chown root:root "$SITZUNG"; chmod 600 "$SITZUNG"
-  nginx -t 2>/dev/null && systemctl reload nginx
+  nginx -t 2>/dev/null || { sitzung_zu; return 1; }
+  systemctl reload nginx
 }
 
 stoppen() {
-  : > "$SITZUNG"; nginx -t 2>/dev/null && systemctl reload nginx
+  sitzung_zu; nginx -t 2>/dev/null && systemctl reload nginx
   "${compose[@]}" down 2>/dev/null || true
   rm -f "$ORT"/data/radar.db* "$ORT/config.env"
   ende_abbestellen

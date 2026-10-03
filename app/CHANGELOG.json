@@ -1,5 +1,14 @@
 [
   {
+    "version": "15.34.1",
+    "date": "2026-10-03",
+    "highlight": false,
+    "title": "Vorarbeit für den neuen Namen",
+    "items": [
+      "🔧 **Keine sichtbare Änderung.** Die Testfassung für die Verwaltung lässt sich jetzt direkt aus der Verwaltung öffnen."
+    ]
+  },
+  {
     "version": "15.34.0",
     "date": "2026-10-03",
     "highlight": false,

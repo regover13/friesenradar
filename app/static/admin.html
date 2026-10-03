@@ -2167,8 +2167,8 @@
           <div class="panel-title"><span>🧪 Testinstanz</span></div>
           <p style="color:#8aa0b8;font-size:0.82rem;margin:4px 0 12px;">
             Eine zweite Fassung der App zum Ausprobieren, bevor etwas für alle ausgeliefert wird:
-            <a href="https://test-radar.devprops.de" target="_blank" rel="noopener">test-radar.devprops.de</a>
-            (Anmeldung: Benutzer <code>admin</code>, dein Admin-Passwort). Sie startet mit dem
+            <a id="testinstanzLink" href="https://test-radar.devprops.de" target="_blank" rel="noopener">test-radar.devprops.de</a>.
+            Der Link hier öffnet sie ohne weitere Anmeldung, solange sie läuft. Sie startet mit dem
             Stand vom Zweig <code>test</code> und einer frischen Kopie der Daten, kann keine
             Benachrichtigungen verschicken und beendet sich nach 2 Stunden von selbst. Der Start
             dauert rund eine Minute.
@@ -2804,6 +2804,8 @@
                                 + (d.bis ? ' — endet um ' + _testinstanzUhr(d.bis) + ' Uhr' : '') + '.';
       else text = 'Aus.' + (d.meldung ? ' ' + d.meldung : '');
       st.textContent = text;
+      // Laeuft sie, traegt der Link den Zugang fuer diesen Lauf; sonst die blanke Adresse.
+      document.getElementById('testinstanzLink').href = (d.laeuft && d.zugang) ? d.zugang : d.adresse;
       document.getElementById('testinstanzStart').disabled = !!d.angefordert;
       document.getElementById('testinstanzStop').disabled = !!d.angefordert || !d.laeuft;
       // Solange eine Anforderung offen ist, nachsehen, bis der Server sie abgearbeitet hat.
