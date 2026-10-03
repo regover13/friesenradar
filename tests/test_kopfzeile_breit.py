@@ -8,7 +8,7 @@ INDEX = (Path(__file__).resolve().parents[1] / "app" / "static" / "index.html").
 
 def _block():
     start = INDEX.index("@media (min-width: 601px) {\n      html:not(.vr-panel) header { position: relative; }")
-    return INDEX[start:INDEX.index("/* Kniebrett: Logo statt Schriftzug", start)]
+    return INDEX[start:INDEX.index("/* Verbindungsanzeige auf der Website nur bei Abriss", start)]
 
 
 def _regel(sel):

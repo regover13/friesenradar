@@ -12,6 +12,10 @@
       if (isPanel) {
         document.documentElement.classList.add('vr-panel');
       }
+      // TV-Modus: Bedienung mit der Fernbedienung (Fire TV in Fully Kiosk), s. "TV-MODUS".
+      if (!isPanel && qs.get('tv') === '1') {
+        document.documentElement.classList.add('tv');
+      }
 
 
       // HELLES DESIGN (Spec 2026-10-01): VOR dem <style>-Block, sonst blitzt auf der Website
@@ -4362,6 +4366,26 @@
        ein Reiter genauso. Gezeigt wird deshalb allein das rote „GETRENNT“. Im Kniebrett
        traegt weiterhin das Zahnrad den Zustand ueber seine Farbe. */
     html:not(.vr-panel) header #sse-badge:not(.disconnected) { display: none; }
+    /* TV-Modus (?tv=1): Der Fokus muss vom Sofa aus zu sehen sein -- kraeftiger Rahmen in
+       FriesenOrange mit hellem Saum, auf jedem Untergrund. Kein Mauszeiger. */
+    html.tv *:focus {
+      outline: 4px solid #D75F28 !important;
+      outline-offset: 2px;
+      box-shadow: 0 0 0 7px rgba(255,255,255,0.85) !important;
+    }
+    html.tv .leaflet-container:focus { outline-offset: -6px; box-shadow: none !important; }
+    /* Ankreuzfelder sind winzig: die ganze Zeile hervorheben, in der der Fokus steht. */
+    html.tv label:focus-within {
+      outline: 3px solid #D75F28; outline-offset: 1px; background: rgba(215,95,40,0.28);
+    }
+    html.tv, html.tv * { cursor: none !important; }
+    .tv-hinweis { display: none; }
+    html.tv .tv-hinweis {
+      display: block; position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%);
+      z-index: 999999; padding: 6px 16px; pointer-events: none;
+      background: rgba(4,8,15,0.82); color: #fff; border: 1px solid #D75F28;
+      font-family: var(--text-display); font-size: 0.85rem; letter-spacing: 0.05em;
+    }
     /* Kniebrett: Logo statt Schriftzug im Streifen ueber der Leiste. Der Streifen waechst von 26
        auf 42 px -- alles, was sich an der Leistenhoehe ausrichtet, rueckt um dieselben 16 px. */
     html.vr-panel .panel-topbar { padding-top: 42px; }
@@ -17339,6 +17363,314 @@ function _initPanelTopbar() {
 // sie beim Ausfuehren noch nicht -- ein direkter Aufruf hier faende per getElementById nur
 // null und _initPanelTopbar haette sich stumm ueber seine eigene Wache verabschiedet.
 // Gleiches gilt fuer die Umschreibung, die einmal ueber das gesamte fertige Dokument muss.
+// ==========================================================================
+//  TV-MODUS (?tv=1) -- Bedienung mit der Fernbedienung (Fire TV, Fully Kiosk)
+// ==========================================================================
+// Eine Fernbedienung hat Pfeile, OK und Zurueck -- keine Maus, kein Tab. Deshalb:
+//   - Pfeile springen RAEUMLICH zum naechsten Bedienelement (_tvNaechstes), OK loest aus.
+//   - Liegt der Fokus auf der KARTE, gehoeren die Pfeile der Karte (Leaflet verschiebt
+//     selbst, +/- zoomt; dazu die Spultasten der Fernbedienung). OK oder Zurueck gibt den
+//     Fokus an die Bedienelemente zurueck.
+//   - Zurueck schliesst, was offen ist (Ebenen-Liste, Fenster, Einstellungen). Fully Kiosk
+//     meldet Zurueck nicht als Taste, sondern geht in der Historie zurueck -- deshalb liegt
+//     immer ein eigener Historien-Eintrag bereit, dessen "popstate" dasselbe ausloest.
+// Alles haengt an html.tv; ohne ?tv=1 laeuft hier nichts.
+// Bewusst ohne Pfeilfunktionen u. Ae.: Dieselbe Datei laedt das Kniebrett (Chrome 49).
+function _tvAn() { return document.documentElement.classList.contains('tv'); }
+
+var _TV_NATIV = 'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), '
+              + 'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+// Klickbares, das kein Knopf und kein Link ist (Zellen und Namen in den Listen).
+var _TV_KLICKBAR = '.td-map-btn, .td-callsign-link, .td-gps-link, .pilot-link, [onclick]';
+
+/** Naechstes Element in einer Richtung. `von` und `kandidaten[i]` sind {x, y, w, h}.
+ *  Gibt den Index zurueck oder -1. Gewertet wird der Abstand in Bewegungsrichtung plus der
+ *  doppelte seitliche Versatz -- so bleibt "rechts" in der Zeile und "unten" in der Spalte. */
+function _tvNaechstes(von, kandidaten, richtung) {
+  var vx = von.x + von.w / 2, vy = von.y + von.h / 2;
+  var bester = -1, besteWertung = Infinity;
+  for (var i = 0; i < kandidaten.length; i++) {
+    var k = kandidaten[i];
+    var kx = k.x + k.w / 2, ky = k.y + k.h / 2;
+    var entlang, quer;
+    if (richtung === 'rechts')      { entlang = k.x - (von.x + von.w); quer = Math.abs(ky - vy); if (kx <= vx) continue; }
+    else if (richtung === 'links')  { entlang = von.x - (k.x + k.w);   quer = Math.abs(ky - vy); if (kx >= vx) continue; }
+    else if (richtung === 'unten')  { entlang = k.y - (von.y + von.h); quer = Math.abs(kx - vx); if (ky <= vy) continue; }
+    else                            { entlang = von.y - (k.y + k.h);   quer = Math.abs(kx - vx); if (ky >= vy) continue; }
+    if (entlang < 0) entlang = 0;
+    var wertung = entlang + 2 * quer;
+    if (wertung < besteWertung) { besteWertung = wertung; bester = i; }
+  }
+  return bester;
+}
+
+/** Worin gerade navigiert wird: das oberste offene Fenster, sonst die Vollbild-Karte, sonst alles. */
+function _tvBereich() {
+  var offen = document.querySelectorAll('.fp-modal-overlay, .modal, #notif-panel');
+  for (var i = offen.length - 1; i >= 0; i--) {
+    var el = offen[i];
+    if (el.hidden) continue;
+    var st = getComputedStyle(el);
+    if (st.display !== 'none' && st.visibility !== 'hidden' && el.getBoundingClientRect().width > 0) return el;
+  }
+  return document.querySelector('.map-is-fullscreen') || document.body;
+}
+
+function _tvFokussierbarMachen(bereich) {
+  var liste = bereich.querySelectorAll(_TV_KLICKBAR);
+  for (var i = 0; i < liste.length; i++) {
+    var el = liste[i];
+    if (el.matches(_TV_NATIV)) continue;
+    el.setAttribute('tabindex', '0');
+    if (!el.getAttribute('role')) el.setAttribute('role', 'button');
+  }
+}
+
+function _tvKandidaten(bereich) {
+  _tvFokussierbarMachen(bereich);
+  var roh = bereich.querySelectorAll(_TV_NATIV), aus = [];
+  for (var i = 0; i < roh.length; i++) {
+    var el = roh[i], r = el.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) continue;
+    var st = getComputedStyle(el);
+    if (st.visibility === 'hidden' || st.display === 'none') continue;
+    // Die Karte selbst ist kein Sprungziel: Sie liegt unter allem und finge jeden Pfeil ab
+    // (auf ihr verschieben die Pfeile die Karte). Zu ihr fuehrt Zurueck, von ihr weg OK.
+    if (el.classList.contains('leaflet-container')) continue;
+    aus.push(el);
+  }
+  return aus;
+}
+
+function _tvRechteck(el) {
+  var r = el.getBoundingClientRect();
+  return { x: r.left, y: r.top, w: r.width, h: r.height };
+}
+
+function _tvFokus(el) {
+  if (!el) return;
+  try { el.focus({ preventScroll: true }); } catch (_e) { el.focus(); }
+  // Die Seite rollt mit: Was den Fokus hat, muss zu sehen sein.
+  if (el.scrollIntoView && !el.classList.contains('leaflet-container')) {
+    try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (_e2) { el.scrollIntoView(false); }
+  }
+  _tvHinweis();
+}
+
+function _tvHinweis() {
+  var h = document.getElementById('tv-hinweis');
+  if (!h) return;
+  var a = document.activeElement;
+  h.textContent = (a && a.classList && a.classList.contains('leaflet-container'))
+    ? 'Karte: Pfeile verschieben · Spulen zoomt · OK = Bedienelemente'
+    : (document.querySelector('.map-is-fullscreen')
+        ? 'Pfeile = wählen · OK = auslösen · Zurück = Karte bewegen'
+        : 'Pfeile = wählen · OK = auslösen · Zurück = schließen');
+}
+
+function _tvBewegen(richtung) {
+  var bereich = _tvBereich();
+  var liste = _tvKandidaten(bereich);
+  var jetzt = document.activeElement;
+  if (!jetzt || jetzt === document.body || !bereich.contains(jetzt)) {
+    _tvFokus(liste[0]);
+    return;
+  }
+  var andere = [], rechtecke = [];
+  for (var i = 0; i < liste.length; i++) {
+    if (liste[i] === jetzt) continue;
+    andere.push(liste[i]); rechtecke.push(_tvRechteck(liste[i]));
+  }
+  var idx = _tvNaechstes(_tvRechteck(jetzt), rechtecke, richtung);
+  if (idx >= 0) { _tvFokus(andere[idx]); return; }
+  // Nichts mehr in dieser Richtung: die Seite selbst weiterrollen (lange Listen, Texte).
+  var schritt = Math.round(window.innerHeight * 0.4);
+  if (richtung === 'unten') window.scrollBy(0, schritt);
+  else if (richtung === 'oben') window.scrollBy(0, -schritt);
+}
+
+/** Zurueck: schliesst das Oberste, was offen ist. Gibt true zurueck, wenn etwas zuging. */
+function _tvZurueck() {
+  if (!_tvAn()) return false;
+  var ebenen = document.querySelector('.leaflet-control-layers-expanded');
+  if (ebenen) {
+    ebenen.classList.remove('leaflet-control-layers-expanded');
+    _tvFokus(ebenen.querySelector('.leaflet-control-layers-toggle'));
+    return true;
+  }
+  var bereich = _tvBereich();
+  if (bereich.id === 'notif-panel') {
+    var knopf = document.getElementById('notif-btn');
+    if (knopf) { knopf.click(); _tvFokus(knopf); }
+    return true;
+  }
+  if (bereich !== document.body && !bereich.classList.contains('map-is-fullscreen')) {
+    // Die Fenster schliessen sich alle ueber Escape -- denselben Weg nehmen.
+    var ev = document.createEvent('Event');
+    ev.initEvent('keydown', true, true);
+    ev.key = 'Escape'; ev.keyCode = 27;
+    document.dispatchEvent(ev);
+    return true;
+  }
+  var a = document.activeElement;
+  var karteEl = bereich.querySelector ? bereich.querySelector('.leaflet-container') : null;
+  if (a && a.classList && a.classList.contains('leaflet-container')) {
+    // Aus der Karte heraus zu den Bedienelementen.
+    // Zuerst ein Knopf, kein Flugzeug: Marken stehen im Dokument vorn, waeren aber ein
+    // zufaelliger Einstieg irgendwo auf der Karte.
+    var liste = _tvKandidaten(bereich);
+    for (var i = 0; i < liste.length; i++) {
+      if (!liste[i].classList.contains('leaflet-marker-icon')) { _tvFokus(liste[i]); return true; }
+    }
+    if (liste.length) { _tvFokus(liste[0]); return true; }
+    return false;
+  }
+  // Von den Bedienelementen der Vollbild-Karte zurueck auf die Karte.
+  if (karteEl && bereich.classList.contains('map-is-fullscreen')) { _tvFokus(karteEl); return true; }
+  return false;
+}
+
+function _tvAusloesen(el) {
+  if (!el || el === document.body) return;
+  if (el.classList.contains('leaflet-control-layers-toggle')) {
+    // Ebenen-Knopf: aufklappen und in die Liste springen.
+    var kasten = el.parentNode;
+    el.click();
+    kasten.classList.add('leaflet-control-layers-expanded');
+    var erster = kasten.querySelector('.leaflet-control-layers-list input');
+    if (erster) _tvFokus(erster);
+    return;
+  }
+  el.click();
+}
+
+function _tvTaste(e) {
+  if (!_tvAn()) return;
+  var t = e.key, ziel = e.target;
+  var aufKarte = ziel && ziel.classList && ziel.classList.contains('leaflet-container');
+  var imTextfeld = ziel && (ziel.tagName === 'TEXTAREA'
+    || (ziel.tagName === 'INPUT' && /^(text|search|number|password|email|)$/.test(ziel.type || '')));
+  if (t === 'Escape' || t === 'GoBack' || t === 'BrowserBack' || (t === 'Backspace' && !imTextfeld)) {
+    if (_tvZurueck()) { e.preventDefault(); e.stopPropagation(); }
+    return;
+  }
+  if (aufKarte) {
+    // Pfeile und +/- laesst Leaflet selbst wirken. Die Spultasten der Fernbedienung zoomen.
+    // Wer die Karte von Hand bewegt, behaelt seinen Ausschnitt eine Weile.
+    if (/^Arrow|^[+-]$|^Media/.test(t)) _tvHandZuletzt = Date.now();
+    var karte = (typeof liveMap !== 'undefined' && liveMap) ? liveMap : null;
+    if (karte && (t === 'MediaFastForward' || t === 'MediaTrackNext')) { karte.zoomIn(); e.preventDefault(); return; }
+    if (karte && (t === 'MediaRewind' || t === 'MediaTrackPrevious')) { karte.zoomOut(); e.preventDefault(); return; }
+    if (t === 'Enter') { _tvZurueck(); e.preventDefault(); e.stopPropagation(); }
+    return;
+  }
+  var richtung = { ArrowRight: 'rechts', ArrowLeft: 'links', ArrowDown: 'unten', ArrowUp: 'oben' }[t];
+  if (richtung) {
+    if (imTextfeld && (richtung === 'links' || richtung === 'rechts')) return;   // Schreibmarke
+    e.preventDefault(); e.stopPropagation();
+    _tvBewegen(richtung);
+    return;
+  }
+  if (t === 'Enter' && ziel && !ziel.matches('a[href], button, input, select, textarea')) {
+    e.preventDefault();
+    _tvAusloesen(ziel);
+    return;
+  }
+  if (t === 'Enter' && ziel && ziel.classList.contains('leaflet-control-layers-toggle')) {
+    e.preventDefault();
+    _tvAusloesen(ziel);
+  }
+}
+
+/** Welcher Ausschnitt? (Nutzer 03.10.2026)
+ *  - Fliegt das eigene Flugzeug: ihm folgen.
+ *  - Sonst: alle Friesen zeigen, die gerade ueber Deutschland unterwegs sind.
+ *  - Ist dort niemand: Deutschland im Ueberblick. */
+function _tvAusschnittWahl(piloten, meineCid) {
+  var D = { sued: 47.2, nord: 55.1, west: 5.8, ost: 15.1 };
+  var s = 90, n = -90, w = 180, o = -180, anzahl = 0;
+  for (var i = 0; i < (piloten || []).length; i++) {
+    var p = piloten[i], lat = Number(p.latitude), lon = Number(p.longitude);
+    if (!isFinite(lat) || !isFinite(lon) || (lat === 0 && lon === 0)) continue;
+    if (meineCid != null && String(p.cid) === String(meineCid)) return { art: 'folgen', lat: lat, lon: lon };
+    if (lat < D.sued || lat > D.nord || lon < D.west || lon > D.ost) continue;
+    anzahl++;
+    if (lat < s) s = lat; if (lat > n) n = lat; if (lon < w) w = lon; if (lon > o) o = lon;
+  }
+  if (anzahl === 0) return { art: 'deutschland', grenzen: [[D.sued, D.west], [D.nord, D.ost]] };
+  return { art: 'gruppe', grenzen: [[s, w], [n, o]] };
+}
+
+// Wann zuletzt jemand die Karte von Hand bewegt hat -- so lange bleibt der Ausschnitt stehen.
+var _tvHandZuletzt = 0;
+var _TV_HAND_PAUSE_MS = 120000;
+var _tvFolgtSchon = false;
+
+function _tvAusschnittAnwenden() {
+  if (!_tvAn()) return;
+  var karte = (typeof liveMap !== 'undefined' && liveMap) ? liveMap : null;
+  if (!karte || Date.now() - _tvHandZuletzt < _TV_HAND_PAUSE_MS) return;
+  var w = _tvAusschnittWahl(liveData, _meineCid);
+  if (w.art === 'folgen') {
+    // Beim ersten Mal nah heran, danach nur noch mitfuehren -- der gewaehlte Zoom bleibt.
+    if (_tvFolgtSchon) karte.panTo([w.lat, w.lon]);
+    else karte.setView([w.lat, w.lon], Math.max(karte.getZoom(), 9));
+    _tvFolgtSchon = true;
+    return;
+  }
+  _tvFolgtSchon = false;
+  karte.fitBounds(w.grenzen, { padding: [60, 60], maxZoom: 9 });
+}
+
+/** Start: Kartenvollbild mit dem Ausschnitt aus _tvAusschnittWahl. Wer einen festen Ausschnitt
+ *  will, gibt ihn mit: ?tv=1&mitte=53.5,8.1&zoom=8 -- dann wird nicht nachgefuehrt. */
+function _tvStart() {
+  if (!_tvAn()) return;
+  var hinweis = document.createElement('div');
+  hinweis.id = 'tv-hinweis'; hinweis.className = 'tv-hinweis';
+  document.body.appendChild(hinweis);
+  document.addEventListener('keydown', _tvTaste, true);
+  document.addEventListener('focusin', _tvHinweis);
+  // Zurueck in Fully Kiosk = Historie zurueck. Ein eigener Eintrag faengt das ab und wird
+  // sofort wieder aufgelegt -- die Seite selbst wird so nie verlassen.
+  try {
+    history.pushState({ tv: 1 }, '');
+    window.addEventListener('popstate', function () {
+      _tvZurueck();
+      try { history.pushState({ tv: 1 }, ''); } catch (_e) {}
+    });
+  } catch (_e) {}
+  var tab = document.querySelector('.tab-btn[data-tab="karte"]');
+  if (tab) tab.click();
+  var qs = new URLSearchParams(location.search);
+  var mitte = (qs.get('mitte') || '').split(',').map(Number);
+  var zoom = Number(qs.get('zoom'));
+  var versuche = 0;
+  var warten = setInterval(function () {
+    versuche++;
+    var wrap = document.getElementById(_ZUSTAND_KARTE_WRAP);
+    var karte = (typeof liveMap !== 'undefined' && liveMap) ? liveMap : null;
+    if ((!wrap || !karte) && versuche < 40) return;
+    clearInterval(warten);
+    if (!wrap || !karte) return;
+    if (!wrap.classList.contains('map-is-fullscreen')) {
+      var knopf = wrap.querySelector('.map-fullscreen-btn');
+      if (knopf) knopf.click();
+    }
+    if (mitte.length === 2 && isFinite(mitte[0]) && isFinite(mitte[1]) && (mitte[0] || mitte[1])) {
+      karte.setView([mitte[0], mitte[1]], isFinite(zoom) && zoom > 0 ? zoom : karte.getZoom());
+    } else {
+      _tvAusschnittAnwenden();
+      setInterval(_tvAusschnittAnwenden, 5000);
+    }
+    _tvFokus(karte.getContainer());
+  }, 250);
+}
+// ==========================================================================
+//  ENDE TV-MODUS
+// ==========================================================================
+
+
 document.addEventListener('DOMContentLoaded', () => {
   // _initPanelTopbar holt im Panel auch die Glocke in die Leiste und blendet sie ein --
   // sonst bliebe sie versteckt, weil sie sonst erst mit einem VAPID-Schluessel erscheint.
@@ -17349,6 +17681,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Haengt einen eigenen Knoten an document.body -- der existiert erst, wenn das Dokument
   // fertig geparst ist. Die Wache im Innern haelt sie ausserhalb der installierten App an.
   _ziehAktualisierenBinden();
+  _tvStart();
 });
 
 document.addEventListener('keydown', (e) => {
