@@ -111,6 +111,16 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 >   (Hinweiskasten, `altesPaketDa()`, Test-Benachrichtigung) — der Kasten gehört zur Seite.
 > - Die Pakete liegen auf dem Simulator-Rechner, **nicht** auf dem Server. Hochladen nur auf
 >   Wort des Nutzers, nach Umzug und Deploy.
+> **TV-Modus (gehört zu 16.0.0):** fertig auf `bruegge-radar`, vom Nutzer am Fire TV Stick
+> abgenommen (03.10.2026 abends). Technische Notizen: `docs/tv-modus.md` im Branch. Der
+> Changelog-Eintrag 16.0.0 ist erzählend neu geschrieben und nennt TV-Modus, Rundflug, Kniebrett
+> 3.0.0 und die neue Brügge.
+> **Zweigstand:** `bruegge-radar` ist der vollständige Stand (wird per
+> `git push -f origin bruegge-radar:test` auf die Teststufe geschoben); er enthält `umzug`,
+> `lichtblick` und `kniebrett-3`.
+> **Reihenfolge am Tag X:** (1) Nutzer nach der Adresse fragen, (2) Umzug, (3) 16.0.0 ausliefern,
+> (4) am Simulator beide Kniebrett-Pakete nebeneinander prüfen, (5) Pakete hochladen — jeder
+> Schritt auf Wort des Nutzers.
 
 **Nur, wenn der Nutzer das Fenster freigibt.** Ausfall ~1 min. Die CI liegt **nicht** auf dem
 kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch läuft. (B2)
