@@ -298,5 +298,37 @@ def test_rundgang_kommt_auf_der_aktuellen_position_an():
 
 
 def test_nachfuehren_im_sekundentakt_ohne_gleiten():
-    assert "panTo(ort, { animate: false })" in _funktion("_tvRundgangNachfuehren")
+    n = _funktion("_tvRundgangNachfuehren")
+    assert "panTo(ort, { animate: false })" in n
+    # nur schieben, wenn sich die Position wirklich geaendert hat
+    assert "latLngToContainerPoint" in n and "< 3" in n
     assert "setInterval(_tvRundgangNachfuehren, 1000)" in _funktion("_tvStart")
+
+
+def test_tv_modus_ohne_dauerlaufende_zierde():
+    """Fund am Fire TV 03.10.2026: Die Scanline lief sichtbar ueber die Karte, das Bild ruckelte."""
+    assert "html.tv .scanline { display: none !important; }" in INDEX
+    assert "html.tv *, html.tv *::before, html.tv *::after { animation: none !important; }" in INDEX
+    assert "html.tv body::before { display: none !important; }" in INDEX
+
+
+def test_kacheln_werden_vorgeladen_und_laenger_behalten():
+    v = _funktion("_tvKachelnVorladen")
+    assert "L.TileLayer" in v and "new Image().src" in v and "maxNativeZoom" in v
+    assert "_tvKachelnVorladen(karte, ziel[0], ziel[1]" in _funktion("_tvRundgangSchritt")
+    assert "keepBuffer = 4" in _funktion("_tvStart")
+
+
+def test_logo_steht_oben_mittig_solange_die_schaltflaechen_ausgeblendet_sind():
+    """Nutzer 03.10.2026: Sind die Schaltflaechen ausgeblendet, steht das FriesenRadar-Logo
+    zentriert am oberen Rand -- in der Fassung der eingestellten Darstellung (hell/dunkel)."""
+    start = _funktion("_tvStart")
+    assert "logo.id = 'tv-logo'" in start
+    regel = re.search(r"html\.tv \.tv-logo \{([^}]*)\}", INDEX).group(1)
+    assert "left: 50%" in regel and "top:" in regel and "opacity: 0" in regel
+    assert "pointer-events: none" in regel
+    assert "friesenradar-weissrot.svg" in regel
+    assert re.search(r"html\.hell\.tv \.tv-logo \{[^}]*friesenradar-farbig\.svg", INDEX)
+    assert re.search(r"html\.tv\.tv-ruhe \.tv-logo \{[^}]*opacity: 1", INDEX)
+    # Ausserhalb des TV-Modus gibt es das Element nicht zu sehen.
+    assert re.search(r"\n    \.tv-hinweis, \.tv-logo \{ display: none; \}", INDEX)

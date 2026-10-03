@@ -4379,6 +4379,14 @@
       outline: 3px solid #D75F28; outline-offset: 1px; background: rgba(215,95,40,0.28);
     }
     html.tv, html.tv * { cursor: none !important; }
+    /* Der Fire TV Stick ist schwach: Jede dauerlaufende Zierde kostet dort Bildrate, und die
+       Scanline wandert sichtbar ueber die Karte (Fund am Geraet 03.10.2026; dieselbe Lehre
+       wie im Kniebrett). Im TV-Modus laeuft deshalb KEINE Keyframe-Animation, und das
+       Gitter ueber der Seite entfaellt. Uebergaenge (transition) bleiben -- daran haengen
+       Leaflets Zoom und das Ein-/Ausblenden der Schaltflaechen. */
+    html.tv .scanline { display: none !important; }
+    html.tv body::before { display: none !important; }
+    html.tv *, html.tv *::before, html.tv *::after { animation: none !important; }
     /* Ruhe: Nach einigen Sekunden ohne Tastendruck verschwinden die Schaltflaechen der
        Vollbild-Karte; die naechste Taste holt sie zurueck (Nutzer 03.10.2026). Die
        Quellenangabe der Karte bleibt stehen -- sie ist Lizenzpflicht. */
@@ -4391,7 +4399,21 @@
     html.tv.tv-ruhe .map-is-fullscreen .tv-rundgang-btn,
     html.tv.tv-ruhe .tv-hinweis:not(.tv-hinweis-bleibt) { opacity: 0; pointer-events: none; }
     html.tv.tv-ruhe .leaflet-container:focus { outline: none !important; }
-    .tv-hinweis { display: none; }
+    .tv-hinweis, .tv-logo { display: none; }
+    /* Logo im Ruhezustand: oben mittig, in der Fassung der eingestellten Darstellung. Die
+       Farben der Logos bleiben, wie sie sind. */
+    html.tv .tv-logo {
+      display: block; position: fixed; left: 50%; top: 0; transform: translateX(-50%);
+      width: 300px; height: 76px; z-index: 999998; opacity: 0; pointer-events: none;
+      transition: opacity 0.6s ease;
+      /* Auf einer Platte in der Farbe der Seite: Das weisse Logo waere auf der hellen
+         Flugkarte sonst nicht zu lesen (und das farbige nicht auf dem Satellitenbild). */
+      padding: 8px 18px; box-sizing: content-box;
+      background: var(--bg-panel) url('/static/logo/friesenradar-weissrot.svg') center / contain no-repeat;
+      background-origin: content-box; border-radius: 0 0 6px 6px;
+    }
+    html.hell.tv .tv-logo { background-image: url('/static/logo/friesenradar-farbig.svg'); }
+    html.tv.tv-ruhe .tv-logo { opacity: 1; }
     /* Eigener Knopf, bewusst NICHT .map-fullscreen-btn: Nach der Klasse sucht der Code den
        Vollbild-Knopf. */
     .tv-rundgang-btn {
@@ -17816,10 +17838,47 @@ function _tvRundgangSchritt() {
     _tvRundgangText = 'Rundgang ' + w.nr + '/' + w.von + ' · ' + w.callsign
       + (w.muster ? ' · ' + w.muster : '') + (w.strecke ? ' · ' + w.strecke : '');
     var ziel = _tvRundgangOrt(w.callsign) || [w.lat, w.lon];
+    _tvKachelnVorladen(karte, ziel[0], ziel[1], _TV_RUNDGANG_ZOOM);
+    // ... und schon die des UEBERNAECHSTEN holen: Die 30 s Verweilzeit reichen dafuer.
+    var danach = _tvRundgangWahl(liveData, w.callsign);
+    if (danach && danach.callsign !== w.callsign) {
+      setTimeout(function () {
+        _tvKachelnVorladen(karte, danach.lat, danach.lon, _TV_RUNDGANG_ZOOM);
+      }, (_TV_RUNDGANG_SCHWENK_S + 3) * 1000);
+    }
     _tvRundgangSchwenkBis = Date.now() + _TV_RUNDGANG_SCHWENK_S * 1000;
     karte.flyTo(ziel, _TV_RUNDGANG_ZOOM, { duration: _TV_RUNDGANG_SCHWENK_S });
   }
   _tvHinweis();
+}
+
+/** Kacheln eines Ziels vorab holen, damit der Schwenk nicht in weisse Flecken faehrt.
+ *  Fuer jede sichtbare Kachel-Ebene die Kacheln rund um das Ziel in der Zielstufe und den
+ *  zwei Stufen darueber (der Schwenk zoomt unterwegs heraus). Der Browser legt sie in seinen
+ *  Zwischenspeicher; Leaflet findet sie dort, wenn es sie braucht. */
+function _tvKachelnVorladen(karte, lat, lon, zoom) {
+  try {
+    karte.eachLayer(function (ebene) {
+      if (!(ebene instanceof L.TileLayer) || !ebene._url || ebene.wmsParams) return;
+      var o = ebene.options;
+      for (var dz = 0; dz <= 2; dz++) {
+        var z = Math.round(zoom) - dz;
+        if (o.maxNativeZoom != null && z > o.maxNativeZoom) z = o.maxNativeZoom;
+        if (o.minZoom != null && z < o.minZoom) continue;
+        var mitte = karte.project([lat, lon], z).divideBy(256).floor();
+        for (var dx = -2; dx <= 2; dx++) {
+          for (var dy = -1; dy <= 1; dy++) {
+            var k = { x: mitte.x + dx, y: mitte.y + dy, z: z };
+            var url = L.Util.template(ebene._url, L.Util.extend({
+              s: ebene._getSubdomain(k), x: k.x, y: k.y, z: k.z,
+              r: (L.Browser.retina && o.detectRetina) ? '@2x' : ''
+            }, o));
+            new Image().src = url;
+          }
+        }
+      }
+    });
+  } catch (_e) {}
 }
 
 /** Wo das Flugzeug JETZT auf der Karte steht: die Marke (sie wird laufend nachgefuehrt),
@@ -17844,10 +17903,14 @@ function _tvRundgangNachfuehren() {
   if (Date.now() < _tvRundgangSchwenkBis || Date.now() - _tvHandZuletzt < _TV_HAND_PAUSE_MS) return;
   var karte = (typeof liveMap !== 'undefined' && liveMap) ? liveMap : null;
   var ort = _tvRundgangOrt(_tvRundgangLetzter);
-  // Im Sekundentakt und OHNE Gleitbewegung -- genau wie der Folgemodus der Karte. Mit einem
-  // 2-s-Takt und einer 1-s-Animation ruckte das Bild sichtbar im Zweisekundentakt
-  // (Nutzerfund 03.10.2026).
-  if (karte && ort) karte.panTo(ort, { animate: false });
+  if (!karte || !ort) return;
+  // Nur schieben, wenn sich die Position WIRKLICH geaendert hat (mindestens ein paar
+  // Bildpunkte) -- ein stehendes Flugzeug zeichnet die Karte sonst jede Sekunde neu. Und
+  // ohne Gleitbewegung: Die 1-s-Animation im 2-s-Takt ruckte sichtbar (Fund 03.10.2026).
+  var a = karte.latLngToContainerPoint(karte.getCenter());
+  var b = karte.latLngToContainerPoint(ort);
+  if (Math.abs(a.x - b.x) < 3 && Math.abs(a.y - b.y) < 3) return;
+  karte.panTo(ort, { animate: false });
 }
 
 function _tvRundgangSchalten(an) {
@@ -17866,6 +17929,9 @@ function _tvStart() {
   var hinweis = document.createElement('div');
   hinweis.id = 'tv-hinweis'; hinweis.className = 'tv-hinweis';
   document.body.appendChild(hinweis);
+  var logo = document.createElement('div');
+  logo.id = 'tv-logo'; logo.className = 'tv-logo';
+  document.body.appendChild(logo);
   document.addEventListener('keydown', _tvTaste, true);
   window.addEventListener('error', function (ev) {
     _tvDiag('fehler', (ev && ev.message) + ' @' + (ev && ev.lineno));
@@ -17922,6 +17988,13 @@ function _tvStart() {
     rk.textContent = '▶ Rundgang';
     rk.addEventListener('click', function () { _tvRundgangSchalten(); });
     wrap.appendChild(rk);
+    // Mehr Kacheln rund um den Ausschnitt behalten (Vorgabe 2) -- weniger Flecken beim Schieben.
+    karte.eachLayer(function (ebene) {
+      if (ebene instanceof L.TileLayer) ebene.options.keepBuffer = 4;
+    });
+    karte.on('layeradd', function (e) {
+      if (e.layer instanceof L.TileLayer) e.layer.options.keepBuffer = 4;
+    });
     setInterval(_tvRundgangSchritt, _TV_RUNDGANG_TAKT_MS);
     setInterval(_tvRundgangNachfuehren, 1000);
     if (qs.get('rundgang') === '1') _tvRundgangSchalten(true);
