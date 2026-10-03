@@ -64,12 +64,19 @@ Ob die Gerätebindung einen neuen Paketordner übersteht, ist **nicht belegt**
 3. **Beide Pakete:** alten Ordner wieder dazulegen, Simulator neu starten.
    - Erwartet: zwei Apps im Tablet; in **FriesenRadar** steht unten links der Kasten „Das
      alte Kniebrett-Paket liegt noch im Community-Ordner …“, ohne Schließen-Knopf.
+   - **Beide Apps nacheinander öffnen**, dann in der Admin-Oberfläche eine Test-Benachrichtigung
+     schicken: Sie darf in jeder App **einmal** erscheinen, nicht doppelt. Unten links in
+     FriesenRadar darf **kein** „Neues Kniebrett-Paket 3.0.0 (installiert: 2.3.2)“ stehen —
+     beides hieße, dass die Apps die Nachrichten der jeweils anderen mitlesen.
    - Danach den alten Ordner endgültig entfernen.
-4. **Aussehen:** Name „FriesenRadar“ in der App-Liste, Symbol rotes Flugzeug auf Weiß, Seite
+4. **Verkehr:** Fremde Flugzeuge aus dem Simulator erscheinen auf der Karte (türkis). Die
+   Karten-Bindung heißt seit 3.0.0 `FRIESENRADAR_VERKEHR` statt `FRIESENSPY_VERKEHR` — kommt
+   kein Verkehr, ist das die erste Stelle zum Nachsehen.
+5. **Aussehen:** Name „FriesenRadar“ in der App-Liste, Symbol rotes Flugzeug auf Weiß, Seite
    mit Logo im Streifen, hell und dunkel, Fenster lassen sich schließen.
-5. **App neu anheften** — die alte Anheftung gilt nicht für die neue Klasse.
+6. **App neu anheften** — die alte Anheftung gilt nicht für die neue Klasse.
 
-Erst nach 1–4 hochladen: `friesenradar-efb.zip` nach `/opt/friesenradar/data/efb/`. Das
+Erst nach 1–5 hochladen: `friesenradar-efb.zip` nach `/opt/friesenradar/data/efb/`. Das
 macht die Server-Sitzung auf Wort des Nutzers. Danach dort: `curl -sI` auf `/download/efb`
 zeigt `friesenflieger-friesenradar-efb.zip`.
 
