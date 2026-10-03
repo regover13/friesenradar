@@ -637,7 +637,7 @@ FriesenRadar gibt es dunkel wie bisher oder hell in den Farben des Forums. Umsch
 
 ## 📺 TV-Modus
 
-FriesenRadar für den Fernseher: die Karte im Vollbild, bedienbar mit Pfeiltasten oder einer Fernbedienung. An- und ausschalten über das **Zahnrad ⚙ oben rechts** → **Einstellungen** → **Anzeige** → **TV-Modus: An / Aus** (auf dem Handy und im Kniebrett gibt es den Schalter nicht). Geräte ohne Maus, etwa ein Fire TV Stick, öffnen die Seite gleich mit `?tv=1` am Ende der Adresse.
+FriesenRadar für den Fernseher: die Karte im Vollbild, bedienbar mit Pfeiltasten oder einer Fernbedienung. An- und ausschalten über das **Zahnrad ⚙ oben rechts** → **Einstellungen** → **Anzeige** → **TV-Modus: An / Aus** (auf dem Handy und im Kniebrett gibt es den Schalter nicht). Die Wahl merkt sich das Gerät, nicht dein Konto: Der Fernseher bleibt im TV-Modus, dein PC nicht. Geräte ohne Maus, etwa ein Fire TV Stick, öffnen die Seite gleich mit `?tv=1` am Ende der Adresse.
 
 - **Was die Karte zeigt:** Fliegst du selbst, folgt sie deinem Flugzeug. Sonst zeigt sie die Friesen, die gerade unterwegs sind.
 - **Bedienung:** Die Pfeile springen zum nächsten Knopf, ein oranger Rahmen zeigt, wo du bist. **OK** löst aus, **Zurück** schließt Fenster und Listen. Steht der Rahmen auf der Karte, verschieben die Pfeile die Karte; die Spultasten der Fernbedienung zoomen.

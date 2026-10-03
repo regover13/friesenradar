@@ -13,7 +13,13 @@
         document.documentElement.classList.add('vr-panel');
       }
       // TV-Modus: Bedienung mit der Fernbedienung (Fire TV in Fully Kiosk), s. "TV-MODUS".
-      if (!isPanel && qs.get('tv') === '1') {
+      // Eingeschaltet ueber die Adresse (?tv=1) oder ueber den Schalter in den Einstellungen --
+      // der merkt sich das GERAET (Browser-Speicher), nicht das Konto: Sonst startete auch der
+      // PC desselben Mitglieds im TV-Modus. Auf schmalen Bildschirmen gilt der Merker nie.
+      var tvMerker = false, schmal = false;
+      try { tvMerker = localStorage.getItem('friesenradar_tv') === '1'; } catch (e) {}
+      try { schmal = window.matchMedia('(max-width: 600px)').matches; } catch (e) {}
+      if (!isPanel && (qs.get('tv') === '1' || (tvMerker && !schmal))) {
         document.documentElement.classList.add('tv');
       }
 
@@ -18112,9 +18118,15 @@ function _tvStart() {
   }, 250);
 }
 
-/** TV-Modus An/Aus in den Einstellungen (Nutzer 03.10.2026). Der Modus haengt an der Adresse
- *  (?tv=1), also neu laden; der Parameter allein geht weiter. */
+/** TV-Modus An/Aus in den Einstellungen (Nutzer 03.10.2026). Umschalten laedt die Seite neu;
+ *  der Parameter ?tv=1 allein geht weiter. */
 function _tvModusSetzen(an) {
+  // Der Merker gehoert dem Geraet (s. Kopfskript). ?tv=1 bleibt in der Adresse, damit "An"
+  // auch dort wirkt, wo der Browser nichts speichern darf.
+  try {
+    if (an) localStorage.setItem('friesenradar_tv', '1');
+    else localStorage.removeItem('friesenradar_tv');
+  } catch (_e) {}
   if (!!an === _tvAn()) return;
   location.href = an ? location.pathname + '?tv=1' : location.pathname;
 }

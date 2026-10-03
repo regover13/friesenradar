@@ -360,3 +360,17 @@ def test_tv_modus_hat_einen_schalter_in_den_einstellungen():
     e = _funktion("_tvSchalterEinrichten")
     assert "_tvModusSetzen(true)" in e and "_tvModusSetzen(false)" in e
     assert "tv-beenden" not in INDEX
+
+
+def test_schalter_merkt_sich_das_geraet_nicht_das_konto():
+    """Nutzer 03.10.2026: "An" bleibt auf DIESEM Geraet an (Browser-Speicher) -- nicht am Konto,
+    sonst startete auch der PC im TV-Modus. Im Kniebrett und auf schmalen Bildschirmen wird der
+    Merker nie ausgewertet; ?tv=1 schaltet unabhaengig davon ein."""
+    kopf = INDEX[:INDEX.index("// HELLES DESIGN")]
+    assert "localStorage.getItem('friesenradar_tv') === '1'" in kopf
+    assert re.search(r"if \(!isPanel && \(qs\.get\('tv'\) === '1' \|\| \(tvMerker && !schmal\)\)\)", kopf)
+    assert "(max-width: 600px)" in kopf
+    f = _funktion("_tvModusSetzen")
+    assert "localStorage.setItem('friesenradar_tv', '1')" in f
+    assert "localStorage.removeItem('friesenradar_tv')" in f
+    assert "_prefSchreib" not in f, "nicht ans Konto haengen"
