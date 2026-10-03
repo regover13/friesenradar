@@ -44,11 +44,12 @@ compose=(docker compose --project-directory "$ORT" -f "$ORT/docker-compose.yml")
 
 laeuft() { [ -n "$(docker ps -q --filter name='^test-radar-test-radar-1$')" ]; }
 
-datei_schreiben() {   # $1 Ziel, $2 JSON -- als containersvc, ohne einem Symlink zu folgen
-  sudo -u containersvc python3 - "$1" "$2" <<'PY'
+# Geheimes (Zugangslink, Schluessel) geht nie ueber eine Befehlszeile: Die steht fuer jeden
+# Benutzer der Maschine in der Prozessliste. Werte laufen ueber die Standardeingabe.
+SCHREIBER='
 import json, os, sys
 ziel = sys.argv[1]
-daten = json.loads(sys.argv[2])
+daten = json.load(sys.stdin)
 # Nie einem Symlink folgen: Der Ordner gehoert einem Container. Alte Datei entfernen, neu und
 # exklusiv anlegen, 600 (im Stand der echten App steht der Zugangslink).
 try:
@@ -58,7 +59,9 @@ except FileNotFoundError:
 fd = os.open(ziel, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
 with os.fdopen(fd, "w") as f:
     json.dump(daten, f)
-PY
+'
+datei_schreiben() {   # $1 Ziel, JSON auf der Standardeingabe -- als containersvc
+  sudo -u containersvc python3 -c "$SCHREIBER" "$1"
 }
 
 stand_schreiben() {   # $1 true|false, $2 Meldung
@@ -72,10 +75,9 @@ stand_schreiben() {   # $1 true|false, $2 Meldung
   # und nie als root: Ein dort untergeschobener Symlink koennte root sonst eine beliebige
   # Datei ueberschreiben lassen.
   sudo -u containersvc mkdir -p "$UEBERGABE"
-  local daten
-  daten=$(python3 -c 'import json,sys; l,s,b,v,m,z=sys.argv[1:7]; print(json.dumps({"laeuft": l=="true", "seit": s or None, "bis": b or None, "version": v or None, "meldung": m or None, "zugang": z or None}))' \
-          "$1" "$seit" "$bis" "$version" "${2:-}" "${3:-}")
-  datei_schreiben "$UEBERGABE/status.json" "$daten"
+  printf '%s\n' "$1" "$seit" "$bis" "$version" "${2:-}" "${3:-}" \
+    | python3 -c 'import json,sys; l,s,b,v,m,z=(sys.stdin.read().split("\n")+[""]*6)[:6]; print(json.dumps({"laeuft": l=="true", "seit": s or None, "bis": b or None, "version": v or None, "meldung": m or None, "zugang": z or None}))' \
+    | datei_schreiben "$UEBERGABE/status.json"
 }
 
 ende_abbestellen() {
@@ -119,8 +121,15 @@ starten() {
   # muss nur vorhanden sein, damit die App den Login-Zwang wie in der Produktion zeigt.
   for k in SECRET_KEY SSO_SECRET; do
     grep -q "^$k=" "$ORT/config.env" || abbruch_start "$k fehlt in der Konfiguration"
-    sed -i "s|^$k=.*|$k=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')|" "$ORT/config.env"
   done
+  python3 - "$ORT/config.env" <<'PY' || abbruch_start "Schluessel nicht ersetzt"
+import re, secrets, sys
+p = sys.argv[1]; s = open(p).read()
+for k in ("SECRET_KEY", "SSO_SECRET"):
+    s, n = re.subn(r"(?m)^%s=.*$" % k, "%s=%s" % (k, secrets.token_hex(32)), s)
+    assert n == 1, k
+open(p, "w").write(s)
+PY
   ! cmp -s <(grep '^SECRET_KEY=' "$PROD/config.env") <(grep '^SECRET_KEY=' "$ORT/config.env") \
     || abbruch_start "SECRET_KEY der Kopie gleicht dem der echten App"
   for k in VAPID_PRIVATE_KEY TELEGRAM_BOT_TOKEN ANTHROPIC_API_KEY; do
@@ -142,8 +151,8 @@ starten() {
   # entfernen (rm folgt keinem Symlink), dann neu anlegen.
   sudo -u containersvc rm -rf "$ORT/data/testinstanz"
   sudo -u containersvc mkdir "$ORT/data/testinstanz"
-  datei_schreiben "$ORT/data/testinstanz/status.json" \
-    "{\"laeuft\": true, \"hier\": true, \"bis\": \"$(date -u -d '+2 hours' +%Y-%m-%dT%H:%M:%SZ)\"}"
+  printf '{"laeuft": true, "hier": true, "bis": "%s"}' "$(date -u -d '+2 hours' +%Y-%m-%dT%H:%M:%SZ)" \
+    | datei_schreiben "$ORT/data/testinstanz/status.json"
   sitzung_ausstellen || echo "Sitzung nicht ausgestellt -- Anmeldung in der Kopie geht dann nicht" >&2
   stand_schreiben true "" "https://test-radar.devprops.de/_zugang/$ZUGANG"
   echo "Testinstanz laeuft: https://test-radar.devprops.de (endet in 2 h)"

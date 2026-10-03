@@ -125,7 +125,7 @@ def test_im_uebergabeordner_arbeitet_nie_root():
             if z.startswith(("#", "UEBERGABE=", "datei=", "status)")):
                 continue
             # datei_schreiben schreibt selbst als containersvc (und ohne Symlink-Folgen).
-            assert "sudo -u containersvc" in z or z.startswith("datei_schreiben "), zeile
+            assert "sudo -u containersvc" in z or "datei_schreiben " in z, zeile
 
 
 def test_sitzung_der_testinstanz_wird_geprueft_und_beim_stoppen_geleert():
@@ -146,7 +146,7 @@ def test_kopie_bekommt_eigene_schluessel_und_das_ende_steht_vor_dem_start():
     vorgemerkt, BEVOR etwas scheitern kann -- sonst liefe eine halb gestartete Kopie weiter."""
     sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
     start = sk[sk.index("starten() {"):sk.index("sitzung_ausstellen() {")]
-    assert "for k in SECRET_KEY SSO_SECRET; do" in start and "/dev/urandom" in start
+    assert "for k in SECRET_KEY SSO_SECRET; do" in start and "secrets.token_hex" in start
     assert start.index("--on-active=2h") < start.index('"${compose[@]}" up -d')
     assert "sitzung_ausstellen ||" in start
 
@@ -191,3 +191,14 @@ def test_dateien_in_container_ordnern_folgen_keinem_symlink():
     assert "O_NOFOLLOW" in sk and "O_EXCL" in sk
     assert 'rm -rf "$ORT/data/testinstanz"' in sk
     assert 'open(ziel, "w")' not in sk and 'open(sys.argv[1], "w")' not in sk
+
+
+def test_geheimes_steht_nie_in_einer_befehlszeile():
+    """Sicherheitspruefung 03.10.2026: Zugangslink und Schluessel standen als Argument in der
+    Prozessliste. Jetzt laufen sie ueber die Standardeingabe bzw. entstehen im Prozess selbst."""
+    sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
+    assert "json.load(sys.stdin)" in sk
+    assert "sed -i \"s|^$k=.*|$k=$(" not in sk
+    for zeile in sk.splitlines():
+        if "datei_schreiben " in zeile and not zeile.startswith("datei_schreiben()"):
+            assert zeile.strip().startswith("| datei_schreiben"), zeile
