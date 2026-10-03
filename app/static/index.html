@@ -17919,6 +17919,7 @@ function _tvRundgangSchritt() {
  *  nichts da. Vorhalten hilft nur IM Dokument: eigene Kachel-Ebenen UNTER der Grundkarte, je
  *  eine feste Stufe, die nichts von selbst laden -- gefuellt wird gezielt fuer Weg und Ziel. */
 var _tvRundgangLauf = 0;     // zaehlt die Schwenks; ein ueberholter raeumt nichts mehr
+var _TV_OFM_AB = 7;           // darunter liefert die Flugkarte nur leere Kacheln
 var _tvUnterlagen = {};      // {stufe: L.TileLayer}
 var _tvUnterlageUrl = '';
 function _tvGrundkarte(karte) {
@@ -17943,12 +17944,24 @@ function _tvUnterlage(karte, stufe) {
     feld.style.pointerEvents = 'none';
     feld.style.transition = 'opacity 0.5s ease';
   }
-  var o = L.Util.extend({}, basis.options, {
+  // Die Flugkarte liefert unterhalb von Stufe 7 nur leere Kacheln (dort schaltet die Karte
+  // sonst auf das Satellitenbild um, s. _setupOFMAutoSwitch). Fuer den weiten Schwenk -- auch
+  // um die halbe Welt -- kommt die Unterlage unterhalb von 7 deshalb vom Satellitenbild.
+  var g = karte._fsGrundkarten || {};
+  var flugkarte = (basis === g.ofm);
+  var quelle = (flugkarte && g.sat && stufe < _TV_OFM_AB) ? g.sat : basis;
+  var o = L.Util.extend({}, quelle.options, {
     pane: 'tvUnterlage', minNativeZoom: stufe, maxNativeZoom: stufe,
-    minZoom: 0, maxZoom: 22, attribution: '', keepBuffer: 2
+    minZoom: 0, maxZoom: 22, attribution: '', keepBuffer: 2, zIndex: stufe
   });
-  var e = L.tileLayer(basis._url, o);
+  var e = L.tileLayer(quelle._url, o);
   e._update = function () {};           // laedt nichts von selbst
+  if (quelle === g.ofm) {
+    // Die Flugkarte ist durchsichtig: Ohne eigenen Grund schiene die groebere Stufe darunter
+    // (oder das Satellitenbild) durch. Jede Kachel bekommt den Grund der Karte.
+    var grund = getComputedStyle(karte.getContainer()).backgroundColor;
+    e.on('tileloadstart', function (ev) { ev.tile.style.backgroundColor = grund; });
+  }
   e.addTo(karte);
   _tvUnterlagen[stufe] = e;
   return e;
@@ -17991,12 +18004,21 @@ function _tvUnterlageVorhalten(karte, von, nach) {
     }
     // Ziel: die Stufe des Rundgangs und zwei darueber (das Hereinzoomen am Ende).
     merken(_TV_RUNDGANG_ZOOM, _tvUnterlageFuellen(karte, _TV_RUNDGANG_ZOOM, umZiel(_TV_RUNDGANG_ZOOM, 1.3), 60));
-    merken(_TV_RUNDGANG_ZOOM - 2, _tvUnterlageFuellen(karte, _TV_RUNDGANG_ZOOM - 2, umZiel(_TV_RUNDGANG_ZOOM - 2, 1.5), 40));
+    merken(_TV_RUNDGANG_ZOOM - 2, _tvUnterlageFuellen(karte, _TV_RUNDGANG_ZOOM - 2, umZiel(_TV_RUNDGANG_ZOOM - 2, 1.5), 60));
     // Weg: die feinste Stufe, die das ganze Gebiet mit hoechstens 42 Kacheln deckt. Grosszuegig
     // gefasst -- am weitesten Punkt des Schwenks sieht man ein Mehrfaches der Strecke.
-    var weg = L.latLngBounds([von, nach]).pad(0.9);
-    for (var s = _TV_RUNDGANG_ZOOM - 3; s >= 4; s--) {
-      if (merken(s, _tvUnterlageFuellen(karte, s, weg, 42))) break;
+    // Die Friesen fliegen ueberall: Der Schwenk kann um die halbe Welt gehen und zoomt dann
+    // bis zur Weltkarte heraus. Deshalb liegt IMMER die ganze Welt in Stufe 2 darunter
+    // (16 Kacheln), und der Weg bekommt die feinste Stufe, die ihn mit vertretbar vielen
+    // Kacheln deckt -- notfalls die ganze Welt in Stufe 3.
+    var welt = L.latLngBounds([[-85, -179.9], [85, 179.9]]);
+    merken(2, _tvUnterlageFuellen(karte, 2, welt, 40));
+    var roh = L.latLngBounds([von, nach]).pad(0.9);
+    var weg = L.latLngBounds(
+      [Math.max(-85, roh.getSouth()), Math.max(-179.9, roh.getWest())],
+      [Math.min(85, roh.getNorth()), Math.min(179.9, roh.getEast())]);
+    for (var s = _TV_RUNDGANG_ZOOM - 3; s >= 3; s--) {
+      if (merken(s, _tvUnterlageFuellen(karte, s, weg, s === 3 ? 80 : 48))) break;
     }
     // Aufraeumen: was dieser Schwenk nicht braucht, kommt weg.
     for (var st in _tvUnterlagen) {
@@ -18005,7 +18027,7 @@ function _tvUnterlageVorhalten(karte, von, nach) {
         if (!bedarf[st] || !bedarf[st][key]) e._removeTile(key);
       }
     }
-  } catch (_e) {}
+  } catch (_e) { _tvDiag('unterlage', String(_e && _e.message)); }
 }
 /** Sichtbar nur rund um den Schwenk: Die Kacheln der Flugkarte sind durchsichtig, eine grobe
  *  Unterlage schiene sonst dauerhaft durch. */

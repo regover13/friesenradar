@@ -333,6 +333,19 @@ def test_schwenk_hat_eine_kachel_unterlage():
     assert "liveMap._fsGrundkarten = liveLayers" in INDEX
 
 
+def test_unterlage_traegt_auch_den_schwenk_um_die_halbe_welt():
+    """Nutzer 03.10.2026: "ausgezoomt, ggf. um die halbe Welt verschoben und wieder schnell
+    eingezoomt". Die Flugkarte liefert unter Stufe 7 nur leere Kacheln -- dort kommt die
+    Unterlage vom Satellitenbild, und die ganze Welt liegt immer in Stufe 2 darunter."""
+    u = _funktion("_tvUnterlage")
+    assert "stufe < _TV_OFM_AB) ? g.sat : basis" in u and "_TV_OFM_AB = 7" in _block()
+    assert "zIndex: stufe" in u, "feinere Stufen liegen ueber groeberen"
+    assert "ev.tile.style.backgroundColor = grund" in u, "durchsichtige Flugkarten-Kacheln brauchen einen Grund"
+    v = _funktion("_tvUnterlageVorhalten")
+    assert "merken(2, _tvUnterlageFuellen(karte, 2, welt, 40))" in v
+    assert "s >= 3" in v and "Math.max(-85" in v
+
+
 def test_logo_steht_oben_mittig_solange_die_schaltflaechen_ausgeblendet_sind():
     """Nutzer 03.10.2026: Sind die Schaltflaechen ausgeblendet, steht das FriesenRadar-Logo
     zentriert am oberen Rand -- in der Fassung der eingestellten Darstellung (hell/dunkel)."""
