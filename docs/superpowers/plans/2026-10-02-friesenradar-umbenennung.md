@@ -49,8 +49,8 @@ App-Branches bilden eine Kette, jeder baut auf dem vorigen auf; ausgeliefert wir
 Suite auf `bruegge-radar`: 3915 grün. Abschluss-Review (Opus) am 03.10.2026: 1 blockierender
 Befund (altes Kniebrett-Symbol) und 6 wichtige — alle eingearbeitet.
 
-**Offen beim Nutzer:** Termin Umzug, Freigabe der zwei `config.env`-Zeilen, Sim-Prüfungen
-(Logo in der Vorschau vor 16.0.0; Paket 3.0.0 nach der Übergabe), Forum (Task 4).
+**Offen beim Nutzer:** Termin Umzug, Freigabe der zwei `config.env`-Zeilen, Sim-Prüfung
+Paket 3.0.0 nach der Übergabe (Logo in der Vorschau: erledigt 03.10.), Forum (Task 4).
 
 ## Review Focus
 
@@ -156,7 +156,7 @@ Adresse nennt das Kniebrett als Text: `friesenradar.devprops.de/download`. Widge
 Suite grün (3901).
 
 - [x] **Step 1:** `efb.html` und README nennen keinen Ordnernamen mehr; der Download-Name folgt dem Paketinhalt (Variante B).
-- [ ] **Step 2:** **Sim-Prüfung des Logos im Kniebrett, vor dem Ausliefern:** Bisher ist das Radar-Kniebrett nie in Coherent GT gelaufen (0 Abrufe der Logo-Dateien mit `CoherentGT` im Log). Prüfung über die Vorschau, die heute auf `main` für die CID des Nutzers aktiv ist: hell und dunkel, mit Statusleiste und geöffneten Fenstern. (V9)
+- [x] **Step 2:** **Erledigt 03.10.2026, 07:55:** Nutzer im Simulator „sieht soweit alles gut aus“; im Log beide Logo-Dateien mit `CoherentGT` abgerufen (200). Ursprünglicher Auftrag: **Sim-Prüfung des Logos im Kniebrett, vor dem Ausliefern:** Bisher ist das Radar-Kniebrett nie in Coherent GT gelaufen (0 Abrufe der Logo-Dateien mit `CoherentGT` im Log). Prüfung über die Vorschau, die heute auf `main` für die CID des Nutzers aktiv ist: hell und dunkel, mit Statusleiste und geöffneten Fenstern. (V9)
 - [ ] **Step 3:** Teilen- und Badge-Codes bauen ihre Adresse aus `location.origin`; wer über das Alias kommt, verbreitet die alte Adresse weiter. Abbilden: aus `friesenspy.devprops.de` wird beim Kopieren `friesenradar.devprops.de`, mit Test. (V7)
 - [ ] **Step 4:** Vor dem Ausliefern: Rebase auf `main` (nach Task 2), Datum im Changelog auf den Releasetag, Suite grün, Flugbetrieb prüfen. Nach dem Ausliefern im Admin **16.0.0 als Banner wählen** — sonst zeigt der Neuigkeiten-Kasten weiter den Text von Luftschloss, und darin steht der alte Name.
 
