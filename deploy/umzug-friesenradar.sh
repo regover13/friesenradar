@@ -1,47 +1,47 @@
 #!/usr/bin/env bash
 # Umzug FriesenSpy -> FriesenRadar auf dem Server (Plan 2026-10-02, Task 2, Steps 9-15).
 #
-# Dasselbe Skript fuer die Generalprobe und den echten Abend -- erprobt wird also der Befehl
-# selbst, nicht nur sein Ergebnis.
+# Dasselbe Skript fuer die Generalprobe, den echten Abend und den Rueckweg -- erprobt wird
+# also der Befehl selbst, nicht nur sein Ergebnis.
 #
-#   Probe:  PROBE=1 ALT=/opt/friesenspy-probe NEU=/opt/friesenradar \
-#           REPO=~/projects/friesenspy-umzug SICHERUNG=/root/umzug-probe-<datum> \
-#           sudo -E bash deploy/umzug-friesenradar.sh
-#   Echt:   ALT=/opt/friesenspy NEU=/opt/friesenradar REPO=... SICHERUNG=/root/umzug-friesenradar-<datum> \
-#           GH_TOKEN=... sudo -E bash deploy/umzug-friesenradar.sh
+#   Probe:    PROBE=1 ALT=/opt/friesenspy-probe NEU=/opt/friesenradar \
+#             REPO=~/projects/friesenspy-umzug SICHERUNG=/root/umzug-probe-<datum> \
+#             sudo -E bash deploy/umzug-friesenradar.sh
+#   Echt:     ALT=/opt/friesenspy NEU=/opt/friesenradar REPO=... SICHERUNG=/root/umzug-friesenradar-<datum> \
+#             GH_TOKEN=... sudo -E bash deploy/umzug-friesenradar.sh
+#   Zurueck:  ZURUECK=1 ALT=... NEU=... SICHERUNG=<dieselbe wie beim Hinweg> sudo -E bash deploy/umzug-friesenradar.sh
 #
 # Probe-Modus: Der Container startet OHNE Netzwerk (network_mode: none) -- er kann niemandem
 # eine Push-Nachricht schicken und keinen Dienst anfragen. Die echte App bleibt unberuehrt.
 #
-# Bricht bei jedem Fehler ab. Der Rueckweg steht am Ende der Ausgabe.
+# Reihenfolge mit Absicht (Abschluss-Review 03.10.2026): ALLES, was scheitern kann, ohne dass
+# etwas veraendert ist -- Token, config.env, Image-Download --, laeuft VOR dem Stoppen. Bricht
+# es danach doch ab, nennt die Ausgabe den Rueckweg fuer genau diesen Stand.
 set -euo pipefail
 
-ALT=${ALT:?ALT fehlt}; NEU=${NEU:?NEU fehlt}; REPO=${REPO:?REPO fehlt}
-SICHERUNG=${SICHERUNG:?SICHERUNG fehlt}; PROBE=${PROBE:-0}
+ALT=${ALT:?ALT fehlt}; NEU=${NEU:?NEU fehlt}
+SICHERUNG=${SICHERUNG:?SICHERUNG fehlt}; PROBE=${PROBE:-0}; ZURUECK=${ZURUECK:-0}
 LIVE=/opt/friesenspy
 DB_ALT_NAME=friesenspy.db
 DB_NEU_NAME=friesenradar.db
 DB_NEU_IM_CONTAINER=/opt/friesenradar/data/$DB_NEU_NAME
-TABELLEN_GLEICH="panel_devices panel_prefs push_subscriptions pilots progress_snapshot"
-TABELLEN_WACHSEN="flights position_history bruegge_zuordnung"
+IMAGE=ghcr.io/regover13/friesenradar:latest
+# Exakt gleich bleiben muss nur, was nach seiner Berechnung eingefroren ist. Alles andere
+# darf waehrend der Pruefung wachsen -- der Poller traegt neu online gegangene Piloten ein,
+# Nutzer melden Tablets an und aendern Einstellungen (Review W3).
+TABELLEN_GLEICH="progress_snapshot"
+TABELLEN_WACHSEN="pilots panel_devices panel_prefs push_subscriptions flights position_history bruegge_zuordnung"
 
+STAND=nichts   # fuer den Rueckweg-Hinweis bei einem Abbruch
 schritt() { echo; echo "== $*"; }
 abbruch() { echo "ABBRUCH: $*" >&2; exit 1; }
 als_dienst() { sudo -u containersvc "$@"; }
-
-[ "$(id -u)" = 0 ] || abbruch "als root ausfuehren"
-if [ "$PROBE" = 1 ]; then
-  # Die Probe darf die echte App nie beruehren -- auch nicht ueber den Compose-Projektnamen,
-  # der aus dem Ordnernamen kommt (ein Ordner .../friesenspy wuerde den echten Container treffen).
-  [ "$(realpath -m "$ALT")" != "$LIVE" ] || abbruch "Probe zeigt auf die echte App"
-  [ "$(basename "$ALT")" != friesenspy ] || abbruch "Probe-Ordner darf nicht friesenspy heissen"
-fi
-[ -f "$ALT/data/$DB_ALT_NAME" ] || abbruch "$ALT/data/$DB_ALT_NAME fehlt"
-[ ! -e "$NEU" ] || abbruch "$NEU existiert schon"
-[ -f "$REPO/docker-compose.yml" ] || abbruch "$REPO/docker-compose.yml fehlt"
-grep -q "image: ghcr.io/regover13/friesenradar" "$REPO/docker-compose.yml" || abbruch "Repo-Compose ist nicht die neue"
-mkdir -p "$SICHERUNG"; chmod 700 "$SICHERUNG"
-
+mv_db() {      # $1 Verzeichnis, $2 von, $3 nach -- immer alle drei Dateien der WAL-Datenbank
+  local endung
+  for endung in "" -wal -shm; do
+    [ ! -e "$1/$2$endung" ] || mv "$1/$2$endung" "$1/$3$endung"
+  done
+}
 zaehlen() {   # $1 = DB-Datei; liest nur
   local db=$1 t
   for t in $TABELLEN_GLEICH $TABELLEN_WACHSEN; do
@@ -50,9 +50,94 @@ zaehlen() {   # $1 = DB-Datei; liest nur
   printf 'snapshot_stand %s\n' "$(als_dienst sqlite3 -readonly "$db" \
     "SELECT COUNT(*) || '/' || COALESCE(MAX(computed_at),'') FROM progress_snapshot")"
 }
+vergleichen() {   # $1 vorher, $2 nachher
+  local t vorher nachher
+  while read -r t vorher; do
+    nachher=$(awk -v t="$t" '$1==t{print $2}' "$2")
+    case " $TABELLEN_WACHSEN " in
+      *" $t "*) [ "$nachher" -ge "$vorher" ] || abbruch "$t: $vorher -> $nachher" ;;
+      *)        [ "$nachher" = "$vorher" ] || abbruch "$t: $vorher -> $nachher" ;;
+    esac
+  done < "$1"
+  echo "Zaehlung stimmt."
+}
+rueckweg_zeigen() {
+  [ "$?" = 0 ] && return
+  echo >&2
+  case "$STAND" in
+    nichts)    echo "Es ist nichts veraendert. Die alte App laeuft weiter." >&2 ;;
+    gestoppt)  echo "RUECKWEG: Nur gestoppt, nichts verschoben:  docker compose --project-directory $ALT up -d" >&2 ;;
+    *)         echo "RUECKWEG: ZURUECK=1 ALT=$ALT NEU=$NEU SICHERUNG=$SICHERUNG sudo -E bash $0" >&2 ;;
+  esac
+}
+trap rueckweg_zeigen EXIT
+
+[ "$(id -u)" = 0 ] || abbruch "als root ausfuehren"
+
+# ------------------------------------------------------------------------------------------
+# Rueckweg
+# ------------------------------------------------------------------------------------------
+if [ "$ZURUECK" = 1 ]; then
+  STAND=rueckweg
+  [ -d "$NEU" ] || abbruch "$NEU gibt es nicht -- nichts zurueckzuholen"
+  [ ! -e "$ALT" ] || abbruch "$ALT existiert schon"
+  [ -f "$SICHERUNG/docker-compose.yml.alt" ] && [ -f "$SICHERUNG/config.env.alt" ] \
+    || abbruch "Sicherung unvollstaendig: $SICHERUNG"
+  schritt "Neue App stoppen"
+  docker compose --project-directory "$NEU" down || true
+  schritt "Zurueck verschieben: $NEU -> $ALT"
+  mv "$NEU" "$ALT"
+  mv_db "$ALT/data" "$DB_NEU_NAME" "$DB_ALT_NAME"
+  cp -p "$SICHERUNG/docker-compose.yml.alt" "$ALT/docker-compose.yml"
+  cp -p "$SICHERUNG/config.env.alt" "$ALT/config.env"
+  rm -f "$ALT/probe.override.yml"
+  [ -s "$ALT/data/$DB_ALT_NAME" ] || abbruch "$ALT/data/$DB_ALT_NAME fehlt oder ist leer -- NICHT starten"
+  if [ "$PROBE" = 1 ]; then
+    # Die Kopie traegt die ALTE Compose-Datei: Port 8091 und volles Netz. Gestartet waere sie
+    # eine zweite App neben der echten, die Push-Nachrichten verschicken kann. Also nie.
+    echo "ZURUECK (Probe): verschoben und zurueckbenannt, NICHT gestartet."
+    exit 0
+  fi
+  schritt "Alte App starten"
+  docker compose --project-directory "$ALT" up -d
+  if [ -f "$SICHERUNG/zaehlung-vorher.txt" ]; then
+    zaehlen "$ALT/data/$DB_ALT_NAME" > "$SICHERUNG/zaehlung-zurueck.txt"
+    vergleichen "$SICHERUNG/zaehlung-vorher.txt" "$SICHERUNG/zaehlung-zurueck.txt"
+  fi
+  echo "ZURUECK: alte App laeuft wieder aus $ALT."
+  exit 0
+fi
+
+# ------------------------------------------------------------------------------------------
+# Hinweg -- erst alles pruefen, was ohne Aenderung scheitern kann
+# ------------------------------------------------------------------------------------------
+REPO=${REPO:?REPO fehlt}
+schritt "Vorbedingungen"
+if [ "$PROBE" = 1 ]; then
+  # Die Probe darf die echte App nie beruehren -- auch nicht ueber den Compose-Projektnamen,
+  # der aus dem Ordnernamen kommt (ein Ordner .../friesenspy wuerde den echten Container treffen).
+  [ "$(realpath -m "$ALT")" != "$LIVE" ] || abbruch "Probe zeigt auf die echte App"
+  [ "$(basename "$ALT")" != friesenspy ] || abbruch "Probe-Ordner darf nicht friesenspy heissen"
+else
+  [ -n "${GH_TOKEN:-}" ] || abbruch "GH_TOKEN fehlt"
+fi
+[ -f "$ALT/data/$DB_ALT_NAME" ] || abbruch "$ALT/data/$DB_ALT_NAME fehlt"
+[ ! -e "$NEU" ] || abbruch "$NEU existiert schon"
+[ -f "$REPO/docker-compose.yml" ] || abbruch "$REPO/docker-compose.yml fehlt"
+grep -q "image: ghcr.io/regover13/friesenradar" "$REPO/docker-compose.yml" || abbruch "Repo-Compose ist nicht die neue"
+[ "$(grep -c '^DB_PATH=' "$ALT/config.env")" = 1 ] || abbruch "DB_PATH nicht genau einmal in config.env"
+[ "$(grep -c '^FORUM_SSO_CALLBACK=' "$ALT/config.env")" = 1 ] || abbruch "FORUM_SSO_CALLBACK nicht genau einmal"
+mkdir -p "$SICHERUNG"; chmod 700 "$SICHERUNG"
+echo "ok"
 
 if [ "$PROBE" != 1 ]; then
+  schritt "Neues Image holen (die alte App laeuft dabei weiter)"
+  echo "$GH_TOKEN" | docker login ghcr.io -u regover13 --password-stdin
+  docker pull "$IMAGE" || { docker logout ghcr.io; abbruch "Pull gescheitert -- ist der Bau gruen? (gh api user/packages/container/friesenradar)"; }
+  docker logout ghcr.io
+
   schritt "Container der alten App stoppen"
+  STAND=gestoppt
   docker compose --project-directory "$ALT" down
   ! docker ps --format '{{.Names}}' | grep -qx friesenspy-friesenspy-1 || abbruch "Container laeuft noch"
 fi
@@ -70,17 +155,14 @@ cp -p "$ALT/config.env" "$SICHERUNG/config.env.alt"
 [ -s "$SICHERUNG/$DB_ALT_NAME" ] || abbruch "Sicherung leer"
 
 schritt "Verschieben: $ALT -> $NEU"
+STAND=verschoben
 mv "$ALT" "$NEU"
-for endung in "" -wal -shm; do
-  [ ! -e "$NEU/data/$DB_ALT_NAME$endung" ] || mv "$NEU/data/$DB_ALT_NAME$endung" "$NEU/data/$DB_NEU_NAME$endung"
-done
+mv_db "$NEU/data" "$DB_ALT_NAME" "$DB_NEU_NAME"
 fremde=$(find "$NEU/data" -maxdepth 1 -name "$DB_NEU_NAME*" ! -user containersvc)
 [ -z "$fremde" ] || abbruch "DB-Dateien mit falschem Besitzer: $fremde"
 
 schritt "Compose und config.env einsetzen"
 install -m 644 -o root -g root "$REPO/docker-compose.yml" "$NEU/docker-compose.yml"
-[ "$(grep -c '^DB_PATH=' "$NEU/config.env")" = 1 ] || abbruch "DB_PATH nicht genau einmal in config.env"
-[ "$(grep -c '^FORUM_SSO_CALLBACK=' "$NEU/config.env")" = 1 ] || abbruch "FORUM_SSO_CALLBACK nicht genau einmal"
 sed -i "s|^DB_PATH=.*|DB_PATH=$DB_NEU_IM_CONTAINER|" "$NEU/config.env"
 sed -i "s|^FORUM_SSO_CALLBACK=.*|FORUM_SSO_CALLBACK=https://friesenradar.devprops.de/auth/forum/callback|" "$NEU/config.env"
 
@@ -106,11 +188,7 @@ echo "$konfig" | grep -q "DB_PATH: $DB_NEU_IM_CONTAINER" || abbruch "DB_PATH pas
 [ -s "$NEU/data/$DB_NEU_NAME" ] || abbruch "DB-Datei am Ziel fehlt oder ist leer"
 
 schritt "Starten"
-if [ "$PROBE" != 1 ]; then
-  echo "${GH_TOKEN:?GH_TOKEN fehlt}" | docker login ghcr.io -u regover13 --password-stdin
-  "${compose[@]}" pull || { docker logout ghcr.io; abbruch "Pull gescheitert -- Rueckfall: docker tag ghcr.io/regover13/friesenspy:latest ghcr.io/regover13/friesenradar:latest, dann up -d"; }
-  docker logout ghcr.io
-fi
+STAND=gestartet
 "${compose[@]}" up -d
 c=friesenradar-friesenradar-1
 
@@ -130,17 +208,8 @@ print(p, os.path.getsize(p)); assert p == '$DB_NEU_IM_CONTAINER', p; assert os.p
 
 schritt "Zaehlung nachher"
 zaehlen "$NEU/data/$DB_NEU_NAME" | tee "$SICHERUNG/zaehlung-nachher.txt"
-while read -r t vorher; do
-  nachher=$(awk -v t="$t" '$1==t{print $2}' "$SICHERUNG/zaehlung-nachher.txt")
-  case " $TABELLEN_WACHSEN " in
-    *" $t "*) [ "$nachher" -ge "$vorher" ] || abbruch "$t: $vorher -> $nachher" ;;
-    *)        [ "$nachher" = "$vorher" ] || abbruch "$t: $vorher -> $nachher" ;;
-  esac
-done < "$SICHERUNG/zaehlung-vorher.txt"
-echo "Zaehlung stimmt."
+vergleichen "$SICHERUNG/zaehlung-vorher.txt" "$SICHERUNG/zaehlung-nachher.txt"
 
 echo
 echo "FERTIG. Rueckweg, falls noetig:"
-echo "  ${compose[*]} down; mv $NEU $ALT; mv $ALT/data/$DB_NEU_NAME $ALT/data/$DB_ALT_NAME"
-echo "  cp -p $SICHERUNG/docker-compose.yml.alt $ALT/docker-compose.yml; cp -p $SICHERUNG/config.env.alt $ALT/config.env"
-echo "  docker compose --project-directory $ALT up -d"
+echo "  ZURUECK=1 ALT=$ALT NEU=$NEU SICHERUNG=$SICHERUNG sudo -E bash $0"
