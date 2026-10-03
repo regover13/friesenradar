@@ -258,3 +258,10 @@ def test_keine_fallen_fremde_links_und_leeres_suchfeld():
     leeren Suchfeld hingen Links/Rechts fest."""
     assert "el.host !== location.host" in _funktion("_tvKandidaten")
     assert "imTextfeld && ziel.value &&" in _funktion("_tvTaste")
+
+
+def test_folgen_schaltet_den_echten_folgemodus_ein():
+    """Nutzer 03.10.2026: Die Karte wurde nur ausgerichtet, der Folgemodus war nicht aktiv."""
+    a = _funktion("_tvAusschnittAnwenden")
+    assert "_movingMap = true; _naviTakt(true)" in a
+    assert "_naviMerke" not in a, "nicht als Merker speichern -- der gilt auch fuer PC und Handy"

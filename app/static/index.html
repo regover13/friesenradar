@@ -17706,12 +17706,16 @@ function _tvAusschnittAnwenden() {
   if (!karte || Date.now() - _tvHandZuletzt < _TV_HAND_PAUSE_MS) return;
   var w = _tvAusschnittWahl(liveData, _meineCid);
   if (w.art === 'folgen') {
-    // Beim ersten Mal nah heran, danach nur noch mitfuehren -- der gewaehlte Zoom bleibt.
-    if (_tvFolgtSchon) karte.panTo([w.lat, w.lon]);
-    else karte.setView([w.lat, w.lon], Math.max(karte.getZoom(), 9));
+    // Den ECHTEN Folgemodus der Karte einschalten (der Pfeil-Knopf unten rechts), nicht nur
+    // die Karte hinschieben (Nutzer 03.10.2026: "richtet aus, aber FollowMe ist nicht aktiv").
+    // Beim ersten Mal nah heran; danach fuehrt der Folgemodus selbst, der Zoom bleibt frei.
+    // Bewusst OHNE den Merker zu schreiben: Der gilt je Mitglied auch fuer PC und Handy.
+    if (!_tvFolgtSchon) karte.setView([w.lat, w.lon], Math.max(karte.getZoom(), 9));
     _tvFolgtSchon = true;
+    if (!_movingMap) { _movingMap = true; _naviTakt(true); }
     return;
   }
+  if (_tvFolgtSchon && _movingMap) { _movingMap = false; _naviKnopfAnstrich(); }
   _tvFolgtSchon = false;
   karte.fitBounds(w.grenzen, { padding: [60, 60], maxZoom: 9 });
 }
