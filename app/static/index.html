@@ -17772,7 +17772,9 @@ var _tvRundgangText = '';
 // Nutzer 03.10.2026: 30 s je Flugzeug, langsamer schwenken, naeher heran.
 var _TV_RUNDGANG_TAKT_MS = 30000;
 var _TV_RUNDGANG_ZOOM = 12;
-var _TV_RUNDGANG_SCHWENK_S = 5;
+var _TV_RUNDGANG_SCHWENK_S = 10;
+// Bis wann der Schwenk laeuft -- solange fuehrt _tvRundgangNachfuehren nicht dazwischen.
+var _tvRundgangSchwenkBis = 0;
 
 /** Naechster Flug nach `letzter` (Rufzeichen), alphabetisch, am Ende wieder von vorn.
  *  Gezeigt wird, wer sich bewegt -- auch wer erst rollt (Nutzer 03.10.2026). Steht alles
@@ -17813,9 +17815,36 @@ function _tvRundgangSchritt() {
     _tvRundgangLetzter = w.callsign;
     _tvRundgangText = 'Rundgang ' + w.nr + '/' + w.von + ' · ' + w.callsign
       + (w.muster ? ' · ' + w.muster : '') + (w.strecke ? ' · ' + w.strecke : '');
-    karte.flyTo([w.lat, w.lon], _TV_RUNDGANG_ZOOM, { duration: _TV_RUNDGANG_SCHWENK_S });
+    var ziel = _tvRundgangOrt(w.callsign) || [w.lat, w.lon];
+    _tvRundgangSchwenkBis = Date.now() + _TV_RUNDGANG_SCHWENK_S * 1000;
+    karte.flyTo(ziel, _TV_RUNDGANG_ZOOM, { duration: _TV_RUNDGANG_SCHWENK_S });
   }
   _tvHinweis();
+}
+
+/** Wo das Flugzeug JETZT auf der Karte steht: die Marke (sie wird laufend nachgefuehrt),
+ *  ersatzweise die letzte gemeldete Position. */
+function _tvRundgangOrt(callsign) {
+  var m = (typeof mapMarkers !== 'undefined' && mapMarkers) ? mapMarkers[callsign] : null;
+  if (m && m.getLatLng) { var ll = m.getLatLng(); return [ll.lat, ll.lng]; }
+  for (var i = 0; i < (liveData || []).length; i++) {
+    var p = liveData[i];
+    if (p.callsign === callsign && isFinite(Number(p.latitude)) && isFinite(Number(p.longitude))) {
+      return [Number(p.latitude), Number(p.longitude)];
+    }
+  }
+  return null;
+}
+
+/** Der Schwenk dauert 10 s -- in der Zeit fliegt das Flugzeug weiter. Deshalb nach dem
+ *  Schwenk auf die AKTUELLE Position setzen und sie waehrend der Verweilzeit mitfuehren
+ *  (Nutzer 03.10.2026: "dass die Karte auch auf der aktuellen Position ankommt"). */
+function _tvRundgangNachfuehren() {
+  if (!_tvAn() || !_tvRundgangAn || !_tvRundgangLetzter) return;
+  if (Date.now() < _tvRundgangSchwenkBis || Date.now() - _tvHandZuletzt < _TV_HAND_PAUSE_MS) return;
+  var karte = (typeof liveMap !== 'undefined' && liveMap) ? liveMap : null;
+  var ort = _tvRundgangOrt(_tvRundgangLetzter);
+  if (karte && ort) karte.panTo(ort, { animate: true, duration: 1 });
 }
 
 function _tvRundgangSchalten(an) {
@@ -17891,6 +17920,7 @@ function _tvStart() {
     rk.addEventListener('click', function () { _tvRundgangSchalten(); });
     wrap.appendChild(rk);
     setInterval(_tvRundgangSchritt, _TV_RUNDGANG_TAKT_MS);
+    setInterval(_tvRundgangNachfuehren, 2000);
     if (qs.get('rundgang') === '1') _tvRundgangSchalten(true);
     // Im Standard NICHT die Kartensteuerung (Nutzer 03.10.2026): Der Fokus liegt auf dem
     // Rundgang-Knopf, die Pfeile waehlen Schaltflaechen. Die Karte bewegt, wer "Zurueck" drueckt.

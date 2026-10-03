@@ -269,7 +269,7 @@ def test_folgen_schaltet_den_echten_folgemodus_ein():
 
 def test_rundgang_tempo():
     b = _block()
-    assert "_TV_RUNDGANG_TAKT_MS = 30000" in b and "_TV_RUNDGANG_ZOOM = 12" in b and "_TV_RUNDGANG_SCHWENK_S = 5" in b
+    assert "_TV_RUNDGANG_TAKT_MS = 30000" in b and "_TV_RUNDGANG_ZOOM = 12" in b and "_TV_RUNDGANG_SCHWENK_S = 10" in b
 
 
 def test_schaltflaechen_gehen_in_die_ruhe_und_kommen_mit_einer_taste_zurueck():
@@ -286,3 +286,12 @@ def test_start_ohne_kartensteuerung():
     """Nutzer 03.10.2026: im Standard nicht die Kartensteuerung aktivieren."""
     start = _funktion("_tvStart")
     assert "_tvFokus(rk)" in start and "_tvFokus(karte.getContainer())" not in start
+
+
+def test_rundgang_kommt_auf_der_aktuellen_position_an():
+    """Nutzer 03.10.2026: Bei 10 s Schwenk fliegt das Flugzeug weiter -- die Karte muss dort
+    ankommen, wo es dann ist, und es waehrend der Verweilzeit mitfuehren."""
+    n = _funktion("_tvRundgangNachfuehren")
+    assert "_tvRundgangSchwenkBis" in n and "panTo" in n and "_tvRundgangOrt(_tvRundgangLetzter)" in n
+    assert "mapMarkers[callsign]" in _funktion("_tvRundgangOrt")
+    assert "setInterval(_tvRundgangNachfuehren" in _funktion("_tvStart")
