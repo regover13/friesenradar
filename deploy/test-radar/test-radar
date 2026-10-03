@@ -63,20 +63,22 @@ starten() {
   "${compose[@]}" down 2>/dev/null || true
 
   # Daten: alles ausser Datenbank und Uebergabeordner; beim zweiten Mal nur die Unterschiede.
+  # Der Ordner ist nur fuer root und den Container-Benutzer zugaenglich: Darin liegt eine
+  # Kopie der Mitgliederdaten. Nie ueber /tmp -- dort waere sie fuer jeden Benutzer lesbar.
   mkdir -p "$ORT/data"
+  chown root:containersvc "$ORT"; chmod 750 "$ORT"
+  chown containersvc:containersvc "$ORT/data"; chmod 700 "$ORT/data"
+  rm -f "$ORT"/data/radar.db*
   rsync -a --delete --exclude '*.db' --exclude '*.db-wal' --exclude '*.db-shm' \
         --exclude 'testinstanz' "$PROD/data/" "$ORT/data/"
   # Datenbank: nie per cp (WAL), immer .backup -- lesend, die echte App merkt nichts.
-  tmp=$(mktemp -u /tmp/test-radar-XXXXXX.db)
-  sudo -u containersvc sqlite3 -readonly "$PROD_DB" ".backup '$tmp'"
-  # Auch das Aendern als containersvc: In /tmp darf root die Datei eines anderen Benutzers
-  # nicht zum Schreiben oeffnen (fs.protected_regular).
-  sudo -u containersvc sqlite3 "$tmp" "DELETE FROM push_subscriptions;
+  chown containersvc:containersvc "$ORT/data"; chmod 700 "$ORT/data"
+  ( umask 077
+    sudo -u containersvc sqlite3 -readonly "$PROD_DB" ".backup '$ORT/data/radar.db'" )
+  sudo -u containersvc sqlite3 "$ORT/data/radar.db" "DELETE FROM push_subscriptions;
                   INSERT INTO app_settings(key, value) VALUES('forum_login_enabled', '0')
                     ON CONFLICT(key) DO UPDATE SET value = '0';"
-  rm -f "$ORT"/data/radar.db*
-  mv "$tmp" "$ORT/data/radar.db"
-  chown -R containersvc:containersvc "$ORT/data"
+  chown -R containersvc:containersvc "$ORT/data"; chmod 600 "$ORT/data/radar.db"
 
   # Konfiguration: Kopie der echten, alles geleert, was nach aussen wirkt.
   install -m 600 -o root -g root "$PROD/config.env" "$ORT/config.env"

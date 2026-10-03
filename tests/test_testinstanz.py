@@ -101,3 +101,16 @@ def test_host_skript_nimmt_nur_start_und_stop_aus_der_datei():
         assert k in sk, f"{k} muss in der Kopie geleert werden"
     assert "DELETE FROM push_subscriptions" in sk
     assert "--on-active=2h" in sk
+
+
+def test_anfordern_verlangt_die_passwort_bestaetigung(env):
+    nur_admin = {"fs_admin": make_admin_token(SECRET, PW)}
+    r = env.client.post("/api/admin/testinstanz", json={"aktion": "start"}, cookies=nur_admin)
+    assert r.status_code == 403 and r.json()["detail"] == "confirm_required"
+    assert not (env.ordner / "anforderung").exists()
+
+
+def test_datenkopie_liegt_nie_in_tmp():
+    sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
+    assert "/tmp" not in sk.replace("Nie ueber /tmp", "")
+    assert 'chmod 700 "$ORT/data"' in sk

@@ -4923,8 +4923,13 @@ async def admin_testinstanz_stand(request: Request):
 
 @app.post("/api/admin/testinstanz")
 async def admin_testinstanz_anfordern(request: Request):
-    """Start oder Stopp der Testinstanz anfordern (Admin). Ausgefuehrt wird auf dem Server."""
+    """Start oder Stopp der Testinstanz anfordern (Admin). Ausgefuehrt wird auf dem Server.
+
+    Mit Passwort-Bestaetigung wie das Umschalten des Board-Logins: Der Start legt eine Kopie
+    der Mitgliederdaten unter einer zweiten Adresse an -- das soll kein untergeschobener
+    Aufruf ausloesen koennen."""
     require_admin(request)
+    require_confirm(request)
     body = await request.json()
     aktion = body.get("aktion") if isinstance(body, dict) else None
     if aktion not in ("start", "stop"):
