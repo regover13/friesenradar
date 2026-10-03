@@ -100,3 +100,27 @@ def test_download_seite_nennt_den_alten_ordner_erst_ab_3():
     skript = efb[efb.index("fetch('/api/efb-package'"):]
     skript = skript[:skript.index(".catch(")]
     assert "split('.')[0]) >= 3" in skript and "alter-ordner" in skript
+
+
+def test_app_symbol_ist_das_rote_flugzeug():
+    """Abschluss-Review 03.10.2026: Das Symbol war beim Umbenennen nur mitgewandert (altes
+    "FRS" im Kreis). Es muss dasselbe sein wie das App-Symbol der Website."""
+    symbol = (QUELLE / "src" / "Assets" / "app-icon.svg").read_text(encoding="utf-8")
+    vorlage = (WURZEL / "app" / "static" / "logo" / "friesenradar-symbol.svg").read_text(encoding="utf-8")
+    assert symbol == vorlage
+    assert "<image" not in symbol, "Coherent GT: nur reine Vektoren (s. 0e925af/fce83aa)"
+
+
+def test_nur_nachrichten_aus_dem_eigenen_rahmen():
+    """Liegt das alte Paket daneben, lauschen BEIDE Apps am gemeinsamen Fenster der EFB-Huelle.
+    Ohne diese Pruefung beantwortet jede App den ping der anderen (zwei pongs, springende
+    Paketversion) und zeigt deren Benachrichtigungen doppelt an."""
+    start = SHELL.index("private readonly onNachricht")
+    rumpf = SHELL[start:start + 900]
+    assert "e.source" in rumpf and "rahmenRef" in rumpf
+    assert rumpf.index("e.source") < rumpf.index('d.art === "ping"')
+
+
+def test_eigene_kartenbindung():
+    """Beide Fassungen nebeneinander duerfen sich die Bindung des Kartensystems nicht teilen."""
+    assert '"FRIESENRADAR_VERKEHR"' in SHELL and "FRIESENSPY_VERKEHR" not in SHELL

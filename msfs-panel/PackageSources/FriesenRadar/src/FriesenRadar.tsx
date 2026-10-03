@@ -396,6 +396,13 @@ class FriesenRadarView extends AppView<RequiredProps<AppViewProps, "bus">> {
     if (!d || d.quelle !== "friesenspy") {
       return;
     }
+    // Nur Nachrichten aus dem EIGENEN iframe. Liegt das alte Paket (2.x) daneben, lauschen
+    // beide Apps am selben Fenster der EFB-Huelle -- ohne diese Pruefung beantwortete jede den
+    // ping der anderen und zeigte deren Benachrichtigungen doppelt (Abschluss-Review 03.10.2026).
+    const eigenerRahmen = this.rahmenRef.instance ? this.rahmenRef.instance.contentWindow : null;
+    if (!eigenerRahmen || e.source !== eigenerRahmen) {
+      return;
+    }
 
     // Handshake: Die Seite fragt einmal nach, ob wir ihre Nachrichten ueberhaupt bekommen.
     // Ohne Antwort zeigt sie ihre Hinweise selbst an (und meldet den Befund an den Server).
@@ -646,7 +653,7 @@ class FriesenRadarView extends AppView<RequiredProps<AppViewProps, "bus">> {
       }
       const l = rvl("JS_LISTENER_MAPS");
       if (l && typeof l.trigger === "function") {
-        l.trigger("JS_BIND_BINGMAP", "FRIESENSPY_VERKEHR", true);
+        l.trigger("JS_BIND_BINGMAP", "FRIESENRADAR_VERKEHR", true);
       }
       this.kartenListenerDa = true;
     } catch (_e) {
