@@ -4387,7 +4387,10 @@
     html.tv label:focus-within {
       outline: 3px solid #D75F28; outline-offset: 1px; background: rgba(215,95,40,0.28);
     }
-    html.tv, html.tv * { cursor: none !important; }
+    /* Tabellenzeilen: Den Schein zeichnet nicht jeder Browser an <tr> -- die Zeile bekommt
+       zusaetzlich einen orangen Grund. (Der Mauszeiger bleibt sichtbar: Am Hand-Zeiger erkennt
+       der TV-Modus, was anklickbar ist, s. _tvFokussierbarMachen.) */
+    html.tv tr:focus { background: rgba(215,95,40,0.30) !important; }
     /* Der Fire TV Stick ist schwach: Jede dauerlaufende Zierde kostet dort Bildrate, und die
        Scanline wandert sichtbar ueber die Karte (Fund am Geraet 03.10.2026; dieselbe Lehre
        wie im Kniebrett). Im TV-Modus laeuft deshalb KEINE Keyframe-Animation, und das
@@ -4436,7 +4439,9 @@
     html.tv .tv-hinweis {
       display: block; position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%);
       z-index: 999999; padding: 6px 16px; pointer-events: none;
-      background: rgba(4,8,15,0.82); color: #fff; border: 1px solid #D75F28;
+      /* Derselbe orange Schein wie am Fokus, kein harter Rahmen (Nutzer 03.10.2026). */
+      background: rgba(4,8,15,0.82); color: #fff; border: 0;
+      box-shadow: 0 0 5px 3px rgba(215,95,40,0.95), 0 0 26px 10px rgba(215,95,40,0.7);
       font-family: var(--text-display); font-size: 0.85rem; letter-spacing: 0.05em;
     }
     /* Kniebrett: Logo statt Schriftzug im Streifen ueber der Leiste. Der Streifen waechst von 26
@@ -17488,10 +17493,28 @@ function _tvBereich() {
 }
 
 function _tvFokussierbarMachen(bereich) {
-  var liste = bereich.querySelectorAll(_TV_KLICKBAR);
-  for (var i = 0; i < liste.length; i++) {
-    var el = liste[i];
+  var liste = bereich.querySelectorAll(_TV_KLICKBAR), i, el;
+  for (i = 0; i < liste.length; i++) {
+    el = liste[i];
     if (el.matches(_TV_NATIV)) continue;
+    // Ein Fensterkasten, der nur den Klick abfaengt, ist kein Sprungziel.
+    if ((el.getAttribute('onclick') || '').trim() === 'event.stopPropagation()') continue;
+    el.setAttribute('tabindex', '0');
+    if (!el.getAttribute('role')) el.setAttribute('role', 'button');
+  }
+  // ... und alles, was die Seite SELBST als anklickbar ausweist (Hand-Zeiger): Zeilen der
+  // Event- und Statistik-Listen, Kennzahl-Kacheln, Zellen. Die haben Klick-Lauscher, aber weder
+  // Klasse noch onclick -- eine Klassenliste faende sie nie vollstaendig (Fund 03.10.2026).
+  // Nur das OBERSTE Element mit Hand-Zeiger (der Zeiger vererbt sich an die Kinder), und jedes
+  // Element wird nur einmal vermessen.
+  var alle = bereich.getElementsByTagName('*');
+  for (i = 0; i < alle.length; i++) {
+    el = alle[i];
+    if (el._tvGesehen) continue;
+    el._tvGesehen = true;
+    if (el.matches(_TV_NATIV) || el.closest('.leaflet-container')) continue;
+    if (getComputedStyle(el).cursor !== 'pointer') continue;
+    if (el.parentElement && getComputedStyle(el.parentElement).cursor === 'pointer') continue;
     el.setAttribute('tabindex', '0');
     if (!el.getAttribute('role')) el.setAttribute('role', 'button');
   }
@@ -18006,7 +18029,7 @@ function _tvRundgangOrt(callsign) {
   return null;
 }
 
-/** Der Schwenk dauert 10 s -- in der Zeit fliegt das Flugzeug weiter. Deshalb nach dem
+/** Der Schwenk dauert einige Sekunden -- in der Zeit fliegt das Flugzeug weiter. Deshalb nach dem
  *  Schwenk auf die AKTUELLE Position setzen und sie waehrend der Verweilzeit mitfuehren
  *  (Nutzer 03.10.2026: "dass die Karte auch auf der aktuellen Position ankommt"). */
 function _tvRundgangNachfuehren() {

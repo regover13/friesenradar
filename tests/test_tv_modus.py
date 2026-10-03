@@ -292,7 +292,7 @@ def test_start_ohne_kartensteuerung():
 
 
 def test_rundgang_kommt_auf_der_aktuellen_position_an():
-    """Nutzer 03.10.2026: Bei 10 s Schwenk fliegt das Flugzeug weiter -- die Karte muss dort
+    """Nutzer 03.10.2026: Waehrend des Schwenks fliegt das Flugzeug weiter -- die Karte muss dort
     ankommen, wo es dann ist, und es waehrend der Verweilzeit mitfuehren."""
     n = _funktion("_tvRundgangNachfuehren")
     assert "_tvRundgangSchwenkBis" in n and "panTo" in n and "_tvRundgangOrt(_tvRundgangLetzter)" in n
@@ -386,3 +386,27 @@ def test_fuer_den_nutzer_heisst_es_rundflug():
     assert "'Rundgang" not in b and "Rundgang'" not in b, "kein sichtbarer Text mehr mit dem alten Wort"
     assert "'▶ Rundflug'" in b and "'Rundflug ' + w.nr" in b
     assert "qs.get('rundflug') === '1' || qs.get('rundgang') === '1'" in _funktion("_tvStart")
+
+
+def test_rundflug_zeile_traegt_denselben_schein_wie_der_fokus():
+    """Nutzer 03.10.2026: "diesen Schein auch um Rundflug" -- die Zeile am unteren Rand hat
+    keinen harten Rahmen mehr, sondern den orangen Schein."""
+    regel = [m.group(1) for m in re.finditer(r"html\.tv \.tv-hinweis \{([^}]*)\}", INDEX)
+             if "position: fixed" in m.group(1)][0]
+    assert "border: 0" in regel and "box-shadow: 0 0 5px 3px rgba(215,95,40,0.95)" in regel
+
+
+def test_alles_anklickbare_ist_anwaehlbar_nicht_nur_eine_klassenliste():
+    """Nutzer 03.10.2026: Events und Statistik-Details liessen sich nicht anwaehlen -- "Check alle
+    Listen!!". Die Zeilen sind <tr> mit Klick-Lauscher, ohne Klasse und ohne onclick; eine Liste
+    von Klassen findet sie nie vollstaendig. Massgeblich ist deshalb, was die Seite selbst als
+    anklickbar ausweist: der Hand-Zeiger (cursor: pointer). Dafuer darf der TV-Modus den Zeiger
+    nicht mehr pauschal ausblenden -- sonst liest er ueberall 'none'."""
+    f = _funktion("_tvFokussierbarMachen")
+    assert "getComputedStyle(el).cursor !== 'pointer'" in f
+    assert "getComputedStyle(el.parentElement).cursor === 'pointer'" in f, "nur das oberste Element, nicht jedes Kind"
+    assert "_tvGesehen" in f, "jedes Element nur einmal vermessen"
+    assert "=== 'event.stopPropagation()'" in f, "der Fensterkasten ist kein Sprungziel"
+    assert not re.search(r"html\.tv[^{]*\{[^}]*cursor:\s*none", INDEX)
+    # Eine Tabellenzeile mit Fokus muss zu erkennen sein (Schein allein zeichnet nicht jeder Browser an <tr>).
+    assert re.search(r"html\.tv tr:focus \{[^}]*background", INDEX)
