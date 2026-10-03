@@ -155,3 +155,49 @@ def test_karte_ist_kein_sprungziel_zurueck_fuehrt_auf_sie():
     assert "leaflet-container')) continue" in _funktion("_tvKandidaten")
     z = _funktion("_tvZurueck")
     assert "_tvFokus(karteEl)" in z
+
+
+def _rundgang(piloten, letzter):
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js nicht verfuegbar")
+    js = _funktion("_tvRundgangWahl") + "process.stdout.write(JSON.stringify(_tvRundgangWahl(%s, %s)));" % (
+        json.dumps(piloten), json.dumps(letzter))
+    return json.loads(subprocess.run([node, "-e", js], capture_output=True, text=True, check=True).stdout)
+
+
+FLIEGER = [
+    {"callsign": "FRS49", "latitude": 53.5, "longitude": 8.1, "groundspeed": 110},
+    {"callsign": "FRS123", "latitude": 28.3, "longitude": -81.4, "groundspeed": 170},
+    {"callsign": "FRS7", "latitude": 54.0, "longitude": 9.0, "groundspeed": 0},      # steht am Boden
+    {"callsign": "FRS217", "latitude": 53.7, "longitude": 7.4, "groundspeed": 95},
+]
+
+
+def test_rundgang_schaltet_der_reihe_nach_durch_und_beginnt_von_vorn():
+    """Nutzer 03.10.2026: die fliegenden Friesen im Vollbild nach und nach durchschalten."""
+    folge, letzter = [], None
+    for _ in range(4):
+        w = _rundgang(FLIEGER, letzter)
+        letzter = w["callsign"]
+        folge.append(letzter)
+    assert folge == ["FRS123", "FRS217", "FRS49", "FRS123"]
+    assert _rundgang(FLIEGER, None)["von"] == 3 and _rundgang(FLIEGER, "FRS123")["nr"] == 2
+
+
+def test_rundgang_nimmt_stehende_nur_wenn_niemand_fliegt():
+    am_boden = [{"callsign": "FRS7", "latitude": 54.0, "longitude": 9.0, "groundspeed": 0}]
+    assert _rundgang(am_boden, None)["callsign"] == "FRS7"
+    assert _rundgang([], None) is None
+    assert _rundgang([{"callsign": "X", "latitude": 0, "longitude": 0, "groundspeed": 100}], None) is None
+
+
+def test_rundgang_ist_schaltbar_und_haelt_bei_handgriff_an():
+    b = _block()
+    assert "MediaPlayPause" in _funktion("_tvTaste")
+    assert "rundgang" in _funktion("_tvStart")
+    schritt = _funktion("_tvRundgangSchritt")
+    assert "_TV_HAND_PAUSE_MS" in schritt and "flyTo" in schritt
+    # Laeuft der Rundgang, fuehrt der Ausschnitt nicht dazwischen
+    assert "_tvRundgangAn" in _funktion("_tvAusschnittAnwenden")
+    assert 'id = \'tv-rundgang\'' in b or 'id="tv-rundgang"' in b

@@ -4380,6 +4380,14 @@
     }
     html.tv, html.tv * { cursor: none !important; }
     .tv-hinweis { display: none; }
+    /* Eigener Knopf, bewusst NICHT .map-fullscreen-btn: Nach der Klasse sucht der Code den
+       Vollbild-Knopf. */
+    .tv-rundgang-btn {
+      position: absolute; bottom: 10px; left: 130px; z-index: 1001;
+      background: var(--bg-panel); color: var(--text-bright); border: 1px solid var(--green-dim);
+      font-family: var(--text-display); font-size: 0.75rem; letter-spacing: 0.08em;
+      padding: 5px 12px; min-height: 30px;
+    }
     html.tv .tv-hinweis {
       display: block; position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%);
       z-index: 999999; padding: 6px 16px; pointer-events: none;
@@ -17461,6 +17469,7 @@ function _tvHinweis() {
   var h = document.getElementById('tv-hinweis');
   if (!h) return;
   var a = document.activeElement;
+  if (_tvRundgangAn && _tvRundgangText) { h.textContent = _tvRundgangText; return; }
   h.textContent = (a && a.classList && a.classList.contains('leaflet-container'))
     ? 'Karte: Pfeile verschieben · Spulen zoomt · OK = Bedienelemente'
     : (document.querySelector('.map-is-fullscreen')
@@ -17554,6 +17563,9 @@ function _tvTaste(e) {
     if (_tvZurueck()) { e.preventDefault(); e.stopPropagation(); }
     return;
   }
+  if (t === 'MediaPlayPause' || t === 'MediaPlay' || t === 'MediaPause') {
+    _tvRundgangSchalten(); e.preventDefault(); return;
+  }
   if (aufKarte) {
     // Pfeile und +/- laesst Leaflet selbst wirken. Die Spultasten der Fernbedienung zoomen.
     // Wer die Karte von Hand bewegt, behaelt seinen Ausschnitt eine Weile.
@@ -17609,6 +17621,7 @@ var _tvFolgtSchon = false;
 function _tvAusschnittAnwenden() {
   if (!_tvAn()) return;
   var karte = (typeof liveMap !== 'undefined' && liveMap) ? liveMap : null;
+  if (_tvRundgangAn) return;        // der Rundgang bestimmt den Ausschnitt selbst
   if (!karte || Date.now() - _tvHandZuletzt < _TV_HAND_PAUSE_MS) return;
   var w = _tvAusschnittWahl(liveData, _meineCid);
   if (w.art === 'folgen') {
@@ -17620,6 +17633,66 @@ function _tvAusschnittAnwenden() {
   }
   _tvFolgtSchon = false;
   karte.fitBounds(w.grenzen, { padding: [60, 60], maxZoom: 9 });
+}
+
+// --- Rundgang: die fliegenden Friesen nach und nach durchschalten (Nutzer 03.10.2026) -----
+// Ein/Aus mit der Play/Pause-Taste der Fernbedienung oder dem Knopf auf der Karte; mit
+// ?tv=1&rundgang=1 laeuft er vom Start weg. Wer die Karte von Hand bewegt, haelt ihn an.
+var _tvRundgangAn = false;
+var _tvRundgangLetzter = null;
+var _tvRundgangText = '';
+var _TV_RUNDGANG_TAKT_MS = 12000;
+
+/** Naechster Flug nach `letzter` (Rufzeichen), alphabetisch, am Ende wieder von vorn.
+ *  Gezeigt wird, wer fliegt (ab 40 kt); steht alles am Boden, dann eben die Stehenden. */
+function _tvRundgangWahl(piloten, letzter) {
+  var alle = [], inDerLuft = [];
+  for (var i = 0; i < (piloten || []).length; i++) {
+    var p = piloten[i], lat = Number(p.latitude), lon = Number(p.longitude);
+    if (!p.callsign || !isFinite(lat) || !isFinite(lon) || (lat === 0 && lon === 0)) continue;
+    alle.push(p);
+    if (Number(p.groundspeed) >= 40) inDerLuft.push(p);
+  }
+  var liste = inDerLuft.length ? inDerLuft : alle;
+  if (!liste.length) return null;
+  liste.sort(function (a, b) { return a.callsign < b.callsign ? -1 : (a.callsign > b.callsign ? 1 : 0); });
+  var idx = 0;
+  if (letzter != null) {
+    for (var j = 0; j < liste.length; j++) {
+      if (liste[j].callsign > letzter) { idx = j; break; }
+      if (j === liste.length - 1) idx = 0;
+    }
+  }
+  var w = liste[idx];
+  return { callsign: w.callsign, lat: Number(w.latitude), lon: Number(w.longitude),
+           nr: idx + 1, von: liste.length, muster: w.aircraft || '',
+           strecke: (w.departure || '') + (w.arrival ? '–' + w.arrival : '') };
+}
+
+function _tvRundgangSchritt() {
+  if (!_tvAn() || !_tvRundgangAn) return;
+  var karte = (typeof liveMap !== 'undefined' && liveMap) ? liveMap : null;
+  if (!karte || Date.now() - _tvHandZuletzt < _TV_HAND_PAUSE_MS) return;
+  var w = _tvRundgangWahl(liveData, _tvRundgangLetzter);
+  if (!w) {
+    _tvRundgangText = 'Rundgang: gerade fliegt niemand';
+    karte.fitBounds(_tvAusschnittWahl([], null).grenzen, { padding: [60, 60] });
+  } else {
+    _tvRundgangLetzter = w.callsign;
+    _tvRundgangText = 'Rundgang ' + w.nr + '/' + w.von + ' · ' + w.callsign
+      + (w.muster ? ' · ' + w.muster : '') + (w.strecke ? ' · ' + w.strecke : '');
+    karte.flyTo([w.lat, w.lon], 10, { duration: 2 });
+  }
+  _tvHinweis();
+}
+
+function _tvRundgangSchalten(an) {
+  _tvRundgangAn = (an === undefined) ? !_tvRundgangAn : !!an;
+  _tvHandZuletzt = 0;
+  var knopf = document.getElementById('tv-rundgang');
+  if (knopf) knopf.textContent = _tvRundgangAn ? '■ Rundgang' : '▶ Rundgang';
+  if (_tvRundgangAn) { _tvRundgangSchritt(); }
+  else { _tvRundgangText = ''; _tvFolgtSchon = false; _tvAusschnittAnwenden(); _tvHinweis(); }
 }
 
 /** Start: Kartenvollbild mit dem Ausschnitt aus _tvAusschnittWahl. Wer einen festen Ausschnitt
@@ -17663,6 +17736,14 @@ function _tvStart() {
       _tvAusschnittAnwenden();
       setInterval(_tvAusschnittAnwenden, 5000);
     }
+    // Knopf fuer den Rundgang, neben dem Vollbild-Knopf (nur im TV-Modus vorhanden).
+    var rk = document.createElement('button');
+    rk.id = 'tv-rundgang'; rk.className = 'tv-rundgang-btn';
+    rk.textContent = '▶ Rundgang';
+    rk.addEventListener('click', function () { _tvRundgangSchalten(); });
+    wrap.appendChild(rk);
+    setInterval(_tvRundgangSchritt, _TV_RUNDGANG_TAKT_MS);
+    if (qs.get('rundgang') === '1') _tvRundgangSchalten(true);
     _tvFokus(karte.getContainer());
   }, 250);
 }
