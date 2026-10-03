@@ -17553,8 +17553,22 @@ function _tvAusloesen(el) {
   el.click();
 }
 
+// Fully Kiosk meldet "Zurueck" nicht als Taste, sondern geht in der Historie einen Schritt
+// zurueck -- gibt es keinen, BEENDET es die App (Nutzerfund 03.10.2026). Ein Eintrag, den die
+// Seite ohne Zutun des Nutzers anlegt, hilft nicht: Der Browser ueberspringt beim Zurueckgehen
+// alles, was ohne Bedienung dazwischen entstand. Deshalb entsteht je Tastendruck EIN Eintrag
+// (bis zu einer kleinen Tiefe) -- so liegen immer so viele "Zurueck" bereit, wie zuletzt
+// Tasten gedrueckt wurden.
+var _tvHistorieTiefe = 0;
+var _TV_HISTORIE_MAX = 12;
+function _tvHistorieAuflegen() {
+  if (_tvHistorieTiefe >= _TV_HISTORIE_MAX) return;
+  try { history.pushState({ tv: _tvHistorieTiefe + 1 }, ''); _tvHistorieTiefe++; } catch (_e) {}
+}
+
 function _tvTaste(e) {
   if (!_tvAn()) return;
+  _tvHistorieAuflegen();
   var t = e.key, ziel = e.target;
   var aufKarte = ziel && ziel.classList && ziel.classList.contains('leaflet-container');
   var imTextfeld = ziel && (ziel.tagName === 'TEXTAREA'
@@ -17704,15 +17718,12 @@ function _tvStart() {
   document.body.appendChild(hinweis);
   document.addEventListener('keydown', _tvTaste, true);
   document.addEventListener('focusin', _tvHinweis);
-  // Zurueck in Fully Kiosk = Historie zurueck. Ein eigener Eintrag faengt das ab und wird
-  // sofort wieder aufgelegt -- die Seite selbst wird so nie verlassen.
-  try {
-    history.pushState({ tv: 1 }, '');
-    window.addEventListener('popstate', function () {
-      _tvZurueck();
-      try { history.pushState({ tv: 1 }, ''); } catch (_e) {}
-    });
-  } catch (_e) {}
+  // Zurueck in Fully Kiosk = Historie zurueck; die Eintraege dafuer legt _tvHistorieAuflegen
+  // bei jedem Tastendruck an (Begruendung dort).
+  window.addEventListener('popstate', function () {
+    if (_tvHistorieTiefe > 0) _tvHistorieTiefe--;
+    _tvZurueck();
+  });
   var tab = document.querySelector('.tab-btn[data-tab="karte"]');
   if (tab) tab.click();
   var qs = new URLSearchParams(location.search);

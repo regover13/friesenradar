@@ -201,3 +201,15 @@ def test_rundgang_ist_schaltbar_und_haelt_bei_handgriff_an():
     # Laeuft der Rundgang, fuehrt der Ausschnitt nicht dazwischen
     assert "_tvRundgangAn" in _funktion("_tvAusschnittAnwenden")
     assert 'id = \'tv-rundgang\'' in b or 'id="tv-rundgang"' in b
+
+
+def test_zurueck_beendet_die_app_nicht():
+    """Nutzerfund 03.10.2026 auf dem Fire TV: Zurueck beendete die App. Ein beim Laden angelegter
+    Historien-Eintrag wird vom Browser uebersprungen; die Eintraege muessen bei Tastendruck
+    entstehen, einer je Druck."""
+    taste = _funktion("_tvTaste")
+    assert taste.index("_tvHistorieAuflegen()") < taste.index("var t = e.key")
+    auflegen = _funktion("_tvHistorieAuflegen")
+    assert "pushState" in auflegen and "_TV_HISTORIE_MAX" in auflegen
+    start = _funktion("_tvStart")
+    assert "pushState" not in start and "_tvHistorieTiefe--" in start
