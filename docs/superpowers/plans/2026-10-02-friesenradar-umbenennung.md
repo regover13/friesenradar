@@ -83,6 +83,14 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 
 ### Task 2: Server-Umzug (Wartungsfenster, Nutzer gibt Bescheid)
 
+> **HALT vor dem Umbau — Nutzer 03.10.2026:** „Frage mich vor dem Umbau nochmal, weil wir doch
+> `radar.friesenflieger.de` bei Heinz bestellt haben.“ Vor dem Umzug UND vor dem Ausliefern von
+> 16.0.0 den Nutzer fragen, welche Adresse die Texte nennen (Changelog-Punkt „Neue Adresse“,
+> README, Forum). Nicht selbst entscheiden, auch wenn DNS schon steht.
+> **Ebenfalls Nutzer 03.10.2026:** Kniebrett 3.0.0 und die neue FriesenBrügge gehören ZU
+> Lichtblick, nicht „mit dem nächsten Paket“ — beide müssen am Simulator-Rechner gebaut und
+> geprüft sein, bevor 16.0.0 hinausgeht.
+
 **Nur, wenn der Nutzer das Fenster freigibt.** Ausfall ~1 min. Die CI liegt **nicht** auf dem
 kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch läuft. (B2)
 
