@@ -98,6 +98,19 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 > Nutzers). Scheitert die Prüfung der Gerätebindung am Simulator, muss der Satz aus
 > `manifest.json` heraus, und der Changelog-Punkt zum Kniebrett braucht einen Hinweis auf die
 > neue Anmeldung — vor dem Verteilen.
+> **Paketprüfung am Simulator, 03.10.2026 abends (Sitzung „Lichtblick lokal“ + Server):**
+> - Kniebrett 3.0.0 (`friesenkniebrett.zip`, sha256 `26b5e222…e5e4f4`): Gerätebindung bestanden —
+>   dieselbe Kennung, `paket=3.0.0`, kein neues Gerät in `panel_devices` (nginx 19:34:28 UTC).
+>   App-Name, Symbol, Logo hell/dunkel, Fremdverkehr, Fenster schließen, Anheften: gesehen.
+>   Der Merkposten oben ist damit erledigt, der Satz zur Anmeldung bleibt.
+> - Brügge MSFS 1.19.0 (`friesenbruegge.zip`, sha256 `8fce0332…d7f41c`): in MSFS 2020 UND 2024
+>   Zuordnung, Stellen (rauch_orange) und Abräumen in der Datenbank und im Simulator gesehen.
+> - Brügge X-Plane 1.5.0 (CI-Lauf 37112105024, Artefakt `friesenbruegge-xplane`): Log-Zeilen und
+>   Zuordnung belegt; Stellen-Test NICHT gemacht (Entscheidung des Nutzers offen).
+> - **Erst nach dem Deploy von 16.0.0 prüfbar:** beide Kniebrett-Pakete nebeneinander
+>   (Hinweiskasten, `altesPaketDa()`, Test-Benachrichtigung) — der Kasten gehört zur Seite.
+> - Die Pakete liegen auf dem Simulator-Rechner, **nicht** auf dem Server. Hochladen nur auf
+>   Wort des Nutzers, nach Umzug und Deploy.
 
 **Nur, wenn der Nutzer das Fenster freigibt.** Ausfall ~1 min. Die CI liegt **nicht** auf dem
 kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch läuft. (B2)
