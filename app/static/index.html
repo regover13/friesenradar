@@ -17844,7 +17844,10 @@ function _tvRundgangNachfuehren() {
   if (Date.now() < _tvRundgangSchwenkBis || Date.now() - _tvHandZuletzt < _TV_HAND_PAUSE_MS) return;
   var karte = (typeof liveMap !== 'undefined' && liveMap) ? liveMap : null;
   var ort = _tvRundgangOrt(_tvRundgangLetzter);
-  if (karte && ort) karte.panTo(ort, { animate: true, duration: 1 });
+  // Im Sekundentakt und OHNE Gleitbewegung -- genau wie der Folgemodus der Karte. Mit einem
+  // 2-s-Takt und einer 1-s-Animation ruckte das Bild sichtbar im Zweisekundentakt
+  // (Nutzerfund 03.10.2026).
+  if (karte && ort) karte.panTo(ort, { animate: false });
 }
 
 function _tvRundgangSchalten(an) {
@@ -17920,7 +17923,7 @@ function _tvStart() {
     rk.addEventListener('click', function () { _tvRundgangSchalten(); });
     wrap.appendChild(rk);
     setInterval(_tvRundgangSchritt, _TV_RUNDGANG_TAKT_MS);
-    setInterval(_tvRundgangNachfuehren, 2000);
+    setInterval(_tvRundgangNachfuehren, 1000);
     if (qs.get('rundgang') === '1') _tvRundgangSchalten(true);
     // Im Standard NICHT die Kartensteuerung (Nutzer 03.10.2026): Der Fokus liegt auf dem
     // Rundgang-Knopf, die Pfeile waehlen Schaltflaechen. Die Karte bewegt, wer "Zurueck" drueckt.

@@ -295,3 +295,8 @@ def test_rundgang_kommt_auf_der_aktuellen_position_an():
     assert "_tvRundgangSchwenkBis" in n and "panTo" in n and "_tvRundgangOrt(_tvRundgangLetzter)" in n
     assert "mapMarkers[callsign]" in _funktion("_tvRundgangOrt")
     assert "setInterval(_tvRundgangNachfuehren" in _funktion("_tvStart")
+
+
+def test_nachfuehren_im_sekundentakt_ohne_gleiten():
+    assert "panTo(ort, { animate: false })" in _funktion("_tvRundgangNachfuehren")
+    assert "setInterval(_tvRundgangNachfuehren, 1000)" in _funktion("_tvStart")
