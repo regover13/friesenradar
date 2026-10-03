@@ -30,6 +30,28 @@ Vierfach geprüft am 02./03.10.2026: Betrieb (Tasks 1, 2, 7, 8) und Verträglich
 die Nummern in Klammern (B = Betrieb, V = Verträglichkeit) verweisen auf die Berichte. Der
 Ordnername des Kniebrett-Pakets ist entschieden: **Variante B, neuer Ordner** (Nutzer, 03.10.2026, Task 5).
 
+## Stand der Umsetzung (03.10.2026, nachts)
+
+Alles liegt auf Branches, **nichts ist ausgeliefert oder auf dem Server umgestellt**. Die
+App-Branches bilden eine Kette, jeder baut auf dem vorigen auf; ausgeliefert wird am Ende
+`bruegge-radar` (enthält alle):
+
+| Branch | Inhalt | Task |
+|---|---|---|
+| `umzug` | Pfade, Image, Compose, nginx, Dockerfile, deploy.yml, Umzugsskript (2× geprobt) | 1, 2 |
+| `lichtblick` | 16.0.0: Name, Logo, Symbole, Texte, Download-Name, Teilen-Links | 3 |
+| `kniebrett-3` | Paket 3.0.0 im Code (Variante B), Seite erkennt altes Paket | 5 |
+| `bruegge-radar` | Brügge 1.19.0 / 1.5.0, Übergabe `docs/uebergabe-friesenradar-pakete.md` | 6 |
+| `server-backup` → `friesenradar` | Pfade, Sperre gegen leere DB, README | 2 (Step 1) |
+| `devprops.de` → `friesenradar` | fail2ban-Jail/Filter, Serverdoku | 2 (Step 3, 21) |
+| `vaultwarden-setup` → `friesenradar` | Watchtower-Liste | 2 (Step 2) |
+
+Suite auf `bruegge-radar`: 3915 grün. Abschluss-Review (Opus) am 03.10.2026: 1 blockierender
+Befund (altes Kniebrett-Symbol) und 6 wichtige — alle eingearbeitet.
+
+**Offen beim Nutzer:** Termin Umzug, Freigabe der zwei `config.env`-Zeilen, Sim-Prüfungen
+(Logo in der Vorschau vor 16.0.0; Paket 3.0.0 nach der Übergabe), Forum (Task 4).
+
 ## Review Focus
 
 1. **Leere Datenbank statt Umzug:** Stimmen Mount im Compose, `DB_PATH` in `config.env` und Dateiname nicht überein, legt SQLite still eine leere DB an; Mitglieder sähen eine leere App, und das Backup um 03:00 sicherte die leere Datei. Gegenprobe vor dem Start und Zeilenzahlen direkt danach (Task 2). (B1)
@@ -48,10 +70,10 @@ Image `ghcr.io/regover13/friesenradar`, Volume `./data:/opt/friesenradar/data`),
 `ENV DB_PATH`), nginx-Datei umbenannt, Paketskripte, Paketdatei `efb/friesenradar-efb.zip` mit
 Rückfall auf `friesenspy-efb.zip`.
 
-**Der Download-Name bleibt `friesenflieger-friesenspy-efb.zip`.** Er ist zugleich der Ordnername
-nach dem Entpacken (`main.py`, Kommentar beim Download). Ein neuer Name ergäbe nach dem Update ein
-zweites Paket neben dem alten, mit derselben App darin. Ob er sich je ändert, hängt an der
-Entscheidung in Task 5. (V1)
+**Der Download-Name folgt dem Paketordner in der abgelegten ZIP** (`_efb_download_name`, Branch
+`lichtblick`): bis 2.x `friesenflieger-friesenspy-efb.zip`, ab 3.0.0
+`friesenflieger-friesenradar-efb.zip`. Er ist zugleich der Ordnername nach dem Entpacken; so
+wechselt er erst mit dem neuen Paket (V1, Variante B).
 
 - [ ] **Nachtrag 1:** `deploy.yml` Skript mit `set -euo pipefail` beginnen, damit ein fehlendes Verzeichnis den Lauf abbricht statt in `$HOME` weiterzumachen.
 - [ ] **Nachtrag 2:** Grep aus Step 4 wiederholen, diesmal mit `--include=Dockerfile --include=*.sh` (B3).
@@ -78,20 +100,26 @@ kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch l�
 - [ ] **Step 8:** `umzug` nach `main` (Rebase, Suite grün, Push). Der Workflow testet und baut `ghcr.io/regover13/friesenradar:latest`; sein Deploy-Schritt scheitert an `cd /opt/friesenradar` (gibt es noch nicht), der alte Container bleibt unberührt. Gegenprobe: `gh api user/packages/container/friesenradar` zeigt das Paket, `visibility: private`. **Ist der Bau rot, hier aufhören** — nichts ist bis dahin verändert außer dem Repo-Namen.
 
 **Ausfall (~1 min):** Steps 9–15 führt `deploy/umzug-friesenradar.sh` (Branch `umzug`) in einem
-Zug aus, mit Abbruch bei jedem Fehler und dem Rückweg in der Ausgabe. **Generalprobe am
+Zug aus. Seit dem Abschluss-Review laufen alle Prüfungen (Token, `config.env`-Schlüssel) und
+der **Image-Download vor dem Stoppen**; bricht es danach ab, nennt die Ausgabe den Rückweg für
+genau diesen Stand. Der Rückweg ist ein eigener Modus (`ZURUECK=1`: alle drei DB-Dateien
+zurückbenennen, `.alt`-Dateien zurück, Leer-Prüfung vor dem Start, Zählung). Exakt gleich
+bleiben muss nur `progress_snapshot`; alle anderen Tabellen dürfen wachsen. **Zweite
+Generalprobe** am selben Tag mit dieser Fassung: Hin- und Rückweg bestanden (Reste unter
+`/root/umzug-probe2-2026-10-03/`). **Generalprobe am
 03.10.2026 bestanden:** dasselbe Skript gegen eine Kopie im alten Aufbau (`PROBE=1`, Container
 ohne Netzwerk, echte App unberührt) — Health nach 10 s, DB im Container 128 MB unter dem neuen
 Pfad, alle Zählungen gleich (19 Snapshots unverändert), Website/Admin/Kniebrett/Widget/Download/
 Kartenblatt/Badge mit 200, ohne Login 401. Backup-Teil (Branch `friesenradar` im Repo
 `server-backup`) gegen die Probe-DB: Archiv vollständig; fehlende Datei → Abbruch ohne leere
 Sicherung. Reste unter `/root/umzug-probe-2026-10-03/` (0700), Probe-Image
-`ghcr.io/regover13/friesenradar:probe` — beides nach dem Umzug löschen.
+`ghcr.io/regover13/friesenradar:probe` — beides nach dem Umzug löschen (Step 23).
 - [ ] **Step 9:** `PRAGMA integrity_check` auf der laufenden DB, Ergebnis `ok`. Zeilenzahlen und `MAX(id)` notieren: `flights`, `position_history`, `panel_prefs`, `panel_devices`, `push_subscriptions`, `progress_snapshot` (dazu `COUNT(*)` und `MAX(computed_at)`, die 19 Snapshots dürfen sich nie ändern).
 - [ ] **Step 10:** `cd /opt/friesenspy && docker compose down`. Gegenprobe: `docker ps | grep friesenspy` leer.
 - [ ] **Step 11:** Checkpoint und Sicherung als `containersvc` mit absoluten Pfaden: `PRAGMA wal_checkpoint(TRUNCATE)`, `.backup /root/umzug-friesenradar-<datum>/friesenspy.db` (nicht unter `/opt/backup`, sonst hält `backup_status.sh` die Handkopie für die jüngste Sicherung). Alte Compose nach `/root/umzug-friesenradar-<datum>/`, ebenso `config.env`.
 - [ ] **Step 12:** `sudo mv /opt/friesenspy /opt/friesenradar`, `mv data/friesenspy.db data/friesenradar.db`. `ls -la data/friesenradar.db*` → genau eine Datei, Besitzer `containersvc`.
 - [ ] **Step 13:** **Neue `docker-compose.yml` aus dem Repo nach `/opt/friesenradar/` kopieren** — der Deploy kopiert keine Compose-Datei, sonst startet die alte mit altem Image und altem Mount (B1). `config.env` wie in Step 4 freigegeben. Gegenprobe: `docker compose config | grep -E 'image|/opt/'` zeigt nur `friesenradar`, und die DB-Datei aus `DB_PATH` liegt im gemounteten Verzeichnis.
-- [ ] **Step 14:** `echo "$GH_TOKEN" | docker login ghcr.io -u regover13 --password-stdin`, `docker compose pull && docker compose up -d`, `docker logout ghcr.io`. Container heißt `friesenradar-friesenradar-1`. **Rückfall, falls der Pull scheitert:** `docker tag ghcr.io/regover13/friesenspy:latest ghcr.io/regover13/friesenradar:latest` und `up -d` (das alte Image läuft mit den neuen Pfaden, weil `config.env` gewinnt).
+- [ ] **Step 14:** (im Skript: Login und `docker pull` laufen schon VOR Step 10) `docker compose up -d`. Container heißt `friesenradar-friesenradar-1`. **Rückfall, falls der Pull scheitert:** `docker tag ghcr.io/regover13/friesenspy:latest ghcr.io/regover13/friesenradar:latest` und `up -d` (das alte Image läuft mit den neuen Pfaden, weil `config.env` gewinnt).
 - [ ] **Step 15: Gegenproben sofort** — scheitert eine, Rückweg (Step 16):
   - `curl -sf http://127.0.0.1:8091/health`
   - Zeilenzahlen aus Step 9: jede `>=` dem notierten Wert, `progress_snapshot` exakt gleich
@@ -101,14 +129,14 @@ Sicherung. Reste unter `/root/umzug-probe-2026-10-03/` (0700), Probe-Image
 
 **Nachziehen (ohne Ausfall, am selben Abend):**
 - [ ] **Step 17: nginx:** `nginx/friesenradar.devprops.de.conf` installieren, alten Symlink **vor** `nginx -t` entfernen (sonst doppelte `limit_req_zone`-Namen), alte Datei und die drei `.bak` nach `/root/umzug-…`, `reload`. Bis Step 22 zeigt der neue Vhost noch auf das bestehende Zertifikat (`live/friesenspy.devprops.de`, deckt beide Namen).
-- [ ] **Step 18: fail2ban** aus Step 3 einspielen, `fail2ban-regex` mit drei Probezeilen, `fail2ban-client status friesenradar`.
+- [ ] **Step 18: fail2ban** aus Step 3 einspielen (Repo `devprops.de`, Branch `friesenradar`) und **die alten `/etc/fail2ban/jail.d/friesenspy.conf` und `filter.d/friesenspy.conf` entfernen** — sonst laufen zwei gleiche Jails auf `goaccess.log`; `fail2ban-regex` mit drei Probezeilen, `fail2ban-client status friesenradar`.
 - [ ] **Step 19: Backup** aus Step 1 einspielen — **vor 03:00** — ausdrücklich per `cp backup_onedrive.sh /opt/backup/scripts/` mit `diff`-Gegenprobe (die README beschreibt nur die Erstinstallation, K9). Alte Archive `/opt/backup/friesenspy/*.tar.gz` nach `/opt/backup/manual/friesenspy-alt/` (die Rotation sieht Unterordner nicht und würde sie sonst nie löschen). Probelauf dieses Teils, Archiv im OneDrive prüfen. Am Morgen `systemctl --failed`.
 - [ ] **Step 20: Watchtower** aus Step 2 einspielen, `docker compose up -d --no-deps watchtower`; Gegenprobe `docker inspect watchtower`.
 - [ ] **Step 21:** `containersvc`-Kommentar in `/etc/passwd`; Serverdoku (Repo `devprops.de`) mit Pfaden, Containernamen und Tabellen.
 
 **Eine Woche später:**
-- [ ] **Step 22: Zertifikat:** `sudo certbot certonly -n --webroot -w /var/www/html --cert-name friesenradar.devprops.de -d friesenradar.devprops.de -d friesenspy.devprops.de --deploy-hook "systemctl reload nginx"`, Vhost auf `live/friesenradar.devprops.de`, `nginx -t`, `reload`, mit `curl -v` prüfen. Erst wenn `nginx -T | grep live/friesenspy` leer ist (K3): `certbot delete --cert-name friesenspy.devprops.de` — **nicht umkehrbar** außer durch Neuausstellung (Rate-Limit). (B5)
-- [ ] **Step 23:** Altes Image `docker rmi ghcr.io/regover13/friesenspy:latest`, Gegenprobe `docker images`.
+- [ ] **Step 22: Zertifikat:** `sudo certbot certonly -n --webroot -w /var/www/html --cert-name friesenradar.devprops.de -d friesenradar.devprops.de -d friesenspy.devprops.de --deploy-hook "systemctl reload nginx"`, Vhost auf `live/friesenradar.devprops.de` umstellen (im Repo steht bis dahin bewusst noch `live/friesenspy.devprops.de`, sonst scheitert Step 17 an `nginx -t`), `nginx -t`, `reload`, mit `curl -v` prüfen. Erst wenn `nginx -T | grep live/friesenspy` leer ist (K3): `certbot delete --cert-name friesenspy.devprops.de` — **nicht umkehrbar** außer durch Neuausstellung (Rate-Limit). (B5)
+- [ ] **Step 23:** Altes Image `docker rmi ghcr.io/regover13/friesenspy:latest` und das Probe-Image `ghcr.io/regover13/friesenradar:probe`, Gegenprobe `docker images`. Probe-Reste `/root/umzug-probe-2026-10-03/` und `/root/umzug-probe2-2026-10-03/` (zusammen ~1,8 GB, enthalten DB-Kopien) löschen — mit Freigabe.
 
 **Später, wenn Heinz den DNS-Eintrag gesetzt hat** (CNAME `radar` → **`friesenradar.devprops.de`**):
 - [ ] **Step 24:** `dig +short radar.friesenflieger.de` zeigt auf 167.86.127.129. Zertifikat erweitern (`--expand -d radar.friesenflieger.de`), `server_name` ergänzen, `curl -sf https://radar.friesenflieger.de/health`, Forum-Login über diese Adresse. Erst danach Texte für Mitglieder auf diese Adresse umstellen (Task 3 Nachtrag). (V4)
