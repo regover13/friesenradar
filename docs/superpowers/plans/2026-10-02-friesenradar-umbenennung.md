@@ -166,9 +166,9 @@ Suite grün (3901).
 
 Alles auf friesenflieger.de nur mit Freigabe; Schreiben einzeln erfragen.
 
-- [ ] **Step 1:** Unterforum „FriesenSpy“ (f=116) in „FriesenRadar“ umbenennen — Nutzer oder Heinz im ACP.
-- [ ] **Step 2:** Thema 1785 in „FriesenRadar – Entwicklungsstand“ umbenennen — **im ACP bzw. über die Moderation**, nicht durch Bearbeiten des ersten Beitrags: Trägt er eine Umfrage, löscht jedes Bearbeiten sie samt Ergebnissen. (V10)
-- [ ] **Step 3:** Widget-Einbettung (Board-Vorlage Heinz, Website Micha) auf `https://friesenradar.devprops.de/widget`. Text im Chat vorbereiten.
+- [ ] **Step 1:** Unterforum „FriesenSpy“ (f=116) in „FriesenRadar“ umbenennen — Nutzer im ACP (hat selbst Zugriff).
+- [ ] **Step 2:** Thema 1785 in „FriesenRadar – Entwicklungsstand“ umbenennen — **Nutzer im ACP bzw. über die Moderation**, nicht durch Bearbeiten des ersten Beitrags: Trägt er eine Umfrage, löscht jedes Bearbeiten sie samt Ergebnissen. (V10)
+- [ ] **Step 3:** Widget-Einbettung in Board-Vorlage und Website auf `https://friesenradar.devprops.de/widget` — **der Nutzer hat selbst Zugriff auf beides** (03.10.2026); nur DNS liegt bei Heinz. Ändert der Nutzer, oder ich mit ausdrücklicher Schreibfreigabe.
 - [ ] **Step 4:** Discord-Webhook-Name und Telegram-Bot-Anzeigename umbenennen (Nutzer).
 - [ ] **Step 5:** Ankündigung „V16 - Lichtblick“: Entwurf im Chat, nach Freigabe posten, Betreff nachziehen. Inhalt: neuer Name, neue Adresse, Logo und Symbol; **iPhone/iPad:** alte App vom Home-Bildschirm löschen, über die neue Adresse neu hinzufügen, Benachrichtigungen neu einschalten; **Android:** nichts tun, Name und Symbol ziehen von selbst nach; einmal neu anmelden; Kniebrett-Paket und Brügge folgen. (V5/V6)
 - [ ] **Step 6:** Gegenprobe `forum_list_forums`; nach einigen Tagen `SELECT owner_cid, COUNT(*) FROM push_subscriptions GROUP BY 1 HAVING COUNT(*) > 1`.
