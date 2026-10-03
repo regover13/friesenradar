@@ -328,6 +328,8 @@ def test_logo_steht_oben_mittig_solange_die_schaltflaechen_ausgeblendet_sind():
     assert "left: 50%" in regel and "top:" in regel and "opacity: 0" in regel
     assert "pointer-events: none" in regel
     assert "friesenradar-weissrot.svg" in regel
+    # Nutzer: "logo ohne hintergrund!!" -- keine Platte dahinter.
+    assert "var(--" not in regel and "background-color" not in regel
     assert re.search(r"html\.hell\.tv \.tv-logo \{[^}]*friesenradar-farbig\.svg", INDEX)
     assert re.search(r"html\.tv\.tv-ruhe \.tv-logo \{[^}]*opacity: 1", INDEX)
     # Ausserhalb des TV-Modus gibt es das Element nicht zu sehen.

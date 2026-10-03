@@ -4403,14 +4403,11 @@
     /* Logo im Ruhezustand: oben mittig, in der Fassung der eingestellten Darstellung. Die
        Farben der Logos bleiben, wie sie sind. */
     html.tv .tv-logo {
-      display: block; position: fixed; left: 50%; top: 0; transform: translateX(-50%);
+      display: block; position: fixed; left: 50%; top: 10px; transform: translateX(-50%);
       width: 300px; height: 76px; z-index: 999998; opacity: 0; pointer-events: none;
       transition: opacity 0.6s ease;
-      /* Auf einer Platte in der Farbe der Seite: Das weisse Logo waere auf der hellen
-         Flugkarte sonst nicht zu lesen (und das farbige nicht auf dem Satellitenbild). */
-      padding: 8px 18px; box-sizing: content-box;
-      background: var(--bg-panel) url('/static/logo/friesenradar-weissrot.svg') center / contain no-repeat;
-      background-origin: content-box; border-radius: 0 0 6px 6px;
+      /* OHNE Hintergrund (Nutzer 03.10.2026: "logo ohne hintergrund!!") -- keine Platte. */
+      background: url('/static/logo/friesenradar-weissrot.svg') center / contain no-repeat;
     }
     html.hell.tv .tv-logo { background-image: url('/static/logo/friesenradar-farbig.svg'); }
     html.tv.tv-ruhe .tv-logo { opacity: 1; }
