@@ -67,6 +67,12 @@ Ob die Gerätebindung einen neuen Paketordner übersteht, ist **nicht belegt**
    - **Kommt eine neue Kennung oder fragt das Tablet nach der Anmeldung: STOPP.** Nicht
      hochladen, der Server-Sitzung melden. Dann ist die Bindung paketgebunden, und Variante B
      braucht eine neue Entscheidung des Nutzers.
+> **Stand 03.10.2026, 22 Uhr:** Schritt 2 ist bestanden (dieselbe Kennung, `paket=3.0.0`, kein
+> neues Gerät in `panel_devices`). **Schritt 3 und der Seiten-Teil von Schritt 5 gehen erst,
+> wenn 16.0.0 auf der Produktion läuft:** Der Hinweiskasten, die Auswertung von `altesPaket`
+> und das Logo im Streifen gehören zur SEITE, und das Kniebrett lädt immer die Produktion
+> (am 03.10. lief dort 15.34.1). Vorher ist „kein Kasten“ kein Befund über das Paket.
+
 3. **Beide Pakete:** alten Ordner wieder dazulegen, Simulator neu starten.
    - Erwartet: zwei Apps im Tablet; in **FriesenRadar** steht unten links der Kasten „Das
      alte Kniebrett-Paket liegt noch im Community-Ordner …“, ohne Schließen-Knopf.
