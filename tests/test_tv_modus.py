@@ -280,3 +280,9 @@ def test_schaltflaechen_gehen_in_die_ruhe_und_kommen_mit_einer_taste_zurueck():
     assert "_tvRuheBeenden()" in taste and taste.index("_tvRuheBeenden()") < taste.index("var t = e.key")
     assert re.search(r"html\.tv\.tv-ruhe \.map-is-fullscreen \.leaflet-control:not\(\.leaflet-control-attribution\)", INDEX)
     assert "tv-hinweis-bleibt" in _funktion("_tvHinweis")
+
+
+def test_start_ohne_kartensteuerung():
+    """Nutzer 03.10.2026: im Standard nicht die Kartensteuerung aktivieren."""
+    start = _funktion("_tvStart")
+    assert "_tvFokus(rk)" in start and "_tvFokus(karte.getContainer())" not in start

@@ -17496,7 +17496,8 @@ function _tvHinweis() {
     h.textContent = 'Hoch/Runter = wählen · OK = an/aus · Links = schließen';
     return;
   }
-  // Die Rundgang-Zeile sagt, wer gerade zu sehen ist -- sie bleibt auch in der Ruhe stehen.
+  // Die Rundgang-Zeile sagt, wer gerade zu sehen ist -- sie bleibt auch in der Ruhe stehen
+  // (Nutzer 03.10.2026: "lass den Rundgang drin").
   h.classList.toggle('tv-hinweis-bleibt', !!(_tvRundgangAn && _tvRundgangText));
   if (_tvRundgangAn && _tvRundgangText) { h.textContent = _tvRundgangText; return; }
   h.textContent = (a && a.classList && a.classList.contains('leaflet-container')
@@ -17891,7 +17892,9 @@ function _tvStart() {
     wrap.appendChild(rk);
     setInterval(_tvRundgangSchritt, _TV_RUNDGANG_TAKT_MS);
     if (qs.get('rundgang') === '1') _tvRundgangSchalten(true);
-    _tvFokus(karte.getContainer());
+    // Im Standard NICHT die Kartensteuerung (Nutzer 03.10.2026): Der Fokus liegt auf dem
+    // Rundgang-Knopf, die Pfeile waehlen Schaltflaechen. Die Karte bewegt, wer "Zurueck" drueckt.
+    _tvFokus(rk);
     _tvRuheStellen();
     _tvDiag('bereit', 'fokus=' + _tvDiagElement(document.activeElement));
   }, 250);
