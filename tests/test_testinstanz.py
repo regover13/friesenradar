@@ -114,3 +114,14 @@ def test_datenkopie_liegt_nie_in_tmp():
     sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
     assert "/tmp" not in sk.replace("Nie ueber /tmp", "")
     assert 'chmod 700 "$ORT/data"' in sk
+
+
+def test_im_uebergabeordner_arbeitet_nie_root():
+    """Der Ordner gehoert dem Container -- ein Symlink darin darf root nichts ueberschreiben lassen."""
+    sk = (WURZEL / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
+    for zeile in sk.splitlines():
+        if "$UEBERGABE" in zeile or '"$datei"' in zeile:
+            z = zeile.strip()
+            if z.startswith(("#", "UEBERGABE=", "datei=", "status)")):
+                continue
+            assert "sudo -u containersvc" in z, zeile
