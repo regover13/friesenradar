@@ -4372,12 +4372,14 @@
        ein Reiter genauso. Gezeigt wird deshalb allein das rote „GETRENNT“. Im Kniebrett
        traegt weiterhin das Zahnrad den Zustand ueber seine Farbe. */
     html:not(.vr-panel) header #sse-badge:not(.disconnected) { display: none; }
-    /* TV-Modus (?tv=1): Der Fokus muss vom Sofa aus zu sehen sein -- kraeftiger Rahmen in
-       FriesenOrange mit hellem Saum, auf jedem Untergrund. Kein Mauszeiger. */
+    /* TV-Modus (?tv=1): Der Fokus muss vom Sofa aus zu sehen sein -- Rahmen in FriesenOrange,
+       nach aussen ein oranger Schein, nach innen ein weicher Verlauf nach Weiss (Nutzer
+       03.10.2026: der harte weisse Saum gefiel nicht). Kein Mauszeiger. */
     html.tv *:focus {
       outline: 4px solid #D75F28 !important;
-      outline-offset: 2px;
-      box-shadow: 0 0 0 7px rgba(255,255,255,0.85) !important;
+      outline-offset: 0;
+      box-shadow: 0 0 22px 8px rgba(215,95,40,0.75),
+                  inset 0 0 14px 4px rgba(255,255,255,0.7) !important;
     }
     html.tv .leaflet-container:focus { outline-offset: -6px; box-shadow: none !important; }
     /* Ankreuzfelder sind winzig: die ganze Zeile hervorheben, in der der Fokus steht. */
