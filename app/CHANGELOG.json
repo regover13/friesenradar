@@ -5,15 +5,15 @@
     "highlight": false,
     "title": "Lichtblick",
     "items": [
-      "📡 **Neuer Name: FriesenRadar.** Gleiche App: Alle Flüge, Events, Ergebnisse und deine Einstellungen sind da, wo sie waren.",
-      "🖼️ **Neues Logo** oben auf der Website und im Kniebrett, im dunklen Design in Weiß und Rot, im hellen farbig. Als App auf dem Handy erscheint jetzt das rote Flugzeug auf weißem Grund.",
-      "🔗 **Neue Adresse: friesenradar.devprops.de.** Die alte Adresse funktioniert weiter, Lesezeichen und Links in alten Beiträgen gehen also nicht kaputt.",
-      "📺 **Neu: der TV-Modus.** FriesenRadar für den Fernseher – die Karte im Vollbild, bedienbar mit den Pfeiltasten oder einer Fernbedienung. Der Fernseher braucht dafür einen Browser; am Fire TV Stick ist das die App Fully Kiosk Browser. Einschalten über das Zahnrad → Anzeige → TV-Modus. Fliegst du selbst, folgt die Karte deinem Flugzeug; sonst zeigt sie die Friesen, die gerade unterwegs sind. Nach ein paar Sekunden ohne Tastendruck verschwinden die Knöpfe, und es bleibt nur die Karte. Wie man es einrichtet, steht in der Hilfe.",
-      "🛩️ **Rundflug:** Im TV-Modus schaltet die Karte auf Knopfdruck nacheinander zu jedem Friesen, der sich bewegt, und bleibt eine halbe Minute bei ihm.",
-      "🧭 **Die Kopfzeile ist aufgeräumt.** Dein Name steht links, die Hilfe unter der Versionsnummer. Das LIVE-Feld ist verschwunden – reißt die Verbindung ab, steht dort rot „GETRENNT“.",
-      "🧳 **Neues Kniebrett-Paket 3.0.0.** Es heißt jetzt ebenfalls FriesenRadar. Nach dem Einspielen den alten Ordner friesenflieger-friesenspy-efb aus dem Community-Ordner löschen und die App im Tablet neu anheften.",
-      "🌉 **Neue FriesenBrügge** für MSFS (1.19.0) und X-Plane (1.5.0). Sie meldet an die neue Adresse; deine Zuordnung bleibt erhalten. Bitte aktualisieren.",
-      "📄 **Datenschutzerklärung und Impressum** sind auf dem aktuellen Stand."
+      "📡 FriesenRadar — so heißt die Seite jetzt. Der neue Name sagt, was sie tut: Sie zeigt, wo die Friesen gerade fliegen. Sonst bleibt alles an seinem Platz — deine Flüge, die Events, die Ergebnisse und deine Einstellungen sind da, wo sie waren.",
+      "🖼️ Dazu gibt es ein neues Logo: das rote Flugzeug über dem Schriftzug, oben auf der Website und im Kniebrett. Im dunklen Design steht es in Weiß und Rot, im hellen farbig. Wer FriesenRadar als App auf dem Handy hat, findet dort jetzt das rote Flugzeug auf weißem Grund.",
+      "🔗 Die neue Adresse heißt friesenradar.devprops.de. Die alte führt weiter ans Ziel — Lesezeichen und Links in alten Forumsbeiträgen gehen also nicht kaputt.",
+      "📺 FriesenRadar kommt auf den Fernseher. Im neuen TV-Modus füllt die Karte den ganzen Bildschirm, und bedient wird mit den Pfeiltasten oder einer Fernbedienung. Fliegst du selbst, folgt die Karte deinem Flugzeug; sonst zeigt sie die Friesen, die gerade unterwegs sind. Nach ein paar Sekunden ohne Tastendruck verschwinden die Knöpfe, und es bleibt nur die Karte. Der Fernseher braucht dafür einen Browser — am Fire TV Stick ist das die App Fully Kiosk Browser. Eingeschaltet wird über das Zahnrad unter Anzeige; wie man es am Fernseher einrichtet, steht in der Hilfe.",
+      "🛩️ Wer gerade nicht selbst fliegt, kann den anderen zusehen: Der Rundflug im TV-Modus nimmt dich mit von Friese zu Friese, bleibt eine halbe Minute über jedem und zieht dann weiter — einmal um die Welt, wenn es sein muss.",
+      "🧳 Auch das Kniebrett trägt den neuen Namen. Das Paket 3.0.0 heißt FriesenRadar und bringt Logo und Symbol mit ins Cockpit. Nach dem Einspielen den alten Ordner friesenflieger-friesenspy-efb aus dem Community-Ordner löschen und die App im Tablet neu anheften — sonst stehen dort zwei nebeneinander.",
+      "🌉 Die FriesenBrügge zieht mit um: Die neue Fassung für MSFS (1.19.0) und X-Plane (1.5.0) meldet an die neue Adresse. Deine Zuordnung bleibt dabei erhalten — einmal aktualisieren genügt.",
+      "🧭 Die Kopfzeile ist aufgeräumt. Dein Name steht links, die Hilfe unter der Versionsnummer, und das LIVE-Feld ist verschwunden: Es meldet sich nur noch, wenn die Verbindung abreißt — dann steht dort rot „GETRENNT“.",
+      "📄 Datenschutzerklärung und Impressum sind auf dem aktuellen Stand und nennen jetzt auch Kniebrett und FriesenBrügge."
     ]
   },
   {
