@@ -3,7 +3,11 @@
 PackageSources/efb_api/node_modules/
 PackageSources/FriesenSpy/node_modules/
 PackageSources/FriesenSpy/dist/
+PackageSources/FriesenRadar/node_modules/
+PackageSources/FriesenRadar/dist/
 Package/
+friesenkniebrett/
+friesenkniebrett.zip
 
 # WICHTIG: Das Repo-Root-.gitignore hat eine unverankerte Regel "dist/" (Zeile 8, greift
 # ueberall im Repo). efb_api/dist ist aber KEIN Build-Output, sondern vendorierter

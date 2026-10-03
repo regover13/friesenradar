@@ -25,7 +25,10 @@ wegklicken lässt.
 ### Bauen
 
 ```powershell
-cd <repo>\msfs-panel\PackageSources\FriesenRadar
+cd <repo>\msfs-panel\PackageSources\efb_api
+npm ci                      # in einem frischen Checkout noetig -- sonst scheitert die Typpruefung
+                            # mit "Property 'props' does not exist on type 'FriesenRadarView'"
+cd ..\FriesenRadar
 npm ci                      # der Ordner ist neu -- node_modules lag unter FriesenSpy\
 npm run build
 cd ..\..
@@ -94,8 +97,13 @@ MSFS **1.19.0**, X-Plane **1.5.0**. Geändert sind nur Zieladresse
 (`friesenradar.devprops.de`), Texte und Versionsnummer. Die Kennungsdatei (`\work\` bzw.
 `Output/preferences/`) bleibt — die Zuordnung zum Piloten überlebt das Update.
 
-Bauen wie gehabt (`friesenbruegge\msfs\bauen.ps1`, mit `-Fuer2020` für 2020;
+Bauen wie gehabt (`friesenbruegge\msfs\bauen.ps1` — ein Modul für 2020 und 2024; den Schalter
+`-Fuer2020` gibt es nur noch bei `paket.ps1`, er wählt den Community-Ordner von MSFS 2020;
 `friesenbruegge\xplane\bauen.ps1`), packen mit `paket.ps1`.
+
+**X-Plane-ZIP:** `xplane\paket.ps1` schnürt nicht, es lädt nur hoch. Das ZIP mit allen drei
+Plattformen entsteht in der CI (Workflow „Bruegge X-Plane bauen“, läuft bei jedem Push an
+`friesenbruegge/**`) und liegt dort als Artefakt `friesenbruegge-xplane`.
 
 Prüfen:
 - Log-Zeile `Fassung 1.19.0 startet` (MSFS) bzw. `Fassung 1.5.0 geladen.` und
