@@ -106,7 +106,7 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 > - Brügge MSFS 1.19.0 (`friesenbruegge.zip`, sha256 `8fce0332…d7f41c`): in MSFS 2020 UND 2024
 >   Zuordnung, Stellen (rauch_orange) und Abräumen in der Datenbank und im Simulator gesehen.
 > - Brügge X-Plane 1.5.0 (CI-Lauf 37112105024, Artefakt `friesenbruegge-xplane`): Log-Zeilen und
->   Zuordnung belegt; Stellen-Test NICHT gemacht (Entscheidung des Nutzers offen).
+>   Zuordnung belegt; Stellen-Test nachgeholt (20:39–20:40 UTC): gesetzt, gesehen, abgeräumt.
 > - **Erst nach dem Deploy von 16.0.0 prüfbar:** beide Kniebrett-Pakete nebeneinander
 >   (Hinweiskasten, `altesPaketDa()`, Test-Benachrichtigung) — der Kasten gehört zur Seite.
 > - Die Pakete liegen auf dem Simulator-Rechner, **nicht** auf dem Server. Hochladen nur auf
