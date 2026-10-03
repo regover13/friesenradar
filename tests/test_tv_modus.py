@@ -389,7 +389,7 @@ def test_schalter_merkt_sich_das_geraet_nicht_das_konto():
     f = _funktion("_tvModusSetzen")
     assert "localStorage.setItem('friesenradar_tv', '1')" in f
     assert "localStorage.removeItem('friesenradar_tv')" in f
-    assert "_prefSchreib" not in f, "nicht ans Konto haengen"
+    assert "_prefSchreib('friesenradar_tv" not in f and "_prefSchreib(\"friesenradar_tv" not in f, "nicht ans Konto haengen"
 
 
 def test_fuer_den_nutzer_heisst_es_rundflug():
@@ -422,3 +422,13 @@ def test_alles_anklickbare_ist_anwaehlbar_nicht_nur_eine_klassenliste():
     assert not re.search(r"html\.tv[^{]*\{[^}]*cursor:\s*none", INDEX)
     # Eine Tabellenzeile mit Fokus muss zu erkennen sein (Schein allein zeichnet nicht jeder Browser an <tr>).
     assert re.search(r"html\.tv tr:focus \{[^}]*background", INDEX)
+
+
+def test_tv_vollbild_wird_nicht_als_eigene_wahl_gemerkt():
+    """Nutzer 03.10.2026: Nach "Aus" ging die Karte wieder ins Vollbild -- "Das braucht es nicht".
+    Das Vollbild des TV-Modus ist erzwungen, keine Wahl des Mitglieds: Es wird nicht gemerkt,
+    und "Aus" setzt den Merker zurueck."""
+    start = INDEX.index("function toggleMapFullscreen(")
+    f = INDEX[start:INDEX.index("\n}\n", start)]
+    assert "if (wrapId === _ZUSTAND_KARTE_WRAP && !_tvAn()) _prefSchreib(_ZUSTAND_VOLLBILD_KEY" in f
+    assert "_prefSchreib(_ZUSTAND_VOLLBILD_KEY, '0')" in _funktion("_tvModusSetzen")

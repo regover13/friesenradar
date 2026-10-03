@@ -17201,7 +17201,9 @@ function toggleMapFullscreen(wrapId, btn, getMap) {
   // Nur die Karten-Ansicht wird gemerkt: Das Track-Modal und die Events-Karte haengen an
   // einem Flug bzw. einem Rennen, das beim naechsten Start nicht mehr offen ist -- ein
   // wiederhergestelltes Vollbild ohne den zugehoerigen Inhalt waere eine leere Flaeche.
-  if (wrapId === _ZUSTAND_KARTE_WRAP) _prefSchreib(_ZUSTAND_VOLLBILD_KEY, isFs ? '1' : '0');
+  // Im TV-Modus ist das Vollbild erzwungen und keine Wahl des Mitglieds -- nicht merken, sonst
+  // startet die normale Website danach im Vollbild (Nutzer-Fund 03.10.2026).
+  if (wrapId === _ZUSTAND_KARTE_WRAP && !_tvAn()) _prefSchreib(_ZUSTAND_VOLLBILD_KEY, isFs ? '1' : '0');
   // Die Windanzeige steht in beiden Zustaenden oben links ueber den Zoomknoepfen -- der
   // Aufruf haelt sie nur dort, wenn Leaflet die Ecke beim Groessenwechsel neu aufbaut. Nur
   // die Live-Karte hat eine, bei den anderen tut er nichts.
@@ -18176,6 +18178,8 @@ function _tvModusSetzen(an) {
     else localStorage.removeItem('friesenradar_tv');
   } catch (_e) {}
   if (!!an === _tvAn()) return;
+  // Beim Ausschalten nicht im Vollbild landen (fruehere Fassungen hatten es gemerkt).
+  if (!an) { try { _prefSchreib(_ZUSTAND_VOLLBILD_KEY, '0'); } catch (_e2) {} }
   location.href = an ? location.pathname + '?tv=1' : location.pathname;
 }
 
