@@ -6,7 +6,38 @@ Jeder Push auf `main` triggert den CI/CD-Pipeline:
 
 1. `docker build` → Image `ghcr.io/regover13/friesenspy:latest`
 2. Push nach GHCR (GitHub Container Registry)
-3. SSH auf VPS: `docker compose pull && docker compose up -d`
+3. SSH auf VPS: Der Workflow ruft dort `deploy` auf — mehr kann er nicht (siehe unten)
+
+### Der Deploy-Schlüssel kann genau zwei Dinge (seit 04.10.2026)
+
+Der Workflow meldet sich mit dem Schlüssel `friesenspy-deploy` an (Secret `DEPLOY_SSH_KEY`).
+In `/root/.ssh/authorized_keys` steht er mit `restrict,command="/opt/friesenspy/deploy.sh"`:
+keine Shell, kein Forwarding, und egal welches Kommando der Aufrufer mitgibt — der Server führt
+nur dieses eine Skript aus. Es kennt zwei Aufträge:
+
+| Auftrag | Workflow | Was geschieht |
+|---|---|---|
+| `deploy` | `deploy.yml` (Push auf `main`) | `:latest` holen, Container ersetzen, Health-Check, alte Images wegräumen |
+| `test` | `test-image.yml` (Push auf `test`) | `:test` holen und als `test-radar:aktuell` bereitlegen, nichts starten |
+
+Der `GITHUB_TOKEN` des Laufs kommt über stdin und dient nur dem Pull; das Skript meldet sich am
+Ende wieder von GHCR ab. Den Host-Schlüssel des Servers trägt der Workflow fest bei sich
+(`StrictHostKeyChecking=yes`).
+
+**Das Skript liegt im Repo unter `deploy/deploy.sh`, wird aber NICHT automatisch ausgerollt** —
+ein Push, der es ändert, ändert auf dem Server nichts. Wer es anfasst, kopiert es von Hand:
+
+```bash
+sudo install -m 755 -o root -g root deploy/deploy.sh /opt/friesenspy/deploy.sh
+```
+
+Das ist Absicht: Könnte ein Push das Skript ersetzen, wäre die Einschränkung des Schlüssels
+wertlos. Vorher lief der Deploy über die fremde Action `appleboy/ssh-action` mit einem
+unbeschränkten root-Schlüssel — wer pushen oder das Secret lesen konnte, hatte eine Root-Shell.
+
+Fremde Actions sind in allen Workflows auf einen Commit festgenagelt (`uses: …@<sha> # vX.Y.Z`),
+und jeder Workflow trägt `permissions: contents: read`; nur der Bau-Job bekommt zusätzlich
+`packages: write`.
 
 Der Container läuft als non-root User `friesenspy` (UID 1001).
 
@@ -121,13 +152,15 @@ Konfiguration in `nginx/friesenspy.devprops.de.conf`:
 
 | Secret | Beschreibung |
 |--------|--------------|
-| `VPS_SSH_KEY` | Privater SSH-Key (ohne Passphrase) für `root@167.86.127.129` |
-| `GHCR_TOKEN` | GitHub PAT mit `write:packages` Berechtigung |
+| `DEPLOY_SSH_KEY` | Privater Teil des Deploy-Schlüssels `friesenspy-deploy` — auf dem Server auf `/opt/friesenspy/deploy.sh` eingeschränkt |
+| `DISCORD_WEBHOOK` | Kanal-Webhook für die Deploy-Meldung (optional) |
 
-Secrets setzen (PowerShell):
-```powershell
-Get-Content -Raw ~/.ssh/tsbot_server | gh secret set VPS_SSH_KEY
-```
+Ein GHCR-Token braucht es nicht: Bau und Pull laufen mit dem `GITHUB_TOKEN` des Laufs.
+
+Neuen Deploy-Schlüssel ausstellen (auf dem Server): `ssh-keygen -t ed25519 -N '' -C friesenspy-deploy`,
+den privaten Teil per `gh secret set DEPLOY_SSH_KEY -R regover13/friesenspy < datei` hinterlegen und
+danach leeren, den öffentlichen mit `restrict,command="/opt/friesenspy/deploy.sh"` davor in
+`/root/.ssh/authorized_keys` eintragen (alte Zeile entfernen).
 
 ## Rollback
 

@@ -22,6 +22,11 @@ on:
 env:
   SDK_URL: https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip
 
+# Nur lesen, ausdruecklich -- nicht der Repo-Voreinstellung ueberlassen. Jobs, die mehr
+# brauchen (Paket schreiben), nennen es selbst.
+permissions:
+  contents: read
+
 jobs:
   linux:
     # ⚠ NICHT ubuntu-latest: Auf 24.04 gebaut verlangt das Binary GLIBC_2.38, sobald jemand

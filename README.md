@@ -1001,7 +1001,7 @@ GitHub Push auf `main` → GitHub Actions baut Docker-Image → pushed nach GHCR
 main branch
     └─► GitHub Actions (.github/workflows/deploy.yml)
             └─► docker build → ghcr.io/regover13/friesenspy:latest
-                    └─► SSH: docker compose pull + up -d
+                    └─► SSH: Auftrag „deploy“ an /opt/friesenspy/deploy.sh
 ```
 
 ### Versionierung & Changelog

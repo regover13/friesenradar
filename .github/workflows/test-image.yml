@@ -15,6 +15,11 @@ env:
   # Folgt dem Repo-Namen (friesenspy bzw. nach dem Umzug friesenradar).
   IMAGE: ghcr.io/${{ github.repository }}
 
+# Nur lesen, ausdruecklich -- nicht der Repo-Voreinstellung ueberlassen. Jobs, die mehr
+# brauchen (Paket schreiben), nennen es selbst.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -55,26 +60,28 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Nur bereitlegen, nicht starten. Der lokale Tag macht das Startskript unabhaengig vom
-      # Repo-Namen, und der Server braucht keine dauerhaft hinterlegten GHCR-Zugangsdaten.
+      # Nur bereitlegen, nicht starten -- das tut deploy/deploy.sh im Auftrag 'test'.
+      # ⚠ Der Schluessel DEPLOY_SSH_KEY ist in /root/.ssh/authorized_keys an EINEN Befehl
+      # gebunden (restrict,command="/opt/friesenspy/deploy.sh"). Der sshd fuehrt ausschliesslich
+      # dieses Skript aus; das Wort hinter der Adresse ist kein Befehl, sondern Eingabe
+      # (SSH_ORIGINAL_COMMAND: 'deploy' oder 'test'). Der Ablauf selbst steht in
+      # deploy/deploy.sh -- wer ihn aendert, kopiert die Datei auf den Server, sie wird NICHT
+      # automatisch ausgerollt.
+      #
+      # Bis 04.10.2026 lief hier appleboy/ssh-action mit einem unbeschraenkten root-Schluessel:
+      # Wer das Secret oder das Tag der Action in die Hand bekam, hatte eine Root-Shell. Jetzt
+      # ein schlichtes ssh, der Host-Schluessel festgeschrieben statt beim ersten Kontakt
+      # geglaubt, und der GITHUB_TOKEN (gilt nur fuer diesen Lauf) kommt ueber stdin.
       - name: Auf dem Server bereitlegen
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2  # v1.2.5
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_ACTOR: ${{ github.actor }}
-          IMAGE: ${{ env.IMAGE }}
-        with:
-          host: 167.86.127.129
-          username: root
-          key: ${{ secrets.VPS_SSH_KEY }}
-          envs: GITHUB_TOKEN,GITHUB_ACTOR,IMAGE
-          script: |
-            set -eu
-            echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-            docker pull "$IMAGE:test"
-            docker logout ghcr.io
-            docker tag "$IMAGE:test" test-radar:aktuell
-            if [ -x /usr/local/bin/test-radar ]; then /usr/local/bin/test-radar aktualisieren; fi
-            # Das vorige Test-Image hat seinen Tag verloren; namenlose Reste wegraeumen.
-            # Nur namenlose Images; NIE `prune -a` (siehe Serverdoku).
-            docker image prune -f
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          PULL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          install -m 600 /dev/null deploy_key
+          trap 'rm -f deploy_key' EXIT
+          printf '%s\n' "$SSH_KEY" > deploy_key
+          printf '%s\n' "167.86.127.129 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH1oZHC0DbcDqjMsz3fAAcz5h7pWpfzWcUheb0sKym0p" > known_hosts
+          printf '%s\n' "$PULL_TOKEN" | ssh -i deploy_key \
+            -o UserKnownHostsFile=known_hosts -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 \
+            root@167.86.127.129 test
