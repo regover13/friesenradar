@@ -24,10 +24,12 @@ def test_alles_nur_fuer_die_website():
             assert zeile.strip().startswith("html:not(.vr-panel) header"), zeile
 
 
-def test_reihenfolge_getrennt_uhr_zahnrad():
+def test_reihenfolge_getrennt_uhr_version_zahnrad():
+    """Nutzer 04.10.2026: Version/Hilfe und Zahnrad getauscht -- das Zahnrad steht ganz rechts."""
     assert "grid-column: 1" in _regel("header #sse-badge ")
     assert "grid-column: 2" in _regel("header #utc-clock ")
-    assert "grid-column: 3" in _regel("header #notif-btn ")
+    assert "grid-column: 3" in _regel("header #app-version")
+    assert "grid-column: 4" in _regel("header #notif-btn ")
 
 
 def test_verbindungskasten_nur_bei_abriss():
@@ -40,8 +42,8 @@ def test_verbindungskasten_nur_bei_abriss():
 def test_hilfe_unter_der_version_in_derselben_schrift():
     version = _regel("header #app-version")
     hilfe = _regel("header .help-btn")
-    assert "grid-column: 4" in version and "grid-row: 1" in version
-    assert "grid-column: 4" in hilfe and "grid-row: 2" in hilfe
+    assert "grid-column: 3" in version and "grid-row: 1" in version
+    assert "grid-column: 3" in hilfe and "grid-row: 2" in hilfe
     basis = re.search(r"\n    \.app-version \{([^}]*)\}", INDEX).group(1)
     for eig in ["font-family: var(--text-mono)", "font-size: 0.7rem", "opacity: 0.55"]:
         assert eig in basis and eig in hilfe, eig
@@ -72,3 +74,10 @@ def test_handy_verteilt_wie_die_website():
     assert "justify-content: flex-end" in zeile.group(1)
     name = re.search(r"html:not\(\.vr-panel\) header #userBox \{([^}]*)\}", block)
     assert name and "margin-right: auto" in name.group(1)
+
+
+def test_handy_zahnrad_steht_ganz_rechts():
+    """Wie auf der Website: erst die Version, dann das Zahnrad. Das Markup bleibt, die
+    Reihenfolge kommt aus `order`."""
+    zahnrad = re.search(r"html:not\(\.vr-panel\) header #notif-btn \{([^}]*)\}", _schmal())
+    assert zahnrad and "order: 1" in zahnrad.group(1)
