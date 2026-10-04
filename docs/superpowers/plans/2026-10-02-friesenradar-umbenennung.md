@@ -230,6 +230,22 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 >   Lichtblick“: Entwurf im Chat, wartet auf „posten“. Unterforum und Thema: Nutzer.
 > - **Issues:** #51–#54 und #56 geschlossen; Reste in #59 (Aufräumen), Vereinsadresse in #58.
 
+> **Nachtrag 05.10.2026, bis 01:45 MESZ:**
+> - **Task 7 erledigt:** Arbeitsordner `~/projects/friesenradar`, venv `~/.venv-friesenradar`,
+>   Worktrees entfernt, Zweige `umzug`, `lichtblick`, `kniebrett-3`, `bruegge-radar`,
+>   `testinstanz` gelöscht, `test` auf `main`, Secret `VPS_SSH_KEY` und Vorschau-Zeile weg,
+>   Probe-Reste und Probe-Image gelöscht.
+> - **16.0.4** (helles Design: Adressleiste, `--text-bedien`; #55 geschlossen), **16.0.5/16.0.6**
+>   (StatSim: leere Abrufe merken, Datenbank im Thread, Fehler zählt nicht als leer).
+> - **#60 gefunden und geschlossen:** `/etc/cron.hourly/free` (drop_caches, aus dem Image des
+>   Anbieters) leerte stündlich den Dateicache; stillgelegt, danach auch das stündliche `fstrim`.
+>   Beschrieben in `devprops.de/cron/README.md`.
+> - **Issues:** zusätzlich geschlossen #16, #21, #47, #55, #60. Offen: #20, #22, #24, #39,
+>   #46 (Rückbau nach 24.10.), #57, #58, #59.
+> - **Gestellt:** Kontrolle des ersten Backup-Nachtlaufs (04:45 MESZ), Erinnerung für die
+>   restlichen Löschungen aus #59 am 12.10.2026, 09:00 MESZ.
+> - Forum: Ankündigung „V16 - Lichtblick“ ist Beitrag 9388.
+
 **Nur, wenn der Nutzer das Fenster freigibt.** Ausfall ~1 min. Die CI liegt **nicht** auf dem
 kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch läuft. (B2)
 
