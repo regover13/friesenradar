@@ -653,7 +653,7 @@ FriesenRadar für den Fernseher: die Karte im Vollbild, bedienbar mit Pfeiltaste
 
 **Was du am Fernseher brauchst:** einen Browser. FriesenRadar ist eine Website, keine App aus dem Store des Fernsehers.
 
-- **Fire TV Stick:** Erprobt ist die App **Fully Kiosk Browser** (Fire TV Stick 4K). Dort als Startadresse die Adresse von FriesenRadar mit `?tv=1` am Ende eintragen – dann startet der Stick direkt im TV-Modus, und die Fernbedienung bedient die Seite.
+- **Fire TV Stick:** Erprobt ist die App **Fully Kiosk Browser** (Fire TV Stick 4K). Dort als Startadresse die Adresse von FriesenRadar mit `?tv=1` am Ende eintragen – dann startet der Stick direkt im TV-Modus, und die Fernbedienung bedient die Seite. Beim ersten Start fragt das Forum nach der Anmeldung; dafür ist eine halbe Stunde Zeit, und danach geht es von selbst in den TV-Modus.
 - **PC oder Laptop am Fernseher:** jeder gewohnte Browser. TV-Modus über die Einstellungen einschalten, bedient wird mit den Pfeiltasten und Enter.
 - **Andere Fernseher und Sticks:** Mit dem eingebauten Browser kann es gehen, erprobt ist es nicht. Entscheidend ist, dass die Fernbedienung Pfeile, OK und Zurück an die Seite weitergibt.
 

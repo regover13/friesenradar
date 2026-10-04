@@ -5485,6 +5485,14 @@ def _sso_ruecksprung(request: Request, settings) -> str:
     return settings.FORUM_SSO_CALLBACK
 
 
+# Wie lange eine begonnene Anmeldung gilt. Bis 16.0.1 waren es 5 Minuten -- am Fernseher dauerte
+# das Eintippen des Forum-Passworts mit der Fernbedienung 9,5 (04.10.2026): Der Rueckruf wurde
+# abgelehnt. Das Ziel lebt laenger als der Status, damit auch die Ablehnungsseite es noch kennt
+# und "Neu anmelden" dorthin zurueckfuehrt (sonst ging `?tv=1` verloren).
+_SSO_ANMELDE_FRIST_S = 30 * 60
+_SSO_ZIEL_FRIST_S = 2 * 60 * 60
+
+
 @app.get("/auth/forum/login")
 async def forum_login(request: Request):
     """Startet den Board-Login: Redirect zur Forum-Bridge mit state + Callback.
@@ -5505,11 +5513,13 @@ async def forum_login(request: Request):
               f"&state={quote(state, safe='')}")
     resp = RedirectResponse(target, status_code=302)
     resp.set_cookie("fs_sso_state", state, httponly=True, secure=_is_https(request),
-                    samesite=_iframe_samesite(request), path="/auth/forum", max_age=300)
+                    samesite=_iframe_samesite(request), path="/auth/forum",
+                    max_age=_SSO_ANMELDE_FRIST_S)
     next_path = _safe_next_path(request.query_params.get("next", ""))
     if next_path:
         resp.set_cookie("fs_sso_next", next_path, httponly=True, secure=_is_https(request),
-                        samesite=_iframe_samesite(request), path="/auth/forum", max_age=300)
+                        samesite=_iframe_samesite(request), path="/auth/forum",
+                        max_age=_SSO_ZIEL_FRIST_S)
     return resp
 
 
@@ -5555,7 +5565,13 @@ def _rueckruf_abgelehnt(request: Request, status: int, grund: str) -> Response:
         resp.delete_cookie("fs_sso_next", path="/auth/forum")
         return resp
     _logger.info("SSO-Rueckruf abgelehnt (%s), keine Sitzung", grund)
-    login = "/auth/forum/login?next=/panel" if kniebrett else "/auth/forum/login"
+    ziel = _safe_next_path(request.cookies.get("fs_sso_next", ""))
+    if kniebrett:
+        login = "/auth/forum/login?next=/panel"
+    elif ziel and ziel != "/":
+        login = "/auth/forum/login?next=" + quote(ziel, safe="")
+    else:
+        login = "/auth/forum/login"
     seite = f"""<!doctype html>
 <html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

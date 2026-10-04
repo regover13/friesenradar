@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.0.2",
+    "date": "2026-10-04",
+    "highlight": false,
+    "title": "Anmeldung am Fernseher",
+    "items": [
+      "📺 Wer sich am Fernseher anmeldet, landet danach wieder im TV-Modus. Bisher ging er verloren, wenn das Eintippen des Passworts mit der Fernbedienung länger als fünf Minuten dauerte: Die Anmeldung galt dann als abgelaufen, und nach „Neu anmelden“ stand die normale Seite da, auf der die Fernbedienung nichts bewirkt.",
+      "⏱️ Für die Anmeldung über das Forum ist jetzt eine halbe Stunde Zeit. Läuft sie doch einmal ab, führt „Neu anmelden“ dorthin zurück, wo du hinwolltest."
+    ]
+  },
+  {
     "version": "16.0.1",
     "date": "2026-10-04",
     "highlight": false,

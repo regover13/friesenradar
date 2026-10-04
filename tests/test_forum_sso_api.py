@@ -1,4 +1,5 @@
 """Endpoint- + Gate-Tests für den Forum-SSO (Board-Login)."""
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -728,3 +729,38 @@ def test_bruecke_kann_abmelden():
     # sofortige Wiederanmeldung, sondern auf die Startseite des Forums -- dort ist der
     # Abmelden-Link des Forums.
     assert "header('Location: ' . generate_board_url() . '/');" in block
+
+
+# ---- Langsame Anmeldung (Fernseher, 04.10.2026) -----------------------------------------
+# Am Fire TV Stick dauerte die Anmeldung im Forum 9,5 Minuten (Passwort per Fernbedienung).
+# Die Merk-Cookies galten 5 Minuten: Der Rueckruf wurde abgelehnt, und "Neu anmelden" fuehrte
+# ohne Ziel zur Startseite -- `?tv=1` war weg, die Fernbedienung bewirkte nichts.
+
+def _cookie_frist(antwort, name):
+    for zeile in antwort.headers.get_list("set-cookie"):
+        if zeile.startswith(name + "="):
+            return int(re.search(r"Max-Age=(\d+)", zeile).group(1))
+    raise AssertionError(name + " nicht gesetzt")
+
+
+def test_die_anmeldung_darf_eine_halbe_stunde_dauern(env):
+    _enable(env)
+    r = env.client.get("/auth/forum/login?next=%2F%3Ftv%3D1", follow_redirects=False)
+    assert _cookie_frist(r, "fs_sso_state") >= 1800
+    # Das Ziel ueberlebt den Status, damit auch die Ablehnungsseite es noch kennt.
+    assert _cookie_frist(r, "fs_sso_next") > _cookie_frist(r, "fs_sso_state")
+
+
+def test_neu_anmelden_nach_abgelaufener_anmeldung_behaelt_das_ziel(env):
+    _enable(env)
+    env.client.cookies.set("fs_sso_next", "/?tv=1", path="/auth/forum")
+    r = env.client.get("/auth/forum/callback?token=x&state=abgelaufen", follow_redirects=False)
+    assert r.status_code == 400
+    assert 'href="/auth/forum/login?next=%2F%3Ftv%3D1"' in r.text
+
+
+def test_neu_anmelden_uebernimmt_kein_fremdes_ziel(env):
+    _enable(env)
+    env.client.cookies.set("fs_sso_next", "//evil.example.com", path="/auth/forum")
+    r = env.client.get("/auth/forum/callback?token=x&state=abgelaufen", follow_redirects=False)
+    assert r.status_code == 400 and 'href="/auth/forum/login"' in r.text
