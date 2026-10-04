@@ -4686,13 +4686,13 @@
 
   <!-- Notification Panel (fixed overlay) -->
   <div id="notif-panel" class="notif-panel" hidden>
-    <div class="notif-panel-title">Einstellungen</div>
     <!-- KONTO (Nutzer 04.10.2026): Der Name stand bis dahin in der Kopfzeile. "Abmelden"
          erscheint nur, wenn die Forum-Bruecke die Forum-Sitzung mit beenden kann
          (/api/me: kann_abmelden) -- ohne das holte sich die Seite die Anmeldung sofort
          zurueck. Abgeschickt wird erst nach der Nachfrage, als POST. Nicht im Kniebrett:
          Dort haengt die Anmeldung am Geraet. -->
     <div id="einst-konto" hidden>
+      <div class="notif-panel-title">Angemeldet als</div>
       <div class="einst-konto-zeile">
         <span id="userName"></span>
         <button type="button" class="design-knopf" id="abmelden-btn" hidden>Abmelden</button>
@@ -4706,6 +4706,7 @@
         <form id="abmelden-form" method="post" action="/auth/forum/logout" hidden></form>
       </div>
     </div>
+    <div class="notif-panel-title">Einstellungen</div>
     <!-- Im MSFS-Kniebrett gibt es keinen Web-Push (kein OS-Push-Kanal in Coherent GT). Dort
          zeigt das Tablet die Meldungen selbst an; gesteuert wird das ueber diese vier
          Schalter, gespeichert im Tablet. Wer NICHT will, dass ueber ihn benachrichtigt wird,

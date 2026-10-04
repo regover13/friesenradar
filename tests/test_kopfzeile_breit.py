@@ -96,7 +96,11 @@ def test_name_steht_im_zahnradmenue_ganz_oben():
     assert "userName" not in _kopf() and "userBox" not in INDEX
     menue = INDEX[INDEX.index('<div id="notif-panel"'):]
     konto = menue.index('<div id="einst-konto" hidden>')
-    assert menue.index('class="notif-panel-title"') < konto < menue.index('<div id="einst-design">')
+    # Der Name gehoert nicht unter die Ueberschrift "Einstellungen" (Nutzer 04.10.2026): Der
+    # Abschnitt steht davor und hat seine eigene Ueberschrift.
+    assert konto < menue.index('<div class="notif-panel-title">Einstellungen</div>') < menue.index('<div id="einst-design">')
+    assert menue.index('<div class="notif-panel-title">Angemeldet als</div>') > konto
+    assert menue.index('<div class="notif-panel-title">Angemeldet als</div>') < menue.index('id="userName"')
     assert menue.index('id="userName"') > konto
     assert INDEX.count('id="userName"') == 1
 
