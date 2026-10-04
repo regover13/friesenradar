@@ -62,6 +62,7 @@ class TestSubscribeEndpoint:
         class FakeReq:
             def __init__(self, body):
                 self._b = body
+                self.url = SimpleNamespace(hostname="friesenradar.devprops.de")
 
             async def json(self):
                 return self._b

@@ -167,6 +167,8 @@ from app.database import (
     get_uncached_statsim_ids,
     save_statsim_positions,
     upsert_push_subscription,
+    push_abo_bekannt,
+    alte_adress_abos_entfernen,
     upsert_statsim_flights,
     compute_transport_progress,
     create_transport_event,
@@ -3306,16 +3308,32 @@ async def push_subscribe(request: Request):
         _logger.warning("push/subscribe 400 (permanently-removed.invalid): %s", endpoint[:80])
         return JSONResponse({"error": "invalid push endpoint"}, status_code=400)
     settings = get_settings()
+    # Ueber welche Adresse eingeschaltet wird (der Browser fuehrt Abos je Adresse).
+    herkunft = (request.url.hostname or "").lower()
+    if herkunft not in _SSO_RUECKSPRUNG_HOSTS:
+        herkunft = None
+    owner_cid = _current_cid(request, settings)   # nur aus dem Cookie, nie aus dem Body
     conn = get_connection(settings.DB_PATH)
     try:
+        neu = not push_abo_bekannt(conn, endpoint)
         upsert_push_subscription(
             conn, endpoint, p256dh, auth,
             body.get("pilot_filter"),
             notify_prefiles=bool(body.get("notify_prefiles", False)),
             notify_ts=bool(body.get("notify_ts", False)),
             notify_events=bool(body.get("notify_events", False)),
-            owner_cid=_current_cid(request, settings),   # nur aus dem Cookie, nie aus dem Body
+            owner_cid=owner_cid,
+            herkunft=herkunft,
         )
+        # Nur beim ERSTEN Einschalten aufraeumen: Die Seite schickt ihr Abo bei jedem Laden
+        # erneut, und ein Rechner, der bei der alten Adresse bleibt, verloere seines sonst
+        # jedes Mal, wenn das Handy desselben Mitglieds die neue Adresse oeffnet.
+        if neu:
+            entfernt = alte_adress_abos_entfernen(
+                conn, endpoint, owner_cid, herkunft, _SSO_RUECKSPRUNG_HOSTS)
+            if entfernt:
+                _logger.info("push/subscribe: %d aelteres Abo von CID %s entfernt (Adresswechsel auf %s)",
+                             entfernt, owner_cid, herkunft)
         conn.commit()
     finally:
         conn.close()

@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.0.1",
+    "date": "2026-10-04",
+    "highlight": false,
+    "title": "Benachrichtigungen nach dem Adresswechsel",
+    "items": [
+      "🔔 Auf der neuen Adresse friesenradar.devprops.de stehen die Benachrichtigungen zunächst auf „aus“ — dein Browser merkt sie sich je Adresse. Die bisherigen kommen trotzdem weiter an. Schaltest du sie auf der neuen Adresse einmal ein, räumt FriesenRadar jetzt selbst auf: Dein älteres Abo beim selben Anbieter (Apple, Google, Mozilla oder Windows) fällt weg, damit nichts doppelt klingelt.",
+      "📱 Wer zwei Geräte beim selben Anbieter hat, etwa zwei iPhones, schaltet auf beiden neu ein."
+    ]
+  },
+  {
     "version": "16.0.0",
     "date": "2026-10-04",
     "highlight": false,

@@ -9,6 +9,7 @@ import sqlite3
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 # Reine Zustandsmaschine ohne DB-Abhaengigkeit (importiert nichts aus app.*) -> kein Zyklus,
 # darf auf Modulebene stehen. compute_transport_progress + transport_anyone_in_progress nutzen sie.
@@ -1114,6 +1115,9 @@ _PUSH_MIGRATIONS = [
     "ALTER TABLE push_subscriptions ADD COLUMN last_ok_at TEXT",
     "ALTER TABLE push_subscriptions ADD COLUMN last_fail_at TEXT",
     "ALTER TABLE push_subscriptions ADD COLUMN last_status TEXT",
+    # herkunft: ueber welche Adresse das Abo eingeschaltet wurde (Umzug auf
+    # friesenradar.devprops.de, 04.10.2026). NULL = Bestand von vor dem Umzug, also die aelteste.
+    "ALTER TABLE push_subscriptions ADD COLUMN herkunft TEXT",
 ]
 
 _AIP_CHARTS_MIGRATIONS = [
@@ -7049,6 +7053,48 @@ def get_pilot_flights_friesenspy(
 # Push Subscriptions
 # ---------------------------------------------------------------------------
 
+def _push_dienst(endpoint: str) -> str:
+    """Der Push-Dienst hinter einem Endpunkt: die letzten beiden Namensteile des Hosts. Windows
+    verteilt seine Endpunkte auf Rechenzentren (wns2-am3p…, wns2-db5p…) -- derselbe Dienst."""
+    host = (urlsplit(endpoint).hostname or "").lower()
+    return ".".join(host.split(".")[-2:])
+
+
+def push_abo_bekannt(conn: sqlite3.Connection, endpoint: str) -> bool:
+    return conn.execute(
+        "SELECT 1 FROM push_subscriptions WHERE endpoint = ?", (endpoint,)).fetchone() is not None
+
+
+def alte_adress_abos_entfernen(
+    conn: sqlite3.Connection,
+    endpoint: str,
+    owner_cid: int | None,
+    herkunft: str | None,
+    hosts: tuple[str, ...],
+) -> int:
+    """Nach dem Einschalten ueber eine neuere Adresse: aeltere Abos desselben Mitglieds beim
+    selben Push-Dienst entfernen, sonst kaeme jede Meldung doppelt (kein commit).
+
+    ``hosts`` ist von alt nach neu geordnet; ein Abo ohne Herkunft gilt als das aelteste.
+    Naeherung (Nutzer 04.10.2026): Zwei Geraete beim selben Dienst sind nicht zu unterscheiden --
+    das zweite muss dann neu einschalten. Gibt die Zahl der entfernten Abos zurueck.
+    """
+    if owner_cid is None or herkunft not in hosts:
+        return 0
+    rang = hosts.index(herkunft)
+    dienst = _push_dienst(endpoint)
+    weg = [
+        r[0] for r in conn.execute(
+            "SELECT id, endpoint, herkunft FROM push_subscriptions "
+            "WHERE owner_cid = ? AND endpoint != ?", (owner_cid, endpoint))
+        if _push_dienst(r[1]) == dienst
+        and (hosts.index(r[2]) if r[2] in hosts else 0) < rang
+    ]
+    for abo_id in weg:
+        conn.execute("DELETE FROM push_subscriptions WHERE id = ?", (abo_id,))
+    return len(weg)
+
+
 def upsert_push_subscription(
     conn: sqlite3.Connection,
     endpoint: str,
@@ -7059,8 +7105,12 @@ def upsert_push_subscription(
     notify_ts: bool = False,
     notify_events: bool = False,
     owner_cid: int | None = None,
+    herkunft: str | None = None,
 ) -> None:
     """Browser-Push-Subscription speichern oder aktualisieren.
+
+    ``herkunft`` ist die Adresse, ueber die eingeschaltet wurde; wie ``owner_cid`` ueberschreibt
+    sie beim Konflikt nur, wenn sie nicht NULL ist.
 
     ``owner_cid`` (aus dem Forum-Login) wird beim Konflikt nur überschrieben, wenn er nicht NULL
     ist (``COALESCE``) — ein anonymer Re-Subscribe (ausgeloggt) löscht einen gesetzten Besitzer
@@ -7072,8 +7122,8 @@ def upsert_push_subscription(
     conn.execute(
         """INSERT INTO push_subscriptions
                (endpoint, p256dh, auth, pilot_filter, notify_prefiles,
-                notify_ts, notify_events, owner_cid, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                notify_ts, notify_events, owner_cid, herkunft, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(endpoint) DO UPDATE SET
                p256dh=excluded.p256dh,
                auth=excluded.auth,
@@ -7082,6 +7132,7 @@ def upsert_push_subscription(
                notify_ts=excluded.notify_ts,
                notify_events=excluded.notify_events,
                owner_cid=COALESCE(excluded.owner_cid, push_subscriptions.owner_cid),
+               herkunft=COALESCE(excluded.herkunft, push_subscriptions.herkunft),
                created_at=excluded.created_at""",
         (
             endpoint, p256dh, auth,
@@ -7090,6 +7141,7 @@ def upsert_push_subscription(
             1 if notify_ts else 0,
             1 if notify_events else 0,
             owner_cid,
+            herkunft,
             _now_utc(),
         ),
     )

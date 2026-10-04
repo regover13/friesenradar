@@ -676,6 +676,8 @@ Das **Zahnrad ⚙ oben rechts** im Header öffnet die Einstellungen; die Benachr
 
 **Wer darf über mich benachrichtigt werden? (bei aktivem Board-Login):** Eingeloggte Mitglieder finden in den Einstellungen unter „Benachrichtigungen“ einen Sichtbarkeits-Regler — **Alle / Nur bestimmte / Keiner**. Damit bestimmt jeder selbst, wer über seine eigene Aktivität (Online, Flugplan, TeamSpeak) per Push benachrichtigt wird; „Keiner"/„Nur bestimmte" unterdrücken auch die Ankündigung im öffentlichen Telegram-Online-Kanal. Die Live-Anzeige bleibt unberührt. Grundlage ist die Identität aus dem Forum-Login (VATSIM-CID + FRS-Rufzeichen); Push-Abos werden dabei dem eingeloggten Mitglied zugeordnet (`owner_cid`), damit „Nur bestimmte" greifen kann. Die alte `manage_ts_consent.py`-Steuerung ist damit abgelöst.
 
+**Neue Adresse, neues Einschalten:** Dein Browser merkt sich Benachrichtigungen je Adresse. Rufst du FriesenRadar zum ersten Mal über `friesenradar.devprops.de` auf, stehen sie dort deshalb auf „aus“, obwohl die alten weiter ankommen. Schalte sie auf der neuen Adresse einmal ein — FriesenRadar entfernt dann von selbst dein älteres Abo beim selben Anbieter (Apple, Google, Mozilla oder Windows), damit nichts doppelt klingelt. Hast du zwei Geräte beim selben Anbieter, etwa zwei iPhones, musst du auf beiden neu einschalten.
+
 **Einrichten:**
 1. Zahnrad ⚙ klicken → Einstellungen öffnen sich
 2. „Beim Online-gehen benachrichtigen" aktivieren
