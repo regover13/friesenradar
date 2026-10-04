@@ -4,11 +4,42 @@
 
 Jeder Push auf `main` triggert den CI/CD-Pipeline:
 
-1. `docker build` → Image `ghcr.io/regover13/friesenspy:latest`
+1. `docker build` → Image `ghcr.io/regover13/friesenradar:latest`
 2. Push nach GHCR (GitHub Container Registry)
-3. SSH auf VPS: `docker compose pull && docker compose up -d`
+3. SSH auf VPS: Der Workflow ruft dort `deploy` auf — mehr kann er nicht (siehe unten)
 
-Der Container läuft als non-root User `friesenspy` (UID 1001).
+### Der Deploy-Schlüssel kann genau zwei Dinge (seit 04.10.2026)
+
+Der Workflow meldet sich mit dem Schlüssel `friesenspy-deploy` an (Secret `DEPLOY_SSH_KEY`).
+In `/root/.ssh/authorized_keys` steht er mit `restrict,command="/opt/friesenradar/deploy.sh"`:
+keine Shell, kein Forwarding, und egal welches Kommando der Aufrufer mitgibt — der Server führt
+nur dieses eine Skript aus. Es kennt zwei Aufträge:
+
+| Auftrag | Workflow | Was geschieht |
+|---|---|---|
+| `deploy` | `deploy.yml` (Push auf `main`) | `:latest` holen, Container ersetzen, Health-Check, alte Images wegräumen |
+| `test` | `test-image.yml` (Push auf `test`) | `:test` holen und als `test-radar:aktuell` bereitlegen, nichts starten |
+
+Der `GITHUB_TOKEN` des Laufs kommt über stdin und dient nur dem Pull; das Skript meldet sich am
+Ende wieder von GHCR ab. Den Host-Schlüssel des Servers trägt der Workflow fest bei sich
+(`StrictHostKeyChecking=yes`).
+
+**Das Skript liegt im Repo unter `deploy/deploy.sh`, wird aber NICHT automatisch ausgerollt** —
+ein Push, der es ändert, ändert auf dem Server nichts. Wer es anfasst, kopiert es von Hand:
+
+```bash
+sudo install -m 755 -o root -g root deploy/deploy.sh /opt/friesenradar/deploy.sh
+```
+
+Das ist Absicht: Könnte ein Push das Skript ersetzen, wäre die Einschränkung des Schlüssels
+wertlos. Vorher lief der Deploy über die fremde Action `appleboy/ssh-action` mit einem
+unbeschränkten root-Schlüssel — wer pushen oder das Secret lesen konnte, hatte eine Root-Shell.
+
+Fremde Actions sind in allen Workflows auf einen Commit festgenagelt (`uses: …@<sha> # vX.Y.Z`),
+und jeder Workflow trägt `permissions: contents: read`; nur der Bau-Job bekommt zusätzlich
+`packages: write`.
+
+Der Container läuft als non-root User `friesenradar` (UID 1001).
 
 ## Was ein Deploy kostet — und warum das HTTP 502 erzeugt
 
@@ -56,7 +87,7 @@ Sekunden eine verlorene Meldung — ihr Punkt auf der Karte friert so lange ein.
 
 ```bash
 ssh root@167.86.127.129
-cd /opt/friesenspy
+cd /opt/friesenradar
 docker compose pull
 docker compose up -d
 ```
@@ -64,13 +95,13 @@ docker compose up -d
 ## Logs einsehen
 
 ```bash
-docker logs friesenspy-friesenspy-1 -f
+docker logs friesenradar-friesenradar-1 -f
 ```
 
 ## Container neu starten (config.env-Änderungen)
 
 ```bash
-cd /opt/friesenspy
+cd /opt/friesenradar
 docker compose up -d --force-recreate
 ```
 
@@ -78,13 +109,13 @@ docker compose up -d --force-recreate
 
 ## config.env
 
-Die Datei liegt auf dem VPS unter `/opt/friesenspy/config.env` und wird **niemals** in Git eingecheckt.
+Die Datei liegt auf dem VPS unter `/opt/friesenradar/config.env` und wird **niemals** in Git eingecheckt.
 
 ```bash
 SECRET_KEY=<random-hex-32>
 CALLSIGN_PREFIX=FRS
 VATSIM_POLL_INTERVAL=15
-DB_PATH=/opt/friesenspy/data/friesenspy.db
+DB_PATH=/opt/friesenradar/data/friesenradar.db
 TELEGRAM_BOT_TOKEN=        # leer = kein Alert
 TELEGRAM_CHAT_ID=          # leer = kein Alert
 ```
@@ -96,16 +127,16 @@ openssl rand -hex 32
 
 ## Datenbank
 
-SQLite-Datei liegt im gemounteten Volume: `/opt/friesenspy/data/friesenspy.db`
+SQLite-Datei liegt im gemounteten Volume: `/opt/friesenradar/data/friesenradar.db`
 
 Backup:
 ```bash
-sqlite3 /opt/friesenspy/data/friesenspy.db ".backup /tmp/friesenspy_backup.db"
+sqlite3 /opt/friesenradar/data/friesenradar.db ".backup /tmp/friesenspy_backup.db"
 ```
 
 ## nginx
 
-Konfiguration in `nginx/friesenspy.devprops.de.conf`:
+Konfiguration in `nginx/friesenradar.devprops.de.conf`:
 
 - `/api/sse`: Kein Rate-Limit, `proxy_read_timeout 3600s`, `X-Accel-Buffering: no`
 - Alle anderen Endpoints: Rate-Limit 30req/min, `proxy_pass http://127.0.0.1:8091`
@@ -121,19 +152,21 @@ Konfiguration in `nginx/friesenspy.devprops.de.conf`:
 
 | Secret | Beschreibung |
 |--------|--------------|
-| `VPS_SSH_KEY` | Privater SSH-Key (ohne Passphrase) für `root@167.86.127.129` |
-| `GHCR_TOKEN` | GitHub PAT mit `write:packages` Berechtigung |
+| `DEPLOY_SSH_KEY` | Privater Teil des Deploy-Schlüssels `friesenspy-deploy` — auf dem Server auf `/opt/friesenradar/deploy.sh` eingeschränkt |
+| `DISCORD_WEBHOOK` | Kanal-Webhook für die Deploy-Meldung (optional) |
 
-Secrets setzen (PowerShell):
-```powershell
-Get-Content -Raw ~/.ssh/tsbot_server | gh secret set VPS_SSH_KEY
-```
+Ein GHCR-Token braucht es nicht: Bau und Pull laufen mit dem `GITHUB_TOKEN` des Laufs.
+
+Neuen Deploy-Schlüssel ausstellen (auf dem Server): `ssh-keygen -t ed25519 -N '' -C friesenspy-deploy`,
+den privaten Teil per `gh secret set DEPLOY_SSH_KEY -R regover13/friesenradar < datei` hinterlegen und
+danach leeren, den öffentlichen mit `restrict,command="/opt/friesenradar/deploy.sh"` davor in
+`/root/.ssh/authorized_keys` eintragen (alte Zeile entfernen).
 
 ## Rollback
 
 ```bash
 # Vorheriges Image taggen und deployen
-docker pull ghcr.io/regover13/friesenspy:<sha>
-docker tag ghcr.io/regover13/friesenspy:<sha> ghcr.io/regover13/friesenspy:latest
-cd /opt/friesenspy && docker compose up -d
+docker pull ghcr.io/regover13/friesenradar:<sha>
+docker tag ghcr.io/regover13/friesenradar:<sha> ghcr.io/regover13/friesenradar:latest
+cd /opt/friesenradar && docker compose up -d
 ```

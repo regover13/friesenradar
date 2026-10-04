@@ -1,7 +1,7 @@
 [
   {
     "version": "16.0.0",
-    "date": "2026-10-03",
+    "date": "2026-10-04",
     "highlight": false,
     "title": "Lichtblick",
     "items": [
@@ -15,6 +15,15 @@
       "🧭 Die Kopfzeile ist aufgeräumt: das Logo, die Uhr und das Zahnrad, sonst nichts. Das LIVE-Feld ist verschwunden: Es meldet sich nur noch, wenn die Verbindung abreißt — dann steht dort rot „GETRENNT“. Hilfe und Versionsnummer findest du jetzt ganz unten in der Fußleiste, neben Downloads, Impressum und Datenschutz; ein Klick auf die Version öffnet wie bisher den Verlauf.",
       "👤 Dein Name ist ins Zahnrad umgezogen und steht dort ganz oben. Daneben gibt es jetzt „Abmelden“. FriesenRadar fragt vorher nach, denn du meldest dich damit in diesem Browser auch vom Forum ab — sonst würde dich das Forum beim nächsten Aufruf gleich wieder anmelden. Dein Handy, andere Browser und das Kniebrett bleiben angemeldet.",
       "📄 Datenschutzerklärung und Impressum sind auf dem aktuellen Stand und nennen jetzt auch Kniebrett und FriesenBrügge."
+    ]
+  },
+  {
+    "version": "15.34.3",
+    "date": "2026-10-04",
+    "highlight": false,
+    "title": "Rauchfackel-Knopf nur im laufenden Event",
+    "items": [
+      "🔧 **Verwaltung, FriesenReddung:** Der Knopf „Rauchfackel zünden“ steht nur noch da, solange das Event läuft. Vorher und nachher brachte er bloß eine Fehlermeldung."
     ]
   },
   {

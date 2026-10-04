@@ -6,6 +6,20 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-04 — Deploy-Schlüssel eingeschränkt, Workflows umgebaut
+
+**Angefasst:** `.github/workflows/deploy.yml`, `test-image.yml`, `bruegge-xplane.yml`, neu
+`deploy/deploy.sh`, `docs/deployment.md`.
+
+**Für parallele Sitzungen:** Der SSH-Schritt heißt nicht mehr `appleboy/ssh-action` und liest
+`DEPLOY_SSH_KEY` statt `VPS_SSH_KEY`; der Ablauf steht in `deploy/deploy.sh` (liegt auf dem
+Server, wird nicht automatisch ausgerollt). **Zweige mit eigener Workflow-Fassung** (`test`,
+`testinstanz`, `umzug`, `lichtblick`, `kniebrett-3`, `bruegge-radar`) tragen noch den alten
+Schritt — beim nächsten Rebase auf `main` die Fassung von `main` übernehmen, nicht die eigene.
+Solange das Secret `VPS_SSH_KEY` noch existiert, laufen die alten Fassungen weiter.
+
+---
+
 ## 2026-10-01 — Helles Design (15.32.0)
 
 **Angefasst:** `app/static/index.html` (Kopfskript, `:root`, neuer Block `html.hell`, Rückstellblock

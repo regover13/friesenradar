@@ -332,6 +332,15 @@ def test_der_admin_kann_eingrenzen_aufheben_und_zuenden():
     assert "'/api/admin/reddung/events/' + id + '/signal'" in _ADMIN
 
 
+def test_der_knopf_zum_zuenden_steht_nur_bei_laufendem_event():
+    """Der Server lehnt die Fackel ausserhalb des Events ab -- ein Knopf, der dann nur eine
+    Fehlermeldung bringt, gehoert nicht in die Liste (Nutzer, 04.10.2026)."""
+    knopf = _ADMIN.index('onclick="rdSignal(')
+    bedingung = _ADMIN[_ADMIN.rindex("+ (ev.havarist_lat != null", 0, knopf):knopf]
+    assert "_rdLaeuft(ev)" in bedingung
+    assert "function _rdLaeuft(ev)" in _ADMIN
+
+
 # === Befunde aus der Prüfung durch Fable (28.09.2026) ========================================
 
 def test_faellt_ein_event_von_der_karte_geht_auch_die_eingrenzung(db):

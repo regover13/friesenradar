@@ -1031,7 +1031,7 @@ GitHub Push auf `main` → GitHub Actions baut Docker-Image → pushed nach GHCR
 main branch
     └─► GitHub Actions (.github/workflows/deploy.yml)
             └─► docker build → ghcr.io/regover13/friesenradar:latest
-                    └─► SSH: docker compose pull + up -d
+                    └─► SSH: Auftrag „deploy“ an /opt/friesenradar/deploy.sh
 ```
 
 ### Versionierung & Changelog
