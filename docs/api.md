@@ -753,8 +753,8 @@ Konfiguration + Versionsdaten für das Frontend (wird beim Seitenstart einmal ge
 ```
 
 `version` + `changelog` stammen aus `app/CHANGELOG.json` (via `app/version.py`). `version` ist
-die neueste Version (`changelog[0].version`). Das Frontend zeigt damit die kleine Versionsnummer
-im Header, das Changelog-Banner (neueste Version, einmal pro Version) und den Versionsverlauf.
+die neueste Version (`changelog[0].version`). Das Frontend zeigt damit die Versionsnummer
+in der Fußleiste, das Changelog-Banner (neueste Version, einmal pro Version) und den Versionsverlauf.
 
 `callsign_prefix` spiegelt `settings.CALLSIGN_PREFIX` (Default `FRS`) — das Frontend nutzt ihn
 seit GPS-only Phase 2 (#23), um in der Piloten-Detailliste Flüge unter einem Nicht-Präfix-Callsign
@@ -1363,7 +1363,7 @@ Meldet **nur** FriesenRadar ab (löscht `fs_user`); die Forum-Session bleibt. `3
 
 ### POST /auth/forum/logout
 
-Der Abmelden-Knopf im Zahnradmenü (seit 16.0.0). Löscht `fs_user` und leitet mit `303` zur Forum-Bridge: `FORUM_SSO_URL?abmelden=<Auftrag>&redirect=<Rückruf-Adresse>`. Der Auftrag hat das Format der übrigen Token (`base64url(payload).hmac_sha256_hex`, signiert mit `SSO_SECRET`), Payload `{ "typ": "slo", "name": str, "iat": int, "nonce": str }`. Die Bridge beendet die Forum-Sitzung nur, wenn Signatur, Typ und Frische (≤ 60 s) stimmen und `name` der dort Angemeldete ist, und leitet dann zur Startseite der geprüften Adresse zurück.
+Der Abmelden-Knopf im Zahnradmenü (seit 16.0.0). Löscht `fs_user` und leitet mit `303` zur Forum-Bridge: `FORUM_SSO_URL?abmelden=<Auftrag>&redirect=<Rückruf-Adresse>`. Der Auftrag hat das Format der übrigen Token (`base64url(payload).hmac_sha256_hex`, signiert mit `SSO_SECRET`), Payload `{ "typ": "slo", "name": str, "iat": int, "nonce": str }`. Die Bridge beendet die Forum-Sitzung nur, wenn Signatur, Typ und Frische (≤ 60 s) stimmen und `name` der dort Angemeldete ist, und leitet dann zur Startseite der geprüften Adresse zurück. Ist dort jemand anderes angemeldet (im Forum umbenannt, Konto gewechselt), meldet sie niemanden ab und leitet zur Startseite des Forums.
 
 Nur wenn die Bridge das bei der Anmeldung angekündigt hat (Feld `abm: true` im Anmelde-Token, landet als Claim `abm` in `fs_user`); sonst, ohne Sitzung oder bei inaktivem Board-Login nur `303` nach `/`. Ein `Origin`-Header mit fremdem Host → `403` (kein Abmelden durch fremde Seiten). Geräte-Sitzungen des Kniebretts tragen `abm` nie.
 

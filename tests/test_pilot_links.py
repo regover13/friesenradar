@@ -97,11 +97,14 @@ def test_der_klick_oeffnet_und_loest_die_zeile_nicht_mit_aus():
           stopPropagation() { this.gestoppt++; }, preventDefault() { this.verhindert++; }};
         _pilotLinkKlick(e); return [e.gestoppt, e.verhindert];
       }
-      const auf = ereignis({dataset: {pilotCid: '1031301'}});
+      const auf = ereignis({dataset: {pilotCid: '1031301'}, closest: () => null});
       const daneben = ereignis(null);
-      console.log(JSON.stringify([aufrufe, auf, daneben]));
+      // Der eigene Name im Zahnradmenue: Das Menue schliesst sich beim Klick (16.0.0).
+      const menue = {hidden: false};
+      const imMenue = ereignis({dataset: {pilotCid: '7'}, closest: (sel) => sel === '#notif-panel' ? menue : null});
+      console.log(JSON.stringify([aufrufe, auf, daneben, imMenue, menue.hidden]));
     """
-    assert _node(js) == [[1031301], [1, 1], [0, 0]]
+    assert _node(js) == [[1031301, 7], [1, 1], [0, 0], [1, 1], True]
 
 
 def test_der_lauscher_haengt_in_der_einfangphase_am_dokument():

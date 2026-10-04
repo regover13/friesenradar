@@ -2642,9 +2642,9 @@
     /* Die Zeilen der Ebenen-Auswahl sind im Cockpit Tippziele, keine Mauszeiger-Ziele. */
     html.vr-panel .leaflet-control-layers label { min-height: 32px; padding: 4px 0; }
 
-    /* Der eigene Name kostet in der schmalen Kopfzeile des Tablets Platz und sagt nichts:
-       wer das Panel offen hat, weiss, wer er ist. Auf der Website bleibt er stehen -- dort
-       ist er der einzige Hinweis darauf, als wer man angemeldet ist. */
+    /* Name und Abmelden (Zahnradmenue ganz oben) gibt es im Tablet nicht: Wer das Panel offen
+       hat, weiss, wer er ist, und die Anmeldung haengt dort am Geraet. Auf der Website ist
+       der Name der einzige Hinweis darauf, als wer man angemeldet ist. */
     html.vr-panel #einst-konto { display: none !important; }
 
     /* Dauerlaufende Zierde-Animationen im Panel abschalten.
@@ -4349,6 +4349,10 @@
        ein Reiter genauso. Gezeigt wird deshalb allein das rote „GETRENNT“. Im Kniebrett
        traegt weiterhin das Zahnrad den Zustand ueber seine Farbe. */
     html:not(.vr-panel) header #sse-badge:not(.disconnected) { display: none; }
+    /* Beim Laden steht die Verbindung noch nicht -- bis sie zum ersten Mal steht (oder fuenf
+       Sekunden um sind, s. setSSEStatus), bleibt der Kasten weg. Sonst blitzte GETRENNT bei
+       jedem Laden auf, und auf dem Handy sprang die Kopfzeile um eine Zeile. */
+    html:not(.vr-panel) header #sse-badge.sse-start { display: none; }
     /* TV-Modus (?tv=1): Der Fokus muss vom Sofa aus zu sehen sein -- ein oranger Schein um
        das Element, sonst nichts (Nutzer 03.10.2026: kein harter Rahmen, kein weisser Saum).
        Innen dicht, nach aussen weich auslaufend. Kein Mauszeiger. */
@@ -4672,7 +4676,7 @@
            Vektor fuer den Verbindungszustand im Panel) -- ein Sprite-Verweis brauechte hier
            also ohnehin eine Sonderbehandlung, ohne irgendetwas zu gewinnen. -->
       <button id="notif-btn" class="notif-btn" title="Einstellungen"><svg class="icon notif-glocke-panel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 8 2 8H4s2-2 2-8"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg><svg class="icon notif-zahnrad-panel" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.4-2.3 1a7.8 7.8 0 0 0-1.7-1l-.3-2.5h-4l-.3 2.5c-.6.2-1.2.6-1.7 1l-2.3-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.3-1c.5.4 1.1.8 1.7 1l.3 2.5h4l.3-2.5c.6-.2 1.2-.6 1.7-1l2.3 1 2-3.4-2-1.5zM12 15.2A3.2 3.2 0 1 1 12 8.8a3.2 3.2 0 0 1 0 6.4z"/></svg></button>
-      <div id="sse-badge" class="sse-badge disconnected">
+      <div id="sse-badge" class="sse-badge disconnected sse-start">
         <div class="sse-dot"></div>
         <span class="sse-label" id="sse-label">GETRENNT</span>
       </div>
@@ -9151,6 +9155,7 @@ function setSSEStatus(status) {
   const badge = document.getElementById('sse-badge');
   const label = document.getElementById('sse-label');
   const live = (status === 'connected');
+  if (live) badge.classList.remove('sse-start');
   if (live) {
     badge.classList.remove('disconnected');
     label.textContent = 'LIVE';
@@ -9164,6 +9169,9 @@ function setSSEStatus(status) {
   const glocke = document.getElementById('notif-btn');
   if (glocke) glocke.classList.toggle('sse-live', live);
 }
+
+// Kommt die Verbindung beim Laden gar nicht zustande, soll GETRENNT trotzdem erscheinen.
+setTimeout(function () { document.getElementById('sse-badge').classList.remove('sse-start'); }, 5000);
 
 function connectSSE() {
   if (sseSource) {
@@ -11730,6 +11738,10 @@ function _pilotLinkKlick(e) {
   if (!el) return;
   e.stopPropagation();
   e.preventDefault();
+  // Der eigene Name steht im Zahnradmenue: Das Menue schliessen, sonst bleibt es ueber der
+  // Statistik stehen (der allgemeine Schliess-Lauscher bekommt diesen Klick nicht).
+  const menue = el.closest('#notif-panel');
+  if (menue) menue.hidden = true;
   openPilotStats(Number(el.dataset.pilotCid));
 }
 document.addEventListener('click', _pilotLinkKlick, true);

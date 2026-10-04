@@ -36,7 +36,17 @@ def test_verbindungskasten_nur_bei_abriss():
     """Verbunden ist der Normalfall und wird nicht angezeigt; nur das rote GETRENNT erscheint.
     Im Markup startet der Kasten als .disconnected -- bis die Verbindung steht, ist er also da."""
     assert "html:not(.vr-panel) header #sse-badge:not(.disconnected) { display: none; }" in INDEX
-    assert '<div id="sse-badge" class="sse-badge disconnected">' in INDEX
+    assert '<div id="sse-badge" class="sse-badge disconnected sse-start">' in INDEX
+
+
+def test_getrennt_blitzt_beim_laden_nicht_auf():
+    """Bis die Verbindung zum ersten Mal steht, bleibt der Kasten weg -- sonst sprang die
+    Kopfzeile auf dem Handy bei jedem Laden um eine Zeile. Steht sie nach ein paar Sekunden
+    nicht, erscheint GETRENNT trotzdem."""
+    assert "html:not(.vr-panel) header #sse-badge.sse-start { display: none; }" in INDEX
+    js = INDEX[INDEX.index("function setSSEStatus("):INDEX.index("function connectSSE(")]
+    assert "if (live) badge.classList.remove('sse-start');" in js
+    assert re.search(r"setTimeout\(function \(\) \{[^}]*classList\.remove\('sse-start'\)[^}]*\}, 5000\)", js)
 
 
 def _kopf():
@@ -130,3 +140,12 @@ def test_handy_zahnrad_steht_rechts_neben_dem_logo():
     assert "grid-column: 3" in zahnrad and "grid-row: 1" in zahnrad and "justify-self: end" in zahnrad
     getrennt = re.search(r"html:not\(\.vr-panel\) header #sse-badge \{([^}]*)\}", block).group(1)
     assert "grid-column: 1 / -1" in getrennt and "grid-row: 2" in getrennt
+
+
+def test_klick_auf_den_namen_schliesst_das_menue():
+    """Der Name oeffnet die eigene Statistik -- das Menue darf danach nicht darueber stehen
+    bleiben. Der allgemeine Schliess-Lauscher sieht den Klick nicht (er liegt im Menue, und
+    der Namens-Klick haelt ihn in der Einfangphase an), deshalb schliesst _pilotLinkKlick selbst."""
+    js = INDEX[INDEX.index("function _pilotLinkKlick("):]
+    js = js[:js.index("\n}\n")]
+    assert "el.closest('#notif-panel')" in js and ".hidden = true" in js

@@ -139,6 +139,13 @@ class TestAuthDeviceEndpunkt:
         assert claims is not None
         assert str(claims["cid"]) == str(CID)
 
+    def test_geraete_sitzung_kann_nicht_abmelden(self, env):
+        """Abmelden laeuft ueber die Forum-Bruecke; die Geraete-Anmeldung kommt nie von dort.
+        Im Kniebrett darf deshalb nie ein Abmelde-Auftrag entstehen."""
+        _bind(env.db)
+        r = env.client.get(f"/auth/device?device={GERAET}", follow_redirects=False)
+        assert "abm" not in verify_user_token(r.cookies.get(USER_COOKIE), SECRET)
+
     def test_zieladresse_enthaelt_die_geraete_id_nicht_mehr(self, env):
         """Der Schlüssel darf nicht in der finalen Adresse (und damit im Verlauf) landen."""
         _bind(env.db)

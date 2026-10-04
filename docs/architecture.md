@@ -771,7 +771,7 @@ mit dieser Fassung entfallen; der Weg läuft jetzt am Speicher entlang statt an 
 **Versionierung & Changelog**: Single Source of Truth ist die Repo-Datei `app/CHANGELOG.json`
 (neueste Version zuerst; je Eintrag `version`, `date`, `title`, `items`). `app/version.py` liest
 sie ein und stellt `VERSION` (= `CHANGELOG[0].version`) und `CHANGELOG` bereit; `/api/frontend-config`
-liefert beides ans Frontend. Im Header zeigt `#app-version` die kleine Versionsnummer (Klick →
+liefert beides ans Frontend. In der Fußleiste zeigt `#app-version` die Versionsnummer mit Releasename (Klick →
 Versionsverlauf-Modal `#changelog-modal`, wiederverwendet die `.fp-modal-*`-Klassen). `#changelog-banner`
 (Basis-Styling vom Install-Banner) zeigt die Neuerungen **einmal pro Version**. Welcher Eintrag
 Banner ist, bestimmt jetzt der **Server**: `_initVersionUI(cfg.version, cfg.changelog, cfg.banner_version)`

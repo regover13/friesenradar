@@ -146,12 +146,19 @@ if ($abmelden !== '') {
         http_response_code(400);
         exit('bad request');
     }
-    // Nur den abmelden, für den der Auftrag ausgestellt wurde. Ist hier niemand (mehr) oder
-    // jemand anderes angemeldet, passiert nichts -- zurück geht es trotzdem.
+    // Nur den abmelden, für den der Auftrag ausgestellt wurde.
     if ((int) $user->data['user_id'] !== ANONYMOUS
         && hash_equals((string) $user->data['username'], $name)) {
         $user->session_kill();
+    } else if ((int) $user->data['user_id'] !== ANONYMOUS) {
+        // Hier ist jemand ANDERES angemeldet (im Forum umbenannt, Konto gewechselt). Den
+        // melden wir nicht ab. Zurück zu FriesenRadar hieße aber: sofort wieder angemeldet,
+        // "Abmelden tut nichts". Deshalb auf die Startseite des Forums -- dort ist der
+        // Abmelden-Link des Forums.
+        header('Location: ' . generate_board_url() . '/');
+        exit;
     }
+    // Abgemeldet (oder es war ohnehin niemand angemeldet): zurück zu FriesenRadar.
     header('Location: ' . substr($CALLBACK, 0, -strlen('/auth/forum/callback')) . '/');
     exit;
 }

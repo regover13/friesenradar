@@ -1,8 +1,9 @@
 # FriesenSpy Board-Login-Bridge (`sso.php`) — Installation für den Forum-Admin
 
 Diese **eine Datei** macht den phpBB-Forum-Login als SSO für FriesenSpy nutzbar. Sie liegt
-**neben phpBB** im Docroot und **verändert das Forum nicht** (kein Patch, keine Extension, nur
-Lesen von Session/Profil/Gruppe). Löschen = Zustand exakt wie vorher.
+**neben phpBB** im Docroot und **verändert das Forum nicht** (kein Patch, keine Extension; sie
+liest Session/Profil/Gruppe und beendet seit v3 auf Auftrag die Sitzung des Besuchers, s. u.).
+Löschen = Zustand exakt wie vorher.
 
 > **v3 (Abmelden, FriesenRadar 16.0.0):** Die Bridge versteht jetzt einen signierten
 > Abmelde-Auftrag (`?abmelden=…`). Stimmen Signatur, Frische (≤ 60 s) und Name, beendet sie die
@@ -79,7 +80,8 @@ rm /var/www/bb_friesen/sso.php
 - Das Forum-Passwort verlässt das Forum nie; der Login passiert in phpBB.
 - Der Abmelde-Auftrag ist mit demselben Secret signiert, ≤ 60 s gültig, mit `typ:"slo"`
   typgebunden und an den Namen gebunden: Abgemeldet wird nur, wer im Forum unter genau diesem
-  Namen angemeldet ist. Ein untergeschobener Link kann niemanden abmelden.
+  Namen angemeldet ist. Ein untergeschobener Link kann niemanden abmelden. Ist jemand anderes
+  angemeldet, landet der Besucher auf der Startseite des Forums.
 - Das Token ist ≤ 60 s gültig, trägt einen Einmal-`nonce` (Replay-Schutz), ist mit dem Secret
   HMAC-signiert und mit `typ:"sso"` typgebunden; das `redirect`-Ziel wird gegen eine feste
   Whitelist geprüft.

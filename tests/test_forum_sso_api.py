@@ -688,12 +688,18 @@ def test_abmelden_von_fremder_seite_wird_abgelehnt(env):
     assert env.client.get("/api/me").json()["logged_in"] is True
 
 
-def test_kniebrett_sitzung_kann_nicht_abmelden(env):
-    """Die Geraete-Anmeldung laeuft nicht ueber die Bruecke -- dort gibt es keinen Knopf."""
-    env.client.post("/api/admin/forum-login", json={"enabled": True}, cookies=_admin_cookie())
-    main._reset_gate_cache()
-    env.client.cookies.update(_user_cookie(is_admin=False))
-    assert env.client.get("/api/me").json()["kann_abmelden"] is False
+def test_abmelden_von_der_eigenen_seite_geht_durch(env):
+    """Der Normalfall jedes Browsers: Der POST traegt die Herkunft der eigenen Seite."""
+    _anmelden(env)
+    r = env.client.post("/auth/forum/logout", headers={"origin": "http://testserver"},
+                        follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].startswith(FORUM_URL + "?abmelden=")
+
+
+def test_abmelden_mit_herkunft_null_wird_abgelehnt(env):
+    _anmelden(env)
+    r = env.client.post("/auth/forum/logout", headers={"origin": "null"}, follow_redirects=False)
+    assert r.status_code == 403
 
 
 def test_bruecke_kann_abmelden():
@@ -709,5 +715,16 @@ def test_bruecke_kann_abmelden():
     for teil in ("hash_equals(hash_hmac('sha256', $teile[0], $secret), $teile[1])",
                  "'slo'", "> 60", "$daten['name']"):
         assert teil in fn, teil
-    assert block.index("fs_abmelde_name(") < block.index("$user->session_kill()")
-    assert "$user->data['username']" in block
+    assert "!is_int($daten['iat'])" in fn
+    # Beendet wird nur die Sitzung dessen, fuer den der Auftrag gilt -- beide Bedingungen
+    # stehen im selben if direkt vor session_kill().
+    import re
+    m = re.search(r"if \(\(int\) \$user->data\['user_id'\] !== ANONYMOUS\s*"
+                  r"&& hash_equals\(\(string\) \$user->data\['username'\], \$name\)\) \{\s*"
+                  r"\$user->session_kill\(\);", block)
+    assert m, "session_kill() ohne Namens- und Anmeldepruefung"
+    assert block.count("session_kill()") == 1 and block.index("fs_abmelde_name(") < m.start()
+    # Jemand anderes angemeldet (umbenannt, Konto gewechselt): nicht still zurueck in die
+    # sofortige Wiederanmeldung, sondern auf die Startseite des Forums -- dort ist der
+    # Abmelden-Link des Forums.
+    assert "header('Location: ' . generate_board_url() . '/');" in block
