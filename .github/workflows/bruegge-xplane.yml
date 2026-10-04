@@ -92,7 +92,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ilammy/msvc-dev-cmd@v1      # sonst liegt cl.exe nicht im Pfad
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756  # v1.13.0 -- sonst liegt cl.exe nicht im Pfad
       - name: SDK holen
         shell: pwsh
         run: |
