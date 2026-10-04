@@ -175,10 +175,14 @@ sitzung_ausstellen() {
   local marke=""
   if [ -f "$ORT/benutzer.env" ]; then
     marke=$(docker exec -i --env-file "$ORT/benutzer.env" test-radar-test-radar-1 python -c "
-import os, time
+import inspect, os, time
 from app.config import get_settings
 from app.forum_sso import make_user_token
-print(make_user_token(get_settings().SECRET_KEY, os.environ['TEST_NAME'], os.environ['TEST_CID'], True, time.time() + 7500))") || marke=""
+# Abmelden-Knopf (ab 16.0.0) auch hier zeigen: Die Sitzung traegt die Zusage, die sonst die
+# Forum-Bruecke gibt. NUR ZUM ANSEHEN -- der Auftrag ist mit dem Schluessel der Kopie signiert,
+# die Bruecke lehnt ihn ab (bad request). Aeltere Staende kennen den Parameter nicht.
+extra = {'abmelden': True} if 'abmelden' in inspect.signature(make_user_token).parameters else {}
+print(make_user_token(get_settings().SECRET_KEY, os.environ['TEST_NAME'], os.environ['TEST_CID'], True, time.time() + 7500, **extra))") || marke=""
     case "$marke" in *[!A-Za-z0-9._=-]*) marke="" ;; esac
   fi
   {
