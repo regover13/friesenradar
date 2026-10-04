@@ -141,8 +141,11 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 > nachher gleich: ohne Sitzung die Anmeldeseite, fremder Rücksprung 400; neu: kaputter
 > Abmelde-Auftrag 400. **PHP hält die alte Fassung einige Sekunden im Zwischenspeicher** — die
 > erste Probe direkt nach dem Ablegen zeigte noch das alte Verhalten. Schritt 2a entfällt damit.
-> Noch offen: eine Anmeldung über die neue Brücke im Log sehen, und das Abmelden im phpBB
-> (geht erst mit 16.0.0 oder mit einem von Hand erzeugten Auftrag).
+> **Beides am selben Tag gesehen:** zwei Anmeldungen über die neue Brücke im Log (14:42, 14:43),
+> und das Abmelden im phpBB mit einem von Hand im Container signierten Auftrag — der Nutzer war
+> danach im Forum abgemeldet. Die eigene Sitzung blieb dabei bestehen, weil 15.34.1 sie nicht
+> löscht; das tut erst der Knopf in 16.0.0 (`POST /auth/forum/logout`). Nach dem Ausliefern
+> einmal den ganzen Weg über den Knopf prüfen.
 > Ebenfalls am 04.10. dazugekommen (alles auf dem Test-Zweig): Hilfe und Version in der
 > Fußleiste, Name ins Zahnradmenü, Zahnrad auf dem Handy neben dem Logo, leerer Prefile-Kasten
 > niedrig.
