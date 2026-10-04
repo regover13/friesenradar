@@ -1169,9 +1169,9 @@
     }
     .app-version:hover { opacity: 1; color: var(--green); text-decoration: underline; }
     .app-version[hidden] { display: none; }
-    /* Zwei Zeilen: oben der Releasename (Titel des letzten X.0.0-Eintrags), darunter die Nummer */
-    .app-version:not([hidden]) { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
-    .app-version-name { font-family: var(--text-display); letter-spacing: 0.02em; }
+    /* Steht in der Fussleiste als Verweis wie die anderen: Nummer, dahinter der Releasename
+       (Titel des letzten X.0.0-Eintrags). Schrift und Farbe kommen von der Leiste. */
+    footer .app-version { font: inherit; letter-spacing: inherit; color: var(--green); opacity: 1; text-decoration: underline; }
 
     /* =====================================================================
        TAB NAVIGATION
@@ -3390,7 +3390,6 @@
       .events-form { grid-template-columns: 1fr; }
       .header-right { gap: 12px; }
       .utc-clock { display: none; }
-      .help-btn { display: none; }
     }
 
     /* =====================================================================
@@ -3581,22 +3580,6 @@
       transition: color 0.15s, border-color 0.15s, box-shadow 0.15s;
     }
     .notif-btn:hover, .notif-btn.notif-active {
-      color: var(--green);
-      border-color: var(--green-dim);
-      box-shadow: 0 0 8px var(--green-glow);
-    }
-    .help-btn {
-      background: none;
-      border: 1px solid var(--green-dim);
-      color: var(--text-label);
-      font-size: 0.78rem;
-      font-family: var(--text-display);
-      letter-spacing: 0.08em;
-      padding: 5px 10px;
-      text-decoration: none;
-      transition: color 0.15s, border-color 0.15s, box-shadow 0.15s;
-    }
-    .help-btn:hover {
       color: var(--green);
       border-color: var(--green-dim);
       box-shadow: 0 0 8px var(--green-glow);
@@ -4006,6 +3989,11 @@
       font-size: 0.72rem;
       letter-spacing: 0;
     }
+    /* Leerzustand ohne den grossen Innenabstand (Nutzer 04.10.2026): Der leere Prefile-Kasten
+       war hoeher als die Live-Positionen. Eine Textzeile, so hoch wie die Namenszeile im
+       TeamSpeak-Kasten; mit Flugplaenen bestimmt die Tabelle die Hoehe. */
+    #prefiles-content .empty-state,
+    #ts-content .empty-state { padding: 0; }
     .ts-user-list {
       display: flex;
       flex-wrap: wrap;
@@ -4328,21 +4316,19 @@
       header .header-right { grid-column: 1; justify-self: center; }
       .logo-radar-weiss,
       html.hell .logo-radar-farbig { height: 56px; }
-      /* Verteilung wie auf der Website (Nutzer 04.10.2026): Name links, Zahnrad und Version
-         rechts. Die Zeile nimmt dafuer die ganze Breite ein; ohne Namen rueckt der Rest
-         nach rechts. */
+      /* Verteilung wie auf der Website (Nutzer 04.10.2026): Name links, Zahnrad rechts.
+         Die Zeile nimmt dafuer die ganze Breite ein; ohne Namen rueckt der Rest nach rechts. */
       html:not(.vr-panel) header .header-right { justify-self: stretch; justify-content: flex-end; }
       html:not(.vr-panel) header #userBox { margin-right: auto; }
-      /* Zahnrad ganz rechts, hinter der Version -- wie auf der Website. */
+      /* Zahnrad ganz rechts, auch wenn bei Abriss GETRENNT dazukommt -- wie auf der Website. */
       html:not(.vr-panel) header #notif-btn { order: 1; }
     }
     /* Breite Bildschirme, nur Website (Nutzer 03.10.2026: „die Boxen haben unterschiedliche
        Groessen“; Handy und Kniebrett bleiben, wie sie sind):
          - Name ganz links (die linke Spalte war leer),
-         - rechts Uhr, Version, Zahnrad (Zahnrad ganz rechts, Nutzer 04.10.2026); der
-           Verbindungskasten steht davor und erscheint nur bei Abriss (s. u.), beide
-           Kaesten gleich hoch,
-         - Hilfe als Textzeile unter der Version, in deren Schrift und Groesse.
+         - rechts Uhr und Zahnrad; der Verbindungskasten steht davor und erscheint nur bei
+           Abriss (s. u.), beide Kaesten gleich hoch,
+         - Hilfe und Version stehen in der Fussleiste (Nutzer 04.10.2026).
        Reihenfolge und Zeilen kommen aus dem Raster -- das Markup bleibt fuer Handy und
        Kniebrett unveraendert. */
     @media (min-width: 601px) {
@@ -4359,15 +4345,7 @@
       }
       html:not(.vr-panel) header #sse-badge  { grid-column: 1; grid-row: 1 / 3; }
       html:not(.vr-panel) header #utc-clock  { grid-column: 2; grid-row: 1 / 3; }
-      html:not(.vr-panel) header #app-version { grid-column: 3; grid-row: 1; align-self: end; }
-      html:not(.vr-panel) header #notif-btn  { grid-column: 4; grid-row: 1 / 3; }
-      html:not(.vr-panel) header .help-btn {
-        grid-column: 3; grid-row: 2; align-self: start; justify-self: end;
-        border: none; padding: 0; background: none; box-shadow: none;
-        font-family: var(--text-mono); font-size: 0.7rem; letter-spacing: 0.06em;
-        line-height: 1.25; color: var(--text-label); opacity: 0.55;
-      }
-      html:not(.vr-panel) header .help-btn:hover { opacity: 1; color: var(--green); text-decoration: underline; box-shadow: none; }
+      html:not(.vr-panel) header #notif-btn  { grid-column: 3; grid-row: 1 / 3; }
       html:not(.vr-panel) header #sse-badge,
       html:not(.vr-panel) header #notif-btn {
         box-sizing: border-box; height: 32px;
@@ -4683,7 +4661,6 @@
       <span id="userBox" hidden style="display:inline-flex;gap:8px;align-items:center;font-size:.8rem;">
         <span id="userName" style="color:#fff;font-family:ui-monospace,monospace;"></span>
       </span>
-      <a href="https://github.com/regover13/friesenradar#readme" target="_blank" rel="noopener" class="help-btn" title="Hilfe &amp; Dokumentation (GitHub)">? HILFE</a>
       <!-- Zwei Glocken, eine sichtbar: Die Twemoji-Grafik ist ein fertiges Bild und nimmt
            keine Farbe an; im Panel zeigt die Glocke aber ueber ihre Farbe den
            Verbindungszustand, dort braucht es Vektorform mit currentColor.
@@ -4708,7 +4685,6 @@
         <span class="sse-label" id="sse-label">GETRENNT</span>
       </div>
       <div class="utc-clock" id="utc-clock">00:00:00 UTC</div>
-      <button id="app-version" class="app-version" title="Versionsverlauf anzeigen" hidden></button>
     </div>
   </header>
 
@@ -5142,14 +5118,21 @@
   <footer style="text-align:center;padding:24px 12px 8px;margin-top:8px;border-top:1px solid var(--green-dim);font-family:var(--text-mono);font-size:0.72rem;letter-spacing:0.05em;color:var(--text-label);">
     <!-- Der Name der Sache bleibt "Kniebrett" (Nutzer, 15.08.2026) -- nur dieser Link hier
          ist keine Sache, sondern eine Handlung: Er fuehrt zu allem, was sich herunterladen
-         laesst (seit 13.09.2026 auch die FriesenBruegge), und heisst deshalb "Download".
+         laesst (seit 13.09.2026 auch die FriesenBruegge), und heisst deshalb "Downloads"
+         (Mehrzahl seit 04.10.2026, wie die Seite selbst).
          Alte URL /efb bleibt erreichbar (verlinkt, verschickt); neue Verweise zeigen auf
          /download (Nutzer, 13.09.2026). -->
-    <a href="/download" style="color:var(--green);">Download</a>
+    <a href="/download" style="color:var(--green);">Downloads</a>
     &nbsp;·&nbsp;
     <a href="/impressum" style="color:var(--green);">Impressum</a>
     &nbsp;·&nbsp;
     <a href="/datenschutz" style="color:var(--green);">Datenschutz</a>
+    &nbsp;·&nbsp;
+    <!-- Hilfe und Version standen bis 04.10.2026 in der Kopfzeile (Nutzer: in die Fussleiste).
+         Der Trennpunkt vor der Version erscheint erst mit ihr (_initVersionUI). -->
+    <a href="https://github.com/regover13/friesenradar#readme" target="_blank" rel="noopener" style="color:var(--green);" title="Hilfe &amp; Dokumentation (GitHub)">Hilfe</a>
+    <span id="app-version-trenner" hidden>&nbsp;·&nbsp;</span>
+    <button id="app-version" class="app-version" title="Versionsverlauf anzeigen" hidden></button>
   </footer>
 
 </div><!-- /#app -->
@@ -9008,14 +8991,17 @@ function _initVersionUI(version, changelog, bannerVersion) {
     // Releasename = Titel des neuesten MAJOR-Eintrags (X.0.0), z. B. "Luftschloss"
     const major = _changelog.find(e => /^\d+\.0\.0$/.test(e.version || ''));
     badge.dataset.version = 'v' + _version;
-    badge.innerHTML = (major && major.title
-      ? `<span class="app-version-name">${escHtml(major.title)}</span>` : '')
-      + `<span class="app-version-nr">v${escHtml(_version)}</span>`;
+    // Erst die Nummer, dann der Name: In der Fussleiste ist die Nummer die Angabe.
+    badge.innerHTML = `<span class="app-version-nr">v${escHtml(_version)}</span>`
+      + (major && major.title
+        ? ` <span class="app-version-name">${escHtml(major.title)}</span>` : '');
     const top = _changelog[0];
     badge.title = top && top.date
       ? `Version ${_version} · ${_fmtChangelogDate(top.date)} — Verlauf anzeigen`
       : 'Versionsverlauf anzeigen';
     badge.hidden = false;
+    const trenner = document.getElementById('app-version-trenner');
+    if (trenner) trenner.hidden = false;
     badge.addEventListener('click', openChangelogModal);
   }
   // Einmalige Verdrahtung der Banner-/Modal-Bedienelemente

@@ -1573,11 +1573,12 @@ def test_das_ding_heisst_ueberall_kniebrett():
     Das Kniebrett selbst heisst weiterhin ueberall Kniebrett (Nutzer, 13.09.2026: "Das
     Kniebrett bleibt Kniebrett und auch das Release bleibt so!") -- nur der Fusszeilen-Link
     ist seit demselben Tag umbenannt: Er fuehrt zu einer Seite mit inzwischen ZWEI Paketen
-    (Kniebrett und FriesenBruegge) und heisst deshalb "Download", nicht mehr "Kniebrett".
+    (Kniebrett und FriesenBruegge) und heisst deshalb "Downloads" (Mehrzahl seit 04.10.2026,
+    wie die Seite selbst), nicht mehr "Kniebrett".
 
     Geprueft wird nur SICHTBARER Text. In Code-Kommentaren ist "im Cockpit" eine Ortsangabe
     ("im Cockpit wird mit dem Finger bedient") und kein Produktname -- die bleiben."""
-    assert '<a href="/download" style="color:var(--green);">Download</a>' in INDEX
+    assert '<a href="/download" style="color:var(--green);">Downloads</a>' in INDEX
     efb = (STATIC / "efb.html").read_text(encoding="utf-8")
     assert "<title>Downloads</title>" in efb
     assert "<h1>Downloads</h1>" in efb

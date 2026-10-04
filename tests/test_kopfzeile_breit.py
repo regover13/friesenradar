@@ -1,6 +1,6 @@
-"""Kopfzeile auf breiten Bildschirmen (Nutzer 03.10.2026): Name links, LIVE vor Zahnrad,
-Hilfe unter der Version in deren Schrift. Das Kniebrett bleibt unberuehrt; das Handy
-verteilt seit 04.10.2026 ebenso (Name links, Zahnrad und Version rechts)."""
+"""Kopfzeile (Nutzer 03./04.10.2026): Name links, rechts Uhr und Zahnrad, bei Abriss davor
+GETRENNT. Hilfe und Version stehen seit 04.10.2026 in der Fussleiste. Das Handy verteilt
+ebenso (Name links, Zahnrad rechts); das Kniebrett bleibt unberuehrt."""
 import re
 from pathlib import Path
 
@@ -24,12 +24,12 @@ def test_alles_nur_fuer_die_website():
             assert zeile.strip().startswith("html:not(.vr-panel) header"), zeile
 
 
-def test_reihenfolge_getrennt_uhr_version_zahnrad():
-    """Nutzer 04.10.2026: Version/Hilfe und Zahnrad getauscht -- das Zahnrad steht ganz rechts."""
+def test_reihenfolge_getrennt_uhr_zahnrad():
+    """Das Zahnrad steht ganz rechts; Version und Hilfe sind in die Fussleiste gezogen."""
     assert "grid-column: 1" in _regel("header #sse-badge ")
     assert "grid-column: 2" in _regel("header #utc-clock ")
-    assert "grid-column: 3" in _regel("header #app-version")
-    assert "grid-column: 4" in _regel("header #notif-btn ")
+    assert "grid-column: 3" in _regel("header #notif-btn ")
+    assert "app-version" not in _block() and "help-btn" not in _block()
 
 
 def test_verbindungskasten_nur_bei_abriss():
@@ -39,15 +39,45 @@ def test_verbindungskasten_nur_bei_abriss():
     assert '<div id="sse-badge" class="sse-badge disconnected">' in INDEX
 
 
-def test_hilfe_unter_der_version_in_derselben_schrift():
-    version = _regel("header #app-version")
-    hilfe = _regel("header .help-btn")
-    assert "grid-column: 3" in version and "grid-row: 1" in version
-    assert "grid-column: 3" in hilfe and "grid-row: 2" in hilfe
-    basis = re.search(r"\n    \.app-version \{([^}]*)\}", INDEX).group(1)
-    for eig in ["font-family: var(--text-mono)", "font-size: 0.7rem", "opacity: 0.55"]:
-        assert eig in basis and eig in hilfe, eig
-    assert "border: none" in hilfe
+def _kopf():
+    return INDEX[INDEX.index("<header>"):INDEX.index("</header>")]
+
+
+def _fuss():
+    start = INDEX.index("<footer")
+    return INDEX[start:INDEX.index("</footer>", start)]
+
+
+def test_hilfe_und_version_stehen_nicht_mehr_in_der_kopfzeile():
+    kopf = _kopf()
+    assert 'id="app-version"' not in kopf
+    assert "HILFE" not in kopf and "help-btn" not in INDEX
+
+
+def test_fussleiste_downloads_impressum_datenschutz_hilfe_version():
+    """Nutzer 04.10.2026: Downloads - Impressum - Datenschutz - Hilfe - v16.0.0 Lichtblick."""
+    fuss = _fuss()
+    stellen = [fuss.index(t) for t in (
+        '<a href="/download" style="color:var(--green);">Downloads</a>',
+        '<a href="/impressum" style="color:var(--green);">Impressum</a>',
+        '<a href="/datenschutz" style="color:var(--green);">Datenschutz</a>',
+        '>Hilfe</a>',
+        '<button id="app-version" class="app-version"',
+    )]
+    assert stellen == sorted(stellen)
+    hilfe = re.search(r'<a href="https://github\.com/regover13/friesenradar#readme"[^>]*>Hilfe</a>', fuss)
+    assert hilfe and 'target="_blank"' in hilfe.group(0) and 'rel="noopener"' in hilfe.group(0)
+    assert INDEX.count('id="app-version"') == 1
+
+
+def test_version_nennt_erst_die_nummer_dann_den_namen():
+    """In der Fussleiste ist die Nummer die Angabe und der Name der Zusatz. Solange die
+    Version nicht geladen ist, steht auch kein Trennpunkt davor."""
+    js = INDEX[INDEX.index("function _initVersionUI("):]
+    js = js[:js.index("badge.addEventListener('click', openChangelogModal)")]
+    assert js.index('class="app-version-nr"') < js.index('class="app-version-name"')
+    assert re.search(r'<span id="app-version-trenner" hidden>[^<]*</span>\s*<button id="app-version"', _fuss())
+    assert "app-version-trenner" in js
 
 
 def test_name_steht_links():
