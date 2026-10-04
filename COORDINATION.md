@@ -6,6 +6,49 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-05 — Simulator-Rechner: Ordner `FriesenSpy` → `FriesenRadar`, Auftrag „Umzug fertig machen“
+
+**Stand:** Auf dem PC des Nutzers heißt der Ordner noch `D:\User\Tobias\OneDrive\Claude\FriesenSpy`. Schon
+umgestellt ist nur die Git-Adresse (`origin` → `github.com/regover13/friesenradar`, gilt für alle Worktrees).
+Umbenennen kann den Ordner keine Sitzung, die selbst darin läuft — Windows gibt ihn nicht frei.
+
+**Ablauf (Schritt 1 und 2 macht der Nutzer):**
+
+1. Alle Claude-Sitzungen in `FriesenSpy` und den Worktrees schließen.
+2. Ordner im Explorer in `FriesenRadar` umbenennen, OneDrive fertig synchronisieren lassen.
+3. Neue Sitzung in `…\Claude\FriesenRadar` starten und sagen: **„Umzug fertig machen“**.
+
+**Was die neue Sitzung dann tut — erst nachsehen, dann handeln; Löschen nur auf Wort des Nutzers:**
+
+- **Worktrees** (`git worktree list`): Sie verweisen mit festem Pfad auf den alten Ordner, also zuerst
+  `git worktree repair`. Vorhanden waren `FriesenSpy-bruegge-radar` (Zweig auf dem Server gelöscht, alles
+  auf `main`; darin unversioniert der Paketbau: `msfs-panel\friesenkniebrett\`, `friesenbruegge\msfs-rauch\Packages`),
+  `FriesenSpy-hotfix`, `FriesenSpy-hotfix2`, `FriesenSpy-messeverkehr-replay` und
+  `.claude\worktrees\agent-a39fdf795fa61b2dc`. Je Worktree prüfen, ob etwas Uncommittetes oder Ungepushtes
+  darin liegt; den Nutzer fragen, welche weg sollen. Zwei Reste in `.git\worktrees` (`FriesenSpy-messeverkehr`,
+  `wt_v800`) ließ Git am 05.10. nicht löschen („Permission denied“).
+- **Claudes Gedächtnis und alte Sitzungen:** liegen unter `C:\Users\Tobias\.claude\projects\`, benannt nach
+  dem Pfad — `D--User-Tobias-OneDrive-Claude-FriesenSpy` (darin `memory\` mit `MEMORY.md`) sowie
+  `…-FriesenSpy-hotfix`, `-hotfix2`, `-messeverkehr`, `-messeverkehr-replay` und
+  `…-FriesenSpy--claude-worktrees-bruegge-zuordnung-haerten`. Die neue Sitzung startet unter
+  `D--User-Tobias-OneDrive-Claude-FriesenRadar` **ohne Gedächtnis**. Den Inhalt von `memory\` dorthin
+  kopieren (nicht verschieben, bis der Nutzer es abnimmt); ob auch die Sitzungsprotokolle mit sollen, fragen.
+- **Pfade im Repo:** Der alte Pfad steht in `scripts/kutter_ladung_szenarien.py`,
+  `friesenbruegge/seehund/export_msfs.py` und in fünf alten Plänen/Specs unter `docs/superpowers/`
+  (`git grep -il "Claude[\\/]FriesenSpy"`). Die Skripte anpassen, die alten Pläne sind Geschichte und bleiben.
+  `friesenbruegge/probe-msfs/wasm/modul.o` enthält ihn als Bauprodukt — nicht anfassen.
+- **Außerhalb des Repos:** `D:\User\Tobias\OneDrive\Claude\CLAUDE.md` (Projekttabelle) und Verweise in der
+  `MEMORY.md` auf absolute Pfade nachziehen. `msfs-panel\build-package.ps1` verweist auf
+  `…\OneDrive\GIT\ga-inventory\MSFSLayoutGenerator.exe` — das ist ein anderer Ordner und bleibt.
+- **Nicht umbenennen:** technische Konstanten wie `DEVICE_KEY = "friesenspy_device"`, der Paketordner
+  `friesenflieger-friesenspy-efb` in alten Anleitungen und `msfs-panel/friesenspy-efb.zip` (2.3.2).
+
+**Offen vom Simulator-Rechner, unabhängig vom Umzug (Entscheidung des Nutzers):** die Ordner
+`Community-beiseite-Lichtblick` in MSFS 2024 und 2020, `FriesenBruegge-beiseite-Lichtblick` und
+`plugins\FriesenBruegge.v100` in X-Plane, die Sicherungs-ZIPs in `/opt/friesenradar/data/efb/`.
+
+---
+
 ## 2026-10-05 (nachts) — Server-Sitzung „Lichtblick“: Ordner, Zweige, Stand nach dem Umzug
 
 **Für „Lichtblick (lokal)“ und jede andere Sitzung, auf Wunsch des Nutzers:**
