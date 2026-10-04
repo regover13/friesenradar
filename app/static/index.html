@@ -5763,8 +5763,15 @@ function _prefVomServerHolen() {
         const vom = (d && d.prefs && typeof d.prefs === 'object') ? d.prefs : null;
         const o = _prefLaden();
         if (vom) {
-          // Der Server gewinnt: Der lokale Stand kann im Kniebrett nur aelter sein.
-          Object.keys(vom).forEach(function (k) { o[k] = String(vom[k]); });
+          // Im Kniebrett gewinnt der Server: Der lokale Stand kann dort nur aelter sein.
+          // Auf der Website haelt der Browser seine Merker selbst, und unter `web` liegt der
+          // Stand des Geraets, das zuletzt geschrieben hat -- ein Fernseher im TV-Modus tut das
+          // alle paar Sekunden. Dort fuellt der Server deshalb nur auf, was dem Geraet fehlt;
+          // sonst nahm er dem Rechner bei jedem Laden das helle Design (Nutzerfund 04.10.2026).
+          const serverGewinnt = _PREF_KONTEXT === 'panel';
+          Object.keys(vom).forEach(function (k) {
+            if (serverGewinnt || !(k in o)) o[k] = String(vom[k]);
+          });
           _prefCookieSchreiben(o);
         }
         _prefVomServer = true;

@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.0.3",
+    "date": "2026-10-05",
+    "highlight": false,
+    "title": "Einstellungen bleiben beim Gerät",
+    "items": [
+      "🌗 Das helle Design sprang am Rechner von selbst auf dunkel zurück, sobald dasselbe Mitglied FriesenRadar noch auf einem zweiten Gerät offen hatte — besonders deutlich mit einem Fernseher im TV-Modus. Design, Karten-Ebenen und Kartenausschnitt gehören jetzt dem Gerät, an dem du sie einstellst. Ein neuer Browser übernimmt einmalig die Einstellungen deines zuletzt benutzten Geräts.",
+      "🧳 Im Kniebrett ändert sich nichts: Dort kommen die Einstellungen weiter vom Server, weil der Simulator sie nach einem Neustart vergisst."
+    ]
+  },
+  {
     "version": "16.0.2",
     "date": "2026-10-04",
     "highlight": false,

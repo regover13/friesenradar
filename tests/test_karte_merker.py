@@ -56,7 +56,7 @@ global.document = {
 };
 
 // Die Seite fragt beim Aufbau, ob sie im Kniebrett laeuft -- hier immer "Website".
-global.document.documentElement = { classList: { contains: () => false } };
+global.document.documentElement = { classList: { contains: () => !!global._istPanel } };
 
 // Antworten des Servers, vom Treiber steuerbar. `_puts` sammelt, was hochgeschickt wurde --
 // die Nutzlast wird SOFORT festgehalten, nicht erst beim Aufloesen: Sonst laese eine
@@ -102,10 +102,12 @@ global.FakeMap = FakeMap;
 """
 
 
-def _node_lauf(treiber):
+def _node_lauf(treiber, panel=False):
     if _NODE is None:
         pytest.skip("Node.js nicht verfuegbar")
-    skript = _HARNESS + "\n" + _merker_quelltext() + "\n" + treiber
+    # Der Kontext (web/panel) wird beim Laden des Quelltexts festgelegt, also davor setzen.
+    kontext = "global._istPanel = true;\n" if panel else ""
+    skript = _HARNESS + "\n" + kontext + _merker_quelltext() + "\n" + treiber
     with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8", delete=False) as f:
         f.write(skript)
         pfad = f.name
@@ -402,13 +404,32 @@ def test_vor_der_serverantwort_wird_nichts_hochgeschrieben():
 
 
 @pytest.mark.skipif(_NODE is None, reason="Node.js nicht verfuegbar")
-def test_serverwert_gewinnt_gegen_den_lokalen_stand():
+def test_im_kniebrett_gewinnt_der_serverwert_gegen_den_lokalen_stand():
     """Der lokale Stand kann im Kniebrett nur aelter sein -- dort ueberlebt nichts."""
     _node_lauf("""
 _prefSchreib('friesenspy_layer', 'topo');       // lokaler Zwischenstand
 global._antwort = { prefs: { friesenspy_layer: 'dark' } };
 _prefVomServerHolen().then(() => {
+  assert.strictEqual(_PREF_KONTEXT, 'panel');
   assert.strictEqual(_prefLies('friesenspy_layer'), 'dark');
+  console.log('OK');
+});
+""", panel=True)
+
+
+@pytest.mark.skipif(_NODE is None, reason="Node.js nicht verfuegbar")
+def test_auf_der_website_behaelt_jedes_geraet_seine_einstellungen():
+    """Nutzerfund 04.10.2026: Der Fernseher schrieb im TV-Modus alle paar Sekunden seine
+    Einstellungen (dunkel) auf den Server; beim naechsten Laden am Rechner gewann der Serverstand,
+    und das helle Design war weg. Auf der Website haelt der Browser seine Merker selbst --
+    der Server fuellt nur auf, was dem Geraet fehlt (neuer Browser)."""
+    _node_lauf("""
+_prefSchreib('friesenspy_theme', 'hell');       // dieses Geraet
+global._antwort = { prefs: { friesenspy_theme: 'dunkel', friesenspy_layer: 'sat' } };  // ein anderes
+_prefVomServerHolen().then(() => {
+  assert.strictEqual(_PREF_KONTEXT, 'web');
+  assert.strictEqual(_prefLies('friesenspy_theme'), 'hell');
+  assert.strictEqual(_prefLies('friesenspy_layer'), 'sat', 'Fehlendes kommt weiter vom Server');
   console.log('OK');
 });
 """)
