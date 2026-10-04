@@ -146,6 +146,14 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 > danach im Forum abgemeldet. Die eigene Sitzung blieb dabei bestehen, weil 15.34.1 sie nicht
 > löscht; das tut erst der Knopf in 16.0.0 (`POST /auth/forum/logout`). Nach dem Ausliefern
 > einmal den ganzen Weg über den Knopf prüfen.
+> **Stand 04.10.2026 abends:** `bruegge-radar` und `test` stehen auf `1615240`. Das Startskript
+> der Teststufe (`/usr/local/bin/test-radar`, Stand `main` `b46adb7`) gibt der Testsitzung die
+> Abmelde-Zusage mit — der Knopf ist dort **nur zum Ansehen**, „Ja, abmelden“ endet am Forum
+> mit „bad request“ (eigener Schlüssel je Lauf). **Vorschau in der Produktion:** Die Liste
+> `app_settings.radar_vorschau_cids` ist seit 04.10. leer (vorher `1602713`, auf Wunsch des
+> Nutzers herausgenommen, um die alte Fassung zu sehen); mit 16.0.0 liest sie niemand mehr,
+> danach kann die Zeile weg. Auf sehr schmalen Handys (320 px) bricht die Fußleiste in drei
+> Zeilen um — bekannt, so gelassen.
 > Ebenfalls am 04.10. dazugekommen (alles auf dem Test-Zweig): Hilfe und Version in der
 > Fußleiste, Name ins Zahnradmenü, Zahnrad auf dem Handy neben dem Logo, leerer Prefile-Kasten
 > niedrig.
