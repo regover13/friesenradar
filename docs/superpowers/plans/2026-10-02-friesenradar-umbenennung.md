@@ -118,9 +118,25 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 > **Zweigstand:** `bruegge-radar` ist der vollständige Stand (wird per
 > `git push -f origin bruegge-radar:test` auf die Teststufe geschoben); er enthält `umzug`,
 > `lichtblick` und `kniebrett-3`.
-> **Reihenfolge am Tag X:** (1) Nutzer nach der Adresse fragen, (2) Umzug, (3) 16.0.0 ausliefern,
-> (4) am Simulator beide Kniebrett-Pakete nebeneinander prüfen, (5) Pakete hochladen — jeder
-> Schritt auf Wort des Nutzers.
+> **Reihenfolge am Tag X:** (1) Nutzer nach der Adresse fragen, (2) Umzug, (2a) neue
+> Forum-Brücke ablegen (s. u.), (3) 16.0.0 ausliefern, (4) am Simulator beide Kniebrett-Pakete
+> nebeneinander prüfen, (5) Pakete hochladen — jeder Schritt auf Wort des Nutzers.
+>
+> **Neu am 04.10.2026 — Forum-Brücke v3 (Abmelden).** 16.0.0 bringt „Abmelden“ im
+> Zahnradmenü; es beendet auch die Forum-Sitzung. Dafür muss die neue `deploy/forum/sso.php`
+> (Branch `bruegge-radar`, ab `d8de116`) nach `/var/www/bb_friesen/sso.php` auf dem
+> FriesenFlieger-Server. Die Brücke legt **Tobias selbst** ab bzw. die Server-Sitzung nur auf
+> sein ausdrückliches Wort (Schreibzugriff dort). Echtes Secret und die drei Rücksprung-Adressen
+> aus der liegenden Datei übernehmen, Rechte `640 www-data:www-bb_friesen`, danach `php -l`.
+> Die neue Brücke ist abwärtsverträglich (Anmeldung unverändert) und kann vor 16.0.0 liegen.
+> **Ohne sie fehlt der Abmelden-Knopf** — die Seite zeigt ihn erst, wenn die Brücke `abm: true`
+> ins Anmelde-Token schreibt; der Changelog-Eintrag 👤 verspricht ihn. Prüfen nach dem Ablegen:
+> neu anmelden, Zahnrad → Abmelden → Ja; danach muss die Anmeldeseite des Forums erscheinen
+> und das Forum in diesem Browser abgemeldet sein. Die PHP-Prüffunktion ist lokal gegen
+> Aufträge aus `make_logout_token` gegengeprüft, der Lauf **im** phpBB (`session_kill`) noch nicht.
+> Ebenfalls am 04.10. dazugekommen (alles auf dem Test-Zweig): Hilfe und Version in der
+> Fußleiste, Name ins Zahnradmenü, Zahnrad auf dem Handy neben dem Logo, leerer Prefile-Kasten
+> niedrig.
 
 **Nur, wenn der Nutzer das Fenster freigibt.** Ausfall ~1 min. Die CI liegt **nicht** auf dem
 kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch läuft. (B2)
