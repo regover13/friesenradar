@@ -1,5 +1,6 @@
 """Kopfzeile auf breiten Bildschirmen (Nutzer 03.10.2026): Name links, LIVE vor Zahnrad,
-Hilfe unter der Version in deren Schrift. Handy und Kniebrett bleiben unberuehrt."""
+Hilfe unter der Version in deren Schrift. Das Kniebrett bleibt unberuehrt; das Handy
+verteilt seit 04.10.2026 ebenso (Name links, Zahnrad und Version rechts)."""
 import re
 from pathlib import Path
 
@@ -54,3 +55,20 @@ def test_name_steht_links():
 def test_beide_kaesten_gleich_hoch():
     m = re.search(r"header #sse-badge,\s*html:not\(\.vr-panel\) header #notif-btn \{([^}]*)\}", _block())
     assert m and "height: 32px" in m.group(1)
+
+
+def _schmal():
+    start = INDEX.index("@media (max-width: 600px) {\n      header { grid-template-columns: 1fr;")
+    return INDEX[start:INDEX.index("/* Breite Bildschirme, nur Website", start)]
+
+
+def test_handy_verteilt_wie_die_website():
+    """Nutzer 04.10.2026: auch auf dem Handy Name links, Zahnrad und Version rechts -- die
+    Zeile unter dem Logo nimmt dafuer die ganze Breite ein."""
+    block = _schmal()
+    zeile = re.search(r"html:not\(\.vr-panel\) header \.header-right \{([^}]*)\}", block)
+    assert zeile, "Regel fuer die Zeile unter dem Logo fehlt"
+    assert "justify-self: stretch" in zeile.group(1)
+    assert "justify-content: flex-end" in zeile.group(1)
+    name = re.search(r"html:not\(\.vr-panel\) header #userBox \{([^}]*)\}", block)
+    assert name and "margin-right: auto" in name.group(1)

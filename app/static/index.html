@@ -4328,6 +4328,11 @@
       header .header-right { grid-column: 1; justify-self: center; }
       .logo-radar-weiss,
       html.hell .logo-radar-farbig { height: 56px; }
+      /* Verteilung wie auf der Website (Nutzer 04.10.2026): Name links, Zahnrad und Version
+         rechts. Die Zeile nimmt dafuer die ganze Breite ein; ohne Namen rueckt der Rest
+         nach rechts. */
+      html:not(.vr-panel) header .header-right { justify-self: stretch; justify-content: flex-end; }
+      html:not(.vr-panel) header #userBox { margin-right: auto; }
     }
     /* Breite Bildschirme, nur Website (Nutzer 03.10.2026: „die Boxen haben unterschiedliche
        Groessen“; Handy und Kniebrett bleiben, wie sie sind):
