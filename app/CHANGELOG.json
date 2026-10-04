@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.0.4",
+    "date": "2026-10-05",
+    "highlight": false,
+    "title": "Helles Design: Adressleiste ohne dunkles Aufblitzen",
+    "items": [
+      "🌗 Wer FriesenRadar im hellen Design als App auf dem Handy hat, sah beim Öffnen kurz eine dunkle Adressleiste. Sie ist jetzt von Anfang an hell."
+    ]
+  },
+  {
     "version": "16.0.3",
     "date": "2026-10-05",
     "highlight": false,

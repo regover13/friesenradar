@@ -686,6 +686,13 @@
   <meta name="application-name" content="FriesenRadar" />
   <meta name="apple-mobile-web-app-title" content="FriesenRadar" />
   <meta name="theme-color" content="#04080f" />
+  <script>
+    // Adressleiste sofort passend (Issue #55): Das Kopfskript oben hat html.hell schon gesetzt.
+    if (document.documentElement.classList.contains('hell')) {
+      var themeMeta = document.querySelector('meta[name="theme-color"]');
+      if (themeMeta) themeMeta.setAttribute('content', '#9FC7F8');
+    }
+  </script>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/static/manifest.webmanifest" />
@@ -829,7 +836,7 @@
       --schleier-rgb: 4,8,15;
       --schatten-rgb: 0,0,0;
       /* Bedienfelder auf der Karte (ICAO-Suche, Ebenen, Deckkraft, Wind, Zoom-Knoepfe) */
-      --text-hell:    #cfe3f0;
+      --text-bedien:    #cfe3f0;
       --knopf-bg:     #0b2036;
       --knopf-hover:  #14314d;
       --chart-fluege: #00d4e0;   /* Statistik: Linie "Fluege" */
@@ -856,7 +863,7 @@
       --text-label:   #536482;
       --schleier-rgb: 251,251,251;
       --schatten-rgb: 43,60,90;
-      --text-hell:    #2B3C5A;
+      --text-bedien:    #2B3C5A;
       --knopf-bg:     #F1F8FF;
       --knopf-hover:  #E1EBF2;
       --chart-fluege: #368AD2;
@@ -889,7 +896,7 @@
       --text-label:   #6b9ab8;
       --schleier-rgb: 4,8,15;
       --schatten-rgb: 0,0,0;
-      --text-hell:    #cfe3f0;
+      --text-bedien:    #cfe3f0;
       --knopf-bg:     #0b2036;
       --knopf-hover:  #14314d;
       --chart-fluege: #00d4e0;
@@ -1631,7 +1638,7 @@
     .leaflet-control-layers {
       background: var(--bg-panel) !important;
       border: 1px solid rgba(var(--green-rgb),0.3) !important;
-      color: var(--text-hell) !important;
+      color: var(--text-bedien) !important;
       box-shadow: none !important;
     }
     .leaflet-control-layers-toggle {
@@ -1698,7 +1705,7 @@
        --text-label (#6b9ab8) ist dafuer zu schwach -- derselbe Befund wie bei den
        Knopfbeschriftungen weiter unten. Die Einrueckung ordnet den Haken ohnehin schon zu. */
     html.vr-panel .leaflet-control-layers .ebenen-unterpunkt {
-      color: var(--text-hell);
+      color: var(--text-bedien);
       font-size: 1em;
     }
 
@@ -1820,7 +1827,7 @@
       font-family: var(--text-mono, monospace);
       font-size: 9px;
       line-height: 1.2;
-      color: var(--text-hell);
+      color: var(--text-bedien);
       margin-top: 3px;
     }
 
@@ -1849,7 +1856,7 @@
       padding: 8px;
       background: var(--bg-panel);
       border: 1px solid rgba(var(--green-rgb),0.3);
-      color: var(--text-hell);
+      color: var(--text-bedien);
     }
     .icao-box.icao-auf { display: block; }
     .icao-kopf { display: flex; align-items: center; }
@@ -1857,7 +1864,7 @@
       flex: 1; min-width: 0; height: 34px; margin-right: 4px; padding: 0 8px;
       background: var(--bg-body);
       border: 1px solid rgba(var(--green-rgb),0.35);
-      color: var(--text-hell);
+      color: var(--text-bedien);
       font-family: var(--text-mono, monospace);
       /* 16px, ausdruecklich in px und nicht in rem: Safari auf iOS zoomt beim Fokus in
          die Seite hinein, sobald die Schrift eines Eingabefelds UNTER 16 px liegt. In rem
@@ -1870,7 +1877,7 @@
       display: inline-flex; align-items: center; justify-content: center;
       background: var(--knopf-bg);
       border: 1px solid rgba(var(--green-rgb),0.3);
-      color: var(--text-hell);
+      color: var(--text-bedien);
       font-family: var(--text-mono, monospace);
       font-size: 0.95rem; cursor: pointer;
     }
@@ -1887,7 +1894,7 @@
       display: flex; align-items: baseline; width: 100%;
       padding: 5px 6px; margin: 0; text-align: left;
       background: none; border: none; border-bottom: 1px solid rgba(var(--green-rgb),0.15);
-      color: var(--text-hell); font-size: 0.82rem; cursor: pointer;
+      color: var(--text-bedien); font-size: 0.82rem; cursor: pointer;
     }
     .icao-zeile:hover { background: rgba(var(--green-rgb),0.12); }
     .icao-zeile b {
@@ -1952,7 +1959,7 @@
       font-family: var(--text-display);
       font-size: 0.78rem;
       letter-spacing: 0.05em;
-      color: var(--text-hell);
+      color: var(--text-bedien);
       white-space: nowrap;
     }
     /* DER FOLGE-KNOPF MUSS AUS DEM FLUSS SEINER ECKE HERAUS, sonst schiebt ihn die

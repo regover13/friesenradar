@@ -110,3 +110,20 @@ _prefsPromise.then(() => new Promise(r => r())).then(() => {
 def test_theme_color_folgt_dem_design():
     assert "const _DESIGN_META = { dunkel: '#04080f', hell: '#9FC7F8' };" in INDEX
     assert 'name="theme-color" content="#04080f"' in INDEX  # Ausgangswert bleibt
+
+
+def test_die_farbe_der_adressleiste_stimmt_schon_beim_laden():
+    """Issue #55, Punkt 2: Das Kopfskript setzt `html.hell` vor dem ersten Zeichnen, das
+    `theme-color` kam aber erst nach der Serverantwort -- die Adressleiste der installierten
+    App blitzte dunkel. Ein zweites Inline-Skript direkt hinter dem Meta zieht es sofort nach."""
+    meta = INDEX.index('<meta name="theme-color" content="#04080f" />')
+    danach = INDEX[meta:meta + 600]
+    assert "<script>" in danach and "classList.contains('hell')" in danach
+    assert "'#9FC7F8'" in danach, "muss dieselbe Farbe sein wie _DESIGN_META.hell"
+    assert "_DESIGN_META = { dunkel: '#04080f', hell: '#9FC7F8' }" in INDEX
+    assert INDEX.index("classList.add('hell')") < meta, "die Klasse muss vorher gesetzt sein"
+
+
+def test_die_bedienfarbe_heisst_nicht_mehr_text_hell():
+    """Issue #55, Punkt 3: `--text-hell` trug im hellen Design einen dunklen Wert."""
+    assert "--text-hell" not in INDEX and INDEX.count("--text-bedien") >= 3

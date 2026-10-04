@@ -22,7 +22,8 @@ DATEI = "app/static/index.html"
 # Selektoren, die der Umbau gewollt NEU einfuehrt. Alles andere Neue ist verdaechtig: Ein neuer
 # Selektor auf bereits gestylte Elemente aendert das Dunkle, ohne unter "geaendert" zu stehen.
 NEU_ERLAUBT = [
-    r"design-knopf", r"#einst-design", r"#notif-web-titel", r"mit-push",
+    r"^(html\.vr-panel )?\.design-knopf(\.an)?$", r"#einst-design", r"#notif-web-titel",
+    r"^\.notif-panel:not\(\.mit-push\) #[\w-]+$",
     r"^\.notif-zahnrad-panel$", r"^#panel-anzeige \.panel-einst-name:first-of-type$",
     # Vorschau FriesenRadar (Issue #56): greift nur mit html.radar; .logo-radar versteckt die
     # neuen Logos im Normalbetrieb.
