@@ -6,7 +6,30 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
-## 2026-10-05 — Simulator-Rechner: Ordner `FriesenSpy` → `FriesenRadar`, Auftrag „Umzug fertig machen“
+## 2026-10-05 (nachts) — ERLEDIGT: Umzug `FriesenSpy` → `FriesenRadar` am Simulator-Rechner
+
+Ordner umbenannt (blockiert hatte der adb-Server, PID 29060, gefunden mit `handle.exe`; `adb kill-server`
+löste es). Worktrees per `git worktree repair` nachgezogen. **Gelöscht auf Wort des Nutzers:**
+`FriesenSpy-hotfix`, `-hotfix2`, `-messeverkehr-replay` samt lokalen Zweigen (nichts außerhalb von
+`main`). **Noch vorhanden, Löschen steht aus:** `agent-a39fdf…` (dessen einzige Änderung, die
+`colspan`-Korrektur in `_panelKartenLayout`, ist als eigener Commit in `main`, der Worktree
+also entbehrlich) und `FriesenSpy-bruegge-radar` (Inhalt längst in `main`, Rest sind ignorierte
+Bauprodukte); `git worktree remove --force` wurde in der Sitzung nicht freigegeben. Gedächtnis **und** Sitzungsprotokolle nach
+`…\projects\D--User-Tobias-OneDrive-Claude-FriesenRadar\` kopiert (Kopie, das alte bleibt),
+absolute Pfade darin umgestellt. Pfade nachgezogen in `scripts/kutter_ladung_szenarien.py` und
+`friesenbruegge/seehund/export_msfs.py`; `D:\…\Claude\CLAUDE.md` enthielt FriesenSpy gar nicht.
+
+**Offen:** (1) In `.git\worktrees\` liegen tote Verwaltungsordner (`FriesenSpy-hotfix`, `-hotfix2`,
+`-messeverkehr`, `-messeverkehr-replay`, `wt_v800`, vier `agent-…`) — Git darf sie nicht löschen
+(„Permission denied“); harmlos, von Hand im Explorer löschen. (2) Acht Tests schlagen unter Windows
+fehl, **auch ohne diese Änderung**: `test_charts_dfs::…keinen_aufrufer_mehr` und
+`test_handpassung_schutz` (rufen `grep` auf), `test_kniebrett_zuordnung_regeln` (Kommandozeile zu
+lang), fünf in `test_design_merker` — in der CI grün, lokal nicht. (3) Die alten Ordner unter
+`C:\Users\Tobias\.claude\projects\…FriesenSpy*` bleiben, bis der Nutzer das Gedächtnis abnimmt.
+(4) OneDrive war für den Umzug beendet und muss wieder gestartet werden. (5) Die Simulator-Punkte
+unten (Lichtblick-Ordner, Sicherungs-ZIPs) sind unverändert Sache des Nutzers.
+
+## 2026-10-05 — Simulator-Rechner: Ordner `FriesenSpy` → `FriesenRadar`, Auftrag „Umzug fertig machen“ (Auftrag, erledigt s. o.)
 
 **Stand:** Auf dem PC des Nutzers heißt der Ordner noch `D:\User\Tobias\OneDrive\Claude\FriesenSpy`. Schon
 umgestellt ist nur die Git-Adresse (`origin` → `github.com/regover13/friesenradar`, gilt für alle Worktrees).

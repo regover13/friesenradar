@@ -29,7 +29,7 @@ from __future__ import annotations
 import sys, sqlite3
 from datetime import datetime, timedelta
 
-sys.path.insert(0, r"D:\User\Tobias\OneDrive\Claude\FriesenSpy")
+sys.path.insert(0, r"D:\User\Tobias\OneDrive\Claude\FriesenRadar")
 
 from app.database import (
     init_db, get_connection, _DDL, create_transport_event, get_transport_event,

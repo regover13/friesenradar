@@ -29,7 +29,7 @@ from pathlib import Path
 import bpy
 
 ORDNER = Path(r"C:\Users\Tobias\AppData\Local\Temp\robben")
-QUELLE = Path(r"D:\User\Tobias\OneDrive\Claude\FriesenSpy\friesenbruegge\msfs-rauch"
+QUELLE = Path(r"D:\User\Tobias\OneDrive\Claude\FriesenRadar\friesenbruegge\msfs-rauch"
               r"\PackageSources\SimObjects\Misc\FrsSeehund")
 sys.path.insert(0, str(ORDNER))
 import textur  # noqa: E402
