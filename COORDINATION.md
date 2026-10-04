@@ -25,6 +25,20 @@ nach dem Forum-Login auf der normalen Seite — der TV-Modus ist nicht aktiv, di
 (`302` → `/auth/forum/login?next=%2F%3Ftv%3D1`); wo es danach verloren geht, ist offen. Ein Neustart von
 Fully lädt die Startadresse frisch, dann stimmt es.
 
+**Pakete ausgeliefert (05.10.2026, 00:02 MESZ, auf Wort des Nutzers vom Simulator-Rechner aus):** Die
+Server-Sitzung kommt an die Dateien dieses Rechners nicht heran, deshalb ging der Upload von hier. In
+`/opt/friesenradar/data/efb/` liegen jetzt `friesenkniebrett.zip` (3.0.0, `26b5e222…e5e4f4`, neu),
+`friesenbruegge.zip` (MSFS 1.19.0, `8fce0332…d7f41c`) und `friesenbruegge-xplane.zip` (1.5.0,
+`c64fd95a…58a849`, CI-Lauf 37112105024) — Prüfsummen nach dem Upload auf dem Server gelesen, gleich den am
+Simulator geprüften Dateien. Die ersetzten Fassungen liegen daneben als `friesenbruegge-1.18.1.zip` und
+`friesenbruegge-xplane-alt-2026-09-20.zip`; `friesenspy-efb.zip` (2.3.2) ist unangetastet. Kein Neustart.
+**Nicht geprüft:** was `/download/efb`, `/download/bruegge` und `/download/bruegge/xplane` angemeldet
+tatsächlich ausliefern (ohne Anmeldung: 401).
+
+**Im Repo** liegen seit demselben Commit dieselben beiden MSFS-Dateien: `friesenbruegge/friesenbruegge.zip`
+(1.19.0) und neu `msfs-panel/friesenkniebrett.zip` (wie das alte ZIP per `git add -f`, `msfs-panel/*.zip` ist sonst ignoriert). Das alte
+`msfs-panel/friesenspy-efb.zip` bleibt; das X-Plane-ZIP kommt weiter aus der CI und liegt nicht im Repo.
+
 **Für die nächste Sitzung an diesem Rechner:**
 
 - **Fully am Stick lässt sich nur über die Oberfläche umstellen:** Fernverwaltung (Port 2323) ist dort aus,
