@@ -331,8 +331,9 @@ def test_marker_werden_nur_bei_kursaenderung_neu_gebaut():
 
 def test_login_name_im_panel_ausgeblendet():
     """Im Tablet weiss man, wer man ist -- auf der Website ist der Name dagegen der einzige
-    Hinweis darauf, als wer man angemeldet ist."""
-    assert "html.vr-panel #userBox { display: none !important; }" in INDEX
+    Hinweis darauf, als wer man angemeldet ist. Seit 16.0.0 steht er dort im Zahnradmenue
+    (samt Abmelden); der ganze Abschnitt bleibt im Tablet weg."""
+    assert "html.vr-panel #einst-konto { display: none !important; }" in INDEX
 
 
 def test_ebenen_haken_wird_selbst_gezeichnet():

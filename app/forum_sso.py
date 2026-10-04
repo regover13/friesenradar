@@ -19,6 +19,7 @@ import hashlib
 import hmac
 import json
 import math
+import secrets
 import time
 
 USER_COOKIE = "fs_user"
@@ -94,14 +95,32 @@ def verify_sso_token(token: str, sso_secret: str, now: float | None = None) -> d
 
 
 def make_user_token(secret_key: str, name: str, cid: str, is_admin: bool,
-                    exp: float) -> str:
+                    exp: float, abmelden: bool = False) -> str:
     """Eigenes FriesenRadar-Session-Cookie (``typ="user"``, signiert mit ``SECRET_KEY``), Ablauf ``exp``.
 
     Die interne Forum-User-ID (``sub`` des eingehenden SSO-Tokens) wird bewusst NICHT ins Cookie
     übernommen — sie wurde nirgends ausgewertet (Berechtigung läuft über ``cid``/``is_admin``),
-    also Datenminimierung (Art. 5 Abs. 1 c DSGVO)."""
-    return _encode({"typ": "user", "name": name, "cid": cid,
-                    "is_admin": bool(is_admin), "exp": int(exp)}, secret_key)
+    also Datenminimierung (Art. 5 Abs. 1 c DSGVO).
+
+    ``abmelden`` (Claim ``abm``) merkt sich, dass die Bruecke bei der Anmeldung angekuendigt hat,
+    einen Abmelde-Auftrag zu verstehen (:func:`make_logout_token`). Nur dann zeigt die Seite den
+    Abmelden-Knopf. Geraete-Sitzungen des Kniebretts tragen ihn nie."""
+    claims = {"typ": "user", "name": name, "cid": cid,
+              "is_admin": bool(is_admin), "exp": int(exp)}
+    if abmelden:
+        claims["abm"] = True
+    return _encode(claims, secret_key)
+
+
+def make_logout_token(sso_secret: str, name: str, now: float | None = None) -> str:
+    """Abmelde-Auftrag an die Forum-Bruecke (``typ="slo"``), signiert mit dem GETEILTEN
+    ``SSO_SECRET``. Die Bruecke beendet die Forum-Sitzung nur, wenn Signatur, Art und Frische
+    (≤ 60 s) stimmen UND der Name der des dort Angemeldeten ist -- ein untergeschobener Link
+    kann also niemanden abmelden. Gebunden wird an den Namen, weil die Sitzung die
+    Forum-Nutzernummer bewusst nicht kennt (s. :func:`make_user_token`)."""
+    now = time.time() if now is None else now
+    return _encode({"typ": "slo", "name": name, "iat": int(now),
+                    "nonce": secrets.token_hex(16)}, sso_secret)
 
 
 def verify_user_token(token: str, secret_key: str, now: float | None = None) -> dict | None:

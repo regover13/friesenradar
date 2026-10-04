@@ -4,6 +4,14 @@ Diese **eine Datei** macht den phpBB-Forum-Login als SSO für FriesenSpy nutzbar
 **neben phpBB** im Docroot und **verändert das Forum nicht** (kein Patch, keine Extension, nur
 Lesen von Session/Profil/Gruppe). Löschen = Zustand exakt wie vorher.
 
+> **v3 (Abmelden, FriesenRadar 16.0.0):** Die Bridge versteht jetzt einen signierten
+> Abmelde-Auftrag (`?abmelden=…`). Stimmen Signatur, Frische (≤ 60 s) und Name, beendet sie die
+> Forum-Sitzung des Besuchers in diesem Browser — dasselbe, was der „Abmelden“-Link des Forums
+> tut — und leitet zu FriesenRadar zurück. Das ist die **einzige** Stelle, an der sie nicht nur
+> liest. Im Anmelde-Token kündigt sie das mit `abm: true` an; erst dann zeigt FriesenRadar den
+> Abmelden-Knopf. Mit der alten Datei läuft die Anmeldung unverändert weiter, nur ohne Knopf.
+> Update = neue Datei über die alte legen (Secret und Rechte wie gehabt), danach `php -l`.
+
 > **Du bekommst die fertige `sso.php` mit eingetragenem Secret separat von Tobias.**
 > Das Secret muss identisch zu `SSO_SECRET` in FriesenSpys `config.env` sein — steht in der
 > Datei, die du erhältst, bereits drin. Du musst sie nur ablegen und die Rechte setzen.
@@ -69,6 +77,9 @@ rm /var/www/bb_friesen/sso.php
 ## Sicherheit (kurz)
 
 - Das Forum-Passwort verlässt das Forum nie; der Login passiert in phpBB.
+- Der Abmelde-Auftrag ist mit demselben Secret signiert, ≤ 60 s gültig, mit `typ:"slo"`
+  typgebunden und an den Namen gebunden: Abgemeldet wird nur, wer im Forum unter genau diesem
+  Namen angemeldet ist. Ein untergeschobener Link kann niemanden abmelden.
 - Das Token ist ≤ 60 s gültig, trägt einen Einmal-`nonce` (Replay-Schutz), ist mit dem Secret
   HMAC-signiert und mit `typ:"sso"` typgebunden; das `redirect`-Ziel wird gegen eine feste
   Whitelist geprüft.

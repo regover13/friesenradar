@@ -1,6 +1,6 @@
-"""Kopfzeile (Nutzer 03./04.10.2026): Name links, rechts Uhr und Zahnrad, bei Abriss davor
-GETRENNT. Hilfe und Version stehen seit 04.10.2026 in der Fussleiste. Das Handy verteilt
-ebenso (Name links, Zahnrad rechts); das Kniebrett bleibt unberuehrt."""
+"""Kopfzeile (Nutzer 03./04.10.2026): Logo mittig, rechts Uhr und Zahnrad, bei Abriss davor
+GETRENNT. Hilfe und Version stehen in der Fussleiste, der Name samt Abmelden im Zahnradmenue.
+Auf dem Handy steht das Zahnrad rechts neben dem Logo; das Kniebrett bleibt unberuehrt."""
 import re
 from pathlib import Path
 
@@ -8,7 +8,7 @@ INDEX = (Path(__file__).resolve().parents[1] / "app" / "static" / "index.html").
 
 
 def _block():
-    start = INDEX.index("@media (min-width: 601px) {\n      html:not(.vr-panel) header { position: relative; }")
+    start = INDEX.index("@media (min-width: 601px) {\n      html:not(.vr-panel) header .header-right {")
     return INDEX[start:INDEX.index("/* Verbindungsanzeige auf der Website nur bei Abriss", start)]
 
 
@@ -80,8 +80,35 @@ def test_version_nennt_erst_die_nummer_dann_den_namen():
     assert "app-version-trenner" in js
 
 
-def test_name_steht_links():
-    assert "left: 18px" in _regel("header #userBox")
+def test_name_steht_im_zahnradmenue_ganz_oben():
+    """Nutzer 04.10.2026: Den Namen braucht die Kopfzeile nicht -- er steht im Zahnradmenue
+    ganz oben, daneben Abmelden."""
+    assert "userName" not in _kopf() and "userBox" not in INDEX
+    menue = INDEX[INDEX.index('<div id="notif-panel"'):]
+    konto = menue.index('<div id="einst-konto" hidden>')
+    assert menue.index('class="notif-panel-title"') < konto < menue.index('<div id="einst-design">')
+    assert menue.index('id="userName"') > konto
+    assert INDEX.count('id="userName"') == 1
+
+
+def test_abmelden_fragt_nach_und_nennt_das_forum():
+    menue = INDEX[INDEX.index('<div id="einst-konto" hidden>'):INDEX.index('<div id="einst-design">')]
+    assert '<button type="button" class="design-knopf" id="abmelden-btn" hidden>Abmelden</button>' in menue
+    frage = menue[menue.index('<div id="abmelden-frage" hidden>'):]
+    assert "auch vom Forum ab" in frage
+    assert 'id="abmelden-ja"' in frage and 'id="abmelden-nein"' in frage
+    assert '<form id="abmelden-form" method="post" action="/auth/forum/logout"' in frage
+    # Der Knopf erscheint nur, wenn die Bruecke abmelden kann; abgeschickt wird erst nach "Ja".
+    assert "getElementById('abmelden-btn').hidden = !d.kann_abmelden" in INDEX
+    js = INDEX[INDEX.index("function _abmeldenEinrichten("):]
+    js = js[:js.index("\n}\n")]
+    ja = js[js.index("getElementById('abmelden-ja')"):]
+    assert "getElementById('abmelden-form').submit()" in ja
+    assert INDEX.count("abmelden-form').submit()") == 1
+
+
+def test_kniebrett_zeigt_weder_name_noch_abmelden():
+    assert "html.vr-panel #einst-konto { display: none !important; }" in INDEX
 
 
 def test_beide_kaesten_gleich_hoch():
@@ -90,24 +117,16 @@ def test_beide_kaesten_gleich_hoch():
 
 
 def _schmal():
-    start = INDEX.index("@media (max-width: 600px) {\n      header { grid-template-columns: 1fr;")
+    start = INDEX.index("@media (max-width: 600px) {\n      header { grid-template-columns: 1fr auto 1fr;")
     return INDEX[start:INDEX.index("/* Breite Bildschirme, nur Website", start)]
 
 
-def test_handy_verteilt_wie_die_website():
-    """Nutzer 04.10.2026: auch auf dem Handy Name links, Zahnrad und Version rechts -- die
-    Zeile unter dem Logo nimmt dafuer die ganze Breite ein."""
+def test_handy_zahnrad_steht_rechts_neben_dem_logo():
+    """Nutzer 04.10.2026: eine Zeile -- Logo mittig, Zahnrad rechts daneben. GETRENNT bekommt
+    bei Abriss eine eigene Zeile darunter, neben dem Logo ist dafuer kein Platz."""
     block = _schmal()
-    zeile = re.search(r"html:not\(\.vr-panel\) header \.header-right \{([^}]*)\}", block)
-    assert zeile, "Regel fuer die Zeile unter dem Logo fehlt"
-    assert "justify-self: stretch" in zeile.group(1)
-    assert "justify-content: flex-end" in zeile.group(1)
-    name = re.search(r"html:not\(\.vr-panel\) header #userBox \{([^}]*)\}", block)
-    assert name and "margin-right: auto" in name.group(1)
-
-
-def test_handy_zahnrad_steht_ganz_rechts():
-    """Wie auf der Website: erst die Version, dann das Zahnrad. Das Markup bleibt, die
-    Reihenfolge kommt aus `order`."""
-    zahnrad = re.search(r"html:not\(\.vr-panel\) header #notif-btn \{([^}]*)\}", _schmal())
-    assert zahnrad and "order: 1" in zahnrad.group(1)
+    assert "display: contents" in re.search(r"html:not\(\.vr-panel\) header \.header-right \{([^}]*)\}", block).group(1)
+    zahnrad = re.search(r"html:not\(\.vr-panel\) header #notif-btn \{([^}]*)\}", block).group(1)
+    assert "grid-column: 3" in zahnrad and "grid-row: 1" in zahnrad and "justify-self: end" in zahnrad
+    getrennt = re.search(r"html:not\(\.vr-panel\) header #sse-badge \{([^}]*)\}", block).group(1)
+    assert "grid-column: 1 / -1" in getrennt and "grid-row: 2" in getrennt

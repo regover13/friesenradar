@@ -19,7 +19,7 @@ from datetime import timezone as _timezone
 import os
 import re
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 import httpx as _httpx
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Query, Request, UploadFile
@@ -42,6 +42,7 @@ from app import fse, vrp
 from app.config import get_settings
 from app.forum_sso import (
     USER_COOKIE,
+    make_logout_token,
     make_user_token,
     verify_sso_token,
     verify_user_token,
@@ -5541,6 +5542,7 @@ async def forum_callback(request: Request):
     user_token = make_user_token(
         settings.SECRET_KEY, str(claims.get("name", "")),
         str(claims.get("cid", "")), bool(claims.get("is_admin")), exp,
+        abmelden=claims.get("abm") is True,   # die Bruecke kuendigt an, dass sie abmelden kann
     )
     # Autoritative Callsign→CID-Map aus dem Forum-Profil (Token v2, Feld `cs`) pflegen —
     # defensiv (nur Liste, nur String-Einträge, plausible Länge) + eigene Alt-Zeilen bereinigen.
@@ -5597,8 +5599,35 @@ async def forum_callback(request: Request):
 
 @app.get("/auth/forum/logout")
 async def forum_logout():
-    """Meldet NUR FriesenRadar ab (Forum-Session bleibt)."""
+    """Meldet NUR FriesenRadar ab (Forum-Session bleibt). Kein Knopf fuehrt hierher -- solange
+    das Forum angemeldet ist, holt die Seite die Anmeldung beim naechsten Aufruf zurueck. Der
+    Abmelden-Knopf nimmt den POST darunter."""
     resp = RedirectResponse("/", status_code=302)
+    resp.delete_cookie(USER_COOKIE, path="/")
+    return resp
+
+
+@app.post("/auth/forum/logout")
+async def forum_logout_samt_forum(request: Request):
+    """Abmelden-Knopf im Zahnradmenue (16.0.0): beendet die eigene Sitzung und schickt den
+    Browser mit einem signierten Abmelde-Auftrag zur Forum-Bruecke, die dort die Forum-Sitzung
+    beendet und zurueckleitet. Ohne diesen zweiten Schritt waere das Abmelden wirkungslos.
+
+    Nur wenn die Bruecke das bei der Anmeldung angekuendigt hat (Claim ``abm``); sonst wird
+    nur hier abgemeldet. POST statt GET und die Herkunftspruefung verhindern, dass eine fremde
+    Seite ein Mitglied abmeldet."""
+    herkunft = request.headers.get("origin", "")
+    if herkunft and (urlsplit(herkunft).hostname or "").lower() != (request.url.hostname or "").lower():
+        raise HTTPException(status_code=403, detail="Fremde Herkunft")
+    settings = get_settings()
+    ziel = "/"
+    claims = verify_user_token(request.cookies.get(USER_COOKIE, ""), settings.SECRET_KEY)
+    if (claims and claims.get("abm") is True and settings.FORUM_SSO_URL and settings.SSO_SECRET
+            and _forum_login_active_cached(settings)):
+        auftrag = make_logout_token(settings.SSO_SECRET, str(claims.get("name", "")))
+        ziel = (f"{settings.FORUM_SSO_URL}?abmelden={quote(auftrag, safe='')}"
+                f"&redirect={quote(_sso_ruecksprung(request, settings), safe='')}")
+    resp = RedirectResponse(ziel, status_code=303)
     resp.delete_cookie(USER_COOKIE, path="/")
     return resp
 
@@ -5620,12 +5649,14 @@ async def api_me(request: Request):
         return JSONResponse({"logged_in": False, "board_login_active": True})
     resp = JSONResponse({"logged_in": True, "board_login_active": True,
                          "name": claims.get("name", ""), "cid": claims.get("cid", ""),
-                         "is_admin": bool(claims.get("is_admin"))})
+                         "is_admin": bool(claims.get("is_admin")),
+                         "kann_abmelden": claims.get("abm") is True})
     exp = time.time() + settings.USER_SESSION_MAX_AGE_SEC
     resp.set_cookie(
         USER_COOKIE,
         make_user_token(settings.SECRET_KEY, str(claims.get("name", "")),
-                        str(claims.get("cid", "")), bool(claims.get("is_admin")), exp),
+                        str(claims.get("cid", "")), bool(claims.get("is_admin")), exp,
+                        abmelden=claims.get("abm") is True),
         httponly=True, secure=_is_https(request), samesite=_iframe_samesite(request), path="/",
         max_age=settings.USER_SESSION_MAX_AGE_SEC,
     )

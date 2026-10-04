@@ -2645,7 +2645,7 @@
     /* Der eigene Name kostet in der schmalen Kopfzeile des Tablets Platz und sagt nichts:
        wer das Panel offen hat, weiss, wer er ist. Auf der Website bleibt er stehen -- dort
        ist er der einzige Hinweis darauf, als wer man angemeldet ist. */
-    html.vr-panel #userBox { display: none !important; }
+    html.vr-panel #einst-konto { display: none !important; }
 
     /* Dauerlaufende Zierde-Animationen im Panel abschalten.
        .scanline ist der Hauptverdaechtige fuer das Stroboskop, das der Nutzer ueber der
@@ -4229,7 +4229,6 @@
        dem Himmelblau (--text-label 3,4:1). Das Forum legt seine Navigation ebenso auf #fbfbfb. */
     html.hell header,
     html.hell .tab-nav { background: var(--bg-panel); border-bottom: 1px solid #CADCEB; }
-    html.hell #userName { color: var(--text-bright) !important; }
     /* Beschriftungen im Einstellungsmenue (Design, Groesse, Kartenhelligkeit) stehen dunkel in
        --green-dim (0,3 Deckkraft); im Hellen waeren sie unlesbar blass. Dunkel bleibt. */
     html.hell .panel-einst-name { color: var(--text-label); }
@@ -4307,36 +4306,28 @@
     }
     header .logo { grid-column: 2; text-shadow: none; }
     header .header-right { grid-column: 3; justify-self: end; }
-    /* Schmale Bildschirme: Die drei Spalten lassen die Knoepfe nicht umbrechen (Uhr und Version
-       liefen rechts aus dem Bild). Deshalb Logo mittig in eine eigene Zeile, Knoepfe darunter --
-       so, wie sie im Normalbetrieb auch umbrechen. */
+    /* Schmale Bildschirme (Nutzer 04.10.2026): eine Zeile -- Logo mittig, Zahnrad rechts
+       daneben. Name, Hilfe und Version stehen nicht mehr in der Kopfzeile, die Uhr ist hier
+       ausgeblendet. Bei Abriss bekommt GETRENNT eine eigene Zeile unter dem Logo; neben dem
+       Logo ist dafuer kein Platz. Die Kinder von .header-right werden dazu selbst zu
+       Rasterzellen (display: contents). */
     @media (max-width: 600px) {
-      header { grid-template-columns: 1fr; row-gap: 6px; padding-bottom: 6px; }
-      header .logo { grid-column: 1; justify-self: center; }
-      header .header-right { grid-column: 1; justify-self: center; }
+      header { grid-template-columns: 1fr auto 1fr; row-gap: 6px; padding-bottom: 6px; align-items: center; }
       .logo-radar-weiss,
       html.hell .logo-radar-farbig { height: 56px; }
-      /* Verteilung wie auf der Website (Nutzer 04.10.2026): Name links, Zahnrad rechts.
-         Die Zeile nimmt dafuer die ganze Breite ein; ohne Namen rueckt der Rest nach rechts. */
-      html:not(.vr-panel) header .header-right { justify-self: stretch; justify-content: flex-end; }
-      html:not(.vr-panel) header #userBox { margin-right: auto; }
-      /* Zahnrad ganz rechts, auch wenn bei Abriss GETRENNT dazukommt -- wie auf der Website. */
-      html:not(.vr-panel) header #notif-btn { order: 1; }
+      html:not(.vr-panel) header .header-right { display: contents; }
+      html:not(.vr-panel) header #notif-btn { grid-column: 3; grid-row: 1; justify-self: end; }
+      html:not(.vr-panel) header #sse-badge { grid-column: 1 / -1; grid-row: 2; justify-self: center; }
     }
     /* Breite Bildschirme, nur Website (Nutzer 03.10.2026: „die Boxen haben unterschiedliche
        Groessen“; Handy und Kniebrett bleiben, wie sie sind):
-         - Name ganz links (die linke Spalte war leer),
          - rechts Uhr und Zahnrad; der Verbindungskasten steht davor und erscheint nur bei
            Abriss (s. u.), beide Kaesten gleich hoch,
-         - Hilfe und Version stehen in der Fussleiste (Nutzer 04.10.2026).
+         - Hilfe und Version stehen in der Fussleiste, der Name im Zahnradmenue
+           (Nutzer 04.10.2026).
        Reihenfolge und Zeilen kommen aus dem Raster -- das Markup bleibt fuer Handy und
        Kniebrett unveraendert. */
     @media (min-width: 601px) {
-      html:not(.vr-panel) header { position: relative; }
-      html:not(.vr-panel) header #userBox {
-        position: absolute; left: 18px; top: 50%; transform: translateY(-50%);
-        white-space: nowrap;
-      }
       html:not(.vr-panel) header .header-right {
         display: grid;
         grid-template-rows: auto auto;
@@ -4418,6 +4409,10 @@
       padding: 5px 12px; min-height: 30px;
     }
     .einst-tv-text { font-size: 0.8rem; color: var(--text-dim); margin: 2px 0 6px; }
+    #einst-konto { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--green-dim); }
+    .einst-konto-zeile { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    #userName { font-family: var(--text-mono); font-size: 0.9rem; color: var(--text-bright); }
+    #abmelden-frage { margin-top: 8px; }
     html.vr-panel #einst-tv { display: none; }
     @media (max-width: 600px) {
       #einst-tv { display: none; }
@@ -4658,9 +4653,6 @@
       <img class="logo-radar logo-radar-farbig" src="/static/logo/friesenradar-farbig.svg" alt="FriesenRadar" />
     </div>
     <div class="header-right">
-      <span id="userBox" hidden style="display:inline-flex;gap:8px;align-items:center;font-size:.8rem;">
-        <span id="userName" style="color:#fff;font-family:ui-monospace,monospace;"></span>
-      </span>
       <!-- Zwei Glocken, eine sichtbar: Die Twemoji-Grafik ist ein fertiges Bild und nimmt
            keine Farbe an; im Panel zeigt die Glocke aber ueber ihre Farbe den
            Verbindungszustand, dort braucht es Vektorform mit currentColor.
@@ -4691,6 +4683,25 @@
   <!-- Notification Panel (fixed overlay) -->
   <div id="notif-panel" class="notif-panel" hidden>
     <div class="notif-panel-title">Einstellungen</div>
+    <!-- KONTO (Nutzer 04.10.2026): Der Name stand bis dahin in der Kopfzeile. "Abmelden"
+         erscheint nur, wenn die Forum-Bruecke die Forum-Sitzung mit beenden kann
+         (/api/me: kann_abmelden) -- ohne das holte sich die Seite die Anmeldung sofort
+         zurueck. Abgeschickt wird erst nach der Nachfrage, als POST. Nicht im Kniebrett:
+         Dort haengt die Anmeldung am Geraet. -->
+    <div id="einst-konto" hidden>
+      <div class="einst-konto-zeile">
+        <span id="userName"></span>
+        <button type="button" class="design-knopf" id="abmelden-btn" hidden>Abmelden</button>
+      </div>
+      <div id="abmelden-frage" hidden>
+        <div class="einst-tv-text">Wirklich abmelden? Du meldest dich damit in diesem Browser auch vom Forum ab.</div>
+        <div class="panel-zoom-reihe">
+          <button type="button" class="design-knopf" id="abmelden-ja">Ja, abmelden</button>
+          <button type="button" class="design-knopf" id="abmelden-nein">Abbrechen</button>
+        </div>
+        <form id="abmelden-form" method="post" action="/auth/forum/logout" hidden></form>
+      </div>
+    </div>
     <!-- Im MSFS-Kniebrett gibt es keinen Web-Push (kein OS-Push-Kanal in Coherent GT). Dort
          zeigt das Tablet die Meldungen selbst an; gesteuert wird das ueber diese vier
          Schalter, gespeichert im Tablet. Wer NICHT will, dass ueber ihn benachrichtigt wird,
@@ -8747,7 +8758,8 @@ function fsRefreshSession() {
         if (_PANEL_MODUS && _meineCid != null) _kbStarten();
         // Der eigene Name fuehrt wie jeder Pilotenname zur eigenen Statistik (pilotLinkHtml).
         document.getElementById('userName').innerHTML = pilotLinkHtml(d.name || ('CID ' + (d.cid || '—')), d.cid);
-        document.getElementById('userBox').hidden = false;
+        document.getElementById('einst-konto').hidden = false;
+        document.getElementById('abmelden-btn').hidden = !d.kann_abmelden;
         // Sichtbarkeits-Panel nur für eingeloggte Mitglieder (CID bekannt).
         const vs = document.getElementById('visibility-section');
         if (vs && d.cid) {
@@ -8763,6 +8775,18 @@ function fsRefreshSession() {
 }
 fsRefreshSession();
 setInterval(fsRefreshSession, 5 * 60 * 1000);
+
+// Abmelden im Zahnradmenue: erst die Nachfrage, dann der POST. Der Server beendet die eigene
+// Sitzung und schickt den Browser zur Forum-Bruecke, die auch die Forum-Sitzung beendet.
+function _abmeldenEinrichten() {
+  const frage = document.getElementById('abmelden-frage');
+  document.getElementById('abmelden-btn').addEventListener('click', function () { frage.hidden = !frage.hidden; });
+  document.getElementById('abmelden-nein').addEventListener('click', function () { frage.hidden = true; });
+  document.getElementById('abmelden-ja').addEventListener('click', function () {
+    document.getElementById('abmelden-form').submit();
+  });
+}
+_abmeldenEinrichten();
 
 // --- Subjekt-Sichtbarkeit: „Wer darf über mich benachrichtigt werden?" ------
 // Piloten-Listen nach Callsign sortieren — numerisch-bewusst (FRS49 < FRS93 < FRS142).

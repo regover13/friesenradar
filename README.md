@@ -27,6 +27,7 @@ VATSIM Live-Tracker für die FriesenFlieger Virtual Airline. Zeigt wer von der G
   - [Flugbetrieb und Daten](#flugbetrieb-und-daten)
   - [Kniebrett](#kniebrett)
   - [Diagnose](#diagnose)
+- [👤 Dein Konto und Abmelden](#-dein-konto-und-abmelden)
 - [🌗 Helles Design](#-helles-design)
 - [📺 TV-Modus](#-tv-modus)
 - [🔔 Benachrichtigungen (Push Notifications)](#-benachrichtigungen-push-notifications)
@@ -142,7 +143,7 @@ Zeigt alle Friesen, die gerade auf VATSIM fliegen — in Echtzeit, ohne Neuladen
 - **🔊 anklicken** (hinter jedem Callsign, in der Tabelle wie im Karten-Popup) → öffnet [listen.vatsim.net](https://listen.vatsim.net) und schaltet auf die Frequenz, auf der dieser Pilot gerade ist. Dafür ist einmal eine Anmeldung mit der eigenen VATSIM-CID nötig; der Wunsch überlebt die Anmeldung, danach läuft der richtige Pilot. Zu hören ist, was gerade gesprochen wird — steht kein Lotse auf der Frequenz oder redet niemand, bleibt es still. Im Kniebrett erscheint das Symbol bewusst nicht (dort gibt es keinen Browser, in dem sich der Link öffnen ließe)
 - **Flugzeugtyp anklicken** → öffnet das [Muster-Fenster](#muster-fenster-überall-anklickbar)
 
-Die Liste aktualisiert sich über eine permanente Server-Verbindung (Server-Sent Events) live im Hintergrund — du siehst neue Positionen, ohne die Seite neu laden zu müssen. Der farbige Punkt oben rechts im Header zeigt an, ob die Verbindung aktiv ist (grün = verbunden, rot = getrennt).
+Die Liste aktualisiert sich über eine permanente Server-Verbindung (Server-Sent Events) live im Hintergrund — du siehst neue Positionen, ohne die Seite neu laden zu müssen. Steht die Verbindung, zeigt die Kopfzeile nichts an; reißt sie ab, erscheint dort rot **„GETRENNT“**.
 
 **🎧 Im TeamSpeak:** Ist die TeamSpeak-Überwachung aktiv (`TS_NOTIFY_ENABLED=true`), erscheint im Live-Tab zusätzlich ein Panel mit allen Friesen, die gerade im FriesenFlieger-TeamSpeak sind, samt Anzahl. Angezeigt wird nur das **FRS-Callsign** (z. B. `FRS49`) — Klarnamen und sonstige Nickname-Zusätze werden weggelassen. Nicht-Friesen (ohne FRS-Tag) werden nicht angezeigt. Bei kurzzeitig nicht erreichbarem TeamSpeak bleibt der letzte Stand stehen.
 
@@ -622,6 +623,17 @@ VATSIM weiterhin die Sekunden, in denen sie schweigt.
 ### Diagnose
 
 - **Push-Übersicht** (`/admin/push-overview`) — welche Abos existieren, wem sie gehören und was zuletzt zugestellt wurde. Nur erreichbar, wenn `PUSH_OVERVIEW_PASSWORD` gesetzt ist (leer = 404).
+
+---
+
+## 👤 Dein Konto und Abmelden
+
+Mit Forum-Anmeldung steht dein Name im **Zahnrad ⚙ oben rechts** ganz oben; ein Klick darauf öffnet deine eigene Statistik. Daneben steht **Abmelden**.
+
+- **Abmelden meldet dich auch vom Forum ab** — in dem Browser, in dem du gerade bist. FriesenRadar fragt deshalb vorher nach. Ohne diesen Schritt wäre das Abmelden wirkungslos: Solange das Forum angemeldet ist, meldet es dich beim nächsten Aufruf wieder an.
+- **Andere Geräte bleiben angemeldet** — dein Handy, ein zweiter Browser und das Kniebrett sind davon nicht betroffen.
+- **Im Kniebrett gibt es kein Abmelden.** Dort hängt die Anmeldung am Tablet.
+- **Hilfe und Versionsnummer** stehen ganz unten in der Fußleiste, neben Downloads, Impressum und Datenschutz.
 
 ---
 

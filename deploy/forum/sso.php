@@ -18,8 +18,11 @@
  *       FriesenSpy prüft die Signatur und weiß dann sicher, wer angemeldet ist.
  *
  *  WICHTIG / SICHERHEIT:
- *    - Diese Datei LIEST nur (Login-Status, Profilfelder: CID + Rufzeichen, Gruppe). Sie
- *      schreibt NICHTS ins Forum und verändert phpBB nicht. Löschen = alles wie vorher.
+ *    - Diese Datei LIEST Login-Status, Profilfelder (CID + Rufzeichen) und Gruppe. Sie
+ *      verändert phpBB nicht. Löschen = alles wie vorher.
+ *    - EINE Ausnahme seit FriesenRadar 16.0.0: Auf einen signierten Abmelde-Auftrag hin
+ *      beendet sie die Forum-Sitzung des Besuchers in diesem Browser -- dasselbe, was der
+ *      "Abmelden"-Link des Forums tut (Abschnitt "Abmelde-Auftrag" unten).
  *    - Das Geheimnis ($SSO_SECRET) steht direkt unten drin. Das ist sicher,
  *      weil PHP auf dem Server AUSGEFÜHRT und nie als Quelltext ausgeliefert
  *      wird — genau wie das DB-Passwort in phpBBs eigener config.php.
@@ -102,6 +105,58 @@ if ($CALLBACK === '') {
 }
 
 
+// --- Abmelde-Auftrag von FriesenRadar (seit 16.0.0) --------------------------
+// Der Knopf "Abmelden" in FriesenRadar soll auch das Forum abmelden -- sonst holte sich
+// FriesenRadar die Anmeldung beim nächsten Aufruf sofort hier zurück. phpBBs eigene
+// Abmeldung (ucp.php?mode=logout) verlangt die Sitzungsnummer des Forums, die FriesenRadar
+// nicht kennt. Deshalb schickt FriesenRadar einen signierten Auftrag (?abmelden=...):
+//   "<payload>.<signatur>", payload = {"typ":"slo","name":...,"iat":...,"nonce":...}
+// Beendet wird die Sitzung NUR, wenn die Signatur stimmt, der Auftrag höchstens 60 Sekunden
+// alt ist und der Name der des hier Angemeldeten ist. Ein untergeschobener Link kann also
+// niemanden abmelden. Zurück geht es zur Startseite der GEPRÜFTEN Adresse von oben.
+
+// Prüft den Auftrag und gibt den Namen zurück, für den er gilt -- oder null.
+function fs_abmelde_name($token, $secret, $jetzt)
+{
+    $teile = explode('.', (string) $token);
+    if (count($teile) !== 2 || $teile[0] === '' || $teile[1] === '') {
+        return null;
+    }
+    if (!hash_equals(hash_hmac('sha256', $teile[0], $secret), $teile[1])) {
+        return null;
+    }
+    $daten = json_decode(base64_decode(strtr($teile[0], '-_', '+/')), true);
+    if (!is_array($daten) || !isset($daten['typ']) || $daten['typ'] !== 'slo') {
+        return null;
+    }
+    if (!isset($daten['iat']) || !is_int($daten['iat']) || abs($jetzt - $daten['iat']) > 60) {
+        return null;
+    }
+    if (!isset($daten['name']) || !is_string($daten['name']) || $daten['name'] === '') {
+        return null;
+    }
+    return $daten['name'];
+}
+// --- Ende fs_abmelde_name
+
+$abmelden = $request->variable('abmelden', '');
+if ($abmelden !== '') {
+    $name = fs_abmelde_name($abmelden, $SSO_SECRET, time());
+    if ($name === null) {
+        http_response_code(400);
+        exit('bad request');
+    }
+    // Nur den abmelden, für den der Auftrag ausgestellt wurde. Ist hier niemand (mehr) oder
+    // jemand anderes angemeldet, passiert nichts -- zurück geht es trotzdem.
+    if ((int) $user->data['user_id'] !== ANONYMOUS
+        && hash_equals((string) $user->data['username'], $name)) {
+        $user->session_kill();
+    }
+    header('Location: ' . substr($CALLBACK, 0, -strlen('/auth/forum/callback')) . '/');
+    exit;
+}
+
+
 // --- Nicht eingeloggt? -> phpBBs Login zeigen -------------------------------
 // ANONYMOUS ist phpBBs Kennung für "nicht angemeldet". In dem Fall zeigt phpBB
 // sein normales Login-Formular; nach erfolgreichem Login kommt der Besucher
@@ -181,6 +236,7 @@ $payload = array(
     'cid'      => $cid,
     'cs'       => $cs,                 // Liste der FRS-Rufzeichen (kann leer sein)
     'is_admin' => (bool) $is_admin,
+    'abm'      => true,                // diese Brücke versteht den Abmelde-Auftrag (s. oben)
     'iat'      => time(),
     'nonce'    => bin2hex(random_bytes(16)),
 );

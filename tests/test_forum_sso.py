@@ -121,3 +121,23 @@ def test_verify_sso_token_rejects_non_string_nonce():
     assert forum_sso.verify_sso_token(_incoming({"iat": 1000, "nonce": True}), SSO, now=1000.0) is None
     assert forum_sso.verify_sso_token(_incoming({"iat": 1000, "nonce": 1}), SSO, now=1000.0) is None
     assert forum_sso.verify_sso_token(_incoming({"iat": 1000, "nonce": ""}), SSO, now=1000.0) is None
+
+
+# --- Abmelde-Auftrag an die Bruecke (16.0.0) ----------------------------------
+
+def test_user_token_traegt_abmelden_nur_wenn_gesetzt():
+    ohne = forum_sso.verify_user_token(forum_sso.make_user_token(KEY, "T", "1", False, 2000), KEY, now=1000)
+    mit = forum_sso.verify_user_token(
+        forum_sso.make_user_token(KEY, "T", "1", False, 2000, abmelden=True), KEY, now=1000)
+    assert "abm" not in ohne and mit["abm"] is True
+
+
+def test_abmelde_auftrag_ist_mit_dem_geteilten_geheimnis_signiert():
+    tok = forum_sso.make_logout_token(SSO, "Tobias Wäschle", now=1000.0)
+    p, sig = tok.split(".")
+    assert sig == hmac.new(SSO.encode(), p.encode(), hashlib.sha256).hexdigest()
+    claims = json.loads(base64.urlsafe_b64decode(p + "=" * (-len(p) % 4)))
+    assert claims["typ"] == "slo" and claims["name"] == "Tobias Wäschle" and claims["iat"] == 1000
+    assert len(claims["nonce"]) >= 16
+    # Ein Abmelde-Auftrag ist kein Anmelde-Token und umgekehrt.
+    assert forum_sso.verify_sso_token(tok, SSO, now=1000.0) is None

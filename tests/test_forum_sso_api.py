@@ -115,7 +115,8 @@ def test_callback_sets_user_cookie(env):
     main._reset_gate_cache()
     me = env.client.get("/api/me")
     assert me.json() == {"logged_in": True, "board_login_active": True,
-                         "name": "Tobias", "cid": "1401925", "is_admin": True}
+                         "name": "Tobias", "cid": "1401925", "is_admin": True,
+                         "kann_abmelden": False}
 
 
 def test_login_to_admin_roundtrip(env):
@@ -297,8 +298,11 @@ def test_gate_on_allows_public_badges(env):
 def test_index_serves_userbox_markup(env):
     r = env.client.get("/", headers={"accept": "text/html"})
     assert r.status_code == 200
-    assert "userBox" in r.text            # Name des eingeloggten Nutzers
-    assert "/auth/forum/logout" not in r.text  # kein Abmelden-Button (Nutzer-Entscheidung)
+    assert "userName" in r.text           # Name des eingeloggten Nutzers (im Zahnradmenue)
+    # Seit 16.0.0 gibt es den Abmelden-Knopf (Nutzer-Entscheidung 04.10.2026) -- als
+    # Formular mit POST, nie als Link.
+    assert '<form id="abmelden-form" method="post" action="/auth/forum/logout"' in r.text
+    assert 'href="/auth/forum/logout"' not in r.text
 
 
 def test_admin_page_serves_toggle_markup(env):
@@ -607,3 +611,103 @@ def test_hostliste_entspricht_der_sso_php():
     import re
     in_php = set(re.findall(r"'https://([^/']+)/auth/forum/callback'", php))
     assert in_php == set(main._SSO_RUECKSPRUNG_HOSTS)
+
+
+# --- Abmelden samt Forum (16.0.0, Nutzer 04.10.2026) --------------------------
+# Die Bruecke kuendigt im Anmelde-Token an, dass sie abmelden kann (`abm`). Nur dann zeigt die
+# Seite den Knopf, und nur dann schickt FriesenRadar einen signierten Abmelde-Auftrag hin.
+
+def _anmelden(env, name="Tobias", abm=True):
+    env.client.post("/api/admin/forum-login", json={"enabled": True}, cookies=_admin_cookie())
+    main._reset_gate_cache()
+    env.client.cookies.set("fs_sso_state", "st8")
+    claims = {"sub": 74, "name": name, "cid": "1401925", "is_admin": False,
+              "iat": time.time(), "nonce": f"a{time.time()}"}   # je Test frisch (Einmalwert)
+    if abm:
+        claims["abm"] = True
+    env.client.get(f"/auth/forum/callback?token={_mint_incoming(claims)}&state=st8",
+                   follow_redirects=False)
+
+
+def _auftrag_lesen(location: str) -> dict:
+    import base64
+    import hashlib
+    import hmac
+    import json
+    from urllib.parse import parse_qs, urlsplit
+    q = parse_qs(urlsplit(location).query)
+    p, sig = q["abmelden"][0].split(".")
+    assert hmac.compare_digest(sig, hmac.new(SSO.encode(), p.encode(), hashlib.sha256).hexdigest())
+    return {"claims": json.loads(base64.urlsafe_b64decode(p + "=" * (-len(p) % 4))), "q": q}
+
+
+def test_me_meldet_ob_die_bruecke_abmelden_kann(env):
+    _anmelden(env, abm=True)
+    assert env.client.get("/api/me").json()["kann_abmelden"] is True
+    # ... und die Sitzungsverlaengerung (jeder /api/me-Abruf) verliert das Merkmal nicht.
+    assert env.client.get("/api/me").json()["kann_abmelden"] is True
+
+
+def test_alte_bruecke_kein_abmelden(env):
+    _anmelden(env, abm=False)
+    assert env.client.get("/api/me").json()["kann_abmelden"] is False
+
+
+def test_abmelden_schickt_signierten_auftrag_an_die_bruecke(env):
+    _anmelden(env, name="Tobias Wäschle")
+    r = env.client.post("/auth/forum/logout", follow_redirects=False)
+    assert r.status_code == 303
+    loc = r.headers["location"]
+    assert loc.startswith(FORUM_URL + "?abmelden=")
+    a = _auftrag_lesen(loc)
+    assert a["claims"]["typ"] == "slo" and a["claims"]["name"] == "Tobias Wäschle"
+    assert abs(a["claims"]["iat"] - time.time()) < 5 and a["claims"]["nonce"]
+    assert a["q"]["redirect"] == [CALLBACK]
+    # Die eigene Sitzung ist sofort weg.
+    assert env.client.get("/api/me").json()["logged_in"] is False
+
+
+def test_abmelden_ohne_neue_bruecke_meldet_nur_hier_ab(env):
+    _anmelden(env, abm=False)
+    r = env.client.post("/auth/forum/logout", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/"
+    assert env.client.get("/api/me").json()["logged_in"] is False
+
+
+def test_abmelden_ohne_sitzung_fuehrt_zur_startseite(env):
+    r = env.client.post("/auth/forum/logout", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/"
+
+
+def test_abmelden_von_fremder_seite_wird_abgelehnt(env):
+    """Niemand soll ein Mitglied mit einem untergeschobenen Formular abmelden koennen."""
+    _anmelden(env)
+    r = env.client.post("/auth/forum/logout", headers={"origin": "https://boese.example"},
+                        follow_redirects=False)
+    assert r.status_code == 403
+    assert env.client.get("/api/me").json()["logged_in"] is True
+
+
+def test_kniebrett_sitzung_kann_nicht_abmelden(env):
+    """Die Geraete-Anmeldung laeuft nicht ueber die Bruecke -- dort gibt es keinen Knopf."""
+    env.client.post("/api/admin/forum-login", json={"enabled": True}, cookies=_admin_cookie())
+    main._reset_gate_cache()
+    env.client.cookies.update(_user_cookie(is_admin=False))
+    assert env.client.get("/api/me").json()["kann_abmelden"] is False
+
+
+def test_bruecke_kann_abmelden():
+    """Anker in der Vorlage: Ankuendigung im Anmelde-Token, Pruefung von Signatur, Art, Frische
+    und Name, erst danach session_kill -- und zurueck nur an eine der festen Adressen."""
+    from pathlib import Path
+    php = (Path(__file__).resolve().parents[1] / "deploy" / "forum" / "sso.php").read_text(encoding="utf-8")
+    assert "'abm'      => true," in php
+    block = php[php.index("// --- Abmelde-Auftrag von FriesenRadar"):php.index("// --- Nicht eingeloggt?")]
+    assert php.index("if ($CALLBACK === '')") < php.index("$request->variable('abmelden', '')")
+    assert "substr($CALLBACK, 0, -strlen('/auth/forum/callback')) . '/'" in block
+    fn = php[php.index("function fs_abmelde_name("):php.index("// --- Ende fs_abmelde_name")]
+    for teil in ("hash_equals(hash_hmac('sha256', $teile[0], $secret), $teile[1])",
+                 "'slo'", "> 60", "$daten['name']"):
+        assert teil in fn, teil
+    assert block.index("fs_abmelde_name(") < block.index("$user->session_kill()")
+    assert "$user->data['username']" in block

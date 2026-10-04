@@ -1359,11 +1359,17 @@ Nimmt das signierte Token der Bridge entgegen (`?token=…&state=…`). Prüft `
 
 ### GET /auth/forum/logout
 
-Meldet **nur** FriesenRadar ab (löscht `fs_user`); die Forum-Session bleibt. `302` nach `/`.
+Meldet **nur** FriesenRadar ab (löscht `fs_user`); die Forum-Session bleibt. `302` nach `/`. Kein Knopf führt hierher: Solange das Forum angemeldet ist, holt die Seite die Anmeldung beim nächsten Aufruf zurück.
+
+### POST /auth/forum/logout
+
+Der Abmelden-Knopf im Zahnradmenü (seit 16.0.0). Löscht `fs_user` und leitet mit `303` zur Forum-Bridge: `FORUM_SSO_URL?abmelden=<Auftrag>&redirect=<Rückruf-Adresse>`. Der Auftrag hat das Format der übrigen Token (`base64url(payload).hmac_sha256_hex`, signiert mit `SSO_SECRET`), Payload `{ "typ": "slo", "name": str, "iat": int, "nonce": str }`. Die Bridge beendet die Forum-Sitzung nur, wenn Signatur, Typ und Frische (≤ 60 s) stimmen und `name` der dort Angemeldete ist, und leitet dann zur Startseite der geprüften Adresse zurück.
+
+Nur wenn die Bridge das bei der Anmeldung angekündigt hat (Feld `abm: true` im Anmelde-Token, landet als Claim `abm` in `fs_user`); sonst, ohne Sitzung oder bei inaktivem Board-Login nur `303` nach `/`. Ein `Origin`-Header mit fremdem Host → `403` (kein Abmelden durch fremde Seiten). Geräte-Sitzungen des Kniebretts tragen `abm` nie.
 
 ### GET /api/me
 
-Login-Status fürs Frontend: `{ "logged_in": bool, "name": str, "cid": str, "is_admin": bool }` aus dem `fs_user`-Cookie (kein Cookie → `{ "logged_in": false }`). Nicht durch das Gate blockiert.
+Login-Status fürs Frontend: `{ "logged_in": bool, "name": str, "cid": str, "is_admin": bool, "kann_abmelden": bool }` aus dem `fs_user`-Cookie (`kann_abmelden`: die Bridge kann die Forum-Sitzung mit beenden — nur dann zeigt die Seite den Abmelden-Knopf) (kein Cookie → `{ "logged_in": false }`). Nicht durch das Gate blockiert.
 
 ### GET/POST /api/admin/forum-login
 
