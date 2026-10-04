@@ -3292,12 +3292,30 @@ async def meine_fassungen(request: Request):
 
 
 def _fremde_herkunft_abweisen(request: Request) -> None:
-    """403, wenn der Aufruf von einer fremden Seite kommt (``Origin`` nennt einen anderen Host
-    oder ``null``). Das Sitzungs-Cookie traegt ``SameSite=None`` (Kniebrett im iframe) und kaeme
-    bei einem seitenfremden POST mit. Ohne ``Origin`` -- alte Browser, Kommandozeile -- geht der
-    Aufruf durch: Dann fehlt auch der Browser, der das Cookie mitschickte."""
-    herkunft = request.headers.get("origin", "")
-    if herkunft and (urlsplit(herkunft).hostname or "").lower() != (request.url.hostname or "").lower():
+    """403, wenn der Aufruf von einer fremden Seite kommt. Das Sitzungs-Cookie traegt
+    ``SameSite=None`` (Kniebrett im iframe) und kaeme bei einem seitenfremden POST mit.
+
+    Der Reihe nach, was der Browser ueber die Herkunft sagt: ``Origin`` (gleicher Host und
+    https; ``null`` ist fremd), sonst ``Sec-Fetch-Site`` (nur ``same-origin`` und ``none`` --
+    ``same-site`` waere ein Nachbar unter devprops.de, etwa die Ablage), sonst ``Referer``.
+    Fehlt alles drei, geht der Aufruf durch: Das ist die Kommandozeile, kein Browser mit Cookie."""
+    host = (request.url.hostname or "").lower()
+    lokal = host in ("localhost", "127.0.0.1", "testserver")
+
+    def eigen(adresse: str) -> bool:
+        teile = urlsplit(adresse)
+        return (teile.hostname or "").lower() == host and (teile.scheme == "https" or lokal)
+
+    origin = request.headers.get("origin", "")
+    stelle = request.headers.get("sec-fetch-site", "")
+    referer = request.headers.get("referer", "")
+    if origin:
+        fremd = not eigen(origin)
+    elif stelle:
+        fremd = stelle not in ("same-origin", "none")
+    else:
+        fremd = bool(referer) and not eigen(referer)
+    if fremd:
         raise HTTPException(status_code=403, detail="Fremde Herkunft")
 
 

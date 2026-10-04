@@ -93,11 +93,12 @@ def test_ohne_mitglied_oder_ueber_die_aelteste_adresse_passiert_nichts(conn):
 # ---- Endpunkt ---------------------------------------------------------------------------
 
 class _Req:
-    def __init__(self, host, body, origin=None):
+    def __init__(self, host, body, origin=None, kopf=None):
         self.url = SimpleNamespace(hostname=host)
         self._body = body
         self.cookies = {}
         self.headers = {"origin": origin} if origin is not None else {}
+        self.headers.update(kopf or {})
 
     async def json(self):
         return self._body
@@ -167,3 +168,28 @@ def test_die_eigene_seite_darf_einschalten(app_db):
         assert _abos(c) == {APPLE_2: NEU}
     finally:
         c.close()
+
+
+@pytest.mark.parametrize("origin, kopf", [
+    (f"http://{NEU}", None),                                   # gleicher Host, aber unverschluesselt
+    (None, {"sec-fetch-site": "cross-site"}),                  # kein Origin, der Browser sagt es selbst
+    (None, {"sec-fetch-site": "same-site"}),                   # Nachbar unter devprops.de, z. B. die Ablage
+    (None, {"referer": "https://files.devprops.de/x.html"}),   # alter Browser: nur der Referer
+])
+def test_die_herkunftspruefung_hat_keine_luecke_ohne_origin(app_db, origin, kopf):
+    from fastapi import HTTPException
+    body = {"endpoint": APPLE_2, "p256dh": "p", "auth": "a"}
+    with pytest.raises(HTTPException) as e:
+        asyncio.run(main.push_subscribe(_Req(NEU, body, origin=origin, kopf=kopf)))
+    assert e.value.status_code == 403
+
+
+@pytest.mark.parametrize("kopf", [
+    {},                                                         # Kommandozeile: gar nichts
+    {"sec-fetch-site": "same-origin"},
+    {"sec-fetch-site": "none"},
+    {"referer": f"https://{NEU}/"},
+])
+def test_eigene_aufrufe_ohne_origin_gehen_durch(app_db, kopf):
+    body = {"endpoint": APPLE_2, "p256dh": "p", "auth": "a"}
+    assert asyncio.run(main.push_subscribe(_Req(NEU, body, kopf=kopf))) == {"status": "ok"}
