@@ -64,6 +64,7 @@ class TestSubscribeEndpoint:
                 self._b = body
                 self.url = SimpleNamespace(hostname="friesenradar.devprops.de")
                 self.headers = {}
+                self.cookies = {}
 
             async def json(self):
                 return self._b

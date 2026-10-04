@@ -193,3 +193,15 @@ def test_die_herkunftspruefung_hat_keine_luecke_ohne_origin(app_db, origin, kopf
 def test_eigene_aufrufe_ohne_origin_gehen_durch(app_db, kopf):
     body = {"endpoint": APPLE_2, "p256dh": "p", "auth": "a"}
     assert asyncio.run(main.push_subscribe(_Req(NEU, body, kopf=kopf))) == {"status": "ok"}
+
+
+def test_mit_sitzung_aber_ohne_jede_herkunftsangabe_wird_abgewiesen(app_db):
+    """Kein Origin, kein Sec-Fetch-Site, kein Referer: Ein heutiger Browser schickt bei einem POST
+    immer mindestens Origin. Kommt trotzdem ein Cookie mit, ist nicht zu beweisen, woher der
+    Aufruf stammt -- dann lieber abweisen als durchlassen."""
+    from fastapi import HTTPException
+    r = _Req(NEU, {"endpoint": APPLE_2, "p256dh": "p", "auth": "a"})
+    r.cookies = {"fs_user": "irgendwas"}
+    with pytest.raises(HTTPException) as e:
+        asyncio.run(main.push_subscribe(r))
+    assert e.value.status_code == 403

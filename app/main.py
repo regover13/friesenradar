@@ -3298,7 +3298,7 @@ def _fremde_herkunft_abweisen(request: Request) -> None:
     Der Reihe nach, was der Browser ueber die Herkunft sagt: ``Origin`` (gleicher Host und
     https; ``null`` ist fremd), sonst ``Sec-Fetch-Site`` (nur ``same-origin`` und ``none`` --
     ``same-site`` waere ein Nachbar unter devprops.de, etwa die Ablage), sonst ``Referer``.
-    Fehlt alles drei, geht der Aufruf durch: Das ist die Kommandozeile, kein Browser mit Cookie."""
+    Fehlt alles drei, geht der Aufruf nur ohne Cookie durch (Kommandozeile)."""
     host = (request.url.hostname or "").lower()
     lokal = host in ("localhost", "127.0.0.1", "testserver")
 
@@ -3313,8 +3313,12 @@ def _fremde_herkunft_abweisen(request: Request) -> None:
         fremd = not eigen(origin)
     elif stelle:
         fremd = stelle not in ("same-origin", "none")
+    elif referer:
+        fremd = not eigen(referer)
     else:
-        fremd = bool(referer) and not eigen(referer)
+        # Gar keine Angabe: nur ohne Cookie unbedenklich (Kommandozeile). Mit Cookie laesst
+        # sich die Herkunft nicht belegen -- abweisen statt durchlassen.
+        fremd = bool(request.cookies)
     if fremd:
         raise HTTPException(status_code=403, detail="Fremde Herkunft")
 

@@ -433,7 +433,7 @@ def test_board_login_off_treated_as_logged_out(env):
 
 def test_subscribe_sets_owner_from_cookie_ignores_body(env):
     _enable(env)
-    r = env.client.post("/api/push/subscribe", cookies=_user_cookie(),
+    r = env.client.post("/api/push/subscribe", cookies=_user_cookie(), headers={"origin": "http://testserver"},
                         json={"endpoint": "ep", "p256dh": "p", "auth": "a", "owner_cid": 999})
     assert r.status_code == 200
     conn = get_connection(env.db)
@@ -655,7 +655,7 @@ def test_alte_bruecke_kein_abmelden(env):
 
 def test_abmelden_schickt_signierten_auftrag_an_die_bruecke(env):
     _anmelden(env, name="Tobias Wäschle")
-    r = env.client.post("/auth/forum/logout", follow_redirects=False)
+    r = env.client.post("/auth/forum/logout", follow_redirects=False, headers={"origin": "http://testserver"})
     assert r.status_code == 303
     loc = r.headers["location"]
     assert loc.startswith(FORUM_URL + "?abmelden=")
@@ -669,7 +669,7 @@ def test_abmelden_schickt_signierten_auftrag_an_die_bruecke(env):
 
 def test_abmelden_ohne_neue_bruecke_meldet_nur_hier_ab(env):
     _anmelden(env, abm=False)
-    r = env.client.post("/auth/forum/logout", follow_redirects=False)
+    r = env.client.post("/auth/forum/logout", follow_redirects=False, headers={"origin": "http://testserver"})
     assert r.status_code == 303 and r.headers["location"] == "/"
     assert env.client.get("/api/me").json()["logged_in"] is False
 
