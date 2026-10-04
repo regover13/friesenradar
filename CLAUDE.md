@@ -169,6 +169,14 @@ GitHub Push → main-Branch → GitHub Actions → GHCR → SSH-Deploy auf VPS
 - Port: 8091 (intern), friesenspy.devprops.de (extern)
 - DB: `/opt/friesenradar/data/friesenradar.db` (Volume)
 - Config: `/opt/friesenradar/config.env` (niemals in git!)
+- **Der Deploy-Schlüssel kann nur `deploy` und `test`** (seit 04.10.2026). Secret
+  `DEPLOY_SSH_KEY`, auf dem Server `restrict,command="/opt/friesenradar/deploy.sh"`. Der Ablauf
+  (pull, up, Health-Check, prune) steht in `deploy/deploy.sh`, nicht mehr im Workflow.
+  **Das Skript wird nicht automatisch ausgerollt** — wer es ändert, kopiert es von Hand nach
+  `/opt/friesenradar/deploy.sh` (root, 755); ein Push allein ändert auf dem Server nichts.
+  Einzelheiten in `docs/deployment.md`.
+- **Fremde Actions nur mit Commit-SHA** (`uses: …@<sha> # vX.Y.Z`), und jeder Workflow trägt
+  `permissions: contents: read`. Wer eine neue Action einbaut, nagelt sie fest.
 - **Discord-Meldung nach jedem Deploy:** letzter Schritt in `deploy.yml`, meldet Erfolg (grün, nach
   bestandenem Health-Check) oder Fehlschlag (rot) mit Version, Commit-Titel und Link zum Workflow-Log.
   Braucht das Repo-Secret `DISCORD_WEBHOOK` (Discord-Kanal-Webhook, **ohne** `/github`-Suffix).

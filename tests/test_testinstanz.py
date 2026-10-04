@@ -226,3 +226,13 @@ def test_admin_zeigt_die_varianten_als_links():
         assert v in admin, v
     assert "mitte=Breite,Länge" in admin and 'data-variante="?tv=1&amp;mitte' not in admin
     assert "varianten.hidden = !(d.laeuft && d.zugang)" in admin
+
+
+def test_testsitzung_zeigt_den_abmelden_knopf_nur_zum_ansehen():
+    """Die Testinstanz meldet nicht ueber die Forum-Bruecke an; ohne die Zusage in der Sitzung
+    fehlte dort der Abmelden-Knopf (Nutzer 04.10.2026). Aeltere Staende ohne den Parameter
+    duerfen daran nicht scheitern -- sonst gaebe es dort gar keine Anmeldung mehr."""
+    sk = (Path(__file__).resolve().parents[1] / "deploy" / "test-radar" / "test-radar").read_text(encoding="utf-8")
+    block = sk[sk.index("sitzung_ausstellen() {"):]
+    assert "{'abmelden': True} if 'abmelden' in inspect.signature(make_user_token).parameters else {}" in block
+    assert "time.time() + 7500, **extra)" in block

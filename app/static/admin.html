@@ -7309,8 +7309,9 @@
           // Fall ist weder eingeliefert noch abgeschlossen. Ohne diese Bedingung leert ein
           // Klick den Latch eines fertigen Events -- Einlieferung ohne Aufnahme, eine
           // Reihenfolge, die es nicht geben kann (passiert am 20.09.2026).
-          // Fruehe Rauchfackel: nur, solange noch nicht gefunden ist.
-          + (ev.havarist_lat != null && !ev.gefunden_am && !ev.aufgeloest_am
+          // Fruehe Rauchfackel: nur, solange das Event laeuft und noch nicht gefunden ist --
+          // dieselbe Bedingung wie im Server, der sie ausserhalb ohnehin ablehnt.
+          + (ev.havarist_lat != null && !ev.gefunden_am && !ev.aufgeloest_am && _rdLaeuft(ev)
              ? (ev.signal_am
                 ? '<span class="hint">🔵 Rauchfackel brennt seit ' + escH(ev.signal_am.slice(11, 16)) + ' UTC</span> '
                 : '<button class="btn btn-sm" onclick="rdSignal(' + ev.id + ')">🔵 Rauchfackel zünden</button> ')
@@ -7584,11 +7585,12 @@
 
     // Laeuft gerade eine FriesenReddung? Nach der Uhr des Geraets -- hier sitzt der
     // Veranstalter am Rechner, nicht im Kniebrett.
-    function _rdLaeuftEines() {
+    function _rdLaeuft(ev) {
       const jetzt = Date.now();
-      return (_rdEvents || []).some(function (ev) {
-        return Date.parse(ev.dtstart) <= jetzt && jetzt <= Date.parse(ev.dtend);
-      });
+      return Date.parse(ev.dtstart) <= jetzt && jetzt <= Date.parse(ev.dtend);
+    }
+    function _rdLaeuftEines() {
+      return (_rdEvents || []).some(_rdLaeuft);
     }
 
     // Die Reddung-Liste frischt sich auf, solange sie offen ist und ein Event laeuft -- dann

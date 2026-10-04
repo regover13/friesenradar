@@ -456,11 +456,16 @@ def test_slot_null_respawnt_immer_sofort(conn):
     assert ergebnis[0]["logon_time"] == respawnt_bei.isoformat().replace("+00:00", "Z")
 
 
-def test_nachbesetzung_bei_slot_ungleich_null_wartet_auf_geplanten_start(conn):
+def test_nachbesetzung_bei_slot_ungleich_null_wartet_auf_geplanten_start(conn, monkeypatch):
     """Nutzerwunsch 27.09.2026 (urspruengliche Spezifikation): faellt ein Pilot weg (landet),
     wird die Luecke erst INNERHALB der Staffelung wieder aufgefuellt, nicht sofort -- das
     30-Minuten-Los laeuft ab dem Moment der Luecke. Nur Slot 0 ist die Ausnahme
     (test_slot_null_respawnt_immer_sofort)."""
+    # Das Los festhalten: Gewuerfelt wird irgendwo in 0..Staffelung, und ein Los unter einer
+    # Minute besetzt den Slot schon im naechsten Zyklus -- voellig zu Recht, aber die Pruefung
+    # unten wurde dadurch in rund 3 % der Laeufe rot. Geprueft wird das Warten, nicht der Zufall.
+    import app.messeverkehr as mv
+    monkeypatch.setattr(mv.random, "uniform", lambda a, b: (a + b) / 2)
     set_messeverkehr_anzahl_max(conn, 2)
     conn.commit()
     _seed_historischer_flug(conn, cid=1, callsign="FRS1", dauer_min=15, schritte=5)

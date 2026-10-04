@@ -47,7 +47,7 @@ def test_die_reddung_liste_frischt_sich_nur_auf_wenn_es_etwas_zu_sehen_gibt():
       let geladen = 0; function loadReddung() { geladen++; }
       let _tabAktiv, _typAktiv, _rdEvents; const document = {hidden: false};
       const jetzt = Date.parse('2026-09-27T18:50:00Z'); Date.now = () => jetzt;
-    """ + _funktion("_rdLaeuftEines") + _funktion("_rdTaktSchritt") + """
+    """ + _funktion("_rdLaeuft") + _funktion("_rdLaeuftEines") + _funktion("_rdTaktSchritt") + """
       const laeuft = [{dtstart: '2026-09-27T17:50:00Z', dtend: '2026-09-27T20:00:00Z'}];
       const vorbei = [{dtstart: '2026-09-26T17:50:00Z', dtend: '2026-09-26T20:00:00Z'}];
       const faelle = [

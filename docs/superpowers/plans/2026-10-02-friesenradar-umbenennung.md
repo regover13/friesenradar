@@ -83,6 +83,81 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 
 ### Task 2: Server-Umzug (Wartungsfenster, Nutzer gibt Bescheid)
 
+> **HALT vor dem Umbau — Nutzer 03.10.2026:** „Frage mich vor dem Umbau nochmal, weil wir doch
+> `radar.friesenflieger.de` bei Heinz bestellt haben.“ Vor dem Umzug UND vor dem Ausliefern von
+> 16.0.0 den Nutzer fragen, welche Adresse die Texte nennen (Changelog-Punkt „Neue Adresse“,
+> README, Forum). Nicht selbst entscheiden, auch wenn DNS schon steht.
+> **Ebenfalls Nutzer 03.10.2026:** Kniebrett 3.0.0 und die neue FriesenBrügge gehören ZU
+> Lichtblick, nicht „mit dem nächsten Paket“ — beide müssen am Simulator-Rechner gebaut und
+> geprüft sein, bevor 16.0.0 hinausgeht.
+> **Kniebrett-Ordner (Nutzer 03.10.2026 abends):** Paketordner, Download und abgelegte Datei
+> heißen **`friesenkniebrett`** (nicht mehr `friesenflieger-friesenradar-efb` /
+> `friesenradar-efb.zip` — wo dieser Plan die alten Namen nennt, gilt der neue; umgesetzt auf
+> `bruegge-radar`, 86199bf). Die Brüggen behalten ihre Ordner.
+> **Merkposten:** Im Paket steht „Die Anmeldung des Tablets bleibt erhalten“ (Wunsch des
+> Nutzers). Scheitert die Prüfung der Gerätebindung am Simulator, muss der Satz aus
+> `manifest.json` heraus, und der Changelog-Punkt zum Kniebrett braucht einen Hinweis auf die
+> neue Anmeldung — vor dem Verteilen.
+> **Paketprüfung am Simulator, 03.10.2026 abends (Sitzung „Lichtblick lokal“ + Server):**
+> - Kniebrett 3.0.0 (`friesenkniebrett.zip`, sha256 `26b5e222…e5e4f4`): Gerätebindung bestanden —
+>   dieselbe Kennung, `paket=3.0.0`, kein neues Gerät in `panel_devices` (nginx 19:34:28 UTC).
+>   App-Name, Symbol, Logo hell/dunkel, Fremdverkehr, Fenster schließen, Anheften: gesehen.
+>   Der Merkposten oben ist damit erledigt, der Satz zur Anmeldung bleibt.
+> - Brügge MSFS 1.19.0 (`friesenbruegge.zip`, sha256 `8fce0332…d7f41c`): in MSFS 2020 UND 2024
+>   Zuordnung, Stellen (rauch_orange) und Abräumen in der Datenbank und im Simulator gesehen.
+> - Brügge X-Plane 1.5.0 (CI-Lauf 37112105024, Artefakt `friesenbruegge-xplane`): Log-Zeilen und
+>   Zuordnung belegt; Stellen-Test nachgeholt (20:39–20:40 UTC): gesetzt, gesehen, abgeräumt.
+> - **Erst nach dem Deploy von 16.0.0 prüfbar:** beide Kniebrett-Pakete nebeneinander
+>   (Hinweiskasten, `altesPaketDa()`, Test-Benachrichtigung) — der Kasten gehört zur Seite.
+> - Die Pakete liegen auf dem Simulator-Rechner, **nicht** auf dem Server. Hochladen nur auf
+>   Wort des Nutzers, nach Umzug und Deploy.
+> **TV-Modus (gehört zu 16.0.0):** fertig auf `bruegge-radar`, vom Nutzer am Fire TV Stick
+> abgenommen (03.10.2026 abends). Technische Notizen: `docs/tv-modus.md` im Branch. Der
+> Changelog-Eintrag 16.0.0 ist erzählend neu geschrieben und nennt TV-Modus, Rundflug, Kniebrett
+> 3.0.0 und die neue Brügge.
+> **Zweigstand:** `bruegge-radar` ist der vollständige Stand (wird per
+> `git push -f origin bruegge-radar:test` auf die Teststufe geschoben); er enthält `umzug`,
+> `lichtblick` und `kniebrett-3`.
+> **Reihenfolge am Tag X:** (1) Nutzer nach der Adresse fragen, (2) Umzug, (2a) neue
+> Forum-Brücke ablegen (s. u.), (3) 16.0.0 ausliefern, (4) am Simulator beide Kniebrett-Pakete
+> nebeneinander prüfen, (5) Pakete hochladen — jeder Schritt auf Wort des Nutzers.
+>
+> **Neu am 04.10.2026 — Forum-Brücke v3 (Abmelden).** 16.0.0 bringt „Abmelden“ im
+> Zahnradmenü; es beendet auch die Forum-Sitzung. Dafür muss die neue `deploy/forum/sso.php`
+> (Branch `bruegge-radar`, ab `d8de116`) nach `/var/www/bb_friesen/sso.php` auf dem
+> FriesenFlieger-Server. Die Brücke legt **Tobias selbst** ab bzw. die Server-Sitzung nur auf
+> sein ausdrückliches Wort (Schreibzugriff dort). Echtes Secret und die drei Rücksprung-Adressen
+> aus der liegenden Datei übernehmen, Rechte `640 www-data:www-bb_friesen`, danach `php -l`.
+> Die neue Brücke ist abwärtsverträglich (Anmeldung unverändert) und kann vor 16.0.0 liegen.
+> **Ohne sie fehlt der Abmelden-Knopf** — die Seite zeigt ihn erst, wenn die Brücke `abm: true`
+> ins Anmelde-Token schreibt; der Changelog-Eintrag 👤 verspricht ihn. Prüfen nach dem Ablegen:
+> neu anmelden, Zahnrad → Abmelden → Ja; danach muss die Anmeldeseite des Forums erscheinen
+> und das Forum in diesem Browser abgemeldet sein. Die PHP-Prüffunktion ist lokal gegen
+> Aufträge aus `make_logout_token` gegengeprüft, der Lauf **im** phpBB (`session_kill`) noch nicht.
+> **Erledigt 04.10.2026, 14:41 MESZ (auf Wort des Nutzers):** Die v3-Brücke liegt auf dem
+> Forum (`www-data:www-bb_friesen 660`, Secret aus der liegenden Datei übernommen, `php -l`
+> sauber). Die liegende Datei war die alte Vorlage mit Windows-Zeilenenden, sonst zeichengleich.
+> Sicherung: `~twaeschle/sso.php.sicherung-2026-10-04` (600). Von außen gemessen, vorher und
+> nachher gleich: ohne Sitzung die Anmeldeseite, fremder Rücksprung 400; neu: kaputter
+> Abmelde-Auftrag 400. **PHP hält die alte Fassung einige Sekunden im Zwischenspeicher** — die
+> erste Probe direkt nach dem Ablegen zeigte noch das alte Verhalten. Schritt 2a entfällt damit.
+> **Beides am selben Tag gesehen:** zwei Anmeldungen über die neue Brücke im Log (14:42, 14:43),
+> und das Abmelden im phpBB mit einem von Hand im Container signierten Auftrag — der Nutzer war
+> danach im Forum abgemeldet. Die eigene Sitzung blieb dabei bestehen, weil 15.34.1 sie nicht
+> löscht; das tut erst der Knopf in 16.0.0 (`POST /auth/forum/logout`). Nach dem Ausliefern
+> einmal den ganzen Weg über den Knopf prüfen.
+> **Stand 04.10.2026 abends:** `bruegge-radar` und `test` stehen auf `1615240`. Das Startskript
+> der Teststufe (`/usr/local/bin/test-radar`, Stand `main` `b46adb7`) gibt der Testsitzung die
+> Abmelde-Zusage mit — der Knopf ist dort **nur zum Ansehen**, „Ja, abmelden“ endet am Forum
+> mit „bad request“ (eigener Schlüssel je Lauf). **Vorschau in der Produktion:** Die Liste
+> `app_settings.radar_vorschau_cids` ist seit 04.10. leer (vorher `1602713`, auf Wunsch des
+> Nutzers herausgenommen, um die alte Fassung zu sehen); mit 16.0.0 liest sie niemand mehr,
+> danach kann die Zeile weg. Auf sehr schmalen Handys (320 px) bricht die Fußleiste in drei
+> Zeilen um — bekannt, so gelassen.
+> Ebenfalls am 04.10. dazugekommen (alles auf dem Test-Zweig): Hilfe und Version in der
+> Fußleiste, Name ins Zahnradmenü, Zahnrad auf dem Handy neben dem Logo, leerer Prefile-Kasten
+> niedrig.
+
 **Nur, wenn der Nutzer das Fenster freigibt.** Ausfall ~1 min. Die CI liegt **nicht** auf dem
 kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch läuft. (B2)
 
