@@ -187,6 +187,27 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 >   Abmelde-Weg über den Knopf, beide Kniebrett-Pakete nebeneinander, Pakete hochladen,
 >   Task 3 Step 3, Task 4 (Forum), Task 7, Steps 22–24, Zweig `test` auf den neuen Stand.
 
+> **Nachtrag 04.10.2026, bis 23:55 MESZ:**
+> - **Paket `friesenradar` auf GHCR ist privat** (Nutzer hat umgestellt; anonym 403 gemessen).
+> - **Neuigkeiten-Kasten:** Ein Speichern aus einer noch offenen Admin-Seite (23:06:40) hatte
+>   `banner_version` auf `auto` zurückgesetzt, „auto“ zeigt den neuesten Eintrag mit
+>   `highlight: true` (15.0.0). Erneut fest auf `16.0.0` gestellt.
+> - **Abmelden über den Knopf: vom Nutzer gesehen.** Wer zwischen 22:59 und 23:05 angemeldet
+>   wurde (Zwischenfassung ohne die Zusage), sieht den Knopf erst nach neuer Anmeldung.
+> - **16.0.1 (`164b0d4`, `ebe6861`, `80a8c06`, `557c1f7`):** Push-Abos hängen an der Adresse.
+>   Beim ersten Einschalten über eine neuere Adresse fällt das ältere Abo desselben Mitglieds
+>   beim selben Push-Dienst weg (Spalte `push_subscriptions.herkunft`, NULL = Bestand).
+>   `POST /api/push/subscribe` und `POST /auth/forum/logout` weisen fremde Herkunft ab
+>   (`_fremde_herkunft_abweisen`: Origin mit https, sonst Sec-Fetch-Site, sonst Referer; mit
+>   Cookie und ohne jede Angabe: 403). Review Focus 5 ist damit im Code beantwortet.
+> - **Kniebrett in MSFS 2024, beide Pakete nebeneinander: vom Nutzer als erfolgreich gemeldet**;
+>   im Log 2.3.2 und 3.0.0, kein neues Gerät in `panel_devices` (9). MSFS 2020 und das
+>   Hochladen der Pakete stehen aus.
+> - **Push an alle 15 Abos** um 23:50 („FriesenRadar ist da – V16 „Lichtblick““), alle 15
+>   von den Push-Diensten angenommen.
+> - **Neu:** Issue #57 (Landingpage Messebesucher), Issue #58 (alte Adressen im Browser
+>   umleiten, erst am Tag der Vereinsadresse).
+
 **Nur, wenn der Nutzer das Fenster freigibt.** Ausfall ~1 min. Die CI liegt **nicht** auf dem
 kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch läuft. (B2)
 
