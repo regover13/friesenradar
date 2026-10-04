@@ -104,10 +104,18 @@ async def fetch_flight_track(
     client: httpx.AsyncClient,
     statsim_id: int,
     api_key: str,
-) -> list[dict]:
-    """Gibt GPS-Track eines Fluges von StatSim zurück. Silent fail → []."""
+    *,
+    fehler_als_none: bool = False,
+) -> list[dict] | None:
+    """Gibt GPS-Track eines Fluges von StatSim zurück. Silent fail → [].
+
+    ``fehler_als_none=True`` unterscheidet einen gescheiterten Abruf (``None``) von einer
+    echten, leeren Antwort (``[]``). Der Nachlader braucht das: Nur „StatSim hat keine Spur“
+    darf einen Flug zurückstellen -- ein Ausfall des Dienstes nicht (16.0.6).
+    """
+    fehler = None if fehler_als_none else []
     if not api_key:
-        return []
+        return fehler
     try:
         resp = await client.get(
             f"{STATSIM_BASE}/api/Flights/Id/{statsim_id}",
@@ -118,7 +126,7 @@ async def fetch_flight_track(
         data = resp.json()
         positions = data.get("positions", [])
         if not isinstance(positions, list):
-            return []
+            return fehler
         return [
             {
                 "latitude": p.get("latitude", 0.0),
@@ -133,4 +141,4 @@ async def fetch_flight_track(
         ]
     except Exception:
         logger.warning("StatSim track fetch failed for flight %s", statsim_id)
-        return []
+        return fehler

@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.0.6",
+    "date": "2026-10-05",
+    "highlight": false,
+    "title": "Flugspuren: Ein Ausfall von StatSim zählt nicht als „keine Spur“",
+    "items": [
+      "🔧 Nachtrag zu 16.0.5: Antwortet StatSim gar nicht oder mit einem Fehler, wird der Flug nicht zurückgestellt, sondern beim nächsten Lauf wieder angefragt. Zurückgestellt wird nur, wenn StatSim ausdrücklich keine Spur liefert."
+    ]
+  },
+  {
     "version": "16.0.5",
     "date": "2026-10-05",
     "highlight": false,

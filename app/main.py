@@ -4168,7 +4168,8 @@ async def _statsim_backfill_worker(db_path: str, api_key: str, prefix: str) -> N
                     got = 0
                     for sid in ids:
                         try:
-                            positions = await fetch_flight_track(client, sid, api_key)
+                            positions = await fetch_flight_track(
+                                client, sid, api_key, fehler_als_none=True)
                         except Exception:
                             positions = None
                         if positions:
@@ -4176,9 +4177,10 @@ async def _statsim_backfill_worker(db_path: str, api_key: str, prefix: str) -> N
                             conn.commit()
                             got += 1
                             _statsim_backfill_state["fetched"] += 1
-                        else:
-                            # Sonst liefe diese Schleife ewig: Ein Flug ohne Spur bliebe
-                            # "ungecacht" und kaeme in jedem Durchgang wieder.
+                        elif positions is not None:
+                            # Echte leere Antwort: zurueckstellen, damit der naechste
+                            # Durchgang andere Fluege holt. Ein gescheiterter Abruf (None)
+                            # zaehlt nicht als leer.
                             statsim_track_leer_merken(conn, sid)
                             conn.commit()
                         await asyncio.sleep(0.3)
@@ -4240,7 +4242,8 @@ async def admin_statsim_backfill(request: Request, limit: int = 40, background: 
         async with _httpx.AsyncClient() as client:
             for sid in ids:
                 try:
-                    positions = await fetch_flight_track(client, sid, settings.STATSIM_API_KEY)
+                    positions = await fetch_flight_track(
+                        client, sid, settings.STATSIM_API_KEY, fehler_als_none=True)
                 except Exception:
                     positions = None
                 if positions:
@@ -4249,7 +4252,8 @@ async def admin_statsim_backfill(request: Request, limit: int = 40, background: 
                     points += len(positions)
                 else:
                     empty += 1
-                    statsim_track_leer_merken(conn, sid)
+                    if positions is not None:      # echte leere Antwort, kein Fehler
+                        statsim_track_leer_merken(conn, sid)
                 await asyncio.sleep(0.3)
         conn.commit()
         remaining = count_uncached_statsim(conn, callsign_prefix="")

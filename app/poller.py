@@ -2032,8 +2032,12 @@ class VatsimPoller:
             for sid in ids:
                 try:
                     positions = await fetch_flight_track(
-                        self._http_client, sid, settings.STATSIM_API_KEY
+                        self._http_client, sid, settings.STATSIM_API_KEY,
+                        fehler_als_none=True,
                     )
+                    if positions is None:      # Abruf gescheitert: weder Spur noch "leer"
+                        await asyncio.sleep(0.3)
+                        continue
                     # Je Flug sofort speichern und committen, nicht erst nach der Schleife:
                     # Eine offene Schreibtransaktion ueber den ganzen Batch (20 Abrufe plus je
                     # 0,3 s Drosselung) sperrte am 04.09.2026 fuer 2 min 43 s jeden anderen

@@ -140,3 +140,33 @@ def test_der_datenbankteil_laeuft_nicht_im_hauptablauf(db):
     with patch("app.poller.get_uncached_statsim_ids", side_effect=spion):
         _lauf(poller, [[], []])
     assert gesehen and all(t != haupt for t in gesehen)
+
+
+# ---- Fehler ist nicht "leer" -----------------------------------------------------------
+
+def test_ein_fehler_des_dienstes_zaehlt_nicht_als_leerer_versuch(db):
+    """Faellt StatSim aus (oder laeuft der Schluessel ab), kaeme sonst nach gut einer Woche
+    jeder Flug faelschlich auf "erledigt". Nur eine echte, leere Antwort wird gemerkt."""
+    pfad, c = db
+    poller = _poller(pfad)
+    _lauf(poller, [None, None])           # Abruf gescheitert
+    assert c.execute("SELECT COUNT(*) FROM statsim_track_versuch").fetchone()[0] == 0
+    assert sorted(_lauf(poller, [[], []])) == [1, 2]      # gleich wieder an der Reihe
+    assert c.execute("SELECT COUNT(*) FROM statsim_track_versuch").fetchone()[0] == 2
+
+
+def test_der_abruf_unterscheidet_fehler_von_leer():
+    import httpx
+    from app.statsim import fetch_flight_track
+
+    async def lauf(handler):
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as cl:
+            return (await fetch_flight_track(cl, 1, "k", fehler_als_none=True),
+                    await fetch_flight_track(cl, 1, "k"))
+
+    leer = asyncio.run(lauf(lambda r: httpx.Response(200, json={"positions": []})))
+    kaputt = asyncio.run(lauf(lambda r: httpx.Response(503)))
+    unfug = asyncio.run(lauf(lambda r: httpx.Response(200, json={"positions": "x"})))
+    assert leer == ([], [])
+    assert kaputt == (None, [])           # bisheriges Verhalten bleibt die Vorgabe
+    assert unfug == (None, [])
