@@ -136,6 +136,11 @@ jobs:
               sleep 5
               if curl -sf http://127.0.0.1:8091/health | grep -q '"status":"ok"'; then
                 echo "Health OK (Versuch $i)"
+                # Das abgeloeste Image hat seinen Tag verloren und bliebe sonst liegen: 191 Stueck
+                # in vier Wochen, und Netdatas Docker-Abfrage wurde davon messbar langsamer.
+                # Erst nach dem Health-Check -- scheitert er, liegt der Vorgaenger noch da.
+                # Nur namenlose Images; NIE `prune -a` (siehe Serverdoku).
+                docker image prune -f
                 exit 0
               fi
             done

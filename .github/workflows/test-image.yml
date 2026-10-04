@@ -75,3 +75,6 @@ jobs:
             docker logout ghcr.io
             docker tag "$IMAGE:test" test-radar:aktuell
             if [ -x /usr/local/bin/test-radar ]; then /usr/local/bin/test-radar aktualisieren; fi
+            # Das vorige Test-Image hat seinen Tag verloren; namenlose Reste wegraeumen.
+            # Nur namenlose Images; NIE `prune -a` (siehe Serverdoku).
+            docker image prune -f
