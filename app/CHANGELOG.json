@@ -1,5 +1,14 @@
 [
   {
+    "version": "15.34.3",
+    "date": "2026-10-04",
+    "highlight": false,
+    "title": "Rauchfackel-Knopf nur im laufenden Event",
+    "items": [
+      "🔧 **Verwaltung, FriesenReddung:** Der Knopf „Rauchfackel zünden“ steht nur noch da, solange das Event läuft. Vorher und nachher brachte er bloß eine Fehlermeldung."
+    ]
+  },
+  {
     "version": "15.34.2",
     "date": "2026-10-03",
     "highlight": false,
