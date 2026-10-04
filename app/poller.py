@@ -28,6 +28,7 @@ from app.database import (
     get_push_subscriptions_for_pilot,
     get_push_subscriptions_for_prefile,
     get_uncached_statsim_ids,
+    statsim_track_leer_merken,
     cid_for_callsign_authoritative,
     get_pilot_visibility,
     get_ts_push_subscriptions,
@@ -1960,6 +1961,40 @@ class VatsimPoller:
     # StatSim: proaktives Track-Nachladen (#23 Phase 2b)
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _statsim_kandidaten_sync(db_path: str, half: int) -> list[int]:
+        """Je zur Haelfte juengste und aelteste Fluege ohne Spur, ohne Doppelte."""
+        conn = get_connection(db_path)
+        try:
+            recent_ids = get_uncached_statsim_ids(conn, callsign_prefix="", limit=half)
+            old_ids = get_uncached_statsim_ids(
+                conn, callsign_prefix="", limit=half, oldest_first=True
+            )
+        finally:
+            conn.close()
+        seen: set[int] = set()
+        ids: list[int] = []
+        for sid in recent_ids + old_ids:
+            if sid not in seen:
+                seen.add(sid)
+                ids.append(sid)
+        return ids
+
+    @staticmethod
+    def _statsim_ergebnis_sync(db_path: str, sid: int, positions: list[dict]) -> bool:
+        """Spur speichern -- oder den leeren Abruf merken, damit derselbe Flug nicht alle
+        zehn Minuten wieder an der Reihe ist. True, wenn eine Spur gespeichert wurde."""
+        conn = get_connection(db_path)
+        try:
+            if positions:
+                save_statsim_positions(conn, sid, positions)
+            else:
+                statsim_track_leer_merken(conn, sid)
+            conn.commit()
+        finally:
+            conn.close()
+        return bool(positions)
+
     async def _fetch_statsim_tracks(self) -> None:
         """Holt GPS-Tracks für ungecachte StatSim-Flüge nach — je zur Hälfte jüngste UND
         älteste zuerst.
@@ -1985,51 +2020,36 @@ class VatsimPoller:
         if not settings.STATSIM_API_KEY:
             return
         try:
-            conn = get_connection(self.db_path)
-            try:
-                half = 10
-                recent_ids = get_uncached_statsim_ids(conn, callsign_prefix="", limit=half)
-                old_ids = get_uncached_statsim_ids(
-                    conn, callsign_prefix="", limit=half, oldest_first=True
-                )
-                seen: set[int] = set()
-                ids: list[int] = []
-                for sid in recent_ids + old_ids:
-                    if sid not in seen:
-                        seen.add(sid)
-                        ids.append(sid)
-                if not ids:
-                    return
-                assert self._http_client is not None
-                fetched = 0
-                for sid in ids:
-                    try:
-                        positions = await fetch_flight_track(
-                            self._http_client, sid, settings.STATSIM_API_KEY
-                        )
-                        if positions:
-                            save_statsim_positions(conn, sid, positions)
-                            # SOFORT committen, nicht erst nach der Schleife. Der erste Schreib-
-                            # zugriff oeffnet eine Transaktion und haelt damit die SQLite-Schreib-
-                            # sperre; ohne diesen commit steht sie ueber den GESAMTEN Batch --
-                            # 20 HTTP-Abrufe plus je 0,3 s Drosselung. Am 04.09.2026 waren das
-                            # 2 min 43 s, in denen JEDER andere Schreiber nach 5 s (Pythons
-                            # Default-Timeout) "database is locked" bekam: _poll_once, die
-                            # Prefile-Signaturen und PUT /api/prefs (500 fuer echte Nutzer).
-                            # Vorher fiel es nie auf, weil "0/20 neu gecacht" gar nicht schreibt.
-                            conn.commit()
-                            fetched += 1
-                    except Exception:
-                        logger.warning(
-                            "StatSim Track-Nachladen fehlgeschlagen für Flug %s", sid
-                        )
-                    await asyncio.sleep(0.3)
-                conn.commit()
-                logger.info(
-                    "StatSim Track-Nachladen: %d/%d Flüge neu gecacht", fetched, len(ids)
-                )
-            finally:
-                conn.close()
+            # Die Datenbank laeuft in einem Thread, nicht in der Event-Loop: Nach einem
+            # geleerten Dateicache las die Abfrage kalt von der Platte, und die ganze App
+            # stand dafuer Sekunden still (Issue #60). Jeder Schritt oeffnet seine eigene
+            # Verbindung -- eine SQLite-Verbindung gehoert dem Thread, der sie geoeffnet hat.
+            ids = await asyncio.to_thread(self._statsim_kandidaten_sync, self.db_path, 10)
+            if not ids:
+                return
+            assert self._http_client is not None
+            fetched = 0
+            for sid in ids:
+                try:
+                    positions = await fetch_flight_track(
+                        self._http_client, sid, settings.STATSIM_API_KEY
+                    )
+                    # Je Flug sofort speichern und committen, nicht erst nach der Schleife:
+                    # Eine offene Schreibtransaktion ueber den ganzen Batch (20 Abrufe plus je
+                    # 0,3 s Drosselung) sperrte am 04.09.2026 fuer 2 min 43 s jeden anderen
+                    # Schreiber ("database is locked", 500 fuer echte Nutzer).
+                    if await asyncio.to_thread(
+                        self._statsim_ergebnis_sync, self.db_path, sid, positions
+                    ):
+                        fetched += 1
+                except Exception:
+                    logger.warning(
+                        "StatSim Track-Nachladen fehlgeschlagen für Flug %s", sid
+                    )
+                await asyncio.sleep(0.3)
+            logger.info(
+                "StatSim Track-Nachladen: %d/%d Flüge neu gecacht", fetched, len(ids)
+            )
         except Exception:
             logger.exception("Error in _fetch_statsim_tracks")
 

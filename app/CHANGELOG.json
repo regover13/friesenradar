@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.0.5",
+    "date": "2026-10-05",
+    "highlight": false,
+    "title": "Flugspuren nachladen, ohne im Kreis zu fragen",
+    "items": [
+      "🔧 Für manche älteren Flüge gibt es bei StatSim keine Flugspur. FriesenRadar hat genau diese Flüge alle zehn Minuten wieder angefragt, und andere mussten dahinter warten. Ein leerer Abruf wird jetzt gemerkt und erst nach einer Stunde, einem Tag und einer Woche wiederholt; danach gilt der Flug als erledigt. Fehlende Spuren aus dem Rückstand kommen dadurch schneller nach."
+    ]
+  },
+  {
     "version": "16.0.4",
     "date": "2026-10-05",
     "highlight": false,

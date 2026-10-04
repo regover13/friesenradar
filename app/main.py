@@ -165,6 +165,7 @@ from app.database import (
     init_db,
     count_uncached_statsim,
     get_uncached_statsim_ids,
+    statsim_track_leer_merken,
     save_statsim_positions,
     upsert_push_subscription,
     push_abo_bekannt,
@@ -4175,6 +4176,11 @@ async def _statsim_backfill_worker(db_path: str, api_key: str, prefix: str) -> N
                             conn.commit()
                             got += 1
                             _statsim_backfill_state["fetched"] += 1
+                        else:
+                            # Sonst liefe diese Schleife ewig: Ein Flug ohne Spur bliebe
+                            # "ungecacht" und kaeme in jedem Durchgang wieder.
+                            statsim_track_leer_merken(conn, sid)
+                            conn.commit()
                         await asyncio.sleep(0.3)
                     _statsim_backfill_state["remaining"] = count_uncached_statsim(
                         conn, callsign_prefix=prefix
@@ -4243,6 +4249,7 @@ async def admin_statsim_backfill(request: Request, limit: int = 40, background: 
                     points += len(positions)
                 else:
                     empty += 1
+                    statsim_track_leer_merken(conn, sid)
                 await asyncio.sleep(0.3)
         conn.commit()
         remaining = count_uncached_statsim(conn, callsign_prefix="")

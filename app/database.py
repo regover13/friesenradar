@@ -168,6 +168,16 @@ CREATE TABLE IF NOT EXISTS statsim_cache (
 );
 CREATE INDEX IF NOT EXISTS idx_sc_cid ON statsim_cache(cid);
 
+-- Leere Abrufe einer Flugspur (05.10.2026, Issue #60). Eigene Tabelle, NICHT Spalten in
+-- statsim_cache: Dort schreibt jeder Abruf die Zeile per INSERT OR REPLACE komplett neu.
+-- naechster_versuch NULL = aufgegeben (StatSim hat fuer diesen Flug keine Spur).
+CREATE TABLE IF NOT EXISTS statsim_track_versuch (
+    statsim_id        INTEGER PRIMARY KEY,
+    versuche          INTEGER NOT NULL,
+    zuletzt           TEXT NOT NULL,
+    naechster_versuch TEXT
+);
+
 CREATE TABLE IF NOT EXISTS statsim_position_history (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     statsim_id   INTEGER NOT NULL,
@@ -6987,13 +6997,51 @@ def get_statsim_positions(
 _STATSIM_UNCACHED_WHERE = (
     "logon_time != '' AND logoff_time IS NOT NULL AND duration_min > 5 "
     "AND callsign LIKE ? "
-    "AND statsim_id NOT IN (SELECT DISTINCT statsim_id FROM statsim_position_history)"
+    "AND statsim_id NOT IN (SELECT DISTINCT statsim_id FROM statsim_position_history) "
+    # Zurueckgestellt oder aufgegeben nach leeren Abrufen, s. statsim_track_leer_merken.
+    "AND statsim_id NOT IN (SELECT statsim_id FROM statsim_track_versuch "
+    "WHERE naechster_versuch IS NULL OR naechster_versuch > ?)"
 )
+
+# Wartezeit nach dem 1., 2. und 3. leeren Abruf; nach dem 4. gilt der Flug als erledigt.
+_STATSIM_LEER_STAFFEL_S = (3600, 24 * 3600, 7 * 24 * 3600)
+
+
+def _statsim_jetzt(jetzt: datetime | None) -> datetime:
+    return jetzt if jetzt is not None else datetime.now(timezone.utc)
+
+
+def statsim_track_leer_merken(
+    conn: sqlite3.Connection, statsim_id: int, jetzt: datetime | None = None
+) -> None:
+    """Ein Abruf der Flugspur kam leer zurueck (kein commit).
+
+    StatSim hat fuer manche Fluege nie eine Spur. Ohne dieses Merken galten sie fuer immer als
+    "noch zu holen": Der Nachlader fragte alle zehn Minuten dieselben 20 ab und kam an die
+    Fluege dahinter nicht heran (Fund 05.10.2026). ``fetch_flight_track`` meldet auch einen
+    Fehler des Dienstes als leer -- deshalb wird gestaffelt wiederholt statt sofort aufgegeben.
+    """
+    t = _statsim_jetzt(jetzt)
+    zeile = conn.execute(
+        "SELECT versuche FROM statsim_track_versuch WHERE statsim_id = ?", (int(statsim_id),)
+    ).fetchone()
+    versuche = (zeile[0] if zeile else 0) + 1
+    if versuche <= len(_STATSIM_LEER_STAFFEL_S):
+        naechster = (t + timedelta(seconds=_STATSIM_LEER_STAFFEL_S[versuche - 1])).isoformat()
+    else:
+        naechster = None
+    conn.execute(
+        "INSERT INTO statsim_track_versuch (statsim_id, versuche, zuletzt, naechster_versuch) "
+        "VALUES (?, ?, ?, ?) ON CONFLICT(statsim_id) DO UPDATE SET "
+        "versuche = excluded.versuche, zuletzt = excluded.zuletzt, "
+        "naechster_versuch = excluded.naechster_versuch",
+        (int(statsim_id), versuche, t.isoformat(), naechster),
+    )
 
 
 def get_uncached_statsim_ids(
     conn: sqlite3.Connection, *, callsign_prefix: str = "FRS", limit: int = 50,
-    oldest_first: bool = False,
+    oldest_first: bool = False, jetzt: datetime | None = None,
 ) -> list[int]:
     """StatSim-Flug-IDs, deren GPS-Track noch NICHT lokal gecacht ist.
 
@@ -7012,18 +7060,19 @@ def get_uncached_statsim_ids(
     rows = conn.execute(
         "SELECT statsim_id FROM statsim_cache WHERE " + _STATSIM_UNCACHED_WHERE
         + f" ORDER BY logon_time {order} LIMIT ?",
-        (f"{callsign_prefix}%", int(limit)),
+        (f"{callsign_prefix}%", _statsim_jetzt(jetzt).isoformat(), int(limit)),
     ).fetchall()
     return [r[0] for r in rows]
 
 
 def count_uncached_statsim(
-    conn: sqlite3.Connection, *, callsign_prefix: str = "FRS"
+    conn: sqlite3.Connection, *, callsign_prefix: str = "FRS", jetzt: datetime | None = None
 ) -> int:
-    """Anzahl StatSim-Flüge ohne gecachten Track (Rest-Zähler für den Backfill-Fortschritt)."""
+    """Anzahl StatSim-Flüge ohne gecachten Track (Rest-Zähler für den Backfill-Fortschritt).
+    Zurückgestellte und aufgegebene Flüge zählen nicht mit."""
     return conn.execute(
         "SELECT COUNT(*) FROM statsim_cache WHERE " + _STATSIM_UNCACHED_WHERE,
-        (f"{callsign_prefix}%",),
+        (f"{callsign_prefix}%", _statsim_jetzt(jetzt).isoformat()),
     ).fetchone()[0]
 
 
