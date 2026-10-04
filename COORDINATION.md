@@ -6,6 +6,36 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-04 (spät) — Nach dem Deploy von Lichtblick: letzter Kniebrett-Durchgang, Fernseher umgestellt
+
+**Durchgang mit beiden Kniebrett-Paketen (MSFS 2024):** Das alte 2.3.2 lag für den Test wieder neben dem
+3.0.0 in `Community`. Der Nutzer meldet **„MSFS2024 test erfolgreich“** — mehr nicht. Hinweiskasten,
+Test-Benachrichtigung und „kein Mitlesen“ hat er nicht einzeln aufgeschlüsselt, und von diesem Rechner aus
+wurde nichts davon nachgeprüft; wer es belegt haben will, sieht am Server nach. Danach ist das alte Paket
+wieder aus `Community` heraus. In `Community` liegen von uns nur noch `friesenkniebrett` und `friesenbruegge`,
+`Community2024` ist leer. Die Sicherungen in `Community-beiseite-Lichtblick` sind **nicht** gelöscht.
+
+**Fire TV Stick des Nutzers (Fully Kiosk 1.61.3, Android 11, per ADB erreichbar):** Die Startadresse stand
+noch auf dem Testzugang von `test-radar.devprops.de` (liefert inzwischen 403) und ist jetzt
+`https://friesenradar.devprops.de/?tv=1`. Sie und die Anmeldung überstehen einen Neustart von Fully.
+
+⚠ **Fund, an die Server-Sitzung gemeldet, nicht untersucht:** Wer mit `?tv=1` unangemeldet ankommt, landet
+nach dem Forum-Login auf der normalen Seite — der TV-Modus ist nicht aktiv, die Fernbedienung bewirkt nichts
+(Nutzer: „Die Fernbedienung geht nicht“). Der Server schickt das Ziel richtig mit
+(`302` → `/auth/forum/login?next=%2F%3Ftv%3D1`); wo es danach verloren geht, ist offen. Ein Neustart von
+Fully lädt die Startadresse frisch, dann stimmt es.
+
+**Für die nächste Sitzung an diesem Rechner:**
+
+- **Fully am Stick lässt sich nur über die Oberfläche umstellen:** Fernverwaltung (Port 2323) ist dort aus,
+  Speicherrechte hat die App nicht (kein Import einer Einstellungsdatei). Es geht mit `adb shell input` und
+  `uiautomator dump`. Nach „OK“ im Dialog „Start URL“ fragt Fully beim Verlassen der Einstellungen
+  **„Open the new Start URL now?“** — wer das mit Zurück wegdrückt, verliert die Änderung.
+- `adb shell input text` kann keine Umlaute; die Bildschirmtastatur des Fire TV hat eine Taste `äçé`.
+- Passwörter tippt die Sitzung nicht ein, auch nicht per ADB. Das Anmelden am Forum macht der Nutzer.
+
+---
+
 ## 2026-10-04 — Deploy-Schlüssel eingeschränkt, Workflows umgebaut
 
 **Angefasst:** `.github/workflows/deploy.yml`, `test-image.yml`, `bruegge-xplane.yml`, neu
@@ -17,6 +47,58 @@ Server, wird nicht automatisch ausgerollt). **Zweige mit eigener Workflow-Fassun
 `testinstanz`, `umzug`, `lichtblick`, `kniebrett-3`, `bruegge-radar`) tragen noch den alten
 Schritt — beim nächsten Rebase auf `main` die Fassung von `main` übernehmen, nicht die eigene.
 Solange das Secret `VPS_SSH_KEY` noch existiert, laufen die alten Fassungen weiter.
+
+---
+
+## 2026-10-03 (abends) — Kniebrett 3.0.0 und neue FriesenBrügge am Simulator-Rechner gebaut und geprüft
+
+**Stand:** Kniebrett **3.0.0** (`friesenkniebrett`), FriesenBrügge MSFS **1.19.0** und X-Plane **1.5.0** sind
+gebaut und in allen drei Simulatoren des Nutzers installiert. **Nichts hochgeladen, nichts deployt, nichts
+nach `main` gepusht** — das Hochladen macht die Server-Sitzung auf Wort des Nutzers. Gebaut aus
+`bruegge-radar` (86199bf; Paketquellen seither unverändert). Anleitung: `docs/uebergabe-friesenradar-pakete.md`.
+
+| Paket | Datei | sha256 |
+|---|---|---|
+| Kniebrett 3.0.0 | `msfs-panel/friesenkniebrett.zip` (139 833 Bytes, nicht versioniert) | `26b5e222…e5e4f4` |
+| Brügge MSFS 1.19.0 | `friesenbruegge/friesenbruegge.zip` (396 035 Bytes, lokal geändert, **nicht committet**) | `8fce0332…d7f41c` |
+| Brügge X-Plane 1.5.0 | CI-Artefakt `friesenbruegge-xplane`, Lauf 37112105024 (Commit 703c1c7) | `c64fd95a…58a849` |
+
+**Geprüft (Nutzer am Simulator, Server-Sitzung in der Datenbank):**
+
+| Prüfung | MSFS 2024 | MSFS 2020 | X-Plane 12 |
+|---|---|---|---|
+| Brügge meldet, Zuordnung zum Piloten bleibt | 1.19.0 | 1.19.0 | 1.5.0 |
+| Objekt stellen (`rauch_orange`, 400 m voraus) | gesehen | gesehen | gesehen |
+| Objekt abräumen nach Löschen | gesehen | gesehen | gesehen |
+
+Kniebrett 3.0.0 in MSFS 2024: **harte Schranke bestanden** — keine neue Anmeldung, dieselbe Gerätekennung
+(`panel_devices` weiter ein Gerät, `paket_version` 3.0.0). Dazu fremder Verkehr (türkis), Name und Symbol in
+der App-Liste, Logo hell und dunkel, Fenster schließen, App neu angeheftet.
+
+⚠ **Offen bis nach dem Deploy von 16.0.0:** Der Durchgang mit beiden Kniebrett-Paketen nebeneinander
+(Hinweiskasten `#panel-paket-doppelt`, Test-Benachrichtigung, `altesPaketDa()`). Auf der Produktion lief
+15.34.1; deren Seite wertet `altesPaket` nicht aus, der Kasten **kann** dort nicht erscheinen. Am Simulator
+gesehen: zwei Apps ja, Kasten nein — das ist kein Befund gegen das Paket. Das neue Logo erschien trotzdem
+schon in beiden Apps (Vorschau seit 15.33.0).
+
+**Für die nächste Sitzung am Simulator-Rechner:**
+
+- Die alten Fassungen liegen **neben** `Community`, nicht gelöscht: `LocalCache/Packages/Community-beiseite-Lichtblick`
+  (MSFS 2024: Kniebrett 2.3.2 zweimal bytegleich, Brügge 1.18.1; MSFS 2020: Brügge 1.18.1) und
+  `D:\X-Plane 12\Resources\FriesenBruegge-beiseite-Lichtblick`. Das Kniebrett 2.3.2 wird für den Durchgang
+  nach dem Deploy noch einmal gebraucht.
+- In X-Plane liegt zusätzlich `Resources\plugins\FriesenBruegge.v100` (13.09.). Er wird laut `Log.txt` nicht
+  geladen; ob er weg soll, entscheidet der Nutzer.
+- **Ein frischer Worktree baut nicht von allein:** `PackageSources\efb_api` braucht ein eigenes `npm ci`
+  (sonst scheitert die Typprüfung mit `Property 'props' does not exist`), und `friesenbruegge\msfs-rauch\Packages`
+  ist nicht versioniert — ohne die vier Teile schnürt `paket.ps1` ein Paket ohne Rauch und warnt nur. Hier aus
+  dem Hauptordner kopiert (Stand 20.09., `msfs-rauch` im Branch unverändert).
+- **Die MSFS-Brügge schreibt ihr Log nur nach stderr** (DevMode-Konsole), nicht in eine Datei. `Fassung … startet`
+  lässt sich von außen nicht lesen; der Beleg ist `bruegge_version` in `bruegge_zuordnung`.
+- **Eine Zuordnung entsteht erst mit VATSIM-Verbindung.** Ohne sie steht die neue Fassung nicht in der
+  Datenbank, und die Brügge bekommt kein Objekt — das Fehlen ist dann kein Befund.
+- Der Stellen-Test stand nicht in der Übergabe und wäre fast durchgerutscht; der Nutzer hat ihn verlangt.
+  Bei jedem Brügge-Release gehört er dazu: je Simulator **ein** Start, VATSIM verbinden, stellen, abräumen.
 
 ---
 
