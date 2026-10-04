@@ -153,3 +153,13 @@ def test_klick_auf_den_namen_schliesst_das_menue():
     js = INDEX[INDEX.index("function _pilotLinkKlick("):]
     js = js[:js.index("\n}\n")]
     assert "el.closest('#notif-panel')" in js and ".hidden = true" in js
+
+
+def test_fussleiste_bricht_auf_dem_handy_sauber_um():
+    """Nutzer 04.10.2026: Auf dem Handy stand ein Trennpunkt allein am Zeilenanfang. Dort
+    stehen jetzt zwei Zeilen -- Downloads/Impressum/Datenschutz und Hilfe/Version --, der
+    Trennpunkt dazwischen wird zum Umbruch."""
+    fuss = _fuss()
+    assert re.search(r'Datenschutz</a>\s*<span class="fuss-umbruch">&nbsp;·&nbsp;</span>\s*<!--', fuss)
+    m = re.search(r"@media \(max-width: 600px\) \{\s*footer \.fuss-umbruch \{([^}]*)\}", INDEX)
+    assert m and "display: block" in m.group(1) and "height: 0" in m.group(1) and "overflow: hidden" in m.group(1)
