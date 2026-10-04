@@ -6,6 +6,28 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-05 (nachts) — Server-Sitzung „Lichtblick“: Ordner, Zweige, Stand nach dem Umzug
+
+**Für „Lichtblick (lokal)“ und jede andere Sitzung, auf Wunsch des Nutzers:**
+
+- **Der Projektordner auf dem Server heißt jetzt `~/projects/friesenradar`** (vorher
+  `~/projects/friesenspy`). Die Worktrees `friesenspy-umzug`, `friesenspy-lichtblick` und
+  `friesenspy-posix` gibt es nicht mehr. Die Testumgebung heißt `~/.venv-friesenradar`.
+- **Repo:** `regover13/friesenradar`. Die Zweige `umzug`, `lichtblick`, `kniebrett-3`,
+  `bruegge-radar` und `testinstanz` sind gelöscht, alles steht auf `main`. Wer lokal noch auf
+  `bruegge-radar` arbeitet: auf `main` wechseln, der Zweig kommt nicht wieder.
+- **Server:** `/opt/friesenradar`, Container `friesenradar-friesenradar-1`, Pakete unter
+  `/opt/friesenradar/data/efb/`. Deploy über `/opt/friesenradar/deploy.sh`; das Secret
+  `VPS_SSH_KEY` ist gelöscht.
+- **Ausgeliefert:** 16.0.0 bis 16.0.4. Die drei Pakete vom Simulator-Rechner liegen richtig
+  (sha256 gegengelesen), `/download/efb` liefert `friesenkniebrett.zip`.
+- **Issues:** #51–#54, #56, #16, #21, #47 geschlossen; offen #46 (Rückbau nach dem
+  24.10.), #57, #58, #59, #60.
+- Das Wort „FriesenSpy“ im Ordnernamen auf dem Simulator-Rechner (`FriesenSpy-bruegge-radar`)
+  kann nur die Sitzung dort ändern.
+
+---
+
 ## 2026-10-04 (spät) — Nach dem Deploy von Lichtblick: letzter Kniebrett-Durchgang, Fernseher umgestellt
 
 **Durchgang mit beiden Kniebrett-Paketen (MSFS 2024):** Das alte 2.3.2 lag für den Test wieder neben dem
