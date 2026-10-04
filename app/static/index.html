@@ -9633,13 +9633,27 @@ function _panelKartenLayout(wurzel) {
 
     const heads = kopfzellen.map(th => th.textContent.trim());
     t.querySelectorAll('tbody tr').forEach(tr => {
-      Array.from(tr.children).forEach((td, i) => {
-        // Nur schreiben, wenn sich der Wert aendert: setAttribute meldet auch eine
-        // unveraenderte Zuweisung als Mutation, und der Beobachter, der uns aufruft,
-        // wuerde sich sonst endlos selbst wecken.
-        if (heads[i] && td.getAttribute('data-label') !== heads[i]) {
-          td.setAttribute('data-label', heads[i]);
+      // Spaltenzeiger statt reinem DOM-Kindindex: eine Zelle mit colspan (im Kutter-Feed
+      // z. B. "Noch keine Fluege." ueber die volle Breite, s. _kutterDetailBody) belegt
+      // mehrere Spalten auf einmal. Array.from(tr.children) zaehlt sie trotzdem nur als EIN
+      // Kind -- ohne diese Unterscheidung haette sie die Kopfzeile der ERSTEN Spalte bekommen
+      // (z. B. "Zeit" vor einem reinen Hinweistext), und jede WEITERE Zelle in derselben
+      // Zeile waere um die ueberzaehligen Spalten verschoben gewesen -- genau das Bild aus
+      // dem Sim (erste Beschriftung ohne Wert, alles danach verrutscht, am Ende ein Wert ohne
+      // Beschriftung). Eine vollbreite Zelle ist keine Werte-Spalte -- sie bekommt deshalb
+      // bewusst gar keine Beschriftung (CSS zeigt sie ohnehin als durchlaufenden Text).
+      let spalte = 0;
+      Array.from(tr.children).forEach((td) => {
+        const spannbreite = parseInt(td.getAttribute('colspan') || '1', 10) || 1;
+        if (spannbreite === 1) {
+          // Nur schreiben, wenn sich der Wert aendert: setAttribute meldet auch eine
+          // unveraenderte Zuweisung als Mutation, und der Beobachter, der uns aufruft,
+          // wuerde sich sonst endlos selbst wecken.
+          if (heads[spalte] && td.getAttribute('data-label') !== heads[spalte]) {
+            td.setAttribute('data-label', heads[spalte]);
+          }
         }
+        spalte += spannbreite;
       });
     });
     t.classList.add('panel-cards');

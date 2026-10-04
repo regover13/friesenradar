@@ -175,7 +175,19 @@ def test_umschreibung_schreibt_nur_bei_echter_aenderung():
     """Ohne diese Wache weckt der Beobachter sich endlos selbst: eine Zuweisung meldet auch
     dann eine Mutation, wenn sich der Wert nicht geaendert hat."""
     assert "if (neu !== knoten.nodeValue) knoten.nodeValue = neu;" in INDEX
-    assert "td.getAttribute('data-label') !== heads[i]" in INDEX
+    assert "td.getAttribute('data-label') !== heads[spalte]" in INDEX
+
+
+def test_karten_layout_zaehlt_colspan_mit():
+    """Eine Zelle mit colspan (Kutter-Feed: "Noch keine Fluege.") belegt mehrere Spalten.
+    Zaehlte nur der DOM-Kindindex, bekaeme sie die erste Kopfzeile und alle weiteren Zellen
+    der Zeile waeren verschoben (Sim-Befund August 2026)."""
+    m = re.search(r"function _panelKartenLayout\(wurzel\) \{(.*?)\n\}", INDEX, re.S)
+    assert m, "_panelKartenLayout nicht gefunden"
+    rumpf = m.group(1)
+    assert "getAttribute('colspan')" in rumpf
+    assert "spalte += spannbreite" in rumpf
+    assert "heads[i]" not in rumpf, "Kindindex statt Spaltenzeiger"
 
 
 # ---------------------------------------------------------------------------
