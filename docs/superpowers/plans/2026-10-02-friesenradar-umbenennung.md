@@ -208,6 +208,28 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 > - **Neu:** Issue #57 (Landingpage Messebesucher), Issue #58 (alte Adressen im Browser
 >   umleiten, erst am Tag der Vereinsadresse).
 
+> **Nachtrag 05.10.2026, bis 00:45 MESZ:**
+> - **16.0.2 (`bf5ac3b`):** Anmeldung am Fernseher. Die Merk-Cookies `fs_sso_state`/`fs_sso_next`
+>   galten 5 Minuten, die Anmeldung per Fernbedienung dauerte 9,5 → Rückruf 400, „Neu anmelden“
+>   ohne Ziel, `?tv=1` weg. Jetzt 30 min bzw. 2 h, die Ablehnungsseite reicht das Ziel weiter.
+>   Am Stick noch nicht nachgetestet (er ist angemeldet).
+> - **16.0.3 (`96ad34f`):** Unter `panel_prefs.kontext = web` liegt der Stand des Geräts, das
+>   zuletzt geschrieben hat; ein Fernseher im TV-Modus schreibt alle paar Sekunden. Auf der
+>   Website füllt der Server deshalb nur noch auf, was dem Gerät fehlt (im Kniebrett gewinnt er
+>   weiter). Auslöser: Am Rechner sprang das helle Design bei jedem Laden auf dunkel.
+> - **Pakete liegen auf dem Server** (hochgeladen von der Sitzung am Simulator-Rechner auf Wort
+>   des Nutzers, 00:02): `friesenkniebrett.zip` 3.0.0, `friesenbruegge.zip` 1.19.0,
+>   `friesenbruegge-xplane.zip` 1.5.0; `/download/efb` liefert `friesenkniebrett.zip`. Das
+>   Kniebrett gibt es nur in MSFS 2024 — die Prüfung „nebeneinander in 2020“ entfällt.
+> - **Step 22 vorgezogen:** eigenes Zertifikat `friesenradar.devprops.de` (beide Namen), nginx
+>   umgestellt (`5bdcd39`). Das alte Zertifikat ist noch nicht gelöscht (#59).
+> - **Forum:** Widget-Vorlage der Erweiterung `friesenspy/fswidget` zeigt auf
+>   `https://friesenradar.devprops.de/widget` (eine zwischengespeicherte Twig-Datei entfernt,
+>   von außen geprüft; die Datei gehört jetzt `twaeschle:www-bb_friesen`, lesbar über die
+>   Gruppe). Auf der Website keine Einbettung in Dateien gefunden. Ankündigung „V16 -
+>   Lichtblick“: Entwurf im Chat, wartet auf „posten“. Unterforum und Thema: Nutzer.
+> - **Issues:** #51–#54 und #56 geschlossen; Reste in #59 (Aufräumen), Vereinsadresse in #58.
+
 **Nur, wenn der Nutzer das Fenster freigibt.** Ausfall ~1 min. Die CI liegt **nicht** auf dem
 kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch läuft. (B2)
 
