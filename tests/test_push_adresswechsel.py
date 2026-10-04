@@ -93,11 +93,11 @@ def test_ohne_mitglied_oder_ueber_die_aelteste_adresse_passiert_nichts(conn):
 # ---- Endpunkt ---------------------------------------------------------------------------
 
 class _Req:
-    def __init__(self, host, body):
+    def __init__(self, host, body, origin=None):
         self.url = SimpleNamespace(hostname=host)
         self._body = body
         self.cookies = {}
-        self.headers = {}
+        self.headers = {"origin": origin} if origin is not None else {}
 
     async def json(self):
         return self._body
@@ -137,5 +137,33 @@ def test_nur_das_erste_einschalten_raeumt_auf(app_db):
     c = get_connection(app_db)
     try:
         assert _abos(c) == {APPLE_2: NEU, APPLE_1: ALT}
+    finally:
+        c.close()
+
+
+@pytest.mark.parametrize("origin", ["https://boese.example", "null"])
+def test_eine_fremde_seite_kann_weder_einschalten_noch_aufraeumen(app_db, origin):
+    """Das Sitzungs-Cookie traegt SameSite=None (Kniebrett im iframe) und kaeme bei einem
+    seitenfremden POST mit. Ohne Pruefung koennte eine fremde Seite im Namen eines Mitglieds ein
+    Abo anlegen -- und seit dem Aufraeumen damit dessen echtes Abo loeschen."""
+    from fastapi import HTTPException
+    _einschalten(ALT, APPLE_1)
+    body = {"endpoint": APPLE_2, "p256dh": "p", "auth": "a"}
+    with pytest.raises(HTTPException) as e:
+        asyncio.run(main.push_subscribe(_Req(NEU, body, origin=origin)))
+    assert e.value.status_code == 403
+    c = get_connection(app_db)
+    try:
+        assert set(_abos(c)) == {APPLE_1}
+    finally:
+        c.close()
+
+
+def test_die_eigene_seite_darf_einschalten(app_db):
+    body = {"endpoint": APPLE_2, "p256dh": "p", "auth": "a"}
+    asyncio.run(main.push_subscribe(_Req(NEU, body, origin=f"https://{NEU}")))
+    c = get_connection(app_db)
+    try:
+        assert _abos(c) == {APPLE_2: NEU}
     finally:
         c.close()

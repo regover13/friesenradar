@@ -3291,9 +3291,22 @@ async def meine_fassungen(request: Request):
         conn.close()
 
 
+def _fremde_herkunft_abweisen(request: Request) -> None:
+    """403, wenn der Aufruf von einer fremden Seite kommt (``Origin`` nennt einen anderen Host
+    oder ``null``). Das Sitzungs-Cookie traegt ``SameSite=None`` (Kniebrett im iframe) und kaeme
+    bei einem seitenfremden POST mit. Ohne ``Origin`` -- alte Browser, Kommandozeile -- geht der
+    Aufruf durch: Dann fehlt auch der Browser, der das Cookie mitschickte."""
+    herkunft = request.headers.get("origin", "")
+    if herkunft and (urlsplit(herkunft).hostname or "").lower() != (request.url.hostname or "").lower():
+        raise HTTPException(status_code=403, detail="Fremde Herkunft")
+
+
 @app.post("/api/push/subscribe")
 async def push_subscribe(request: Request):
     """Browser-Push-Subscription speichern."""
+    # Vor allem anderen: Ein Abo im Namen eines Mitglieds anzulegen raeumt seit 16.0.1 dessen
+    # aelteres Abo weg -- das darf keine fremde Seite ausloesen.
+    _fremde_herkunft_abweisen(request)
     body = await request.json()
     endpoint = body.get("endpoint", "")
     p256dh = body.get("p256dh", "")
@@ -5634,9 +5647,7 @@ async def forum_logout_samt_forum(request: Request):
     Nur wenn die Bruecke das bei der Anmeldung angekuendigt hat (Claim ``abm``); sonst wird
     nur hier abgemeldet. POST statt GET und die Herkunftspruefung verhindern, dass eine fremde
     Seite ein Mitglied abmeldet."""
-    herkunft = request.headers.get("origin", "")
-    if herkunft and (urlsplit(herkunft).hostname or "").lower() != (request.url.hostname or "").lower():
-        raise HTTPException(status_code=403, detail="Fremde Herkunft")
+    _fremde_herkunft_abweisen(request)
     settings = get_settings()
     ziel = "/"
     claims = verify_user_token(request.cookies.get(USER_COOKIE, ""), settings.SECRET_KEY)
