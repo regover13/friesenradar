@@ -134,6 +134,15 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 > neu anmelden, Zahnrad → Abmelden → Ja; danach muss die Anmeldeseite des Forums erscheinen
 > und das Forum in diesem Browser abgemeldet sein. Die PHP-Prüffunktion ist lokal gegen
 > Aufträge aus `make_logout_token` gegengeprüft, der Lauf **im** phpBB (`session_kill`) noch nicht.
+> **Erledigt 04.10.2026, 14:41 MESZ (auf Wort des Nutzers):** Die v3-Brücke liegt auf dem
+> Forum (`www-data:www-bb_friesen 660`, Secret aus der liegenden Datei übernommen, `php -l`
+> sauber). Die liegende Datei war die alte Vorlage mit Windows-Zeilenenden, sonst zeichengleich.
+> Sicherung: `~twaeschle/sso.php.sicherung-2026-10-04` (600). Von außen gemessen, vorher und
+> nachher gleich: ohne Sitzung die Anmeldeseite, fremder Rücksprung 400; neu: kaputter
+> Abmelde-Auftrag 400. **PHP hält die alte Fassung einige Sekunden im Zwischenspeicher** — die
+> erste Probe direkt nach dem Ablegen zeigte noch das alte Verhalten. Schritt 2a entfällt damit.
+> Noch offen: eine Anmeldung über die neue Brücke im Log sehen, und das Abmelden im phpBB
+> (geht erst mit 16.0.0 oder mit einem von Hand erzeugten Auftrag).
 > Ebenfalls am 04.10. dazugekommen (alles auf dem Test-Zweig): Hilfe und Version in der
 > Fußleiste, Name ins Zahnradmenü, Zahnrad auf dem Handy neben dem Logo, leerer Prefile-Kasten
 > niedrig.
