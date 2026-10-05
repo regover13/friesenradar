@@ -16,7 +16,7 @@ Doku. Release **16.0.0 „Lichtblick“**.
    „white and red“, im Hellen farbig, in Kopfzeile und Kniebrett ohne Inseln. Kopfzeile
    zentriert, 90 px (Handy 56 px, eigene Zeile). Kniebrett: Logo im Streifen, 42 px.
 3. **App-Symbol:** das rote Flugzeug aus dem Logo, unverändert, auf **Weiß**.
-4. **Adressen:** `radar.friesenflieger.de` (für Mitglieder, wartet auf Heinz),
+4. **Adressen:** `radar.friesenflieger.de` (für Mitglieder, wartet auf den DNS-Eintrag des Vereins),
    `friesenradar.devprops.de` (läuft), `friesenspy.devprops.de` (wird stilles Alias, s. u.).
 5. **Versionsverlauf:** alte CHANGELOG-Einträge bleiben als Geschichte.
 6. **Andere Repos:** Kommentare und Erwähnungen bleiben als Geschichte. Ausnahme: Technik, die
@@ -36,7 +36,7 @@ Doku. Release **16.0.0 „Lichtblick“**.
 | Bereich | Ergebnis | Weg |
 |---|---|---|
 | App (Website, Kniebrett, Admin, Download-, Rechtstext- und Anmeldeseiten, Widget, Push, Telegram, Manifest, Symbole, Favicon) | neuer Name | Code, 16.0.0 |
-| Forum | Unterforum „FriesenRadar“, Thema „FriesenRadar – Entwicklungsstand“, Widget-Einbettung auf neue Adresse | Board-Admin (Nutzer/Heinz) bzw. ich mit Freigabe |
+| Forum | Unterforum „FriesenRadar“, Thema „FriesenRadar – Entwicklungsstand“, Widget-Einbettung auf neue Adresse | Board-Admin bzw. ich mit Freigabe |
 | Vereinswebsite | Widget-Einbettung auf neue Adresse | Micha |
 | GitHub | Repo `regover13/friesenradar`, Image `ghcr.io/regover13/friesenradar` | Umbenennen; GitHub leitet alte Links weiter |
 | Server | `/opt/friesenradar`, Container `friesenradar-friesenradar-1`, `friesenradar.db`, nginx-, Zertifikat-, fail2ban-, Backup-Namen | Umzug in einem ruhigen Fenster |

@@ -84,7 +84,7 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 ### Task 2: Server-Umzug (Wartungsfenster, Nutzer gibt Bescheid)
 
 > **HALT vor dem Umbau — Nutzer 03.10.2026:** „Frage mich vor dem Umbau nochmal, weil wir doch
-> `radar.friesenflieger.de` bei Heinz bestellt haben.“ Vor dem Umzug UND vor dem Ausliefern von
+> `radar.friesenflieger.de` beim Verein bestellt haben.“ Vor dem Umzug UND vor dem Ausliefern von
 > 16.0.0 den Nutzer fragen, welche Adresse die Texte nennen (Changelog-Punkt „Neue Adresse“,
 > README, Forum). Nicht selbst entscheiden, auch wenn DNS schon steht.
 > **Ebenfalls Nutzer 03.10.2026:** Kniebrett 3.0.0 und die neue FriesenBrügge gehören ZU
@@ -307,7 +307,7 @@ Sicherung. Reste unter `/root/umzug-probe-2026-10-03/` (0700), Probe-Image
 - [ ] **Step 22: Zertifikat:** `sudo certbot certonly -n --webroot -w /var/www/html --cert-name friesenradar.devprops.de -d friesenradar.devprops.de -d friesenspy.devprops.de --deploy-hook "systemctl reload nginx"`, Vhost auf `live/friesenradar.devprops.de` umstellen (im Repo steht bis dahin bewusst noch `live/friesenspy.devprops.de`, sonst scheitert Step 17 an `nginx -t`), `nginx -t`, `reload`, mit `curl -v` prüfen. Erst wenn `nginx -T | grep live/friesenspy` leer ist (K3): `certbot delete --cert-name friesenspy.devprops.de` — **nicht umkehrbar** außer durch Neuausstellung (Rate-Limit). (B5)
 - [ ] **Step 23:** Altes Image `docker rmi ghcr.io/regover13/friesenspy:latest` und das Probe-Image `ghcr.io/regover13/friesenradar:probe`, Gegenprobe `docker images`. Probe-Reste `/root/umzug-probe-2026-10-03/` und `/root/umzug-probe2-2026-10-03/` (zusammen ~1,8 GB, enthalten DB-Kopien) löschen — mit Freigabe.
 
-**Später, wenn Heinz den DNS-Eintrag gesetzt hat** (CNAME `radar` → **`friesenradar.devprops.de`**):
+**Später, wenn der DNS-Eintrag beim Verein gesetzt ist** (CNAME `radar` → **`friesenradar.devprops.de`**):
 - [ ] **Step 24:** `dig +short radar.friesenflieger.de` zeigt auf 167.86.127.129. Zertifikat erweitern (`--expand -d radar.friesenflieger.de`), `server_name` ergänzen, `curl -sf https://radar.friesenflieger.de/health`, Forum-Login über diese Adresse. Erst danach Texte für Mitglieder auf diese Adresse umstellen (Task 3 Nachtrag). (V4)
 
 ---
@@ -337,7 +337,7 @@ Alles auf friesenflieger.de nur mit Freigabe; Schreiben einzeln erfragen.
 
 - [ ] **Step 1:** Unterforum „FriesenSpy“ (f=116) in „FriesenRadar“ umbenennen — Nutzer im ACP (hat selbst Zugriff).
 - [ ] **Step 2:** Thema 1785 in „FriesenRadar – Entwicklungsstand“ umbenennen — **Nutzer im ACP bzw. über die Moderation**, nicht durch Bearbeiten des ersten Beitrags: Trägt er eine Umfrage, löscht jedes Bearbeiten sie samt Ergebnissen. (V10)
-- [ ] **Step 3:** Widget-Einbettung in Board-Vorlage und Website auf `https://friesenradar.devprops.de/widget` — **der Nutzer hat selbst Zugriff auf beides** (03.10.2026); nur DNS liegt bei Heinz. Ändert der Nutzer, oder ich mit ausdrücklicher Schreibfreigabe.
+- [ ] **Step 3:** Widget-Einbettung in Board-Vorlage und Website auf `https://friesenradar.devprops.de/widget` — **der Nutzer hat selbst Zugriff auf beides** (03.10.2026); nur DNS liegt beim Verein. Ändert der Nutzer, oder ich mit ausdrücklicher Schreibfreigabe.
 - [ ] **Step 4:** Discord-Webhook-Name und Telegram-Bot-Anzeigename umbenennen (Nutzer).
 - [ ] **Step 5:** Ankündigung „V16 - Lichtblick“: Entwurf im Chat, nach Freigabe posten, Betreff nachziehen. Inhalt: neuer Name, neue Adresse, Logo und Symbol; **iPhone/iPad:** alte App vom Home-Bildschirm löschen, über die neue Adresse neu hinzufügen, Benachrichtigungen neu einschalten; **Android:** nichts tun, Name und Symbol ziehen von selbst nach; einmal neu anmelden; Kniebrett-Paket und Brügge folgen. (V5/V6)
 - [ ] **Step 6:** Gegenprobe `forum_list_forums`; nach einigen Tagen `SELECT owner_cid, COUNT(*) FROM push_subscriptions GROUP BY 1 HAVING COUNT(*) > 1`.
