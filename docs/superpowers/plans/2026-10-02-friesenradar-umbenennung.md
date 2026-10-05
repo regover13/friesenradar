@@ -252,6 +252,10 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 > `systemctl --failed` nennt nur `systemd-networkd-wait-online.service`, fehlgeschlagen seit
 > dem 12.09.2026 und ohne Bezug zum Umzug. Review Focus 4 ist damit erledigt.
 
+> **Landingpage für die Messe (05.10.2026):** gehört nicht zu FriesenRadar. Das Thema (früher
+> Issue #57) ist in das eigene, private Projekt `friesenflieger-messe` umgezogen; in diesem
+> Repo wurde dafür nichts gebaut, und in die Datenschutzseite kommt nichts davon.
+
 **Nur, wenn der Nutzer das Fenster freigibt.** Ausfall ~1 min. Die CI liegt **nicht** auf dem
 kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch läuft. (B2)
 
