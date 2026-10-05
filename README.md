@@ -271,7 +271,7 @@ Steht im Flugplan ein anderes Kürzel als das eigentliche Muster, sagt das Fenst
 
 ### Piloten-Namen (überall anklickbar)
 
-Jeder Pilotenname ist ein Link auf die Statistik dieses Piloten – auch dein eigener Name oben im Kopf, dazu in der Live-Liste, bei den eingereichten Flugplänen, im Karten-Popup, im Muster-Fenster, in der Event-Suche und in allen Ansichten von FriesenBummel, FriesenKutter und FriesenReddung. Beim Kutter steht statt des Namens das Rufzeichen, und das ist dann der Link. Ein Klick wechselt in den Tab Statistiken und öffnet dort die Details des Piloten mit Flugliste und Orden. Der eingestellte Zeitraum bleibt stehen; kommt der Pilot darin nicht vor, springt er auf 365 Tage.
+Jeder Pilotenname ist ein Link auf die Statistik dieses Piloten – auch dein eigener Name oben im Zahnradmenü, dazu in der Live-Liste, bei den eingereichten Flugplänen, im Karten-Popup, im Muster-Fenster, in der Event-Suche und in allen Ansichten von FriesenBummel, FriesenKutter und FriesenReddung. Beim Kutter steht statt des Namens das Rufzeichen, und das ist dann der Link. Ein Klick wechselt in den Tab Statistiken und öffnet dort die Details des Piloten mit Flugliste und Orden. Der eingestellte Zeitraum bleibt stehen; kommt der Pilot darin nicht vor, springt er auf 365 Tage.
 
 ---
 
@@ -483,7 +483,7 @@ Oben steht eine Leiste mit sechs Bereichen: **Events · Stammdaten · Karten · 
 Brügge · Betrieb**. Früher stand alles untereinander auf einer einzigen langen Seite.
 
 Im Bereich **Events** liegt darunter eine zweite Reihe — ein Knopf je Event-Typ, derzeit
-**🏁 Bummel** und **🦐 Kutter**. Jeder weitere Typ bekommt dort seinen eigenen Knopf, und alles,
+**🏁 Bummel**, **🦐 Kutter** und **🚨 Reddung**. Jeder weitere Typ bekommt dort seinen eigenen Knopf, und alles,
 was zu ihm gehört, steht dahinter beieinander.
 
 **Der offene Bereich steht in der Adresszeile.** Lädst du die Seite neu, landest du wieder dort,
@@ -612,6 +612,12 @@ VATSIM weiterhin die Sekunden, in denen sie schweigt.
 - **StatSim-Nachlauf** — einen vollständigen Abgleich mit StatSim anstoßen und seinen Fortschritt verfolgen.
 - **FriesenKutter** — Events, Frachtmanifest, Frachtart-Katalog und Standard-Zuladung pflegen, Push je Event schalten, KI-Sprüche an- oder abschalten und für ein Event neu erzeugen lassen. Siehe [FriesenKutter](#-friesenkutter-transportflüge).
   **Ein abgeschlossener Kutter bleibt so gewertet, wie er war.** Änderungen an Zuladungen wirken sofort auf laufende Events, rühren fertige aber nicht mehr an. Soll ein fertiges Event die neuen Werte bekommen, tippst du es an und speicherst es — das ist der bewusste Neuberechnungs-Hebel.
+
+### Betrieb
+
+- **Board-Login** — schaltet die Anmeldung über das Forum ein oder aus (siehe oben).
+- **Messeverkehr** — füllt die Live-Karte für einen Messestand: FriesenRadar spielt echte, abgeschlossene Flüge der Gruppe unter erfundenen Rufzeichen noch einmal ab, zeitlich auf jetzt verschoben. Zu sehen ist das **nur für die Mitglieder, die du dort einträgst** (etwa das Gerät am Stand); alle anderen sehen die Karte wie immer. Einstellbar sind die Zahl der gleichzeitigen Flüge, der Abstand zwischen den Starts und Rufzeichen, die nie erscheinen sollen.
+- **Testinstanz** — startet für begrenzte Zeit eine zweite, getrennte Fassung von FriesenRadar mit einer Kopie der Daten, um einen neuen Stand anzusehen, bevor er für alle gilt. Sie beendet sich von selbst.
 
 ### Kniebrett
 
@@ -789,13 +795,15 @@ Diese Blätter sind nach der Bahnrichtung gedruckt statt genordet; auf der Karte
 
 Das **Kniebrett** ist FriesenRadar als eigene App im EFB-Tablet des **Microsoft Flight Simulator 2024** — dieselben vier Tabs wie auf der Website, nur direkt beim Fliegen, ohne Alt-Tab und auch in VR.
 
-**Installieren:** Paket und Schritt-für-Schritt-Anleitung stehen unter **[/download](https://friesenradar.devprops.de/download)** („Download" ganz unten auf der Seite; die alte URL `/efb` bleibt ebenfalls erreichbar): ZIP herunterladen und entpacken — es entsteht ein Ordner mit dem Namen der ZIP-Datei, in dem direkt `manifest.json` liegt —, diesen Ordner als Ganzes in den Community-Ordner des Simulators kopieren, Simulator starten — FriesenRadar steht dann in der App-Liste des Tablets. Das Paket ist nur eine **dünne Hülle**; alles Weitere kommt vom Server. Änderungen an FriesenRadar sind also ohne Neuinstallation da.
+**Installieren:** Paket und Schritt-für-Schritt-Anleitung stehen unter **[/download](https://friesenradar.devprops.de/download)** („Downloads" ganz unten in der Fußleiste; die alte URL `/efb` bleibt ebenfalls erreichbar): ZIP herunterladen und entpacken — es entsteht ein Ordner mit dem Namen der ZIP-Datei, in dem direkt `manifest.json` liegt —, diesen Ordner als Ganzes in den Community-Ordner des Simulators kopieren, Simulator starten — FriesenRadar steht dann in der App-Liste des Tablets. Das Paket ist nur eine **dünne Hülle**; alles Weitere kommt vom Server. Änderungen an FriesenRadar sind also ohne Neuinstallation da.
 
 **Anmelden:** Beim ersten Start fragt das Tablet nach dem Forum-Login — dieselben Zugangsdaten wie auf der Website. Die anschließende Rückfrage „Kniebrett dauerhaft anmelden?" **bestätigen**: Sonst fragt FriesenRadar bei jedem Start des Simulators erneut. Gemerkt wird dafür eine zufällige Gerätekennung, kein Passwort. Gewarnt wird nur vor dem echten Risiko — die Frage zu bestätigen, während man gar nicht selbst im Simulator sitzt. Gehört ein Rechner nicht mehr dir, löst die Verwaltung die Verknüpfung (Meldung im Forum).
 
 **Taucht mitten im Flug „Diese Anmeldung ist abgelaufen“ auf**, hat das Tablet eine alte Anmeldeseite noch einmal geöffnet. Bist du angemeldet, geht es von selbst zurück ins Kniebrett; sonst führt „Neu anmelden“ über den Forum-Login wieder hinein. Bisher blieb an dieser Stelle ein schwarzes Tablet stehen.
 
-**Paketversion:** Erforderlich ist mindestens **2.0.0** — ältere Pakete zeigen statt der App nur noch den Hinweis, wo die neue Fassung liegt (sie können sich den Simulator nicht merken, jeder Start begänne mit einer Anmeldung). Die **Windanzeige** braucht **2.1.0**; mit einem älteren Paket bleibt sie einfach aus. Welche Version wo läuft, steht in der Geräteübersicht im Admin.
+**Paket 3.0.0 und der neue Ordner:** Seit 3.0.0 heißt das Kniebrett auch im Tablet FriesenRadar, und der Paketordner heißt **`friesenkniebrett`**. Wer von einer Fassung vor 3.0.0 kommt, **löscht den alten Ordner friesenflieger-friesenspy-efb** aus dem Community-Ordner und heftet die App im Tablet neu an — sonst stehen dort zwei Apps nebeneinander. Liegen beide Ordner da, zeigt das neue Kniebrett dazu einen Hinweis, der sich nicht wegklicken lässt. Die Anmeldung des Tablets bleibt beim Wechsel erhalten.
+
+**Paketversion:** Aktuell ist **3.0.0**. Erforderlich ist mindestens **2.0.0** — ältere Pakete zeigen statt der App nur noch den Hinweis, wo die neue Fassung liegt (sie können sich den Simulator nicht merken, jeder Start begänne mit einer Anmeldung). Die **Windanzeige** braucht **2.1.0**; mit einem älteren Paket bleibt sie einfach aus. Welche Version wo läuft, steht in der Geräteübersicht im Admin.
 
 **Veraltete Fassungen melden sich von selbst.** Fliegst du mit einer FriesenBrügge oder einem Kniebrett-Paket, für das es längst etwas Neueres gibt, erscheint unten rechts ein kleiner Hinweis mit beiden Nummern und der Adresse zum Herunterladen — auf der Website und im Tablet. Ein Klick auf das × legt ihn weg; bei der nächsten neuen Fassung meldet er sich wieder. Er erscheint nur, wenn deine Fassung wirklich älter ist: Hat eine Brügge noch nie gesagt, welche Fassung sie fährt, wird sie deshalb nicht verdächtigt.
 
@@ -804,7 +812,7 @@ Das **Kniebrett** ist FriesenRadar als eigene App im EFB-Tablet des **Microsoft 
 - **Eigenes Flugzeug ohne VATSIM** — Kompass und Moving Map funktionieren allein aus dem Simulator; es genügt zu fliegen.
 - **Windpfeil** (oben links über den Zoomknöpfen, im Vollbild an derselben Stelle) — der Pfeil zeigt, wohin der Wind weht, die Zahl daneben nennt wie üblich die Richtung, aus der er kommt (`270° 15 kt`). Bei gedrehter Karte dreht er mit, bei Windstille steht dort „still". Den Wind kennt nur der Simulator — auf der Website gibt es die Anzeige nicht.
 - **Meldungen im Tablet** — Online-gehen, Flugplan, TeamSpeak und Events meldet das Tablet selbst, ohne Web-Push; die Meldung bleibt danach auf der Benachrichtigungs-Seite stehen. Wer unter „Wer darf über mich benachrichtigt werden?" jemanden ausgeschlossen hat, bleibt auch hier ausgeschlossen — diese Entscheidung fällt auf dem Server.
-- **Einstellungen (⚙ oben rechts)** — **Anzeige** (Größe in Zehnerschritten nachjustieren, „Automatisch" setzt zurück; die Grenzen greifen auch gegen die Handeinstellung, unbedienbar stellen geht nicht — dazu die Kartenhelligkeit, siehe nächster Punkt) und **Benachrichtigungen** (die vier Sorten einzeln an/aus). Die **Farbe des Zahnrads** zeigt den Verbindungszustand: gelb = verbunden, rot = getrennt.
+- **Einstellungen (⚙ oben rechts)** — **Anzeige** (Größe in Zehnerschritten nachjustieren, „Automatisch" setzt zurück; die Grenzen greifen auch gegen die Handeinstellung, unbedienbar stellen geht nicht — dazu die Kartenhelligkeit, siehe nächster Punkt) und **Benachrichtigungen** (die vier Sorten einzeln an/aus). Die **Farbe des Zahnrads** zeigt den Verbindungszustand: in der Farbe der Tabs daneben = verbunden, rot = getrennt.
 - **Kartenhelligkeit** (⚙ → Anzeige) — nimmt **nur das Kartenbild** zurück: Grundkarten und die aufgelegten Blätter (Sichtflug-, Flugplatz- und Rollkarte), nicht Schrift und Bedienelemente. Nachts ist das der ganze Unterschied: Der Helligkeitsregler des Simulators dimmt das gesamte Tablet und kann deshalb nicht gleichzeitig die blendende Karte bändigen und die Schrift lesbar halten — dreh ihn so weit herunter, dass die Karte erträglich ist, ist tagsüber alles zu dunkel. Mit „−" nimmst du die Karten stufenweise zurück, mit „+" wieder hoch — die oberste Stufe heißt „Aus" und ist der Ursprungszustand. Eingestellt wird dabei eine **Zielhelligkeit**: Jede Karte wird so weit abgesenkt, dass sie so hell ist wie die anderen — die Sichtflug- und Flugplatzblätter am stärksten, denn weißes Kartenpapier ist das Hellste, was im Cockpit auf dem Schirm liegt. Deshalb genügt ein Regler für alle — und deshalb springt die Helligkeit auch beim Wechsel zwischen OpenTopoMap und Satellit nicht mehr, was bisher nachts geblendet hat. Danach hat der Regler des Simulators wieder Spielraum für Tag und Nacht. Das Kniebrett merkt sich die Einstellung; auf der Website ändert sie nichts.
 - **Kartenvollbild** — zeigt nur noch die Karte, auch die obere Leiste verschwindet; der Ausgang „Vollbild verlassen" steht unten links. Die Karteneinstellungen (Ebenen, Zoom) bleiben über das Zuklappen hinweg erhalten.
 - **ICAO-Suche** (Lupe auf der Karte) — springt einen Platz nach Kennung an.
@@ -870,22 +878,26 @@ Verliert der VATSIM-Datenfeed einen Piloten kurzzeitig (Feed-Aussetzer), wird di
 | Deployment | Docker, GitHub Actions → GHCR → SSH |
 | Sim-Brügge | C++ — WASM (MSFS-SDK, SimConnect) und `.xpl` (X-Plane-SDK, WinHTTP); eigener Build, **nicht** im Docker-Image |
 
-### Sim-Brügge (`friesenbruegge/`, in Arbeit)
+### Sim-Brügge (`friesenbruegge/`)
 
-Läuft im Simulator: Sie setzt dort Objekte und meldet die eigene Position zurück
-(`POST /api/bruegge/melden`). **Auf der Karte ist davon noch nichts zu sehen** — die zeigt
-weiterhin die VATSIM-Positionen.
+Läuft im Simulator: Sie setzt dort Objekte und meldet die eigene Position jede Sekunde zurück
+(`POST /api/bruegge/melden`). Auf der Karte erscheint ein so gemeldetes Flugzeug **türkis und
+sekundengenau** (siehe [Karte](#️-karte)), und bei einer FriesenReddung zählt ihre Position für
+die Wertung.
 
 **Es gibt sie zweimal:** `msfs/` als WASM-Modul in einem Community-Paket, `xplane/` als
-Plugin (`.xpl`). Beide sprechen Protokollfassung 1 und teilen sich `json.h`; verschieden sind
-nur Lageabfrage, Objektverwaltung und Netzschicht. Beide sind über die Download-Seite zu
-haben (`/download`).
+Plugin (`.xpl`). Der Vertrag zwischen Brügge und Server steht in `PROTOKOLL.md` (derzeit
+Fassung 3); beide teilen sich `json.h`, verschieden sind nur Lageabfrage, Objektverwaltung und
+Netzschicht. Beide sind über die Download-Seite zu haben (`/download`). **Aktuell sind MSFS
+1.19.0 und X-Plane 1.5.0**; sie melden an `friesenradar.devprops.de`, ältere Fassungen weiter
+über die alte Adresse.
 
 Das X-Plane-Plugin enthält seit dem 13.09.2026 **Windows, macOS und Linux in einem Paket** —
 X-Plane wählt beim Start den passenden Ordner. Geflogen ist bislang nur die Windows-Fassung;
 die beiden anderen sind gebaut und ungetestet, und das steht so auch auf der Download-Seite.
 
-Gedacht ist das für den geplanten FriesenKieker, bei dem aus der Luft gezählt wird. Der Server
+Gebraucht wird das Setzen von Objekten heute für die FriesenReddung (Wrack, Rauch, Signallicht)
+und künftig für den geplanten FriesenKieker, bei dem aus der Luft gezählt wird. Der Server
 fordert dabei **Arten** an (`tier_gross`, `robbe`, `boot_klein` …), nie Modellnamen — und
 **liefert die Modelle seit dem 14.09.2026 gleich mit**. In MSFS ist ein `tier_gross` ein Bär,
 in X-Plane ein Hirsch; welche Titel dazugehören, steht auf dem Server, und die FriesenBrügge probiert
@@ -949,7 +961,7 @@ pip install -r requirements.txt
 touch config.env   # dann füllen
 
 # Server starten
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8091
 # → http://localhost:8091
 ```
 
@@ -1011,8 +1023,10 @@ pytest -n 4     # parallel in 4 Prozessen, rund eine Minute
 pytest          # seriell, rund drei Minuten
 ```
 
-Rund 3 400 Tests (Stand 25.09.2026), keine externen Abhängigkeiten (alles gemockt). Parallel
-braucht `pytest-xdist` (steht in `requirements.txt`).
+Rund 4 000 Tests (Stand 05.10.2026), keine externen Abhängigkeiten (alles gemockt). Parallel
+braucht `pytest-xdist` (steht in `requirements.txt`). Die Pipeline installiert
+`requirements-test.txt`; darin stehen zusätzlich die Pakete, die nur die Tests brauchen. **Ein
+Push auf `main` wird erst gebaut und ausgeliefert, wenn die Tests dort grün sind.**
 
 Temporäre Dateien — und damit die Testdatenbanken, die fast jeder Test anlegt — liegen im
 Arbeitsspeicher (`/dev/shm`, eingestellt in `tests/conftest.py`). Auf der Platte kostet jede
@@ -1042,14 +1056,18 @@ Die Versionsnummer + der Changelog liegen als Repo-Datei **`app/CHANGELOG.json`*
 zuerst; je Eintrag `version`, `date`, `title`, `items`). `app/version.py` liest sie ein, das Frontend
 bekommt sie über `/api/frontend-config`. In der Fußleiste steht die Versionsnummer,
 dahinter der **Releasename** (Titel des letzten Hauptrelease, z. B. „Lichtblick“); ein Klick öffnet
-den **Versionsverlauf**; bei einer neuen Version sehen Nutzer einmalig ein **Banner** mit den
-Neuerungen (per ✕ wegklickbar, gemerkt in `localStorage['fs_changelog_seen']`).
+den **Versionsverlauf**. Dazu gibt es ein **Banner** mit den Neuerungen eines Eintrags, das jeder
+einmal sieht (per ✕ wegklickbar, gemerkt in `localStorage['fs_changelog_seen']`). Welchen
+Eintrag es zeigt, steht im Admin unter **Mitteilungen → Hinweis-Banner**: eine bestimmte Version,
+„aus“ oder „auto“. **„Auto“ nimmt den neuesten Eintrag mit `"highlight": true`**, nicht einfach
+den neuesten — ein kleines Release schiebt das Banner eines großen also nicht weg.
 
 **Neues Release veröffentlichen:** bei einer signifikanten Änderung in `app/CHANGELOG.json` einen
 neuen Eintrag **ganz oben** einfügen (semantische Version `MAJOR.MINOR.PATCH` + Datum + `items`).
 Schema: „großer Wurf" → Major (Flugplan-Zuordnung = 2.0.0, OpenAIP = 3.0.0, TeamSpeak = 4.0.0,
-PWA = 5.0.0), kleineres Feature → Minor, reiner Bugfix → Patch. Nach dem
-Deploy erscheint das Banner automatisch bei allen Nutzern, die die Version noch nicht gesehen haben.
+PWA = 5.0.0), kleineres Feature → Minor, reiner Bugfix → Patch. Soll ein neues
+Hauptrelease im Banner stehen, im Admin diese Version wählen oder den Eintrag mit
+`"highlight": true` versehen.
 
 ### Projektstruktur
 
@@ -1065,7 +1083,13 @@ FriesenRadar/
 │   ├── geo.py         # Haversine, ICAO→Koordinaten via airportsdata (offline) + custom_airports (#50, Override seit #56, Radius-Override seit #62, Grund seit #78), Event-Filter
 │   ├── alerts.py      # Telegram-Alerts (silent fail)
 │   ├── auth.py        # Admin-Cookie (HMAC über SECRET_KEY, kein Session-Store)
-│   ├── forum_sso.py   # Board-Login: Token vom Forum prüfen (HMAC, Nonce, state)
+│   ├── forum_sso.py   # Board-Login: Token vom Forum prüfen (HMAC, Nonce, state), Abmelde-Auftrag
+│   ├── bruegge.py     # FriesenBrügge: Meldungen annehmen, Aufträge ausgeben
+│   ├── bruegge_bindung.py  # FriesenBrügge: Zuordnung einer Brügge zu ihrem Piloten
+│   ├── bruegge_arten.py    # FriesenBrügge: Arten und Objekttitel je Simulator
+│   ├── reddung.py     # FriesenReddung: Fund, Aufnahme, Wertung
+│   ├── abdeckung.py   # FriesenReddung: abgesuchte Fläche im Sektor (Rechenkern)
+│   ├── messeverkehr.py     # Messeverkehr: echte Flüge unter erfundener Identität abspielen
 │   ├── transport_stacks.py # FriesenKutter: Stapel-Modell der Ladung (reine Zustandsmaschine, keine DB)
 │   ├── aircraft_info.py    # Muster-Fenster: Text + Foto von Wikipedia/Wikimedia Commons
 │   ├── llm.py         # Claude-Anbindung (Zuladungs-Vorschlag, Kutter-Sprüche), Silent-Fail
@@ -1079,7 +1103,7 @@ FriesenRadar/
 │   ├── teamspeak.py   # TeamSpeak-ServerQuery-Client (FRS-Parsing, fetch_channel_clients)
 │   ├── poller.py      # APScheduler, Flug-State-Machine, Kalender-Sync, SSE-Fan-out
 │   ├── version.py     # liest CHANGELOG.json → VERSION + CHANGELOG
-│   ├── CHANGELOG.json # Versionsverlauf (Quelle für Header-Badge, Banner, Verlauf)
+│   ├── CHANGELOG.json # Versionsverlauf (Quelle für die Version in der Fußleiste, Banner, Verlauf)
 │   └── static/
 │       ├── index.html # Vanilla-JS-SPA (4 Tabs) — läuft auch als MSFS-Kniebrett
 │       ├── admin.html # Admin-Verwaltung (passwortgeschützt)
@@ -1091,6 +1115,9 @@ FriesenRadar/
 ├── tests/             # pytest-Tests
 ├── docs/              # Architektur, API, Deployment
 ├── msfs-panel/        # Quellen des MSFS-Community-Packages (Windows-Build, nicht in der CI)
+├── friesenbruegge/    # FriesenBrügge für MSFS und X-Plane (eigener Build, nicht im Image)
+├── scripts/           # Werkzeuge für Karten, Kataloge und Auswertungen
+├── deploy/            # deploy.sh (liegt auf dem Server), Forum-Brücke sso.php, Teststufe
 ├── nginx/             # nginx-Konfiguration für friesenradar.devprops.de
 ├── .github/workflows/ # CI/CD: Build → GHCR → SSH-Deploy
 ├── Dockerfile
@@ -1152,7 +1179,8 @@ FriesenRadar/
 | `/api/aip-charts-dfs` | GET | Gepasste DFS-Blätter im Kartenausschnitt (Sicht-, Flugplatz-, Rollkarte) |
 | `/aip-chart-dfs/{icao}/{sorte}.png` | GET | Das genordete Kartenblatt als PNG |
 | `/download` (alt: `/efb`) · `/api/efb-package` · `/download/efb` | GET | Downloads: Installationsseite für Kniebrett + FriesenBrügge, Paketinfo, Paket-Download |
-| `/auth/forum/login` · `/auth/forum/callback` · `/auth/forum/logout` | GET | Board-Login (Forum-SSO) |
+| `/auth/forum/login` · `/auth/forum/callback` · `/auth/forum/logout` | GET | Board-Login (Forum-SSO); `logout` per GET meldet nur hier ab |
+| `/auth/forum/logout` | POST | Abmelden aus dem Zahnradmenü: beendet auch die Forum-Sitzung in diesem Browser |
 | `/auth/device/bind` | POST | Kniebrett dauerhaft anmelden (Gerätekennung) |
 | `/api/me` · `/api/me/visibility` | GET/POST | Eigene Identität; „Wer darf über mich benachrichtigt werden?" |
 | `/api/admin/detection-gaps` | GET/POST | Erkennungslücken auflisten / einzelnen Fall abhaken |
