@@ -246,6 +246,12 @@ wechselt er erst mit dem neuen Paket (V1, Variante B).
 >   restlichen Löschungen aus #59 am 12.10.2026, 09:00 MESZ.
 > - Forum: Ankündigung „V16 - Lichtblick“ ist Beitrag 9388.
 
+> **Backup, erster Nachtlauf nach dem Umzug (05.10.2026, 03:01–03:02):** sauber.
+> `friesenradar-2026-10-05.tar.gz` (39 MB, enthält `friesenradar.db`) liegt lokal und unter
+> `onedrive:/Server-Backup/friesenradar/`; Protokoll: 0 lokale Fehler, 0 Upload-Fehler.
+> `systemctl --failed` nennt nur `systemd-networkd-wait-online.service`, fehlgeschlagen seit
+> dem 12.09.2026 und ohne Bezug zum Umzug. Review Focus 4 ist damit erledigt.
+
 **Nur, wenn der Nutzer das Fenster freigibt.** Ausfall ~1 min. Die CI liegt **nicht** auf dem
 kritischen Pfad: Das neue Image wird gebaut, während der alte Container noch läuft. (B2)
 
