@@ -23,19 +23,31 @@
     }
 
     function _umzugZiel(ort, gepaeck) {
-      var anker = String(ort.hash || '').replace(/^#/, '');
+      // Ein untergeschobenes `umzug=` im Anker der alten Adresse reist nicht weiter.
+      var alt = String(ort.hash || '').replace(/^#/, '').split('&'), teile = [], i;
+      for (i = 0; i < alt.length; i++) if (alt[i] && alt[i].indexOf('umzug=') !== 0) teile.push(alt[i]);
+      var anker = teile.join('&');
       return 'https://' + UMZUG_NEU + ort.pathname + (ort.search || '') + '#'
            + (anker ? anker + '&' : '') + 'umzug=' + encodeURIComponent(JSON.stringify(gepaeck));
     }
 
-    /** Nur kurze Texte unter harmlosen Namen: Der Anker ist von aussen setzbar. */
-    function _umzugSieb(o, erlaubt) {
+    /** Der Anker ist von aussen setzbar: Gepaeck gilt nur, wenn der Aufruf nachweislich von
+     *  einer der alten Adressen kommt. Ohne Herkunftsangabe (manche Apps, strenge Browser)
+     *  verfaellt es -- bei Angemeldeten fuellt der Server die Einstellungen ohnehin auf. */
+    function _umzugHerkunftGilt(referrer) {
+      var m = /^https:\/\/([^\/?#@:]+)(\/|$)/.exec(String(referrer || ''));
+      return !!m && UMZUG_ALT.indexOf(m[1].toLowerCase()) >= 0;
+    }
+
+    /** Nur kurze Texte unter bekannten Namen. `vorsilbe`: nur eigene Merker (friesenspy_*). */
+    function _umzugSieb(o, erlaubt, vorsilbe) {
       var aus = {}, k;
       if (!o || typeof o !== 'object') return aus;
       for (k in o) {
         if (!Object.prototype.hasOwnProperty.call(o, k)) continue;
         if (!/^[A-Za-z0-9_]{1,40}$/.test(k)) continue;
         if (erlaubt && erlaubt.indexOf(k) < 0) continue;
+        if (vorsilbe && k.indexOf(vorsilbe) !== 0) continue;
         if (typeof o[k] !== 'string' || o[k].length > 600) continue;
         aus[k] = o[k];
       }
@@ -50,7 +62,7 @@
         try {
           roh = JSON.parse(decodeURIComponent(teile[i].slice(6)));
           if (roh && typeof roh === 'object' && !Array.isArray(roh)) {
-            gepaeck = { k: _umzugSieb(roh.k, null), l: _umzugSieb(roh.l, UMZUG_SPEICHER),
+            gepaeck = { k: _umzugSieb(roh.k, null, 'friesenspy_'), l: _umzugSieb(roh.l, UMZUG_SPEICHER, ''),
                         push: roh.push === 1 ? 1 : 0 };
           }
         } catch (e) {}
@@ -105,7 +117,7 @@
         }
         var paket = _umzugAuspacken(location.hash);
         try { history.replaceState(null, '', location.pathname + abfrage + (paket.rest ? '#' + paket.rest : '')); } catch (e) {}
-        if (!paket.gepaeck) return;
+        if (!paket.gepaeck || !_umzugHerkunftGilt(document.referrer)) return;
         try {
           var merker = _umzugMischen(cookieLesen(), paket.gepaeck.k);
           document.cookie = 'fs_karte=' + encodeURIComponent(JSON.stringify(merker))

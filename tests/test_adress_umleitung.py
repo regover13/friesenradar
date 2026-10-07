@@ -99,7 +99,7 @@ def test_kaputtes_gepaeck_wird_verworfen_und_entfernt(anker):
 def test_fremde_schluessel_und_uebergrosse_werte_fallen_weg():
     """Der Anker ist von aussen setzbar: Nur bekannte Speicher-Schluessel, nur kurze Texte."""
     erg = _js("""_umzugAuspacken('#umzug=' + encodeURIComponent(JSON.stringify({
-      k: {friesenspy_theme: 'hell', 'boese;path=/': 'x', gross: new Array(2000).join('a'), zahl: 5},
+      k: {friesenspy_theme: 'hell', 'boese;path=/': 'x', friesenspy_gross: new Array(2000).join('a'), friesenspy_zahl: 5},
       l: {friesenradar_tv: '1', fs_user: 'geklaut', notif_ts: {a: 1}},
       push: 'ja'})))""")
     assert erg["gepaeck"]["k"] == {"friesenspy_theme": "hell"}
@@ -138,3 +138,37 @@ def test_teilen_nennt_von_beiden_alten_adressen_aus_die_neue():
 
 def test_hinweise_haben_ihren_platz_in_der_seite():
     assert 'id="umzug-banner"' in INDEX
+
+
+# --- Der Anker ist von aussen setzbar (Sicherheitspruefung 07.10.2026) -----------------------
+
+@pytest.mark.parametrize("referrer", ["https://friesenspy.devprops.de/", "https://friesenradar.devprops.de/?x=1"])
+def test_gepaeck_gilt_nur_wenn_der_aufruf_von_einer_alten_adresse_kommt(referrer):
+    assert _js("_umzugHerkunftGilt(%s)" % json.dumps(referrer)) is True
+
+
+@pytest.mark.parametrize("referrer", [
+    "", "https://boese.example/", "https://board.friesenflieger.de/viewtopic.php",
+    "http://friesenspy.devprops.de/", "https://friesenspy.devprops.de.boese.example/",
+    "https://boese.example/?https://friesenspy.devprops.de/", "https://friesenspy.devprops.de@boese.example/",
+    "https://radar.friesenflieger.de/"])
+def test_ein_link_von_anderswo_bringt_keine_einstellungen_mit(referrer):
+    assert _js("_umzugHerkunftGilt(%s)" % json.dumps(referrer)) is False
+
+
+def test_nur_eigene_merker_reisen_mit():
+    erg = _js("""_umzugAuspacken('#umzug=' + encodeURIComponent(JSON.stringify({
+      k: {friesenspy_theme: 'hell', fremd: 'x', fs_user: 'y'}, l: {}, push: 0})))""")
+    assert erg["gepaeck"]["k"] == {"friesenspy_theme": "hell"}
+
+
+def test_untergeschobenes_gepaeck_auf_der_alten_adresse_reist_nicht_weiter():
+    ziel = _js("_umzugZiel({pathname: '/', search: '', hash: '#tab=karte&umzug=FREMD&x=1'}, {push: 0})")
+    assert ziel.count("umzug=") == 1 and "FREMD" not in ziel
+    assert ziel.startswith("https://radar.friesenflieger.de/#tab=karte&x=1&umzug=")
+
+
+def test_die_seite_prueft_die_herkunft_bevor_sie_auspackt():
+    a = INDEX.index("UMZUG-FUNKTIONEN-ENDE")
+    kopf = INDEX[a:INDEX.index("</script>", a)]
+    assert "_umzugHerkunftGilt(document.referrer)" in kopf
