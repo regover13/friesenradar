@@ -9289,7 +9289,7 @@ def widget(request: Request):
 </style>
 </head>
 <body>
-<a href="https://friesenradar.devprops.de" target="_blank">
+<a href="https://radar.friesenflieger.de" target="_blank">
   <div class="hd">
     <span class="hd-title">✈ FriesenRadar</span>
     <span class="badge">{_ICON_PLANE}{len(live)}&nbsp;online</span>

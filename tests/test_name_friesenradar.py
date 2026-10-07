@@ -21,8 +21,8 @@ def test_kein_alter_name_wo_menschen_lesen():
         t = _ohne_kommentare((ROOT / rel).read_text(encoding="utf-8"))
         # Technische Konstanten (Merker-Schluessel, source-Wert, Geraetekennung) sind erlaubt.
         t = re.sub(r"friesenspy_[a-z_]+|'friesenspy[-a-z_]*'|\"friesenspy[-a-z_]*\"", "", t)
-        # Das stille Alias darf genau dort stehen, wo es auf die neue Adresse umgebogen wird.
-        t = t.replace("location.origin === 'https://friesenspy.devprops.de'", "")
+        # Das stille Alias darf genau dort stehen, wo es auf die neue Adresse umgeleitet wird.
+        t = t.replace("var UMZUG_ALT = ['friesenspy.devprops.de', 'friesenradar.devprops.de'];", "")
         # Kniebrett-Paket 3.0.0 (Variante B): Die Bitte, den alten Ordner zu loeschen, muss ihn
         # beim Namen nennen -- die einzige erlaubte Nennung, an genau diese Formulierung gebunden.
         t = re.sub(r"(?:alten )?Ordner\s+(?:<code>)?friesenflieger-friesenspy-efb", "", t)

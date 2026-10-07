@@ -85,7 +85,7 @@ def _hinweistext(installiert, aktuell):
 
 def test_alte_app_hinweis_nennt_den_alten_ordner_beim_sprung_auf_3():
     t = _hinweistext("2.3.2", "3.0.0")
-    assert "3.0.0" in t and "2.3.2" in t and ALTER_ORDNER in t and "friesenradar.devprops.de/download" in t
+    assert "3.0.0" in t and "2.3.2" in t and ALTER_ORDNER in t and "radar.friesenflieger.de/download" in t
 
 
 def test_innerhalb_derselben_hauptnummer_kein_ordnerhinweis():

@@ -3,6 +3,155 @@
 <head>
   <meta charset="UTF-8" />
   <script>
+    /* UMZUG-FUNKTIONEN-ANFANG */
+    // ADRESSWECHSEL (#58, 07.10.2026): Wer eine alte Adresse im Browser aufruft, wechselt auf
+    // die Adresse des Vereins. Hier in der Seite und nicht in nginx, weil nur die Seite weiss,
+    // ob sie im Kniebrett, eingebettet oder als App vom Startbildschirm laeuft. Jede Adresse
+    // hat ihren eigenen Browser-Speicher -- die Einstellungen reisen deshalb im Anker mit.
+    // ES5, weil der Block auch in Coherent GT geladen wird. In index.html und admin.html
+    // wortgleich (tests/test_adress_umleitung.py vergleicht).
+    var UMZUG_ALT = ['friesenspy.devprops.de', 'friesenradar.devprops.de'];
+    var UMZUG_NEU = 'radar.friesenflieger.de';
+    var UMZUG_SPEICHER = ['friesenradar_tv', 'notif_prefiles', 'notif_ts', 'notif_events',
+                          'notif_pilot_filter', 'fs_changelog_seen'];
+
+    /** 'umleiten' | 'hinweis' (App vom Startbildschirm: sie haengt an ihrer Adresse) | 'bleiben' */
+    function _umzugEntscheid(u) {
+      if (UMZUG_ALT.indexOf(u.host) < 0) return 'bleiben';
+      if (u.panel || u.iframe || u.coherent || u.aus) return 'bleiben';
+      return u.standalone ? 'hinweis' : 'umleiten';
+    }
+
+    function _umzugZiel(ort, gepaeck) {
+      var anker = String(ort.hash || '').replace(/^#/, '');
+      return 'https://' + UMZUG_NEU + ort.pathname + (ort.search || '') + '#'
+           + (anker ? anker + '&' : '') + 'umzug=' + encodeURIComponent(JSON.stringify(gepaeck));
+    }
+
+    /** Nur kurze Texte unter harmlosen Namen: Der Anker ist von aussen setzbar. */
+    function _umzugSieb(o, erlaubt) {
+      var aus = {}, k;
+      if (!o || typeof o !== 'object') return aus;
+      for (k in o) {
+        if (!Object.prototype.hasOwnProperty.call(o, k)) continue;
+        if (!/^[A-Za-z0-9_]{1,40}$/.test(k)) continue;
+        if (erlaubt && erlaubt.indexOf(k) < 0) continue;
+        if (typeof o[k] !== 'string' || o[k].length > 600) continue;
+        aus[k] = o[k];
+      }
+      return aus;
+    }
+
+    /** Trennt das Gepaeck vom uebrigen Anker. Kaputtes wird verworfen, aber entfernt. */
+    function _umzugAuspacken(hash) {
+      var teile = String(hash || '').replace(/^#/, '').split('&'), rest = [], gepaeck = null, i, roh;
+      for (i = 0; i < teile.length; i++) {
+        if (teile[i].indexOf('umzug=') !== 0) { if (teile[i]) rest.push(teile[i]); continue; }
+        try {
+          roh = JSON.parse(decodeURIComponent(teile[i].slice(6)));
+          if (roh && typeof roh === 'object' && !Array.isArray(roh)) {
+            gepaeck = { k: _umzugSieb(roh.k, null), l: _umzugSieb(roh.l, UMZUG_SPEICHER),
+                        push: roh.push === 1 ? 1 : 0 };
+          }
+        } catch (e) {}
+      }
+      return { rest: rest.join('&'), gepaeck: gepaeck };
+    }
+
+    /** Mitgebrachtes fuellt nur auf, was hier fehlt. */
+    function _umzugMischen(hier, mitgebracht) {
+      var aus = {}, k;
+      for (k in hier) if (Object.prototype.hasOwnProperty.call(hier, k)) aus[k] = hier[k];
+      for (k in mitgebracht) {
+        if (Object.prototype.hasOwnProperty.call(mitgebracht, k) && !(k in aus)) aus[k] = mitgebracht[k];
+      }
+      return aus;
+    }
+    /* UMZUG-FUNKTIONEN-ENDE */
+
+    (function () {
+      function cookieLesen() {
+        try {
+          var teile = String(document.cookie || '').split('; '), i, o;
+          for (i = 0; i < teile.length; i++) {
+            if (teile[i].indexOf('fs_karte=') !== 0) continue;
+            o = JSON.parse(decodeURIComponent(teile[i].slice(9)));
+            return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {};
+          }
+        } catch (e) {}
+        return {};
+      }
+      var abfrage = String(location.search || '');
+      var umgebung = {
+        host: location.hostname,
+        panel: location.pathname === '/panel' || /[?&]vr=1(&|$)/.test(abfrage),
+        iframe: (function () { try { return window.self !== window.top; } catch (e) { return true; } })(),
+        coherent: /Coherent/i.test(navigator.userAgent || ''),
+        standalone: (function () {
+          try {
+            return window.matchMedia('(display-mode: standalone)').matches || !!navigator.standalone;
+          } catch (e) { return false; }
+        })(),
+        aus: /[?&]umzug=0(&|$)/.test(abfrage)
+      };
+      var entscheid = _umzugEntscheid(umgebung);
+      window._umzugHinweis = null;
+
+      if (entscheid === 'bleiben') {
+        // Angekommen? Dann auspacken, bevor irgendetwas die Einstellungen liest.
+        if (String(location.hash || '').indexOf('umzug=') < 0) {
+          try { if (localStorage.getItem('fs_umzug_push') === '1') window._umzugHinweis = 'push'; } catch (e) {}
+          return;
+        }
+        var paket = _umzugAuspacken(location.hash);
+        try { history.replaceState(null, '', location.pathname + abfrage + (paket.rest ? '#' + paket.rest : '')); } catch (e) {}
+        if (!paket.gepaeck) return;
+        try {
+          var merker = _umzugMischen(cookieLesen(), paket.gepaeck.k);
+          document.cookie = 'fs_karte=' + encodeURIComponent(JSON.stringify(merker))
+                          + '; path=/; max-age=31536000'
+                          + (location.protocol === 'https:' ? '; samesite=none; secure' : '; samesite=lax');
+        } catch (e) {}
+        try {
+          for (var s in paket.gepaeck.l) {
+            if (localStorage.getItem(s) === null) localStorage.setItem(s, paket.gepaeck.l[s]);
+          }
+          if (paket.gepaeck.push) localStorage.setItem('fs_umzug_push', '1');
+          if (localStorage.getItem('fs_umzug_push') === '1') window._umzugHinweis = 'push';
+        } catch (e) {}
+        return;
+      }
+      if (entscheid === 'hinweis') { window._umzugHinweis = 'app'; return; }
+
+      // Umleiten. Ob hier Benachrichtigungen liefen, weiss nur der Browser, und er sagt es
+      // nicht sofort -- solange bleibt die Seite unsichtbar, laengstens anderthalb Sekunden.
+      var fort = false;
+      function los(push) {
+        if (fort) return;
+        fort = true;
+        var l = {}, i, w;
+        try {
+          for (i = 0; i < UMZUG_SPEICHER.length; i++) {
+            w = localStorage.getItem(UMZUG_SPEICHER[i]);
+            if (w !== null) l[UMZUG_SPEICHER[i]] = w;
+          }
+        } catch (e) {}
+        location.replace(_umzugZiel(location, { k: cookieLesen(), l: l, push: push ? 1 : 0 }));
+      }
+      var erlaubt = false;
+      try { erlaubt = ('Notification' in window) && Notification.permission === 'granted'; } catch (e) {}
+      if (!erlaubt || !navigator.serviceWorker || !navigator.serviceWorker.getRegistrations) { los(false); return; }
+      document.documentElement.style.visibility = 'hidden';
+      setTimeout(function () { los(true); }, 1500);
+      try {
+        navigator.serviceWorker.getRegistrations().then(function (liste) {
+          if (!liste.length || !liste[0].pushManager) { los(false); return; }
+          return liste[0].pushManager.getSubscription().then(function (abo) { los(!!abo); });
+        }).catch(function () { los(true); });
+      } catch (e) { los(true); }
+    })();
+  </script>
+  <script>
     (function () {
       // VR-Panel-Modus (MSFS-EFB, s. docs/superpowers/specs/2026-08-11-vr-panel-modus-design.md):
       // /panel als eigene Route (Task 1) ODER ?vr=1 als gleichwertiger Trigger auf jeder URL.
@@ -4855,6 +5004,17 @@
   <!-- =====================================================================
        PWA INSTALL BANNER
        ===================================================================== -->
+  <!-- Adresswechsel (#58): Benachrichtigungen neu einschalten bzw. App neu anlegen. -->
+  <div id="umzug-banner" class="install-banner" hidden>
+    <span class="install-banner-icon"><svg class="icon"><use href="#icon-phone" xlink:href="#icon-phone"/></svg></span>
+    <div class="install-banner-text">
+      <strong id="umzug-banner-titel"></strong>
+      <span id="umzug-banner-text"></span>
+    </div>
+    <button id="umzug-banner-btn" class="install-banner-btn"></button>
+    <button id="umzug-banner-close" class="install-banner-close" title="Ausblenden"><svg class="icon"><use href="#icon-x" xlink:href="#icon-x"/></svg></button>
+  </div>
+
   <div id="install-banner" class="install-banner" hidden>
     <span class="install-banner-icon"><svg class="icon"><use href="#icon-phone" xlink:href="#icon-phone"/></svg></span>
     <div class="install-banner-text">
@@ -8536,7 +8696,59 @@ function _showInstallBanner(mode) {  // mode: 'prompt' (Chromium) | 'ios'
   banner.hidden = false;
 }
 
+// ---- Adresswechsel (#58): Hinweis nach der Umleitung bzw. in der App vom Startbildschirm ----
+// Welcher Hinweis gilt, steht seit dem Seitenkopf in window._umzugHinweis ('push' | 'app').
+// Die Texte stehen IN einer Funktion: Der Banner wird schon aus fruehen Ereignissen heraus
+// gerufen, eine Konstante auf Modulebene waere dann noch nicht da.
+function _umzugTexte() { return {
+  push: {
+    titel: 'Neue Adresse: radar.friesenflieger.de',
+    text: 'Benachrichtigungen gelten je Adresse. Schalte sie hier bitte neu ein.',
+    knopf: 'Einstellungen',
+  },
+  app: {
+    titel: 'FriesenRadar hat eine neue Adresse',
+    text: 'Öffne radar.friesenflieger.de im Browser und lege die App dort neu auf den '
+        + 'Startbildschirm. Diese hier kannst du danach löschen.',
+    knopf: 'Öffnen',
+  },
+}; }
+
+function _umzugHinweisZeigen() {
+  const art = window._umzugHinweis;
+  const banner = document.getElementById('umzug-banner');
+  const t = _umzugTexte()[art];
+  if (!banner || !t) return;
+  document.getElementById('umzug-banner-titel').textContent = t.titel;
+  document.getElementById('umzug-banner-text').textContent = t.text;
+  const knopf = document.getElementById('umzug-banner-btn');
+  knopf.textContent = t.knopf;
+  knopf.onclick = function () {
+    if (art === 'push') {
+      const zahnrad = document.getElementById('notif-btn');
+      if (zahnrad) zahnrad.click();
+    } else {
+      window.open(_umzugZiel(location, { k: _prefLaden(), l: {}, push: 0 }),
+                  '_blank', 'noopener');
+    }
+  };
+  document.getElementById('umzug-banner-close').onclick = function () { _umzugHinweisErledigt(); };
+  banner.hidden = false;
+}
+
+/** Weggeklickt oder Benachrichtigungen eingeschaltet: Der Push-Hinweis kommt nicht wieder.
+ *  Der App-Hinweis verschwindet nur fuer diesen Start -- die App bleibt ja die alte. */
+function _umzugHinweisErledigt() {
+  const banner = document.getElementById('umzug-banner');
+  if (banner) banner.hidden = true;
+  if (window._umzugHinweis === 'push') {
+    try { localStorage.removeItem('fs_umzug_push'); } catch (e) {}
+  }
+  window._umzugHinweis = null;
+}
+
 function _maybeShowInstallBanner() {
+  _umzugHinweisZeigen();
   if (_isStandalone()) return;                              // schon als App installiert
   try { if (localStorage.getItem(INSTALL_DISMISS_KEY)) return; } catch (_) {}  // weggeklickt
   if (_deferredInstallPrompt) { _showInstallBanner('prompt'); return; }
@@ -8587,6 +8799,7 @@ function _updateNotifBtn() {
   const btn = document.getElementById('notif-btn');
   if (!btn) return;
   btn.classList.toggle('notif-active', !!_pushSubscription);
+  if (_pushSubscription && window._umzugHinweis === 'push') _umzugHinweisErledigt();
   const cb = document.getElementById('notif-enabled');
   if (cb) cb.checked = !!_pushSubscription;
 }
@@ -10134,7 +10347,7 @@ function _paketVeraltet(installiert, aktuell) {
 function _paketHinweisText(installiert, aktuell) {
   let text = 'Neues Kniebrett-Paket ' + aktuell
            + (installiert ? ' (installiert: ' + installiert + ')' : '')
-           + ' — friesenradar.devprops.de/download';
+           + ' — radar.friesenflieger.de/download';
   if (Number(String(aktuell).split('.')[0]) >= 3
       && (!installiert || Number(String(installiert).split('.')[0]) < 3)) {
     text += '. Danach den alten Ordner friesenflieger-friesenspy-efb im Community-Ordner löschen.';
@@ -10233,7 +10446,7 @@ function _fassungenPruefen() {
       const stand = teile.join(' | ');
       if (_prefLies(_FASSUNG_HINWEIS_KEY) === stand) return;
       const text = document.getElementById('fassung-hinweis-text');
-      if (text) text.textContent = stand + ' — friesenradar.devprops.de/download';
+      if (text) text.textContent = stand + ' — radar.friesenflieger.de/download';
       kasten.dataset.stand = stand;
       kasten.hidden = false;
     }).catch(function () { /* ohne Anmeldung oder ohne Netz gibt es nichts zu sagen */ });
@@ -10302,7 +10515,7 @@ function _reddungHinweisPruefen() {
             + 'deinem Simulator weder das Wrack noch eine Rauchsäule: Der Sektor ist leer, und '
             + 'mitgewertet wirst du auch nicht. Auf VATSIM bist du verbunden — es fehlt nur sie. '
             + (_PANEL_MODUS
-               ? 'friesenradar.devprops.de/download'
+               ? 'radar.friesenflieger.de/download'
                : '<a href="/download" target="_blank" rel="noopener">Zur Download-Seite</a>')
           : kopf + 'und du bist nicht mit Friesen-Rufzeichen auf <strong>VATSIM</strong>. Die '
             + '<strong>FriesenBrügge</strong> erkennt dich nur über deine VATSIM-Position — '
@@ -11463,8 +11676,7 @@ function setUrlState(params) {
 // Adresse fuer Teilen-Links und Badge-Codes. Wer ueber das stille Alias kommt (altes
 // Lesezeichen, alte App), soll trotzdem nur die neue Adresse weitergeben.
 function _teilenUrsprung() {
-  return location.origin === 'https://friesenspy.devprops.de'
-    ? 'https://friesenradar.devprops.de' : location.origin;
+  return UMZUG_ALT.indexOf(location.hostname) >= 0 ? 'https://' + UMZUG_NEU : location.origin;
 }
 
 function _copyText(text, btn, successMsg = 'Kopiert!', ms = 2000, showFail = true) {
@@ -18457,7 +18669,7 @@ function _ziehAktualisierenBinden() {
   <p>Diese Fassung kann sich den Simulator nicht merken. Deshalb beginnt jeder Start mit
      einer Anmeldung, und die Karte bleibt so lange leer.</p>
   <p>Die neue Fassung erledigt das einmal und dann nie wieder. Bitte am PC laden:</p>
-  <span class="adresse">friesenradar.devprops.de/download</span>
+  <span class="adresse">radar.friesenflieger.de/download</span>
   <p class="klein">Danach die Datei in den Community-Ordner entpacken und den Simulator neu
      starten. Bis dahin bleibt diese Anzeige stehen.</p>
 </div>

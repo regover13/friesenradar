@@ -13,7 +13,8 @@ ohne_node = pytest.mark.skipif(not _NODE, reason="node fehlt")
 
 
 def _kopfskript():
-    start = INDEX.index("<script>") + len("<script>")
+    # Das erste <script> ist seit #58 der Adresswechsel; gemeint ist das Skript danach.
+    start = INDEX.index("<script>", INDEX.index("UMZUG-FUNKTIONEN-ENDE")) + len("<script>")
     return INDEX[start:INDEX.index("</script>", start)]
 
 

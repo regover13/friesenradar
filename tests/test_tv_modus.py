@@ -39,7 +39,8 @@ def R(x, y, w=100, h=40):
 
 
 def test_kopfskript_setzt_die_klasse_nur_mit_tv_1():
-    kopf = INDEX[:INDEX.index("</script>")]
+    # Vor dem <style>-Block; das erste Skript ist seit #58 der Adresswechsel.
+    kopf = INDEX[:INDEX.index("\n  <style")]
     assert "qs.get('tv') === '1'" in kopf and "classList.add('tv')" in kopf
 
 

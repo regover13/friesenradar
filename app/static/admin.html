@@ -2,6 +2,88 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
+  <script>
+    /* UMZUG-FUNKTIONEN-ANFANG */
+    // ADRESSWECHSEL (#58, 07.10.2026): Wer eine alte Adresse im Browser aufruft, wechselt auf
+    // die Adresse des Vereins. Hier in der Seite und nicht in nginx, weil nur die Seite weiss,
+    // ob sie im Kniebrett, eingebettet oder als App vom Startbildschirm laeuft. Jede Adresse
+    // hat ihren eigenen Browser-Speicher -- die Einstellungen reisen deshalb im Anker mit.
+    // ES5, weil der Block auch in Coherent GT geladen wird. In index.html und admin.html
+    // wortgleich (tests/test_adress_umleitung.py vergleicht).
+    var UMZUG_ALT = ['friesenspy.devprops.de', 'friesenradar.devprops.de'];
+    var UMZUG_NEU = 'radar.friesenflieger.de';
+    var UMZUG_SPEICHER = ['friesenradar_tv', 'notif_prefiles', 'notif_ts', 'notif_events',
+                          'notif_pilot_filter', 'fs_changelog_seen'];
+
+    /** 'umleiten' | 'hinweis' (App vom Startbildschirm: sie haengt an ihrer Adresse) | 'bleiben' */
+    function _umzugEntscheid(u) {
+      if (UMZUG_ALT.indexOf(u.host) < 0) return 'bleiben';
+      if (u.panel || u.iframe || u.coherent || u.aus) return 'bleiben';
+      return u.standalone ? 'hinweis' : 'umleiten';
+    }
+
+    function _umzugZiel(ort, gepaeck) {
+      var anker = String(ort.hash || '').replace(/^#/, '');
+      return 'https://' + UMZUG_NEU + ort.pathname + (ort.search || '') + '#'
+           + (anker ? anker + '&' : '') + 'umzug=' + encodeURIComponent(JSON.stringify(gepaeck));
+    }
+
+    /** Nur kurze Texte unter harmlosen Namen: Der Anker ist von aussen setzbar. */
+    function _umzugSieb(o, erlaubt) {
+      var aus = {}, k;
+      if (!o || typeof o !== 'object') return aus;
+      for (k in o) {
+        if (!Object.prototype.hasOwnProperty.call(o, k)) continue;
+        if (!/^[A-Za-z0-9_]{1,40}$/.test(k)) continue;
+        if (erlaubt && erlaubt.indexOf(k) < 0) continue;
+        if (typeof o[k] !== 'string' || o[k].length > 600) continue;
+        aus[k] = o[k];
+      }
+      return aus;
+    }
+
+    /** Trennt das Gepaeck vom uebrigen Anker. Kaputtes wird verworfen, aber entfernt. */
+    function _umzugAuspacken(hash) {
+      var teile = String(hash || '').replace(/^#/, '').split('&'), rest = [], gepaeck = null, i, roh;
+      for (i = 0; i < teile.length; i++) {
+        if (teile[i].indexOf('umzug=') !== 0) { if (teile[i]) rest.push(teile[i]); continue; }
+        try {
+          roh = JSON.parse(decodeURIComponent(teile[i].slice(6)));
+          if (roh && typeof roh === 'object' && !Array.isArray(roh)) {
+            gepaeck = { k: _umzugSieb(roh.k, null), l: _umzugSieb(roh.l, UMZUG_SPEICHER),
+                        push: roh.push === 1 ? 1 : 0 };
+          }
+        } catch (e) {}
+      }
+      return { rest: rest.join('&'), gepaeck: gepaeck };
+    }
+
+    /** Mitgebrachtes fuellt nur auf, was hier fehlt. */
+    function _umzugMischen(hier, mitgebracht) {
+      var aus = {}, k;
+      for (k in hier) if (Object.prototype.hasOwnProperty.call(hier, k)) aus[k] = hier[k];
+      for (k in mitgebracht) {
+        if (Object.prototype.hasOwnProperty.call(mitgebracht, k) && !(k in aus)) aus[k] = mitgebracht[k];
+      }
+      return aus;
+    }
+    /* UMZUG-FUNKTIONEN-ENDE */
+
+    (function () {
+      // Der Admin nimmt nichts mit: Er hat keine eigenen Einstellungen im Browser.
+      var abfrage = String(location.search || '');
+      var entscheid = _umzugEntscheid({
+        host: location.hostname, panel: false,
+        iframe: (function () { try { return window.self !== window.top; } catch (e) { return true; } })(),
+        coherent: /Coherent/i.test(navigator.userAgent || ''),
+        standalone: false,
+        aus: /[?&]umzug=0(&|$)/.test(abfrage)
+      });
+      if (entscheid === 'umleiten') {
+        location.replace('https://' + UMZUG_NEU + location.pathname + abfrage + String(location.hash || ''));
+      }
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FriesenRadar – Admin</title>
   <link href="/static/fonts/fonts.css" rel="stylesheet" />
@@ -2409,8 +2491,7 @@
     // Adresse fuer Badge- und Teilen-Codes: Wer ueber das stille Alias kommt, soll trotzdem
     // nur die neue Adresse weitergeben (wie _teilenUrsprung in index.html).
     function _teilenUrsprung() {
-      return location.origin === 'https://friesenspy.devprops.de'
-        ? 'https://friesenradar.devprops.de' : location.origin;
+      return UMZUG_ALT.indexOf(location.hostname) >= 0 ? 'https://' + UMZUG_NEU : location.origin;
     }
 
     // ====================================================================

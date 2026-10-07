@@ -2,7 +2,7 @@
 
 VATSIM Live-Tracker für die FriesenFlieger Virtual Airline. Zeigt wer von der Gruppe gerade online fliegt — mit Live-Karte, Statistiken und Event-Suche.
 
-**Live:** https://friesenradar.devprops.de
+**Live:** https://radar.friesenflieger.de
 
 ---
 
@@ -682,7 +682,12 @@ Das **Zahnrad ⚙ oben rechts** im Header öffnet die Einstellungen; die Benachr
 
 **Wer darf über mich benachrichtigt werden? (bei aktivem Board-Login):** Eingeloggte Mitglieder finden in den Einstellungen unter „Benachrichtigungen“ einen Sichtbarkeits-Regler — **Alle / Nur bestimmte / Keiner**. Damit bestimmt jeder selbst, wer über seine eigene Aktivität (Online, Flugplan, TeamSpeak) per Push benachrichtigt wird; „Keiner"/„Nur bestimmte" unterdrücken auch die Ankündigung im öffentlichen Telegram-Online-Kanal. Die Live-Anzeige bleibt unberührt. Grundlage ist die Identität aus dem Forum-Login (VATSIM-CID + FRS-Rufzeichen); Push-Abos werden dabei dem eingeloggten Mitglied zugeordnet (`owner_cid`), damit „Nur bestimmte" greifen kann. Die alte `manage_ts_consent.py`-Steuerung ist damit abgelöst.
 
-**Neue Adresse, neues Einschalten:** Dein Browser merkt sich Benachrichtigungen je Adresse. Rufst du FriesenRadar zum ersten Mal über `friesenradar.devprops.de` auf, stehen sie dort deshalb auf „aus“, obwohl die alten weiter ankommen. Schalte sie auf der neuen Adresse einmal ein — FriesenRadar entfernt dann von selbst dein älteres Abo beim selben Anbieter (Apple, Google, Mozilla oder Windows), damit nichts doppelt klingelt. Hast du zwei Geräte beim selben Anbieter, etwa zwei iPhones, musst du auf beiden neu einschalten.
+**Neue Adresse:** FriesenRadar ist unter `radar.friesenflieger.de` zu Hause. Wer eine der früheren Adressen im Browser aufruft, landet von selbst dort; Design, Karten-Ebenen und die übrigen Einstellungen kommen mit. Zwei Dinge hängen an der Adresse und lassen sich nicht mitnehmen:
+
+- **Benachrichtigungen.** Auf der neuen Adresse stehen sie auf „aus“, obwohl die alten weiter ankommen; ein Hinweis oben auf der Seite erinnert daran. Schalte sie einmal neu ein — FriesenRadar entfernt dann von selbst dein älteres Abo beim selben Anbieter (Apple, Google, Mozilla oder Windows), damit nichts doppelt klingelt. Hast du zwei Geräte beim selben Anbieter, etwa zwei iPhones, musst du auf beiden neu einschalten.
+- **Die App auf dem Startbildschirm** (iPhone, iPad, Android). Sie bleibt an der alten Adresse und zeigt einen Hinweis: `radar.friesenflieger.de` im Browser öffnen, dort neu auf den Startbildschirm legen, die alte App löschen.
+
+Kniebrett, FriesenBrügge und das Widget im Forum sind davon nicht betroffen.
 
 **Einrichten:**
 1. Zahnrad ⚙ klicken → Einstellungen öffnen sich
@@ -795,7 +800,7 @@ Diese Blätter sind nach der Bahnrichtung gedruckt statt genordet; auf der Karte
 
 Das **Kniebrett** ist FriesenRadar als eigene App im EFB-Tablet des **Microsoft Flight Simulator 2024** — dieselben vier Tabs wie auf der Website, nur direkt beim Fliegen, ohne Alt-Tab und auch in VR.
 
-**Installieren:** Paket und Schritt-für-Schritt-Anleitung stehen unter **[/download](https://friesenradar.devprops.de/download)** („Downloads" ganz unten in der Fußleiste; die alte URL `/efb` bleibt ebenfalls erreichbar): ZIP herunterladen und entpacken — es entsteht ein Ordner mit dem Namen der ZIP-Datei, in dem direkt `manifest.json` liegt —, diesen Ordner als Ganzes in den Community-Ordner des Simulators kopieren, Simulator starten — FriesenRadar steht dann in der App-Liste des Tablets. Das Paket ist nur eine **dünne Hülle**; alles Weitere kommt vom Server. Änderungen an FriesenRadar sind also ohne Neuinstallation da.
+**Installieren:** Paket und Schritt-für-Schritt-Anleitung stehen unter **[/download](https://radar.friesenflieger.de/download)** („Downloads" ganz unten in der Fußleiste; die alte URL `/efb` bleibt ebenfalls erreichbar): ZIP herunterladen und entpacken — es entsteht ein Ordner mit dem Namen der ZIP-Datei, in dem direkt `manifest.json` liegt —, diesen Ordner als Ganzes in den Community-Ordner des Simulators kopieren, Simulator starten — FriesenRadar steht dann in der App-Liste des Tablets. Das Paket ist nur eine **dünne Hülle**; alles Weitere kommt vom Server. Änderungen an FriesenRadar sind also ohne Neuinstallation da.
 
 **Anmelden:** Beim ersten Start fragt das Tablet nach dem Forum-Login — dieselben Zugangsdaten wie auf der Website. Die anschließende Rückfrage „Kniebrett dauerhaft anmelden?" **bestätigen**: Sonst fragt FriesenRadar bei jedem Start des Simulators erneut. Gemerkt wird dafür eine zufällige Gerätekennung, kein Passwort. Gewarnt wird nur vor dem echten Risiko — die Frage zu bestätigen, während man gar nicht selbst im Simulator sitzt. Gehört ein Rechner nicht mehr dir, löst die Verwaltung die Verknüpfung (Meldung im Forum).
 

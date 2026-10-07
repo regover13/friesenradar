@@ -26,10 +26,16 @@ Wo „friesenspy“ trotzdem steht, ist es eines von zwei Dingen, und keins davo
   Commit-Historie, alte Forumsbeiträge, Kommentare in anderen Repos. Sie nennen den alten Namen,
   weil er damals galt.
 
-`friesenspy.devprops.de` bleibt als **stilles Alias** erreichbar (alte Brüggen, alte Pakete, Badges
-in alten Beiträgen) und wird nirgends mehr genannt. Technische Heimat ist
-`friesenradar.devprops.de`; die Adresse für Mitglieder wird `radar.friesenflieger.de`, sobald DNS
-und Zertifikat stehen — bis dahin nennen Texte die technische Heimat.
+**Die Adresse für Mitglieder ist `radar.friesenflieger.de`** (seit 07.10.2026, 16.1.0). Texte nennen
+nur sie. `friesenradar.devprops.de` bleibt die **technische Heimat** (Kniebrett-Paket, FriesenBrügge,
+Einbettungscode des Widgets), `friesenspy.devprops.de` ein **stilles Alias** (alte Brüggen, alte
+Pakete, Badges in alten Beiträgen); beide werden Mitgliedern gegenüber nicht mehr genannt.
+
+**Wer eine der beiden alten Adressen im Browser aufruft, wird in der Seite selbst umgeleitet**
+(Kopf von `index.html` und `admin.html`, `_umzugEntscheid`; #58). Nicht in nginx: Kniebrett,
+Einbettung und Schnittstellen dürfen nie umgeleitet werden, und nur die Seite kann das
+unterscheiden. Die App vom Startbildschirm bekommt statt der Umleitung einen Hinweis.
+`?umzug=0` schaltet die Umleitung für einen Aufruf ab (zum Nachsehen auf der alten Adresse).
 
 ## Stack
 

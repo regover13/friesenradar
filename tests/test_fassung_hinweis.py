@@ -231,7 +231,7 @@ setTimeout(() => {
              "aktuell": "1.12.0", "veraltet": True}]))
         assert z["versteckt"] is False
         assert "1.9.0" in z["text"] and "1.12.0" in z["text"]
-        assert "friesenradar.devprops.de/download" in z["text"], (
+        assert "radar.friesenflieger.de/download" in z["text"], (
             "im Kniebrett lässt sich nichts herunterladen — die Adresse muss dastehen")
 
     def test_ist_alles_aktuell_bleibt_es_still(self):

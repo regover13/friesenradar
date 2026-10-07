@@ -1,5 +1,17 @@
 [
   {
+    "version": "16.1.0",
+    "date": "2026-10-07",
+    "highlight": false,
+    "title": "Neue Adresse: radar.friesenflieger.de",
+    "items": [
+      "✨ FriesenRadar ist jetzt unter radar.friesenflieger.de zu Hause. Wer eine der früheren Adressen im Browser aufruft, landet von selbst dort; Design, Karten-Ebenen und die übrigen Einstellungen kommen mit.",
+      "🔔 Benachrichtigungen gelten je Adresse: Ein Hinweis erinnert daran, sie auf der neuen Adresse einmal neu einzuschalten. Die bisherigen kommen bis dahin weiter an.",
+      "📱 Die App auf dem Startbildschirm bleibt an ihrer alten Adresse und zeigt, wie sie unter der neuen neu angelegt wird.",
+      "🔧 Kniebrett, FriesenBrügge und das Widget im Forum bleiben, wie sie sind."
+    ]
+  },
+  {
     "version": "16.0.6",
     "date": "2026-10-05",
     "highlight": false,
