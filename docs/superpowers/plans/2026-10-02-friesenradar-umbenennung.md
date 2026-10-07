@@ -312,7 +312,7 @@ Sicherung. Reste unter `/root/umzug-probe-2026-10-03/` (0700), Probe-Image
 - [ ] **Step 23:** Altes Image `docker rmi ghcr.io/regover13/friesenspy:latest` und das Probe-Image `ghcr.io/regover13/friesenradar:probe`, Gegenprobe `docker images`. Probe-Reste `/root/umzug-probe-2026-10-03/` und `/root/umzug-probe2-2026-10-03/` (zusammen ~1,8 GB, enthalten DB-Kopien) löschen — mit Freigabe.
 
 **Später, wenn der DNS-Eintrag beim Verein gesetzt ist** (CNAME `radar` → **`friesenradar.devprops.de`**):
-- [ ] **Step 24:** `dig +short radar.friesenflieger.de` zeigt auf 167.86.127.129. Zertifikat erweitern (`--expand -d radar.friesenflieger.de`), `server_name` ergänzen, `curl -sf https://radar.friesenflieger.de/health`, Forum-Login über diese Adresse. Erst danach Texte für Mitglieder auf diese Adresse umstellen (Task 3 Nachtrag). (V4)
+- [x] **Step 24 (07.10.2026, Forum-Login im Browser noch nicht geprüft):** `dig +short radar.friesenflieger.de` zeigt auf 167.86.127.129. Zertifikat erweitern (`--expand -d radar.friesenflieger.de`), `server_name` ergänzen, `curl -sf https://radar.friesenflieger.de/health`, Forum-Login über diese Adresse. Erst danach Texte für Mitglieder auf diese Adresse umstellen (Task 3 Nachtrag). (V4)
 
 ---
 
