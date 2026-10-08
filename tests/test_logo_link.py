@@ -25,3 +25,11 @@ def test_logo_link_hat_eine_beschriftung():
 def test_im_tv_modus_ist_das_logo_kein_link():
     assert re.search(r"html\.tv a\.logo\s*\{[^}]*pointer-events:\s*none", INDEX)
     assert "document.querySelector('a.logo').removeAttribute('href')" in INDEX
+
+
+def test_im_kniebrett_ist_das_logo_kein_link():
+    """Nutzer 08.10.2026: „Im tablet aber keinen Link“. Die Kopfzeile ist dort ausgeblendet,
+    und der Link wird zusaetzlich entfernt."""
+    assert re.search(r"html\.vr-panel header\s*\{\s*display:\s*none\s*!important", INDEX)
+    a = INDEX.index("document.querySelector('a.logo').removeAttribute('href')")
+    assert "classList.contains('vr-panel')" in INDEX[a - 300:a]

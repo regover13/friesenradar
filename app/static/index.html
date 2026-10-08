@@ -4835,8 +4835,11 @@
     </a>
     <script>
       // Im TV-Modus ist das Logo kein Link: Ein Druck auf der Fernbedienung truege den
-      // Fernseher sonst aus FriesenRadar hinaus.
-      if (document.documentElement.classList.contains('tv')) {
+      // Fernseher sonst aus FriesenRadar hinaus. Im Kniebrett auch nicht (Nutzer 08.10.2026):
+      // Die Kopfzeile ist dort ohnehin ausgeblendet, das hier haelt es fest, falls sie je
+      // wieder erscheint -- ein Link truege das Tablet aus FriesenRadar hinaus.
+      if (document.documentElement.classList.contains('tv')
+          || document.documentElement.classList.contains('vr-panel')) {
         document.querySelector('a.logo').removeAttribute('href');
       }
     </script>
