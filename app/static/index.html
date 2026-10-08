@@ -1255,6 +1255,9 @@
       text-shadow: 0 0 20px rgba(var(--green-rgb),0.5), 0 0 40px rgba(var(--green-rgb),0.2);
     }
 
+    a.logo { display: block; text-decoration: none; }
+    html.tv a.logo { pointer-events: none; }
+
     .logo-prefix {
       color: var(--text-label);
       font-weight: 300;
@@ -4825,11 +4828,18 @@
        HEADER
        ===================================================================== -->
   <header>
-    <div class="logo">
+    <a class="logo" href="https://friesenflieger.de" title="Zur Homepage der FriesenFlieger">
       <!-- Beide Logo-Fassungen fest im Markup, CSS waehlt je Design (Issue #51). -->
       <img class="logo-radar logo-radar-weiss" src="/static/logo/friesenradar-weissrot.svg" alt="FriesenRadar" />
       <img class="logo-radar logo-radar-farbig" src="/static/logo/friesenradar-farbig.svg" alt="FriesenRadar" />
-    </div>
+    </a>
+    <script>
+      // Im TV-Modus ist das Logo kein Link: Ein Druck auf der Fernbedienung truege den
+      // Fernseher sonst aus FriesenRadar hinaus.
+      if (document.documentElement.classList.contains('tv')) {
+        document.querySelector('a.logo').removeAttribute('href');
+      }
+    </script>
     <div class="header-right">
       <!-- Zwei Glocken, eine sichtbar: Die Twemoji-Grafik ist ein fertiges Bild und nimmt
            keine Farbe an; im Panel zeigt die Glocke aber ueber ihre Farbe den

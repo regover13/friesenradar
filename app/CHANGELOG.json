@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.1.1",
+    "date": "2026-10-08",
+    "highlight": false,
+    "title": "Logo führt zur Homepage",
+    "items": [
+      "🏠 Ein Klick auf das Logo oben führt jetzt zur Homepage der FriesenFlieger, wie im Forum."
+    ]
+  },
+  {
     "version": "16.1.0",
     "date": "2026-10-07",
     "highlight": false,
