@@ -106,7 +106,7 @@ def test_app_symbol_ist_das_rote_flugzeug():
     """Abschluss-Review 03.10.2026: Das Symbol war beim Umbenennen nur mitgewandert (altes
     "FRS" im Kreis). Es muss dasselbe sein wie das App-Symbol der Website."""
     symbol = (QUELLE / "src" / "Assets" / "app-icon.svg").read_text(encoding="utf-8")
-    vorlage = (WURZEL / "app" / "static" / "logo" / "friesenradar-symbol.svg").read_text(encoding="utf-8")
+    vorlage = (WURZEL / "app" / "static" / "logo" / "FriesenRadar_symbol.svg").read_text(encoding="utf-8")
     assert symbol == vorlage
     assert "<image" not in symbol, "Coherent GT: nur reine Vektoren (s. 0e925af/fce83aa)"
 
