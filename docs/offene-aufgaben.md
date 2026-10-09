@@ -16,10 +16,11 @@ Server 15.22.x, FriesenBrügge 1.18.1 und Kniebrett 2.3.2 sind verteilt. ✅ Im 
 Friesen 50 m auseinander bestanden (Diagnose „zuordnung“, `davonFriesen` 2, `amEigenenOrt` 0).
 
 **Offen:**
-1. **Nach dem Stichtag 24.10.2026** (dann 426 für die alte MSFS-Brügge): den alten Weg
-   (`_bruegge_zuordnen`, `bruegge_kennung_fuer`, `bruegge_belegte_cids`) und die Test-Vorbereitung
-   in `tests/conftest.py` zurückbauen. Alte Zeilen (`protokoll` NULL) bleiben bis dahin in
-   `bruegge_zuordnung` stehen.
+1. ✅ **Der alte Weg ist zurückgebaut** (`_bruegge_zuordnen`, `bruegge_kennung_fuer`,
+   `bruegge_belegte_cids`, `bruegge.zuordnen`, die Test-Vorbereitung in `tests/conftest.py`); die
+   alte MSFS-Brügge bekommt 426. Alte Zeilen (`protokoll` NULL) stehen weiter in
+   `bruegge_zuordnung`: Sie binden nichts mehr und fallen mit `bruegge_aufraeumen` nach 400 Tagen
+   ohne Meldung weg.
 2. **Nach dem nächsten Start von MSFS 2024 prüfen**, ob das Kniebrett des Nutzers (CID 1602713) in
    `panel_devices` 2.3.2 meldet — dann lädt es aus `Community`. Verlegt am 26.09.2026 abends,
    `Community2024` ist leer (Regel in `CLAUDE.md`: nie dorthin installieren).

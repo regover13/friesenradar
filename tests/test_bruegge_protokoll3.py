@@ -167,43 +167,48 @@ def test_ein_nicht_angemeldeter_frs_pilot_ist_kein_kandidat(env):
 
 # --- Wer welchen Weg nimmt -------------------------------------------------------------
 
-def test_die_alte_msfs_bruegge_laeuft_bis_zum_stichtag_weiter(env):
+@pytest.mark.parametrize("protokoll", [1, 2, None])
+def test_die_alte_msfs_bruegge_bekommt_426(env, protokoll):
+    """Bis 1.17.0 (Protokoll 1 und 2) konnte die MSFS-Brügge ihre Kennung nicht speichern. Sie
+    lief vier Wochen parallel weiter (Nutzerentscheidung 26.09.2026, Stichtag 24.10.2026);
+    seither wird sie abgewiesen, auch wenn ihr Pilot danebensteht."""
     _verbindung(env.db, 49, "FRS49")
-    a = _melden(env, protokoll=2)
-    assert a["protokoll"] == 2
-
-
-def test_der_stichtag_liegt_vier_wochen_nach_dem_release():
-    """Nutzerentscheidung 26.09.2026: vier Wochen parallel, dann abweisen. Release von
-    FriesenBrügge 1.18.1 war am 26.09.2026."""
-    import importlib, app.main
-    quelle = open(app.main.__file__, encoding="utf-8").read()
-    assert '_BRUEGGE_P2_MSFS_BIS: str | None = "2026-10-24T00:00:00Z"' in quelle
-
-
-def test_nach_dem_stichtag_bekommt_die_alte_msfs_bruegge_426(env, monkeypatch):
-    monkeypatch.setattr(env.main, "_BRUEGGE_P2_MSFS_BIS", "2000-01-01T00:00:00Z")
-    r = env.client.post("/api/bruegge/melden", json=_meldung(protokoll=2))
+    m = _meldung(protokoll=protokoll)
+    if protokoll is None:
+        del m["protokoll"]
+    r = env.client.post("/api/bruegge/melden", json=m)
     assert r.status_code == 426
+    assert _zeile(env.db, m["kennung"] or "x") is None
 
 
-def test_x_plane_mit_protokoll_2_laeuft_ueber_den_neuen_weg(env, monkeypatch):
-    """X-Plane speichert seine Kennung seit jeher selbst -- kein Stichtag, neue Regeln."""
-    monkeypatch.setattr(env.main, "_BRUEGGE_P2_MSFS_BIS", "2000-01-01T00:00:00Z")
+def test_ohne_simulator_und_protokoll_gibt_es_ebenfalls_426(env):
+    """Wer weder Fassung 3 spricht noch X-Plane ist, wird nicht bedient."""
+    m = _meldung(protokoll=2)
+    del m["simulator"]
+    assert env.client.post("/api/bruegge/melden", json=m).status_code == 426
+
+
+def test_der_alte_zuordnungsweg_ist_ausgebaut():
+    """Zuordnung allein über die Position, mit Rückgabe der Kennung des Piloten: So kam am
+    25.09.2026 die Kennung eines Piloten zu einem anderen (#46). Der Weg darf nicht
+    zurückkommen."""
+    import app.main as main
+    import app.database as database
+    from app import bruegge
+    assert not hasattr(main, "_bruegge_zuordnen")
+    assert not hasattr(main, "_BRUEGGE_P2_MSFS_BIS")
+    assert not hasattr(database, "bruegge_kennung_fuer")
+    assert not hasattr(database, "bruegge_belegte_cids")
+    assert not hasattr(bruegge, "zuordnen")
+
+
+def test_x_plane_mit_protokoll_2_laeuft_ueber_den_neuen_weg(env):
+    """X-Plane speichert seine Kennung seit jeher selbst -- kein 426, neue Regeln."""
     _verbindung(env.db, 111, "FRS111N", lat=B + 3 / 111320,
                 logon=datetime.now(timezone.utc) - timedelta(hours=1))
     a = _melden(env, protokoll=2, simulator="xplane12", kennung="c0ffee00c0ffee00")
     assert "kennung" not in a
     assert _zeile(env.db, "c0ffee00c0ffee00") is None, "der früher verbundene Nachbar zählt nicht"
-
-
-def test_eine_alte_bruegge_bekommt_keine_kennung_einer_neuen_installation(env):
-    from app.database import get_connection, bruegge_zuordnung_setzen, bruegge_kennung_fuer
-    c = get_connection(env.db)
-    bruegge_zuordnung_setzen(c, "neu0neu0neu0neu0", 49, "msfs2024", 3)
-    c.commit()
-    assert bruegge_kennung_fuer(c, 49, "msfs2024") is None
-    c.close()
 
 
 def test_ab_protokoll_3_raeumt_eine_neue_bindung_nichts_weg(env):

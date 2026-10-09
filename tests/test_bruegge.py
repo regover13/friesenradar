@@ -64,79 +64,6 @@ def test_hoehenschranke_beachtet_die_sinkrate():
 
 
 # ---------------------------------------------------------------------------------------
-# Die Zuordnung
-# ---------------------------------------------------------------------------------------
-
-def test_einzelner_kandidat_wird_zugeordnet():
-    k = bruegge.kandidaten_bilden([_friese(111, "FRS01", 53.7800, 7.9200)])
-    treffer, grund = bruegge.zuordnen(53.7801, 7.9201, 0, 0, k)
-    assert treffer is not None and treffer.cid == 111
-    assert "eindeutig" in grund
-
-
-def test_zu_weit_entfernt_findet_niemanden():
-    k = bruegge.kandidaten_bilden([_friese(111, "FRS01", 53.7800, 7.9200)])
-    treffer, grund = bruegge.zuordnen(53.9000, 7.9200, 0, 0, k)
-    assert treffer is None
-    assert "kein Kandidat" in grund
-
-
-def test_hoehe_trennt_zwei_flugzeuge_uebereinander():
-    """Zwei Friesen an derselben Koordinate, 5000 ft auseinander."""
-    k = bruegge.kandidaten_bilden([
-        _friese(111, "FRS01", 53.7800, 7.9200, alt=1000),
-        _friese(222, "FRS02", 53.7800, 7.9200, alt=6000),
-    ])
-    treffer, _ = bruegge.zuordnen(53.7800, 7.9200, 1050, 0, k)
-    assert treffer is not None and treffer.cid == 111
-
-
-def test_vorsprung_entscheidet_nicht_die_schranke():
-    """DER Kernfall, um den es im Kniebrett zwei Fehlversuche gab.
-
-    Zwei Friesen im selben Umkreis: einer 20 m weg, einer 300 m. Beide liegen innerhalb der
-    400-m-Untergrenze -- „genau einer innerhalb der Schranke" hätte hier NICHTS zugeordnet.
-    Über den Vorsprung ist es eindeutig.
-    """
-    nah = _friese(111, "FRS01", 53.78000, 7.92000)
-    fern = _friese(222, "FRS02", 53.78270, 7.92000)   # rund 300 m nördlich
-    k = bruegge.kandidaten_bilden([nah, fern])
-    treffer, grund = bruegge.zuordnen(53.78002, 7.92000, 0, 0, k)
-    assert treffer is not None and treffer.cid == 111
-    assert "Vorsprung" in grund
-
-
-def test_zwei_dicht_beieinander_werden_nicht_geraten():
-    """Kein klarer Vorsprung heißt: nicht zuordnen.
-
-    Eine falsche Zuordnung ist schlimmer als gar keine -- man sieht ihr nicht an, dass sie
-    falsch ist.
-    """
-    k = bruegge.kandidaten_bilden([
-        _friese(111, "FRS01", 53.78000, 7.92000),
-        _friese(222, "FRS02", 53.78010, 7.92000),   # rund 11 m daneben
-    ])
-    treffer, grund = bruegge.zuordnen(53.78005, 7.92000, 0, 0, k)
-    assert treffer is None
-    assert "ohne Vorsprung" in grund
-
-
-def test_alte_vatsim_meldung_wird_aufgeholt():
-    """Ein Friese, dessen Meldung 29 s alt ist, ist weitergeflogen.
-
-    Ohne Fortrechnung läge er 1,5 km hinter seiner tatsächlichen Position -- und die Brügge,
-    die dort meldet, wo er wirklich ist, fände ihn nicht.
-    """
-    # 110 kt nach Osten, Meldung 29 s alt.
-    f = _friese(111, "FRS01", 53.7800, 7.9200, gs=110, hdg=90, alter_s=29)
-    k = bruegge.kandidaten_bilden([f])
-    # Dort steht er jetzt wirklich: rund 1,6 km östlich.
-    ist_lat, ist_lon = bruegge.jetzt_gerechnet(53.7800, 7.9200, 90, 110, 29)
-    treffer, _ = bruegge.zuordnen(ist_lat, ist_lon, 0, 110, k)
-    assert treffer is not None and treffer.cid == 111
-
-
-# ---------------------------------------------------------------------------------------
 # Sprünge
 # ---------------------------------------------------------------------------------------
 
@@ -171,8 +98,9 @@ def test_gemerkte_zuordnung_ist_grosszuegiger_als_die_erstzuordnung():
     k = bruegge.kandidaten_bilden([f])
     # Bei 110 kt: Erstzuordnung bis rund 3,3 km, Lösen bis rund 4,9 km. 4 km liegt dazwischen.
     weit_lat = 53.78000 + 4000 / 111320.0
-    treffer, _ = bruegge.zuordnen(weit_lat, 7.92000, 0, 110, k)
-    assert treffer is None, "so weit darf NICHT erstzugeordnet werden"
+    erst = bruegge.schranke_m(110, bruegge.PAARUNG_FAKTOR)
+    assert bruegge.abstand_m(weit_lat, 7.92000, k[0].lat, k[0].lon) > erst, \
+        "ausserhalb der Schranke der Erstzuordnung"
     assert bruegge.bleibt_plausibel(weit_lat, 7.92000, 0, 110, k[0]) is True,         "eine bestehende Zuordnung muss das aushalten"
 
 
@@ -186,24 +114,6 @@ def test_im_stand_wirkt_der_loesefaktor_nicht():
     """
     assert bruegge.schranke_m(0, bruegge.PAARUNG_FAKTOR) ==            bruegge.schranke_m(0, bruegge.PAARUNG_LOESEN_FAKTOR)
     assert bruegge.schranke_m(30, bruegge.PAARUNG_LOESEN_FAKTOR) >            bruegge.schranke_m(30, bruegge.PAARUNG_FAKTOR)
-
-
-def test_ohne_steigrate_reisst_die_zuordnung_im_steigflug():
-    """DER Fehler des ersten Fluges (11.09.2026), als Test festgehalten.
-
-    Ein Friese steigt mit 1000 ft/min. Seine VATSIM-Meldung ist 29 s alt und zeigt deshalb
-    eine um rund 480 ft niedrigere Höhe -- das ist der Sollwert, kein Fehler. Ohne die
-    gemeldete Steigrate rechnet der Server mit der Untergrenze von 300 ft und verwirft ihn.
-    """
-    f = _friese(111, "FRS01", 53.78, 7.92, alt=5000, gs=110, hdg=90)
-    k = bruegge.kandidaten_bilden([f])
-    # Der Sim ist 480 ft weiter oben -- nach 29 s bei 1000 ft/min.
-    ohne_rate, _ = bruegge.zuordnen(53.78, 7.92, 5480, 110, k, vs_ft_min=0)
-    assert ohne_rate is None, "so war es kaputt"
-
-    k2 = bruegge.kandidaten_bilden([f])
-    mit_rate, _ = bruegge.zuordnen(53.78, 7.92, 5480, 110, k2, vs_ft_min=1000)
-    assert mit_rate is not None and mit_rate.cid == 111, "mit Steigrate muss es passen"
 
 
 def test_sprungschranke_waechst_mit_der_pause():

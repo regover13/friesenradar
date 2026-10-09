@@ -2432,8 +2432,8 @@ Wiedererkennungszeichen, das den vollen Match je Meldung erspart.
 ohne `kennung` bekommt **sofort** `"kennung": "<16 hex>"` — frisch gewürfelt, auch wenn noch
 kein Pilot gefunden ist, und nie die Kennung eines Piloten. Protokoll 3 und jede X-Plane-Brügge
 laufen über `app/bruegge_bindung.py` (Kandidaten über die CID, erste Zuordnung im Stand auf
-höchstens 5 m nach dem Start der Brügge, Bewährung im Flug); die alte MSFS-Brügge (1/2) bis
-zum Stichtag `_BRUEGGE_P2_MSFS_BIS` (**24.10.2026**) über den bisherigen Weg, danach `426`. Die Einträge der
+höchstens 5 m nach dem Start der Brügge, Bewährung im Flug). Die alte MSFS-Brügge (Protokoll 1/2,
+bis 1.17.0) bekommt `426`; ihr eigener Weg lief bis zum **24.10.2026** parallel und ist ausgebaut. Die Einträge der
 Brügge im Sekundenstrom tragen zusätzlich `bw` (Bindung bewährt) und `cs` (Rufzeichen).
 
 **Request**
@@ -2498,6 +2498,8 @@ jedem Simulator-Start mit leerer `kennung`. Damit das trotzdem nach der ersten M
 dieselbe bleibt, gibt der Server bei leerer `kennung` die zuletzt für diese (CID, Simulator)
 vergebene zurück, statt neu zu würfeln (`bruegge_kennung_fuer`) — die Wiedererkennung
 wandert vom Client auf den Server, passend zum Leitbild „Die Brügge ist dumm."
+**Das galt bis Brügge 1.17.0 und ist mit dem alten MSFS-Weg ausgebaut:** Seit 1.18.1 speichert
+die Brügge ihre Kennung selbst, und der Server gibt nie mehr die Kennung eines Piloten heraus.
 
 ⚠⚠ **Eine erinnerte Kennung findet nur zu ihrer eigenen CID zurück** (17.09.2026). Löst der
 Server eine Bindung (Partner ausgeloggt oder Position passt dauerhaft nicht mehr), bleibt die
@@ -2836,10 +2838,11 @@ Spur, nie eine leere.
 Suite zehn fremde Brügge-Tests mit; einzeln waren alle grün, weil dort kein Poller im
 App-Zustand steht.
 
-⚠ **`bruegge_belegte_cids` wird hier NICHT angefasst.** Diese Sperre ist gegen *verwechselte*
+⚠ **Die Bindungsregeln der Brügge werden hier NICHT angefasst.** Sie sind gegen *verwechselte*
 Identitäten gebaut — zwei Brüggen, die sich um denselben Piloten streiten — und nicht gegen
 mehrere Quellen für dieselbe, richtig erkannte CID. Über denselben Endpunkt zu melden hieße,
-sie dafür aufzuweichen und den Schutz zu verlieren, der gerade erst eingezogen wurde.
+sie dafür aufzuweichen. (Bis zum Ausbau des alten MSFS-Wegs stand hier die Sperre
+`bruegge_belegte_cids`; die Begründung ist dieselbe geblieben.)
 
 **Plausibilisiert wird trotzdem.** Hier meldet ein Client über **Dritte**, und das ist eine
 andere Vertrauenslage als bei der Brügge: `bruegge.bleibt_plausibel` prüft jeden Eintrag

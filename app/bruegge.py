@@ -48,19 +48,17 @@ PAARUNG_LOESEN_TAKTE = 4    # erst nach so vielen Verstößen IN FOLGE
 # Flug. Jeder dieser Werte sieht für sich vernünftig aus — nur der Sprung verrät sie.
 SPRUNG_M = 500
 
-# So lange gilt eine Brügge-Meldung als frisch — und so lange ist die zugeordnete CID für
-# jede ANDERE Brügge belegt (s. `belegt` in `zuordnen`).
+# So lange gilt eine Brügge-Meldung als frisch.
 #
 # **Das ist bewusst dieselbe Zahl, mit der die Karte arbeitet**, und nicht eine zweite:
 # `VatsimPoller.BRUEGGE_FRIST_S` nimmt sie von hier, und `_BRUEGGE_FRIST_MS` in index.html
 # ist ihr Millisekunden-Zwilling (dort steht sie ein zweites Mal, weil der Browser den
 # Rückfall auf VATSIM selbst entscheiden muss — gebunden in tests/test_bruegge_karte.py).
-# Wer türkis auf der Karte sieht, sieht damit genau die Piloten, deren CID hier belegt ist.
+# Wer türkis auf der Karte sieht, sieht damit genau die Piloten, deren Brügge gerade meldet.
 #
 # ⚠ NICHT die Haltedauer aus `bruegge_aufraeumen` nehmen (seit 20.09.2026 400 Tage, vorher
-# 24 Stunden). Die ist Müllabfuhr für Zeilen, die niemand mehr anfasst — als Belegtmarke wäre
-# sie eine Selbstaussperrung: Der Pilot stünde über ein Jahr lang als „von jemand anderem
-# gemeldet" in seiner eigenen Liste. Hier zählen Sekunden, dort Tage.
+# 24 Stunden). Die ist Müllabfuhr für Zeilen, die niemand mehr anfasst. Hier zählen Sekunden,
+# dort Tage.
 MELDUNG_FRIST_S = 10.0
 
 ERDRADIUS_M = 6371000.0
@@ -176,81 +174,6 @@ def kandidaten_bilden(friesen, jetzt_ts: float | None = None) -> list[Kandidat]:
     return out
 
 
-def zuordnen(lat: float, lon: float, alt_ft: float, gs_kt: float,
-             kandidaten: list[Kandidat], vs_ft_min: float = 0.0,
-             faktor: float = PAARUNG_FAKTOR,
-             belegt: set[int] | None = None) -> tuple[Kandidat | None, str]:
-    """Welcher Friese meldet hier? ``(Treffer, Begründung)`` — Treffer kann ``None`` sein.
-
-    **Eindeutig heißt: Der beste Kandidat ist DEUTLICH näher als der zweitbeste.**
-    Das ersetzt „genau einer innerhalb der Schranke", und der Grund steht im Kniebrett
-    ausführlich: Mit 400 m Untergrenze lagen auf dem Vorfeld mehrere Flugzeuge im selben
-    Umkreis, mit 150 m fand mancher gar keinen Partner. Beide Male war die Zahl schuld.
-    Ein Verhältnis hat diese Schwäche nicht.
-
-    ``belegt`` sind die CIDs, die gerade eine ANDERE Brügge meldet — sie fallen als Kandidat
-    weg. Das ist `frei` aus dem Kniebrett (`index.html:6237/6253/6274`), und es hat dort
-    dieselbe Aufgabe: Eine Identität ist einmal vergeben, nicht zweimal.
-
-    **Am 14.09.2026 hat genau diese fehlende Zeile anderthalb Minuten gekostet.** Zwei
-    Brüggen auf dem Vorfeld, 76 m und 93 m vom Melder entfernt — Verhältnis 0,82, also kein
-    Vorsprung, also keine Zuordnung, im Sekundentakt und minutenlang:
-
-        19:55:35  keine Zuordnung (2 Kandidaten) -- ohne Vorsprung (76 m gegen 93 m)
-        …         dieselbe Zeile bis 19:57:08
-
-    Einer der beiden meldete zu dem Zeitpunkt längst selbst. Mit ``belegt`` wäre er aus der
-    Liste gefallen, und der Rest wäre eindeutig gewesen.
-
-    Damit erledigt sich zugleich der AUSSCHLUSS-Schritt des Kniebretts (`index.html:6269`,
-    „bleibt genau einer übrig"): Er ist hier nichts anderes als ``len(passende) == 1`` nach
-    Abzug der Belegten. Kein eigener Zweig — im Kniebrett ist er nur deshalb einer, weil er
-    dort OHNE Entfernungsschranke greift.
-
-    Die Begründung wandert nicht zur Brügge — sie ist für den Admin und fürs Log. Nach außen
-    sind „niemand passt" und „nicht auf VATSIM" ununterscheidbar, und zwar mit Absicht
-    (Protokoll, Abschnitt 1): Eine Fehlermeldung wäre ein Werkzeug für den, der ausprobiert,
-    welche erfundene Position durchgeht.
-    """
-    max_m = schranke_m(gs_kt, faktor)
-    max_ft = schranke_ft(vs_ft_min, faktor)
-
-    passende: list[Kandidat] = []
-    uebergangen = 0
-    for k in kandidaten:
-        if belegt and k.cid in belegt:
-            uebergangen += 1
-            continue
-        if abs(k.alt_ft - (alt_ft or 0.0)) > max_ft:
-            continue
-        m = abstand_m(lat, lon, k.lat, k.lon)
-        if m > max_m:
-            continue
-        k.abstand = m
-        passende.append(k)
-
-    # Wie viele wegen `belegt` wegfielen, gehört in JEDE Begründung -- sonst liest man im Log
-    # „kein Kandidat" und sucht den Fehler bei der Schranke, während in Wahrheit der richtige
-    # Pilot gerade von einer anderen Brügge gemeldet wird.
-    dazu = f", {uebergangen} belegt" if uebergangen else ""
-
-    if not passende:
-        return None, f"kein Kandidat innerhalb {max_m:.0f} m / {max_ft:.0f} ft{dazu}"
-
-    passende.sort(key=lambda k: k.abstand)
-    if len(passende) == 1:
-        return passende[0], f"eindeutig, {passende[0].abstand:.0f} m{dazu}"
-
-    if passende[0].abstand <= passende[1].abstand * PAARUNG_VORSPRUNG:
-        return passende[0], (f"Vorsprung: {passende[0].abstand:.0f} m gegen "
-                             f"{passende[1].abstand:.0f} m{dazu}")
-
-    # Mehrere ohne klaren Vorsprung: nicht raten. Eine falsche Zuordnung ist schlimmer als
-    # gar keine -- man sieht ihr nicht an, dass sie falsch ist.
-    return None, (f"{len(passende)} Kandidaten ohne Vorsprung "
-                  f"({passende[0].abstand:.0f} m gegen {passende[1].abstand:.0f} m){dazu}")
-
-
 def bleibt_plausibel(lat: float, lon: float, alt_ft: float, gs_kt: float,
                      kandidat: Kandidat, vs_ft_min: float = 0.0) -> bool:
     """Gilt eine GEMERKTE Zuordnung noch?
@@ -280,9 +203,8 @@ def bleibt_plausibel(lat: float, lon: float, alt_ft: float, gs_kt: float,
 # wurde seine Zuordnung bei 572 m Abstand an jemanden abgegeben, der 1,2 km entfernt war.
 # Das ist kein Grenzfall, den man tolerieren kann; so arbeitet die Regel.
 #
-# Die Identität sichert seit v14.40.0 der Server (er vergibt die Kennung, s.
-# `_bruegge_zuordnen`), und die Eindeutigkeit sichert `belegt` in `zuordnen()`. Wer hier
-# wieder eine Umhäng-Regel einzieht, hebelt beides aus.
+# Die Identität sichert der Server: Er vergibt die Kennung und bindet sie nach den Regeln in
+# `bruegge_bindung`. Wer hier wieder eine Umhäng-Regel einzieht, hebelt das aus.
 
 
 def ist_sprung(lat: float, lon: float, vor_lat: float | None, vor_lon: float | None,

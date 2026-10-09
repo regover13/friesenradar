@@ -34,6 +34,12 @@ def klient(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "get_settings", lambda: settings)
     if hasattr(main, "_reset_gate_cache"):
         main._reset_gate_cache()
+    # Sitzungen und Ablehnungen leben im Speicher des Moduls (`bruegge_bindung`) und wuerden
+    # sonst von einem Test in den naechsten hinueberreichen.
+    from app import bruegge_bindung
+    bruegge_bindung._SITZUNGEN.clear()
+    bruegge_bindung.ABGELEHNT.clear()
+    bruegge_bindung._OHNE_ANMELDEZEIT.clear()
     return TestClient(main.app)
 
 
@@ -46,18 +52,10 @@ def _meldung(lat=53.78227, lon=7.92593, kennung="a3f9c1e0b2d48576", **mehr):
     }
     lage.update(mehr.pop("lage", {}))
     m = {
-        "protokoll": 1,
+        "protokoll": 3,
         "simulator": "msfs2024",
-        "bruegge_version": "1.0.0",
+        "bruegge_version": "1.18.1",
         "kennung": kennung,
-        # ⚠ `kann` GIBT ES SEIT PROTOKOLLFASSUNG 2 NICHT MEHR (14.09.2026) -- die Bruegge
-        # fuehrt keine Artentabelle mehr und kann deshalb nichts behaupten.
-        #
-        # Es steht hier trotzdem, und zwar mit Absicht: Die Attrappe spielt eine Bruegge der
-        # Fassung 1, wie FRS61 sie fliegt. Dass der Server sie weiter bedient, ist kein
-        # Nebenschauplatz -- ein Feld zu entfernen darf niemanden brechen, der nichts
-        # herunterlaedt. Der Server wirft `kann` weg, wie seit jeher.
-        "kann": ["tier_gross", "bauwerk", "fahrzeug", "boot_klein", "boot_gross", "robbe"],
         "lage": lage,
         "spur": [],
         "steht": [],
@@ -99,8 +97,8 @@ def test_meldung_eines_bekannten_friesen_wird_abgelegt(klient, tmp_path):
     r = klient.post("/api/bruegge/melden", json=_meldung())
     assert r.status_code == 200
     antwort = r.json()
-    assert antwort["protokoll"] == 1
-    assert antwort["soll"] == [], "Fassung 1 verteilt noch keine Objekte"
+    assert antwort["protokoll"] == 3
+    assert antwort["soll"] == [], "nichts angefordert"
     assert antwort["naechste_frage_in_s"] == 1, "Regeltakt"
 
     from app.database import get_connection, bruegge_position_holen
@@ -177,15 +175,18 @@ def test_die_ablehnungen_verraten_keinen_grund(klient, tmp_path):
     ohne_vatsim = klient.post("/api/bruegge/melden", json=_meldung()).json()
     _friese_anlegen(db, mit_forum_login=False)
     ohne_login = klient.post("/api/bruegge/melden", json=_meldung()).json()
+    _friese_anlegen(db, cid=7654321, callsign="FRS12")
     weit_weg = klient.post("/api/bruegge/melden",
                            json=_meldung(lat=48.0, lon=11.0)).json()
 
     for a in (ohne_vatsim, ohne_login, weit_weg):
         assert a["soll"] == []
         assert a["gilt_bis_s"] == 0
-    # Kein Friese in der Luft: Minutentakt. Mit Friesen: gleich nochmal.
-    assert ohne_vatsim["naechste_frage_in_s"] == 10
-    assert ohne_login["naechste_frage_in_s"] == weit_weg["naechste_frage_in_s"] <= 5
+    # Niemand, der in Frage kaeme: langer Takt. Das gilt auch fuer einen Friesen ohne
+    # Forum-Anmeldung -- er ist seit Protokoll 3 gar kein Kandidat mehr.
+    assert ohne_vatsim["naechste_frage_in_s"] == ohne_login["naechste_frage_in_s"] == 10
+    # Ein Kandidat ist da, passt aber nicht: gleich nochmal.
+    assert weit_weg["naechste_frage_in_s"] <= 5
 
 
 def test_wer_fliegt_aber_nicht_erkannt_wird_darf_bald_wieder_fragen(klient, tmp_path):
@@ -263,11 +264,13 @@ def test_eine_alte_bruegge_bekommt_ihre_eigene_fassung_zurueck(klient, tmp_path)
     Fassung 1 vorsieht. Die Zahl steht laut Abschnitt 9 in BEIDEN Richtungen; dann muss sie
     auch beide Seiten meinen.
     """
+    # Mit X-Plane: Nur dort wird eine Bruegge vor Fassung 3 noch bedient -- sie speichert
+    # ihre Kennung seit jeher selbst. Die alte MSFS-Bruegge bekommt 426.
     _friese_anlegen(str(tmp_path / "t.db"))
-    assert klient.post("/api/bruegge/melden",
-                       json=_meldung(protokoll=1)).json()["protokoll"] == 1
-    assert klient.post("/api/bruegge/melden",
-                       json=_meldung(protokoll=2)).json()["protokoll"] == 2
+    assert klient.post("/api/bruegge/melden", json=_meldung(
+        protokoll=1, simulator="xplane12")).json()["protokoll"] == 1
+    assert klient.post("/api/bruegge/melden", json=_meldung(
+        protokoll=2, simulator="xplane12")).json()["protokoll"] == 2
 
 
 # ---------------------------------------------------------------------------------------
@@ -358,26 +361,6 @@ def test_die_hoehenschranke_laeuft_der_vatsim_hoehe_nach(klient, tmp_path):
     z = bruegge_zuordnung_holen(conn, "a3f9c1e0b2d48576")
     conn.close()
     assert z is not None and z["verstoesse"] == 0
-
-
-def test_eine_neue_kennung_verdraengt_die_alte_derselben_cid(klient, tmp_path):
-    """Die Kennung hält in MSFS nicht über einen Sim-Neustart — jede Sitzung zieht eine neue.
-
-    Ohne diese Regel sammelt sich je Pilot eine Karteileiche pro Simulator-Start. Am
-    11.09.2026 standen nach einem Abend zwei Zeilen für dieselbe CID, und die ältere hat beim
-    Nachsehen in die Irre geführt.
-    """
-    db = str(tmp_path / "t.db")
-    _friese_anlegen(db)
-    klient.post("/api/bruegge/melden", json=_meldung(kennung="1111111111111111"))
-    klient.post("/api/bruegge/melden", json=_meldung(kennung="2222222222222222"))
-
-    from app.database import get_connection
-    conn = get_connection(db)
-    zeilen = conn.execute("SELECT kennung FROM bruegge_zuordnung WHERE cid = 1234567").fetchall()
-    conn.close()
-    assert len(zeilen) == 1, "zwei Brüggen gleichzeitig gibt es nicht"
-    assert zeilen[0][0] == "2222222222222222", "die neuere gilt"
 
 
 def test_alte_zuordnungen_werden_aufgeraeumt(tmp_path):
@@ -967,7 +950,7 @@ def test_die_titel_kommen_mit_der_antwort(klient, tmp_path):
     klient.post("/api/admin/bruegge/soll", cookies=_admin_kekse(),
                 json={"art": "tier_gross", "lat": 53.78, "lon": 7.92, "id": "prueflauf"})
 
-    antwort = klient.post("/api/bruegge/melden", json=_meldung(protokoll=2)).json()
+    antwort = klient.post("/api/bruegge/melden", json=_meldung()).json()
     assert antwort["soll"] and antwort["soll"][0]["art"] == "tier_gross"
     assert "BlackBear" in antwort["arten"]["tier_gross"]
     # ... und was nachweislich scheitert, geht gar nicht erst hinaus (`PolarBear`,
@@ -997,7 +980,7 @@ def test_ohne_soll_gehen_auch_keine_titel_hinaus(klient, tmp_path):
     Sonst verriete der Server einem Fremden, was er überhaupt zu bieten hat. Und wo nichts
     hinzustellen ist, braucht niemand Titel.
     """
-    antwort = klient.post("/api/bruegge/melden", json=_meldung(protokoll=2)).json()
+    antwort = klient.post("/api/bruegge/melden", json=_meldung()).json()
     assert antwort["soll"] == []
     assert "arten" not in antwort
 
@@ -1011,7 +994,7 @@ def test_nur_die_angeforderten_arten_gehen_hinaus(klient, tmp_path):
     _friese_anlegen(str(tmp_path / "t.db"))
     klient.post("/api/admin/bruegge/soll", cookies=_admin_kekse(),
                 json={"art": "tier_gross", "lat": 53.78, "lon": 7.92, "id": "nur-eins"})
-    arten = klient.post("/api/bruegge/melden", json=_meldung(protokoll=2)).json()["arten"]
+    arten = klient.post("/api/bruegge/melden", json=_meldung()).json()["arten"]
     assert list(arten) == ["tier_gross"]
 
 
@@ -1056,7 +1039,7 @@ def test_im_verstoss_fenster_bleiben_die_objekte_stehen(klient, tmp_path):
 
 
 # ---------------------------------------------------------------------------------------
-# Die alte Kollisionskennung — gemeldet, nicht behandelt
+# Die alte Kollisionskennung — sie faellt im Log auf
 # ---------------------------------------------------------------------------------------
 
 def test_die_kollisionskennung_wird_im_log_gemeldet(klient, tmp_path, caplog):
@@ -1066,10 +1049,9 @@ def test_die_kollisionskennung_wird_im_log_gemeldet(klient, tmp_path, caplog):
     `srand()` — in WASM auf jedem Rechner gleich. Zwei Piloten darunter, und der Server
     schrieb die Position des einen unter die CID des anderen.
 
-    ⚠ Bewusst NUR eine Warnung: Den Wert als „keine Kennung" zu behandeln und eine zuzuteilen
-    macht es schlimmer, weil eine alte Brügge die Zuteilung nicht annehmen kann
-    (`kennung_uebernehmen` gibt es erst in der neuen Fassung). Sie zöge dann bei jeder Meldung
-    eine frische — ohne Sprungerkennung, ohne Verstoßzähler, ohne Hysterese.
+    Die Warnung ist das eine; behandelt wird der Wert ausserdem wie keine Kennung, und die
+    Brügge bekommt eine frische (tests/test_bruegge_protokoll3.py,
+    `test_die_kollisionskennung_bekommt_eine_frische`).
     """
     import logging
     import app.main as main
@@ -1371,56 +1353,3 @@ def test_verschwunden_sagt_nichts_ueber_den_titel(klient, tmp_path):
     assert not _lauf(db), "`verschwunden` ist kein Urteil"
     z = [x for x in _katalog_lesen(db, "tier_gross") if x["titel"] == "nur_der.obj"][0]
     assert z["status"] == "aktiv"
-
-
-# ---------------------------------------------------------------------------------------
-# Die Ablehnungszeilen nennen Kennung und Position (25.09.2026)
-# ---------------------------------------------------------------------------------------
-#
-# Am 25.09.2026 lehnte der Server elf Minuten lang im Sekundentakt eine Bruegge ab — „kein
-# Kandidat innerhalb 400 m" —, und hinterher liess sich nicht mehr sagen, welche es war und
-# wo sie stand. Zwei Piloten parkten 22 m auseinander; ohne Kennung und Position in der Zeile
-# blieb nur Raten.
-
-def test_keine_zuordnung_nennt_kennung_und_position(klient, tmp_path, caplog):
-    import logging
-    _friese_anlegen(str(tmp_path / "t.db"))
-    with caplog.at_level(logging.INFO, logger="app.main"):
-        # rund 5 km neben dem einzigen Friesen: niemand passt
-        klient.post("/api/bruegge/melden", json=_meldung(lat=53.82727))
-    zeilen = [r.getMessage() for r in caplog.records
-              if "keine Zuordnung" in r.getMessage()]
-    assert zeilen, "die Ablehnung muss im Log stehen"
-    assert "a3f9c1e0b2d48576" in zeilen[0]
-    assert "53.82727" in zeilen[0] and "7.92593" in zeilen[0]
-    assert "msfs2024" in zeilen[0]
-
-
-def test_keine_zuordnung_ohne_kennung_sagt_das(klient, tmp_path, caplog):
-    import logging
-    _friese_anlegen(str(tmp_path / "t.db"))
-    with caplog.at_level(logging.INFO, logger="app.main"):
-        klient.post("/api/bruegge/melden", json=_meldung(lat=53.82727, kennung=""))
-    zeilen = [r.getMessage() for r in caplog.records
-              if "keine Zuordnung" in r.getMessage()]
-    assert zeilen and "(ohne Kennung)" in zeilen[0]
-
-
-def test_abgelehnte_zuordnung_nennt_kennung_und_position(klient, tmp_path, caplog):
-    import logging
-    from app.database import (get_connection, bruegge_zuordnung_setzen,
-                              bruegge_zuordnung_loesen)
-    db = str(tmp_path / "t.db")
-    _friese_anlegen(db)
-    conn = get_connection(db)
-    # Diese Kennung gehoerte schon einmal einem anderen Piloten -- sie darf nur zu ihm zurueck.
-    bruegge_zuordnung_setzen(conn, "fremdfremdfremd1", 7654321, "msfs2024")
-    bruegge_zuordnung_loesen(conn, "fremdfremdfremd1")
-    conn.commit()
-    conn.close()
-    with caplog.at_level(logging.INFO, logger="app.main"):
-        klient.post("/api/bruegge/melden", json=_meldung(kennung="fremdfremdfremd1"))
-    zeilen = [r.getMessage() for r in caplog.records if "ABGELEHNT" in r.getMessage()]
-    assert zeilen, "die Schranke muss greifen"
-    assert "fremdfremdfremd1" in zeilen[0]
-    assert "53.78227" in zeilen[0] and "7.92593" in zeilen[0]

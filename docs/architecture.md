@@ -912,8 +912,8 @@ Verbindlich ist nicht die Fassung, sondern `protokoll: 1`.
 MSFS/X-Plane (Pilot)              FastAPI                         SQLite
    │                                 │                               │
    │── POST /api/bruegge/melden ────►│                               │
-   │   lage + kennung + steht        │── _bruegge_zuordnen() ───────►│  live_positions
-   │                                 │   Positionsmatch, kein Login  │  forum_callsign (CID!)
+   │   lage + kennung + steht        │── bruegge_bindung.zuordnen() ►│  live_positions
+   │                                 │   Kennung je Installation     │  forum_callsign (CID!)
    │                                 │                               │
    │                                 │── bruegge_steht_melden() ────►│  bruegge_steht
    │                                 │── bruegge_soll_fuer(cid) ────►│  bruegge_soll

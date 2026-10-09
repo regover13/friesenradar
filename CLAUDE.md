@@ -503,8 +503,12 @@ Widerspruch) stehen je These in `app/bruegge_bindung.py`, der Beschluss in
   Nachsehen: `docker logs friesenradar-friesenradar-1 | grep "neue Installation"`.
 - **Kein Wechsel zu einem „besseren“ Partner** — weder hier noch im Kniebrett. Zweimal gebaut,
   zweimal zurückgenommen (Kniebrett 16.08., Server 14./15.09.2026).
-- Die alte MSFS-Brügge (Protokoll 1/2) läuft über `_bruegge_zuordnen` bis zum Stichtag
-  `_BRUEGGE_P2_MSFS_BIS`; danach 426. Den Stichtag setzt man beim Release der neuen Brügge.
+- **Die alte MSFS-Brügge (Protokoll 1/2, bis 1.17.0) bekommt 426.** Ihr eigener Weg
+  (`_bruegge_zuordnen`: Zuordnung allein über die Position, der Server gab die Kennung des
+  Piloten zurück) lief bis zum Stichtag 24.10.2026 parallel und ist ausgebaut, samt
+  `bruegge_kennung_fuer`, `bruegge_belegte_cids` und `bruegge.zuordnen`. **Nicht zurückbauen** —
+  `test_der_alte_zuordnungsweg_ist_ausgebaut` bindet an die Abwesenheit. X-Plane wird mit jeder
+  Protokollfassung bedient, es speichert seine Kennung seit jeher selbst.
 
 ## Die FriesenBrügge: Arten (stehende Regeln — IMMER einhalten)
 

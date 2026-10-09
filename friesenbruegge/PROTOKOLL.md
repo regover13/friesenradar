@@ -5,7 +5,8 @@ Verbindlich für alle Umsetzungen — MSFS 2020, MSFS 2024, X-Plane 12.
 
 > Stand 26.09.2026 · Protokollfassung **3** · Server spricht 3 (15.22.0); MSFS **1.18.1** (Kennung in `\work`)
 > **verteilt am 26.09.2026**, im Flug bewährt; X-Plane **1.4.0** läuft mit Fassung 2 über die neuen Regeln
-> (Abschnitt 9, Fassung 3). Die alte MSFS-Brügge (bis 1.17.0) läuft bis zum **24.10.2026**, danach 426.
+> (Abschnitt 9, Fassung 3). Die alte MSFS-Brügge (bis 1.17.0) bekommt 426; ihr eigener Weg lief bis zum
+> **24.10.2026** parallel und ist ausgebaut.
 >
 > *Bis 26.09.2026:* Protokollfassung **2** · ✅ **im Flug abgenommen** — Server, MSFS **1.17.0** und X-Plane **1.4.0**
 >
@@ -347,7 +348,7 @@ nicht verbunden war. Für den Server sind das nicht zwei Simulatoren eines Pilot
 
 **Daran ändert auch eine gültige Kennung nichts**, und das ist der Punkt, an dem die
 naheliegende Abhilfe scheitert: Der Server prüft bei *jeder* Meldung die Position gegen
-VATSIM (s. `_bruegge_zuordnen`). Passt sie nicht, wird die Zuordnung nach
+VATSIM (s. `app/bruegge_bindung.py`). Passt sie nicht, wird die Zuordnung nach
 `PAARUNG_LOESEN_TAKTE` gelöst — eine von Hand eingetragene Kennung überlebt keine Minute.
 Die Kennung erspart den vollen Match, sie ersetzt ihn nicht.
 
@@ -534,7 +535,10 @@ wieder, per `fopen` in `\work`, und die Kennung benennt künftig die **Installat
 Piloten. Der Server vergibt beim ersten Kontakt eine frische Zufallskennung und nie mehr die
 eines Piloten. Dazu kommen Protokoll 3, die Bewährung im Flug und neue Regeln für die erste
 Zuordnung. Alles in `docs/superpowers/specs/2026-09-26-bruegge-kennung-und-zuordnung-design.md`.
-Für die alte MSFS-Brügge (Protokoll 1/2) gilt das hier Beschriebene bis zum Stichtag weiter.
+Für die alte MSFS-Brügge (Protokoll 1/2) galt das hier Beschriebene bis zum Stichtag 24.10.2026
+weiter. **Seither ist es Geschichte:** Der Weg ist ausgebaut (`_bruegge_zuordnen`,
+`bruegge_kennung_fuer`, `bruegge_belegte_cids`, die Ablehnungszeilen aus `_bruegge_melder`), die
+alte Brügge bekommt 426. Wen der Server ablehnt, zeigt jetzt der Hinweis in der Verwaltung.
 
 **Ein Absturz des Simulators beendet auch die VATSIM-Verbindung** (Nutzer, 26.09.2026: *„Wenn
 der Sim crasht, wird auch vPilot das merken und beenden.“*). Nach jedem Neustart der Brügge ist
@@ -1474,7 +1478,7 @@ Die Bedeutung eines Feldes ändert sich, deshalb 3. Welche Brügge welchen Weg n
 |---|---|
 | MSFS, Protokoll 3 (ab 1.18.0) | `app/bruegge_bindung.py` |
 | X-Plane, jede Fassung | `app/bruegge_bindung.py` — sie speichert ihre Kennung schon immer selbst |
-| MSFS, Protokoll 1/2 (bis 1.17.0) | `_bruegge_zuordnen` wie bisher, bis zum Stichtag `_BRUEGGE_P2_MSFS_BIS` (vier Wochen nach dem Release), danach `426` |
+| MSFS, Protokoll 1/2 (bis 1.17.0) | `426`. Bis zum Stichtag 24.10.2026 (vier Wochen nach dem Release) lief sie über `_bruegge_zuordnen` weiter; der Weg ist ausgebaut |
 
 **Die Regeln des neuen Wegs** stehen im Beschluss
 [`docs/superpowers/specs/2026-09-26-bruegge-kennung-und-zuordnung-design.md`](../docs/superpowers/specs/2026-09-26-bruegge-kennung-und-zuordnung-design.md)

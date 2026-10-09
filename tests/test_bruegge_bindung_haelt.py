@@ -168,34 +168,13 @@ class TestDerFallVom16September:
         assert r.json().get("kennung"), "der Erstkontakt muss eine Kennung bekommen"
 
 
-class TestDieKennungHaeltUeberDenSimNeustart:
-    """Brügge 1.14.0 kann sie nicht mehr speichern -- also merkt sie sich der Server.
+class TestJederSimulatorHatSeineKennung:
+    """Ein Pilot wechselt an einem Tag mehrfach zwischen MSFS und X-Plane.
 
-    Seit ein Modul MSFS 2020 und 2024 bedient, gibt es die Datei-API nicht mehr
-    (``MSFS_IO.h`` fehlt dem 2020er SDK, und ein WASM-Import ist statisch). Die Brügge meldet
-    nach jedem Start ohne Kennung.
-
-    ⚠ Das ist nicht nur Bequemlichkeit: Ohne diese Zusicherung bekäme sie bei jedem Start
-    eine neue, und die Erinnerung aus der Klasse darüber liefe ins Leere -- eine Kennung, die
-    niemand wiedererkennt, kann auch nicht an ihre CID gebunden bleiben.
+    Bis zum Ausbau des alten MSFS-Wegs stand hier ausserdem, dass der Server einer Brügge ohne
+    gespeicherte Kennung nach dem Simulator-Start ihre alte zurückgibt (Brügge 1.14.0 bis
+    1.17.0 konnten sie nicht speichern). Seit 1.18.1 speichert die Brügge sie selbst.
     """
-
-    def test_derselbe_pilot_bekommt_dieselbe_kennung_zurueck(self, klient, tmp_path):
-        db = str(tmp_path / "t.db")
-        _friese_anlegen(db, cid=ICH, callsign="FRS49", lat=WOOGE[0], lon=WOOGE[1])
-
-        r1 = klient.post("/api/bruegge/melden",
-                         json=_meldung(lat=WOOGE[0], lon=WOOGE[1], kennung=""))
-        erste = r1.json().get("kennung")
-        assert erste
-
-        # Simulator-Neustart: dieselbe Installation, aber ohne gespeicherte Kennung.
-        r2 = klient.post("/api/bruegge/melden",
-                         json=_meldung(lat=WOOGE[0], lon=WOOGE[1], kennung=""))
-        assert r2.json().get("kennung") == erste, (
-            "Nach dem Neustart eine neue Kennung -- die Wiedererkennung wäre dahin, und mit "
-            "ihr die Bindung an die CID."
-        )
 
     def test_der_andere_simulator_bekommt_eine_eigene(self, klient, tmp_path):
         """⚠ Der Simulator gehört in den Schlüssel.

@@ -15,6 +15,10 @@ ein WASM-Modul Entropie? Der Server hat diese Frage nicht: Er sieht alle Kennung
 Der Ablauf, den diese Tests absichern, ist derselbe wie im Kniebrett
 (`getOrCreateDeviceId`): einmal beschaffen, dauerhaft speichern, bei jeder Meldung
 mitliefern. Nur die Quelle ist eine andere.
+
+Seit Protokoll 3 bekommt eine Brügge ohne Kennung sie schon beim ersten Kontakt, vor jeder
+Zuordnung (tests/test_bruegge_protokoll3.py). Bis zum Ausbau des alten MSFS-Wegs gab es sie
+erst nach einem geglückten Positionsmatch; die beiden Tests dazu sind mit ihm entfallen.
 """
 
 import pytest
@@ -68,23 +72,6 @@ def test_auch_die_zweite_meldung_bekommt_keine_neue(klient, tmp_path):
                             json=_meldung(kennung="")).json()["kennung"]
     zweite = klient.post("/api/bruegge/melden", json=_meldung(kennung=zugeteilt)).json()
     assert "kennung" not in zweite
-
-
-def test_ohne_zuordnung_gibt_es_auch_keine_kennung(klient, tmp_path):
-    """Wer nicht auf VATSIM ist, bekommt nichts — sonst wäre die Vergabe ein offenes Tor."""
-    r = klient.post("/api/bruegge/melden", json=_meldung(kennung=""))
-    assert r.status_code == 200
-    assert "kennung" not in r.json()
-    assert r.json()["soll"] == []
-
-
-def test_ohne_forum_login_gibt_es_auch_keine(klient, tmp_path):
-    """Ein FRS-Präfix allein genügt nicht — sonst könnte jeder eines wählen."""
-    db = str(tmp_path / "t.db")
-    _friese_anlegen(db, mit_forum_login=False)
-    r = klient.post("/api/bruegge/melden", json=_meldung(kennung=""))
-    assert r.status_code == 200
-    assert "kennung" not in r.json()
 
 
 def test_zwei_bruegge_bekommen_verschiedene_kennungen(klient, tmp_path):

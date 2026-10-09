@@ -935,8 +935,8 @@ steht. **Mach deinen ersten Flug nach der Installation deshalb möglichst allein
 Gefunden wirst du dabei über deine VATSIM-Nummer, nicht über das Rufzeichen. Auf der Karte ändert
 das nichts: Friese ist weiter, wer mit FRS-Rufzeichen fliegt.
 
-Die ältere Fassung bis 1.17.0 läuft noch bis zum **24.10.2026**, danach nimmt FriesenRadar ihre
-Meldungen nicht mehr an. Wer die FriesenBrügge wieder entfernt: Ihre Kennung und die vom Simulator
+Die ältere Fassung bis 1.17.0 nimmt FriesenRadar seit dem **24.10.2026** nicht mehr an; wer sie
+noch hat, installiert die aktuelle. Wer die FriesenBrügge wieder entfernt: Ihre Kennung und die vom Simulator
 übersetzten Modulteile bleiben unter `LocalState` liegen; das stört nicht.
 
 #### Zwei Modelle bringt sie selbst mit

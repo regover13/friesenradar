@@ -15,7 +15,7 @@ in Reichweite** und bringt die Identität mit -- es ist über die Sitzung authen
    Die Live-Karte speist sich ohnehin aus `VatsimPoller._bruegge_live`.
 3. **Wer dieselbe CID mehrfach gemeldet bekommt, entscheidet EINMAL, wessen Meldung gilt.**
 
-`bruegge_belegte_cids` wird hier bewusst NICHT angefasst: Diese Sperre ist gegen
+Die Bindungsregeln der Brügge werden hier bewusst NICHT angefasst: Sie sind gegen
 *verwechselte* Identitäten gebaut (zwei Brüggen streiten um denselben Piloten), nicht gegen
 mehrere Quellen für dieselbe, richtig erkannte CID.
 """
@@ -887,6 +887,19 @@ class TestBrueggeDarfSchweigen:
         from app import bruegge
         assert main._BRUEGGE_TAKT_MIT_KNIEBRETT_S <= bruegge.MELDUNG_FRIST_S
 
+    @staticmethod
+    def _gerade_verbunden(env, cid=MELDER):
+        """Im Stand bindet eine Brügge nur an eine Verbindung, die nach ihr kam (#46, These 8).
+        Der Bestand der Fixture ist seit dem 15.09. verbunden -- hier meldet er sich eben an."""
+        from datetime import datetime, timezone
+        conn = get_connection(env.db)
+        try:
+            conn.execute("UPDATE live_positions SET logon_time = ? WHERE cid = ?",
+                         (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), cid))
+            conn.commit()
+        finally:
+            conn.close()
+
     def test_der_hebel_greift_im_bruegge_endpunkt_selbst(self, env, monkeypatch):
         """Die Hilfsfunktion allein beweist nichts -- geprüft wird, was die Brügge in ihrer
         Antwort wirklich zu lesen bekommt."""
@@ -898,12 +911,13 @@ class TestBrueggeDarfSchweigen:
             conn.commit()
         finally:
             conn.close()
+        self._gerade_verbunden(env)
         lage = {"lat": LAT, "lon": LON, "alt_msl_ft": 500.0, "alt_agl_ft": 0.0,
                 "gs_kt": 0.0, "kurs": 210.0, "vs_ft_min": 0.0, "am_boden": True}
 
         # 1. Ohne Kniebrett: Regeltakt.
         r = env.client.post("/api/bruegge/melden",
-                            json={"protokoll": 2, "simulator": "msfs2024",
+                            json={"protokoll": 3, "simulator": "msfs2024",
                                   "kennung": "aaaa1111bbbb2222", "lage": lage})
         assert r.status_code == 200
         ohne = r.json()["naechste_frage_in_s"]
@@ -922,7 +936,7 @@ class TestBrueggeDarfSchweigen:
         _modus_setzen(env, "eigene")
         assert _melden(env, [_flugzeug(cs=MELDER_CS, lat=LAT, lon=LON)]).json()["uebernommen"] == 1
         r = env.client.post("/api/bruegge/melden",
-                            json={"protokoll": 2, "simulator": "msfs2024",
+                            json={"protokoll": 3, "simulator": "msfs2024",
                                   "kennung": "aaaa1111bbbb2222", "lage": lage})
         assert r.json()["naechste_frage_in_s"] == main._BRUEGGE_TAKT_MIT_KNIEBRETT_S
 
@@ -951,10 +965,11 @@ class TestBrueggeDarfSchweigen:
         finally:
             conn.close()
         monkeypatch.setattr(db, "_spur_sektoren", (0.0, []))   # Zwischenspeicher leeren
+        self._gerade_verbunden(env)
         lage = {"lat": LAT, "lon": LON, "alt_msl_ft": 500.0, "alt_agl_ft": 0.0,
                 "gs_kt": 0.0, "kurs": 210.0, "vs_ft_min": 0.0, "am_boden": True}
         melden = lambda: env.client.post(
-            "/api/bruegge/melden", json={"protokoll": 2, "simulator": "msfs2024",
+            "/api/bruegge/melden", json={"protokoll": 3, "simulator": "msfs2024",
                                          "kennung": "aaaa1111bbbb2222", "lage": lage})
         assert melden().status_code == 200
         t0 = env.poller._bruegge_live[MELDER]["ts"]
@@ -974,7 +989,7 @@ class TestBrueggeDarfSchweigen:
         lage = {"lat": 0.0, "lon": 0.0, "alt_msl_ft": 0.0, "gs_kt": 0.0, "kurs": 0.0,
                 "vs_ft_min": 0.0, "am_boden": True}
         r = env.client.post("/api/bruegge/melden",
-                            json={"protokoll": 2, "simulator": "msfs2024",
+                            json={"protokoll": 3, "simulator": "msfs2024",
                                   "kennung": "cccc3333dddd4444", "lage": lage})
         assert r.status_code == 200
         assert r.json()["soll"] == []      # niemand passt -- die Ablehnung, nicht ein Fehler
@@ -996,8 +1011,9 @@ class TestBrueggeDarfSchweigen:
                 conn.commit()
             finally:
                 conn.close()
+            self._gerade_verbunden(env)
             r = env.client.post("/api/bruegge/melden", json={
-                "protokoll": 2, "simulator": "msfs2024", "kennung": "eeee5555ffff6666",
+                "protokoll": 3, "simulator": "msfs2024", "kennung": "eeee5555ffff6666",
                 "lage": {"lat": LAT, "lon": LON, "alt_msl_ft": 500.0, "gs_kt": 0.0,
                          "kurs": 210.0, "vs_ft_min": 0.0, "am_boden": True}})
             assert r.status_code == 200

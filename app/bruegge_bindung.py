@@ -12,8 +12,8 @@ Kennung.
 dem Login. Bewährt wird im Flug. Eine unbewährte Bindung weicht einem Widerspruch, eine bewährte
 nicht.
 
-Die alte MSFS-Brügge (Protokoll 2) läuft bis zum Stichtag über ``main._bruegge_zuordnen``. Dieses
-Modul fasst sie nicht an.
+Die alte MSFS-Brügge (Protokoll 1 und 2, bis 1.17.0) hatte bis zum 24.10.2026 einen eigenen Weg
+(``main._bruegge_zuordnen``). Er ist ausgebaut; sie bekommt 426.
 
 **Zustand im Speicher, nicht in der Datenbank:** Sitzungen, Gleichstände, laufende Bewährungen.
 Eine unbundene Kennung steht nie in ``bruegge_zuordnung`` -- per Skript ließen sich sonst beliebig

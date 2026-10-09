@@ -3131,76 +3131,16 @@ def bruegge_katalog_ergebnis_melden(conn: sqlite3.Connection, simulator: str, ar
     return n
 
 
-def bruegge_belegte_cids(conn: sqlite3.Connection, ausser_kennung: str,
-                         frist_s: float) -> set[int]:
-    """Welche CIDs meldet gerade eine ANDERE Brügge? (`frei` aus dem Kniebrett)
-
-    Eine Identität ist einmal vergeben, nicht zweimal: Wer hier steht, kommt für die Kennung
-    ``ausser_kennung`` als Kandidat nicht mehr in Frage. Das ist die Serverfassung von
-    ``frei[]`` in ``_verkehrZusammenfuehren`` (`app/static/index.html`) — dort entsteht die
-    Liste aus einem Durchlauf über alle Sim-Flugzeuge, hier aus dem Zustand in der Tabelle,
-    weil der Server jede Meldung einzeln und asynchron sieht.
-
-    ``frist_s`` ist der Unterschied zum Kniebrett und keine Feinheit: Dort verliert eine
-    Zuordnung ihren Gegenstand in dem Moment, in dem der Simulator das Flugzeug nicht mehr
-    meldet — die Abwesenheit ist beobachtbar. Hier ist sie es nicht: Wer den Simulator
-    schließt, hört einfach auf zu senden. Nur die Frist unterscheidet „meldet gerade" von
-    „hat vor drei Stunden mal gemeldet"; ohne sie bliebe jede CID bis zum Aufräumen nach 24
-    Stunden belegt, und in MSFS wäre das nach jedem Simulator-Start die eigene.
-
-    ``gesehen_am`` wird als Text verglichen. Das geht, weil das Format
-    ``%Y-%m-%dT%H:%M:%SZ`` feste Feldbreiten hat und damit lexikografisch wie chronologisch
-    sortiert — dasselbe tut ``bruegge_aufraeumen`` schon.
-    """
-    grenze = (datetime.now(timezone.utc)
-              - timedelta(seconds=float(frist_s))).strftime("%Y-%m-%dT%H:%M:%SZ")
-    rows = conn.execute(
-        "SELECT cid FROM bruegge_zuordnung WHERE kennung <> ? AND gesehen_am >= ?",
-        (str(ausser_kennung or ""), grenze),
-    ).fetchall()
-    return {int(r[0]) for r in rows}
-
-
 def bruegge_zuordnung_setzen(conn: sqlite3.Connection, kennung: str, cid: int,
                              simulator: str | None, protokoll: int | None = None) -> None:
     """Eine neue Zuordnung merken (kein commit).
 
-    Aeltere Zuordnungen DERSELBEN CID fallen dabei weg. Der Grund ist gemessen: Die Kennung
-    haelt in MSFS nicht ueber einen Sim-Neustart (die Datei-API des WASM-Moduls greift nicht,
-    s. friesenbruegge/msfs/bruegge.cpp), also zieht jede Sitzung eine neue -- und ohne diese
-    Zeile sammelt sich je Pilot eine Karteileiche pro Simulator-Start. Am 11.09.2026 standen
-    nach einem Abend zwei Zeilen fuer dieselbe CID, und die aeltere hat beim Nachsehen in die
-    Irre gefuehrt.
-
-    Zwei Bruegge gleichzeitig gibt es nicht -- das ist eine Nutzerentscheidung mit Begruendung
-    (PROTOKOLL.md, Abschnitt 1): Man kann keine zwei Flugzeuge gleichzeitig bewegen, und es
-    gibt nur eine VATSIM-Verbindung.
-
-    ⚠⚠ **DAS AUFRAEUMEN GILT JE SIMULATOR (17.09.2026).** Hier stand
-    ``WHERE cid = ? AND kennung <> ?`` ohne den Simulator -- und damit loeschte ein Wechsel
-    von MSFS zu X-Plane die Bindung des jeweils anderen.
-
-    Das ist kein Randfall, sondern der Alltag des Nutzers: *"Es geht um die Nutzung
-    verschiedener Simulatoren an einem Rechner. Das kann nicht ueber 24 Stunden lang gehen!
-    Die werden an einem Tag haeufiger gewechselt."* Und es hatte Folgen -- beim
-    Zurueckwechseln war die Kennung geloescht, die Bruegge lief in die Erstzuordnung, und
-    genau dort konnte ein fremder Pilot hereinrutschen.
-
-    Die beiden kommen sich auch nicht in die Quere: Jeder Simulator hat seinen eigenen
-    WASM-Sandkasten und damit seine eigene Kennung. Dass nicht ZWEI gleichzeitig melden,
-    sichert weiterhin `bruegge_belegte_cids` -- ueber die Frist, nicht ueber das Loeschen.
+    **Andere Zeilen derselben CID bleiben stehen** (These 9, 26.09.2026): Die Kennung benennt
+    die Installation, und ein Pilot hat so viele, wie er Rechner und Simulatoren hat. Bis zum
+    Ausbau des alten MSFS-Wegs raeumte diese Funktion fuer Brueggen vor Protokoll 3 die
+    aelteren Zeilen derselben CID im selben Simulator weg, weil deren Kennung keinen
+    Simulator-Start ueberlebte.
     """
-    # ⚠ AB PROTOKOLL 3 WIRD NICHTS MEHR WEGGERAEUMT (26.09.2026, These 9). Die Kennung benennt
-    # dann die Installation, und ein Pilot hat so viele, wie er Rechner und Simulatoren hat.
-    # Weggeraeumt werden nur noch Zeilen alter Brueggen (Protokoll 2 oder ohne Angabe), und das
-    # nur, wenn auch die neue Zeile von einer alten stammt.
-    if protokoll is None or protokoll < 3:
-        conn.execute(
-            "DELETE FROM bruegge_zuordnung "
-            "WHERE cid = ? AND kennung <> ? AND COALESCE(simulator, '') = COALESCE(?, '') "
-            "  AND COALESCE(protokoll, 2) < 3",
-            (int(cid), kennung, simulator),
-        )
     now = _now_utc()
     conn.execute(
         "INSERT INTO bruegge_zuordnung (kennung, cid, simulator, zugeordnet_am, gesehen_am, "
@@ -3218,46 +3158,6 @@ def bruegge_zuordnung_setzen(conn: sqlite3.Connection, kennung: str, cid: int,
         "    geloest_am = NULL",
         (kennung, int(cid), simulator, now, now, protokoll),
     )
-
-
-def bruegge_kennung_fuer(conn: sqlite3.Connection, cid: int,
-                         simulator: str | None) -> str | None:
-    """Die zuletzt fuer diese (CID, Simulator) vergebene Kennung -- oder ``None``.
-
-    ⭐ **DAMIT HAELT DIE KENNUNG WIEDER UEBER EINEN SIM-NEUSTART** -- auf dem Server statt
-    auf der Platte des Piloten.
-
-    Seit Bruegge 1.14.0 laeuft EIN Modul in MSFS 2020 und 2024, und dafuer musste die
-    Datei-API weichen (`MSFS_IO.h` fehlt dem 2020er SDK vollstaendig). Die Bruegge kann ihre
-    Kennung seither nicht mehr speichern; sie meldet nach jedem Start ohne.
-
-    Statt ihr dann eine NEUE zu wuerfeln, gibt der Server die alte zurueck. Das ist nicht der
-    zweitbeste Weg, sondern der passende: Er sieht alle Kennungen, und das Leitbild des
-    Protokolls sagt ohnehin *"Die Bruegge ist dumm. Alle Klugheit bleibt auf dem Server."*
-    Ein Client-Release kostet einen Windows-Build und eine Verteilung an 61 Piloten, ein
-    Server-Release einen Push.
-
-    ⚠ **Der Simulator gehoert in den Schluessel.** Ein Pilot wechselt an einem Tag mehrfach
-    zwischen MSFS und X-Plane; jede seiner Bruegge hat ihre eigene Kennung, und sie duerfen
-    sich nicht gegenseitig ueberschreiben. Ohne den Simulator bekaeme die X-Plane-Bruegge die
-    Kennung der MSFS-Bruegge und damit deren Vorgeschichte.
-
-    ⚠ **Und es ist kein Zugangsschluessel.** Wer eine fremde Kennung nennt, muss trotzdem die
-    oeffentliche VATSIM-Position dieses Piloten treffen -- er gewinnt also genau das, was er
-    auch ohne sie gewinnt: nichts (PROTOKOLL.md, "Identifikation, keine Authentifizierung").
-    Zurueckgegeben wird sie ohnehin erst NACH einem geglueckten Positionsmatch.
-    """
-    # ⚠ NUR KENNUNGEN ALTER BRUEGGEN (26.09.2026). Eine Kennung aus Protokoll 3 benennt eine
-    # Installation; gaebe der Server sie einer alten Bruegge desselben Piloten, teilten sich
-    # zwei Brueggen eine Kennung -- genau der Fehler vom 25.09.2026 (#46).
-    row = conn.execute(
-        "SELECT kennung FROM bruegge_zuordnung "
-        "WHERE cid = ? AND COALESCE(simulator, '') = COALESCE(?, '') "
-        "  AND COALESCE(protokoll, 2) < 3 "
-        "ORDER BY gesehen_am DESC LIMIT 1",
-        (int(cid), simulator),
-    ).fetchone()
-    return str(row[0]) if row else None
 
 
 def bruegge_zuordnung_vergessen(conn: sqlite3.Connection, kennung: str) -> None:
@@ -3402,7 +3302,7 @@ def bruegge_zuordnung_loesen(conn: sqlite3.Connection, kennung: str) -> None:
     Position nicht mehr passt, ist richtig -- der Pilot ist ausgeloggt, die Zuordnung hat
     ihren Gegenstand verloren. Eine NEUE aufzunehmen, weil irgendeine Position zufaellig
     passt, ist etwas anderes. Die Zeile bleibt deshalb stehen und sagt weiter, wem diese
-    Kennung gehoert; `_bruegge_zuordnen` laesst sie danach nur noch zu DIESER CID
+    Kennung gehoert; `bruegge_bindung.zuordnen` laesst sie danach nur noch zu DIESER CID
     zurueckfinden.
 
     `verstoesse` wird zurueckgesetzt: Die naechste Bindung faengt bei null an, sonst stuerbe
@@ -3535,9 +3435,8 @@ def bruegge_aufraeumen(conn: sqlite3.Connection,
     nicht fliegt. Fuer alles andere ist die Zeile die Auskunft, nicht der Muell.
 
     ⚠ **Eine alte Zeile darf nichts behaupten** -- und tut es nicht: Die Melderliste im Admin
-    traegt `frisch`/`alter_s` ("vor 21 h"), und die Sperre "wer meldet gerade"
-    (``bruegge_belegte_cids``) arbeitet mit ihrer eigenen Frist von Sekunden, nicht mit dem
-    Vorhandensein der Zeile. Wer das aendert, prueft beide Stellen.
+    traegt `frisch`/`alter_s` ("vor 21 h"), und "wer meldet gerade" entscheidet sich an
+    `gesehen_am`, nicht am Vorhandensein der Zeile.
 
     Der SEKUNDENVERLAUF (``bruegge_spur``) wird hier mit weggeraeumt -- er ist das einzige,
     was ohne Aufraeumen wirklich waechst (1 Hz je Pilot, solange eine Reddung laeuft).
