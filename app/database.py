@@ -419,6 +419,27 @@ CREATE TABLE IF NOT EXISTS reddung_events (
     signal_bei_zelle INTEGER DEFAULT 0
 );
 
+-- Deichkontrolle (#22, 10.10.2026): eine frei geklickte STRECKE, die die Gruppe gemeinsam
+-- abfliegt. "Deichkontrolle" ist nur der Name -- nichts hier haengt an Deichen, deshalb heisst
+-- der Eventtyp im Code `strecke` (s. app/strecke.py).
+CREATE TABLE IF NOT EXISTS strecken_events (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL,
+    dtstart         TEXT NOT NULL,
+    dtend           TEXT NOT NULL,          -- effektiv (Mitternacht-Default bereits angewandt)
+    punkte_json     TEXT NOT NULL,          -- [[lat, lon], ...] wie in der Verwaltung geklickt
+    korridor_m      REAL DEFAULT 500,       -- seitlich, nach jeder Seite
+    hoehe_max_ft    REAL DEFAULT 1000,      -- UEBER DER STRECKE, nicht unter dem Flugzeug
+    gs_max_kt       REAL DEFAULT 140,
+    gs_min_kt       REAL DEFAULT 30,        -- sonst deckt ein geparktes Flugzeug seinen Abschnitt ab
+    -- Gelaendehoehe (ft MSL) je Abschnitt aus dem Hoehenmodell, in Reihenfolge der Abschnitte.
+    -- NULL, solange nicht geholt -- dann wird NICHT gerechnet (Spec A7). Gehoert zu genau der
+    -- Teilung aus punkte_json und korridor_m; aendert sich eins davon, wird sie verworfen.
+    grund_json      TEXT,
+    grund_geholt_am TEXT,
+    created_at      TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS aircraft_payloads (
     type_code   TEXT PRIMARY KEY,        -- normalisiert (Uppercase, vor "/" gekürzt), z. B. "C172"
     mtow_kg     REAL,                    -- editierbar, aus Claude vorbefüllt
@@ -3450,7 +3471,8 @@ _spur_sektoren: tuple[float, list] = (0.0, [])
 
 
 def _reddung_sektoren(conn: sqlite3.Connection) -> list[tuple]:
-    """Die Sektoren der gerade laufenden Reddungen, mit Rand. Hoechstens alle 30 s frisch."""
+    """Die Sektoren der gerade laufenden Reddungen und der Umkreis laufender Strecken, mit
+    Rand. Hoechstens alle 30 s frisch."""
     global _spur_sektoren
     import time as _t
     jetzt = _t.monotonic()
@@ -3463,6 +3485,18 @@ def _reddung_sektoren(conn: sqlite3.Connection) -> list[tuple]:
             "SELECT sued, west, nord, ost FROM reddung_events "
             "WHERE dtstart <= ? AND dtend >= ? AND aufgeloest_am IS NULL", (now, now)).fetchall():
         sued, west, nord, ost = (float(x) for x in r)
+        rand_lon = _REDDUNG_RAND_KM / max(_km_je_grad_lon((sued + nord) / 2.0), 1.0)
+        sektoren.append((sued - rand_lat, west - rand_lon, nord + rand_lat, ost + rand_lon))
+    # ... und der Umkreis laufender Strecken (Deichkontrolle): Auch dort rechnet die Abdeckung
+    # aus den Sekundenpunkten, und die Bruegge ist Teilnahmevoraussetzung.
+    from app import strecke as _st
+    for r in conn.execute(
+            "SELECT punkte_json FROM strecken_events WHERE dtstart <= ? AND dtend >= ?",
+            (now, now)).fetchall():
+        box = _st.box({"punkte_json": r[0]})
+        if box is None:
+            continue
+        sued, west, nord, ost = box
         rand_lon = _REDDUNG_RAND_KM / max(_km_je_grad_lon((sued + nord) / 2.0), 1.0)
         sektoren.append((sued - rand_lat, west - rand_lon, nord + rand_lat, ost + rand_lon))
     _spur_sektoren = (jetzt, sektoren)
@@ -12649,3 +12683,202 @@ def set_messeverkehr_ausschluss_callsigns(conn: sqlite3.Connection, callsigns: l
         "INSERT INTO messeverkehr_ausschluss_callsigns (callsign) VALUES (?)",
         [(c,) for c in normalisiert],
     )
+
+
+# ---------------------------------------------------------------------------
+# Deichkontrolle (#22) -- eine Strecke gemeinsam abfliegen
+# ---------------------------------------------------------------------------
+#
+# Spec: docs/superpowers/specs/2026-10-10-deichkontrolle-design.md. Die Rechenwerte stehen in
+# app/strecke.py, die Abdeckung rechnet app/abdeckung.py; hier liegen Ablage und Fortschreiben.
+
+#: Felder, die ``update_strecken_event`` schreiben darf (Positivliste wie bei der Reddung).
+_STRECKE_FELDER = {
+    "name", "dtstart", "dtend", "punkte_json", "korridor_m", "hoehe_max_ft",
+    "gs_max_kt", "gs_min_kt", "grund_json", "grund_geholt_am",
+}
+
+#: Felder, die NICHT in die Rechnung eingehen. Aendert sich nur eines davon, bleibt der Stand
+#: stehen -- sonst verwuerfe ein neuer Name den Stand eines abgeschlossenen Abends, und nach
+#: zwoelf Stunden sind die Sekundenpunkte weg (dieselbe Falle wie bei der Reddung, 15.25.0).
+_STRECKE_OHNE_RECHNUNG = {"name"}
+
+#: Fassung des fortgeschriebenen Stands, IM Payload (s. ``_REDDUNG_STAND_FASSUNG``).
+#: ⚠ Vor dem Erhoehen pruefen, ob die Sekundenpunkte der betroffenen Events noch da sind.
+_STRECKE_STAND_FASSUNG = 1
+
+
+def create_strecken_event(conn: sqlite3.Connection, *, name: str, dtstart: str,
+                          punkte: list, dtend: str | None = None, **felder) -> int:
+    """Eine Deichkontrolle anlegen. ``dtend`` leer = Mitternacht des Folgetags."""
+    unbekannt = set(felder) - _STRECKE_FELDER
+    if unbekannt:
+        raise ValueError(f"unbekannte Felder: {sorted(unbekannt)}")
+    spalten = ["name", "dtstart", "dtend", "punkte_json", "created_at"]
+    werte: list = [name, dtstart, _effective_dtend(dtstart, dtend),
+                   json.dumps([[float(p[0]), float(p[1])] for p in punkte]), _now_utc()]
+    for k, v in felder.items():
+        spalten.append(k)
+        werte.append(v)
+    cur = conn.execute(
+        f"INSERT INTO strecken_events ({', '.join(spalten)}) "
+        f"VALUES ({', '.join('?' * len(spalten))})", werte)
+    return int(cur.lastrowid)
+
+
+def get_strecken_event(conn: sqlite3.Connection, event_id: int) -> dict | None:
+    row = conn.execute("SELECT * FROM strecken_events WHERE id = ?", (int(event_id),)).fetchone()
+    return _row_to_dict(row) if row else None
+
+
+def list_strecken_events(conn: sqlite3.Connection, *, since: str | None = None) -> list[dict]:
+    if since:
+        rows = conn.execute(
+            "SELECT * FROM strecken_events WHERE dtend >= ? ORDER BY dtstart DESC",
+            (since,)).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM strecken_events ORDER BY dtstart DESC").fetchall()
+    return [_row_to_dict(r) for r in rows]
+
+
+def update_strecken_event(conn: sqlite3.Connection, event_id: int, **felder) -> None:
+    unbekannt = set(felder) - _STRECKE_FELDER
+    if unbekannt:
+        raise ValueError(f"unbekannte Felder: {sorted(unbekannt)}")
+    if not felder:
+        return
+    satz = ", ".join(f"{k} = ?" for k in felder)
+    conn.execute(f"UPDATE strecken_events SET {satz} WHERE id = ?",
+                 [*felder.values(), int(event_id)])
+
+
+def delete_strecken_event(conn: sqlite3.Connection, event_id: int) -> None:
+    conn.execute("DELETE FROM strecken_events WHERE id = ?", (int(event_id),))
+    conn.execute("DELETE FROM progress_snapshot WHERE kind = 'strecke' AND ref_id = ?",
+                 (int(event_id),))
+
+
+def strecke_stand_verwerfen(conn: sqlite3.Connection, event_id: int) -> None:
+    """Den fortgeschriebenen Stand loeschen -- nach einer Aenderung, die in die Rechnung eingeht."""
+    conn.execute("DELETE FROM progress_snapshot WHERE kind = 'strecke' AND ref_id = ?",
+                 (int(event_id),))
+
+
+def _strecke_snapshot_schreiben(conn: sqlite3.Connection, event_id: int, payload: dict) -> None:
+    """Wie ``_reddung_snapshot_schreiben``: nie ein spaeteres ``bis`` mit einem frueheren
+    ueberschreiben -- Poller und Lesewege schreiben denselben Stand."""
+    conn.execute(
+        "INSERT INTO progress_snapshot (kind, ref_id, code_version, computed_at, payload_json) "
+        "VALUES ('strecke', ?, ?, ?, ?) "
+        "ON CONFLICT(kind, ref_id) DO UPDATE SET code_version = excluded.code_version, "
+        "computed_at = excluded.computed_at, payload_json = excluded.payload_json "
+        "WHERE progress_snapshot.code_version IS NOT excluded.code_version "
+        "OR json_extract(progress_snapshot.payload_json, '$.v') "
+        "   IS NOT json_extract(excluded.payload_json, '$.v') "
+        "OR json_extract(progress_snapshot.payload_json, '$.bis') "
+        "   < json_extract(excluded.payload_json, '$.bis')",
+        (int(event_id), _PROGRESS_SNAPSHOT_VERSION, _now_utc(), json.dumps(payload)),
+    )
+
+
+def strecke_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> dict:
+    """Die Abdeckung der Strecke fortschreiben -- nur neue Punkte, nur noch offene Abschnitte.
+
+    Derselbe Aufbau wie ``reddung_fortschreiben``: Der Stand liegt in ``progress_snapshot``
+    (``kind = 'strecke'``) und waechst je Aufruf um die neuen Punkte. Erlaubt ist das, weil
+    ``abdeckung()`` nach Segment-ENDE sortiert rechnet -- ein Treffer von vorhin faellt durch
+    einen spaeteren Punkt nie mehr um.
+
+    **Ohne Gelaendehoehen wird nicht gerechnet** (Spec A7): ``ohne_grund`` ist dann wahr, der
+    Stand bleibt, wie er ist, und ``bis`` rueckt NICHT vor -- sobald die Hoehen da sind, holt
+    der naechste Aufruf alles nach, solange die Sekundenpunkte noch liegen.
+
+    Rueckgabe: ``{"abschnitte", "abgedeckt", "anteil", "je_pilot", "treffer", "bis",
+    "ohne_grund"}``; ``treffer`` ist ``{schluessel: [cid, ts]}``.
+    """
+    from app import strecke as st
+    from app.abdeckung import abdeckung
+
+    anzahl, _schritt = st.teilung(ev)
+    alt = get_progress_snapshot(conn, "strecke", ev["id"]) or {}
+    if alt.get("v") != _STRECKE_STAND_FASSUNG:
+        alt = {}
+    treffer: dict = dict(alt.get("treffer") or {})
+    je_pilot: dict[int, int] = {int(k): int(v) for k, v in (alt.get("je_pilot") or {}).items()}
+    von = alt.get("bis") or ev["dtstart"]
+    grenzen = st.hoehe_je_ziel(ev)
+    box = st.box(ev)
+
+    if grenzen is not None and box is not None and bis > von:
+        spuren = _reddung_punkte_neu(conn, ev, von, bis, box)
+        if spuren:
+            offen = [z for z in st.ziele(ev) if z[0] not in treffer]
+            if offen:
+                erg = abdeckung(spuren, offen, st.fenster(ev), grenzen)
+                for schluessel, t in erg.treffer.items():
+                    treffer[schluessel] = [t.cid, t.ts]
+                    je_pilot[t.cid] = je_pilot.get(t.cid, 0) + 1
+            for cid, _punkte in spuren:
+                je_pilot.setdefault(cid, 0)
+        _strecke_snapshot_schreiben(conn, ev["id"], {
+            "v": _STRECKE_STAND_FASSUNG, "bis": bis, "treffer": treffer,
+            "je_pilot": {str(k): v for k, v in je_pilot.items()},
+        })
+        von = bis
+
+    return {
+        "abschnitte": anzahl,
+        "abgedeckt": len(treffer),
+        "anteil": (len(treffer) / anzahl) if anzahl else 0.0,
+        "je_pilot": je_pilot,
+        "treffer": treffer,
+        "bis": von,
+        "ohne_grund": grenzen is None,
+    }
+
+
+def _strecke_lese_ende(ev: dict) -> str:
+    """Bis wohin fortgeschrieben wird: jetzt oder ``dtend`` -- dasselbe Ende wie im Poller."""
+    return min(_now_utc(), ev["dtend"])
+
+
+def compute_strecke_stand(conn: sqlite3.Connection, ev: dict, *,
+                          mit_geometrie: bool = False) -> dict:
+    """Der Stand einer Deichkontrolle fuer die Anzeige.
+
+    ``mit_geometrie`` haengt je Abschnitt sein Stueck der Strecke an (fuer die Karte); die
+    Liste der Events kommt ohne aus.
+    """
+    from app import strecke as st
+
+    stand = strecke_fortschreiben(conn, ev, bis=_strecke_lese_ende(ev))
+    anzahl, schritt = st.teilung(ev)
+    namen = {int(r[0]): r[1] for r in conn.execute("SELECT cid, name FROM pilots").fetchall()}
+    je_pilot = sorted(
+        ({"cid": cid, "name": namen.get(cid) or str(cid), "abschnitte": n,
+          "km": round(n * schritt, 1)}
+         for cid, n in stand["je_pilot"].items()),
+        key=lambda p: (-p["abschnitte"], p["cid"]))
+    raus = {
+        "id": ev["id"],
+        "name": ev.get("name") or "Deichkontrolle",
+        "dtstart": ev["dtstart"],
+        "dtend": ev["dtend"],
+        "anteil": stand["anteil"],
+        "abschnitte": anzahl,
+        "abgedeckt": stand["abgedeckt"],
+        "km_gesamt": round(anzahl * schritt, 1),
+        "km_abgedeckt": round(stand["abgedeckt"] * schritt, 1),
+        "abschnitt_m": round(schritt * 1000.0),
+        "je_pilot": je_pilot,
+        "regeln": st.regeln(ev),
+        "ohne_grund": stand["ohne_grund"],
+    }
+    if mit_geometrie:
+        geo = st.geometrie(ev)
+        raus["strecke"] = [
+            {"nr": i, "linie": geo[i],
+             "cid": (stand["treffer"].get(st.schluessel(i)) or [None, None])[0],
+             "ts": (stand["treffer"].get(st.schluessel(i)) or [None, None])[1]}
+            for i in range(len(geo))]
+    return raus
