@@ -516,3 +516,57 @@ def _jpeg() -> bytes:
     buf = io.BytesIO()
     Image.new("RGB", (1600, 1000), (10, 20, 30)).save(buf, format="JPEG")
     return buf.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_findet_der_recherchierte_name_nichts_kommt_der_der_liste_dran(
+        db, tmp_path, monkeypatch, liste):
+    """C82R am 09.10.2026: Der Name aus der alten Recherche war verstümmelt, aber nicht leer.
+    Wikipedia fand damit nichts, und die Liste kam nie dran."""
+    from app import aircraft_info
+    from app.database import upsert_payload
+    c = get_connection(db)
+    upsert_payload(c, "PC21", mtow_kg=3100.0, empty_kg=2270.0, fuel_kg=272.0,
+                   fuel_full_kg=544.0, crew_kg=85.0, source="llm",
+                   make_model="Pil a tus P C 2 1")
+    c.commit()
+    c.close()
+    p = _poller(db, tmp_path)
+    monkeypatch.setattr(p, "_now", lambda: T0)
+    gefragt = []
+
+    def _wiki(name, fetch):
+        gefragt.append(name)
+        if name == "Pilatus PC-21":
+            return {"wiki_lang": "de", "wiki_title": "Pilatus PC-21", "extract": "Text …"}
+        return None
+
+    monkeypatch.setattr(aircraft_info, "resolve_type", _wiki)
+
+    await p._resolve_aircraft_type("PC21")
+
+    assert gefragt == ["Pil a tus P C 2 1", "Pilatus PC-21"]
+    row = get_aircraft_type(get_connection(db), "PC21")
+    assert row["fetch_state"] == "ok" and row["name"] == "Pilatus PC-21"
+
+
+@pytest.mark.asyncio
+async def test_ein_treffer_mit_dem_recherchierten_namen_fragt_die_liste_nicht(
+        db, tmp_path, monkeypatch, liste):
+    from app import aircraft_info
+    from app.database import upsert_payload
+    c = get_connection(db)
+    upsert_payload(c, "PC21", mtow_kg=3100.0, empty_kg=2270.0, fuel_kg=272.0,
+                   fuel_full_kg=544.0, crew_kg=85.0, source="llm", make_model="Pilatus PC-21 Trainer")
+    c.commit()
+    c.close()
+    p = _poller(db, tmp_path)
+    monkeypatch.setattr(p, "_now", lambda: T0)
+    gefragt = []
+    monkeypatch.setattr(aircraft_info, "resolve_type", lambda name, fetch: gefragt.append(name) or {
+        "wiki_lang": "de", "wiki_title": "Pilatus PC-21", "extract": "Text …"})
+
+    await p._resolve_aircraft_type("PC21")
+
+    assert gefragt == ["Pilatus PC-21 Trainer"]
+    assert get_aircraft_type(get_connection(db), "PC21")["name"] == "Pilatus PC-21 Trainer"

@@ -84,6 +84,17 @@ def is_transient_error(exc: BaseException) -> bool:
     )
 
 
+def _guthaben_leer(exc: BaseException) -> bool:
+    """Meldet die API ein aufgebrauchtes Guthaben?
+
+    Das kommt als 400 (``invalid_request_error``, „Your credit balance is too low …“) und
+    sähe damit wie ein endgültiger Fehler aus. Es sagt aber nichts über das Muster: Am
+    09.10.2026 lief das Guthaben mitten in einem Lauf leer, und jedes danach gesehene Muster
+    wäre als „nichts gefunden“ für 30 Tage gesperrt worden. Vorübergehend, bis jemand auflädt.
+    """
+    return "credit balance" in str(exc).lower()
+
+
 _SPEC_SCHEMA = {
     "type": "object",
     "properties": {
@@ -311,7 +322,7 @@ def suggest_aircraft_payload(type_code: str, grund: list | None = None) -> dict 
     except TransientResearchError:
         raise
     except Exception as exc:  # noqa: BLE001 — Komfortpfad, jeder Fehler → kein Vorschlag
-        if is_transient_error(exc):
+        if is_transient_error(exc) or _guthaben_leer(exc):
             # NICHT als "keine Daten" behandeln: der Aufrufer soll es erneut versuchen.
             logger.warning("Zuladungs-Vorschlag für %s vorübergehend gescheitert: %s", code, exc)
             raise TransientResearchError(str(exc)) from exc

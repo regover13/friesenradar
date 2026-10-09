@@ -118,6 +118,16 @@ def test_client_error_400_stays_none():
     assert _run(_APIStatusError("bad request", status_code=400)) is None
 
 
+def test_leeres_guthaben_ist_voruebergehend():
+    """09.10.2026: Das Guthaben lief mitten in einem Lauf leer. Die API meldet das als 400,
+    und als endgültig gewertet sperrte es jedes danach gesehene Muster für 30 Tage."""
+    from app import llm
+    with pytest.raises(llm.TransientResearchError):
+        _run(_APIStatusError(
+            "Error code: 400 - Your credit balance is too low to access the Anthropic API.",
+            status_code=400))
+
+
 def test_is_transient_error_classifies_plain_status_codes():
     """Plan B braucht den Klassifikator für HTTP-Fehler ohne anthropic-Typen."""
     from app import llm

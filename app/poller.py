@@ -2834,6 +2834,19 @@ class VatsimPoller:
                     res = await asyncio.to_thread(
                         aircraft_info.resolve_type, name, aircraft_info.fetch_json
                     )
+                    if res is None and name_quelle == "payloads":
+                        # Zweiter Versuch mit dem Namen der ICAO. Ein recherchierter Name
+                        # kann unbrauchbar sein, ohne leer zu sein: Bei C82R stand seit der
+                        # Haiku-Zeit "Cessed n a R 1 8 2 Sky la n e Retractable", und damit
+                        # fand Wikipedia nichts (09.10.2026) -- der Name der Liste haette
+                        # getroffen, kam aber nie dran, weil ja ein Name da war.
+                        icao_name = icao_typen.name_fuer(code)
+                        if icao_name and icao_name != name:
+                            res = await asyncio.to_thread(
+                                aircraft_info.resolve_type, icao_name, aircraft_info.fetch_json
+                            )
+                            if res:
+                                name, name_quelle = icao_name, "icao"
                     if (res and name_quelle == "icao"
                             and not icao_typen.titel_passt(code, res.get("wiki_title"))):
                         # Der ICAO-Name ist sperriger als ein recherchierter („Beech 60
