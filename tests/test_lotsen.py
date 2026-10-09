@@ -286,3 +286,8 @@ def test_center_lotse_im_feed_und_in_der_buchungsliste():
     assert (l["station"], l["icao"], l["frequenz"]) == ("Bremen Radar", "EDWW", "125.650")
     b = lotsen.buchungen_filtern([_buchung(callsign="EDWW_EMS_CTR")], CIDS, JETZT)[0]
     assert b["station"] == "Bremen Radar" and b["lat"] == 52.8
+
+
+def test_bezirksnamen_mit_eigener_bezeichnung_bekommen_kein_center_angehaengt():
+    assert lotsen.station("ESMM_2_CTR")["name"] == "Malmo ACC"
+    assert lotsen.station("LSAS_CTR")["name"] == "Swiss Radar"

@@ -80,7 +80,7 @@ def _center(teile: list[str]) -> dict | None:
     name = _BEZIRK_DEUTSCH.get(anfang)
     if not name:
         roh = str(eintrag[0])
-        name = roh if re.search(r"radar|control|cent(er|re)|radio", roh, re.IGNORECASE) else f"{roh} Center"
+        name = roh if re.search(r"radar|control|cent(er|re)|radio|\b(ACC|UAC|TMA)\b", roh, re.IGNORECASE) else f"{roh} Center"
     return {"icao": anfang, "art": "Center", "name": name,
             "lat": float(eintrag[1]), "lon": float(eintrag[2])}
 
