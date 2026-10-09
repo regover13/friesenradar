@@ -196,6 +196,10 @@
           if (merker && merker.friesenspy_theme === 'hell') {
             document.documentElement.classList.add('hell');
           }
+          // Radarlinie abgeschaltet (Einstellungen): schon vor dem ersten Zeichnen weg.
+          if (merker && merker.friesenspy_scanline === 'aus') {
+            document.documentElement.classList.add('ohne-radarlinie');
+          }
         }
       } catch (e) {}
 
@@ -4602,6 +4606,10 @@
     #userName { font-family: var(--text-mono); font-size: 0.9rem; color: var(--text-bright); }
     #abmelden-frage { margin-top: 8px; }
     html.vr-panel #einst-tv { display: none; }
+    /* Radarlinie (Scanline) abschaltbar; im Kniebrett und im TV-Modus gibt es sie ohnehin nicht. */
+    html.ohne-radarlinie .scanline { display: none !important; }
+    html.vr-panel #einst-radarlinie,
+    html.tv #einst-radarlinie { display: none; }
     @media (max-width: 600px) {
       #einst-tv { display: none; }
     }
@@ -4925,6 +4933,14 @@
       <div class="panel-zoom-reihe">
         <button type="button" class="design-knopf" id="design-dunkel">Dunkel</button>
         <button type="button" class="design-knopf" id="design-hell">Hell</button>
+      </div>
+    </div>
+    <div id="einst-radarlinie">
+      <div class="panel-einst-name">Radarlinie</div>
+      <div class="einst-tv-text">Die Linie, die von oben nach unten &uuml;ber die Seite l&auml;uft.</div>
+      <div class="panel-zoom-reihe">
+        <button type="button" class="design-knopf" id="radarlinie-an">An</button>
+        <button type="button" class="design-knopf" id="radarlinie-aus">Aus</button>
       </div>
     </div>
     <!-- TV-MODUS: nur auf breiten Bildschirmen der Website (nicht Kniebrett, nicht Handy). -->
@@ -6024,6 +6040,26 @@ function _designSchalterAnzeigen(d) {
 }
 _designHaken.push(_designSchalterAnzeigen);
 // ENDE DESIGN-ABSCHNITT (Anker fuer tests/test_design_merker.py -- Neues zum Design davor)
+
+// --- Radarlinie (die durchlaufende Scanline) an/aus -----------------------------------------
+// Nutzerwunsch 09.10.2026: abschaltbar, wenn sie jemanden stoert. Gemerkt wie das Design
+// (Merker-Cookie und Konto, je Kontext). Standard ist An; nur der exakte Wert 'aus' schaltet ab.
+const _RADARLINIE_KEY = 'friesenspy_scanline';
+
+function _radarlinieAnwenden(wert) {
+  const aus = wert === 'aus';
+  document.documentElement.classList.toggle('ohne-radarlinie', aus);
+  const an = document.getElementById('radarlinie-an');
+  const ab = document.getElementById('radarlinie-aus');
+  if (an) an.classList.toggle('an', !aus);
+  if (ab) ab.classList.toggle('an', aus);
+}
+
+function _radarlinieSetzen(an) {
+  _prefSchreib(_RADARLINIE_KEY, an ? 'an' : 'aus');
+  _radarlinieAnwenden(an ? 'an' : 'aus');
+}
+// ENDE RADARLINIE
 
 
 // --- In welchem Zustand war das Kniebrett? -------------------------------------------------
@@ -9163,6 +9199,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Design-Schalter (Website und Kniebrett, s. #einst-design)
   _on(document.getElementById('design-dunkel'), 'click', () => _designSetzen('dunkel'));
   _on(document.getElementById('design-hell'),   'click', () => _designSetzen('hell'));
+  _on(document.getElementById('radarlinie-an'),  'click', () => _radarlinieSetzen(true));
+  _on(document.getElementById('radarlinie-aus'), 'click', () => _radarlinieSetzen(false));
+  _radarlinieAnwenden(_prefLies(_RADARLINIE_KEY));
+  // Nach der Serverantwort noch einmal: Auf einem neuen Geraet kennt erst sie die Wahl.
+  _prefsPromise.then(function () { _radarlinieAnwenden(_prefLies(_RADARLINIE_KEY)); }).catch(function () {});
   _designSchalterAnzeigen(_designNormal(_prefLies(_DESIGN_KEY)));
 
   _on(notifBtn, 'click', e => {

@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.3.0",
+    "date": "2026-10-09",
+    "highlight": false,
+    "title": "Radarlinie abschaltbar",
+    "items": [
+      "〰️ Die Linie, die von oben nach unten über die Seite läuft, lässt sich jetzt abschalten: Zahnrad → Anzeige → Radarlinie → Aus. Die Wahl bleibt gespeichert."
+    ]
+  },
+  {
     "version": "16.2.3",
     "date": "2026-10-09",
     "highlight": false,

@@ -651,6 +651,8 @@ Mit Forum-Anmeldung steht dein Name im **Zahnrad ⚙ oben rechts** ganz oben; ei
 
 FriesenRadar gibt es dunkel wie bisher oder hell in den Farben des Forums. Umschalten lässt es sich über das **Zahnrad ⚙ oben rechts** → **Einstellungen** → **Anzeige** → **Design: Dunkel / Hell**. Die Seite wechselt sofort, ohne neu zu laden. Die Wahl gilt für das Gerät, an dem du sie triffst: Der Rechner kann hell sein und der Fernseher dunkel. Dasselbe gilt für die Karten-Ebenen und den Kartenausschnitt. Ein neuer Browser übernimmt beim ersten Aufruf die Einstellungen deines zuletzt benutzten Geräts.
 
+**Radarlinie:** Die Linie, die von oben nach unten über die Seite läuft, ist Zierde. Wen sie stört, schaltet sie an derselben Stelle ab: **Anzeige** → **Radarlinie: An / Aus**. Die Wahl bleibt gespeichert.
+
 - **Die Wahl wird gemerkt** — auf der Website je Gerät, im Kniebrett getrennt davon; du kannst also am PC hell und im Cockpit dunkel fliegen. Im Kniebrett hängt sie mit Forum-Anmeldung an deinem Konto, weil der Simulator sie nach einem Neustart vergisst.
 - **Die Karte bleibt, wie sie ist.** Flugzeuge, Spuren, Platzrunden und Beschriftungen auf der Karte behalten ihre Farben; die Grundkarte wählst du wie gewohnt über die Ebenen-Auswahl (dort gibt es auch eine helle Karte). Popups und Bedienelemente der Karte folgen dem Design.
 - **Im Kniebrett** erscheint beim Start kurz das dunkle Design, bis die gespeicherte Wahl geladen ist.
