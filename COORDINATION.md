@@ -6,6 +6,23 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-10 — Zweig `rueckbau-alter-bruegge-weg`: NICHT vor dem 24.10.2026 nach `main`
+
+Der Rückbau des alten MSFS-Brügge-Wegs (#46) liegt fertig auf dem Zweig
+`rueckbau-alter-bruegge-weg`, Suite grün. **Er darf erst nach dem Stichtag 24.10.2026 nach `main`**
+— vorher sperrte er die Piloten aus, die noch mit Brügge 1.17.0 fliegen, vier Wochen waren zugesagt.
+
+Berührt: `app/main.py` (`/api/bruegge/melden`, `_bruegge_zuordnen` entfernt), `app/database.py`
+(`bruegge_kennung_fuer`, `bruegge_belegte_cids` entfernt), `app/bruegge.py` (`zuordnen` entfernt),
+`tests/conftest.py` und neun Testdateien `test_bruegge*`/`test_kniebrett_melden.py`, dazu
+`README.md`, `app/static/efb.html` (Satz zur alten Fassung), `CLAUDE.md`, `docs/api.md`,
+`friesenbruegge/PROTOKOLL.md`. **Wer bis dahin an diesen Stellen arbeitet, rechnet beim
+Zusammenführen mit Konflikten** — vor dem Merge auf `origin/main` rebasen und die Suite laufen
+lassen. Der Changelog-Eintrag fehlt mit Absicht: Die Nummer steht erst beim Zusammenführen fest.
+
+Die Nacharbeit am neuen Weg (Höhenfilter in `eindeutig_im_flug`, Log-Zeile für neue
+Installationen ohne Treffer) ist seit 16.4.3 in `main`; der Rückbau-Zweig baut darauf auf.
+
 ## 2026-10-05 (nachts) — ERLEDIGT: Umzug `FriesenSpy` → `FriesenRadar` am Simulator-Rechner
 
 Ordner umbenannt (blockiert hatte der adb-Server, PID 29060, gefunden mit `handle.exe`; `adb kill-server`

@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.4.3",
+    "date": "2026-10-10",
+    "highlight": false,
+    "title": "FriesenBrügge findet dich im Flug auch unter einem anderen Friesen",
+    "items": [
+      "🛩️ Flog ein anderer Friese in ganz anderer Höhe über dieselbe Stelle, konnte sich eine neu gestartete FriesenBrügge im Flug nicht zuordnen. Jetzt zählt nur noch, wer auch in der Höhe passt.",
+      "🔎 Findet eine frisch installierte FriesenBrügge niemanden, obwohl ein Friese in der Nähe ist, lässt sich das jetzt auf dem Server nachlesen."
+    ]
+  },
+  {
     "version": "16.4.2",
     "date": "2026-10-09",
     "highlight": false,
