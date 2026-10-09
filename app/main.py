@@ -7912,7 +7912,7 @@ async def admin_upsert_payload(request: Request):
 
 @app.get("/api/admin/transport/payloads/suggest")
 async def admin_transport_payload_suggest(request: Request, type: str):
-    """KI-Vorschlag (Claude Haiku 4.5) für die Zuladungs-Komponenten eines Flugzeugtyps."""
+    """KI-Vorschlag (Claude Sonnet 5.5) für die Zuladungs-Komponenten eines Flugzeugtyps."""
     require_admin(request)
     require_confirm(request)
     from app import llm

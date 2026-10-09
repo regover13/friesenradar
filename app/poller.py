@@ -2843,6 +2843,25 @@ class VatsimPoller:
                         logger.info("Muster-Info %s: Artikel '%s' passt nicht zum Kuerzel "
                                     "— verworfen", code, res.get("wiki_title"))
                         res = None
+                if res:
+                    # Gilt der Artikel fuer eine ganze Familie ("Piper PA-28"), zeigt sein
+                    # erstes Bild irgendeine Variante. Dann ein Foto genau dieser Variante
+                    # von Commons. Kuer wie der Download darunter: Scheitert die Suche oder
+                    # findet sie nichts, bleibt das Bild des Artikels.
+                    begriff = icao_typen.suchbegriff(code)
+                    if begriff and aircraft_info.artikel_gilt_der_familie(
+                            res.get("wiki_title"), begriff[1]):
+                        try:
+                            variante = await asyncio.to_thread(
+                                aircraft_info.waehle_commons_bild,
+                                begriff[0], begriff[1], aircraft_info.fetch_json,
+                            )
+                        except Exception as exc:  # noqa: BLE001 — Text schlaegt Foto
+                            logger.info("Muster-Info %s: Fotosuche nach der Variante "
+                                        "gescheitert (%s)", code, exc)
+                            variante = None
+                        if variante:
+                            res = {**res, **variante}
                 foto_datei = None
                 foto_fehler = None
                 if res and res.get("photo_url"):

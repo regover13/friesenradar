@@ -705,8 +705,8 @@ VATSIM_POLL_INTERVAL=15
 VATSIM_REJOIN_DEBOUNCE_SEC=900   # Default: 900 s (15 min) — Reconnect-Fenster Online-Push
 LOG_LEVEL=INFO                   # Default: INFO — App-Logger sichtbar (unter uvicorn sonst nur WARNING+)
 DB_PATH=/opt/friesenradar/data/friesenradar.db
-ANTHROPIC_API_KEY=               # Optional — FriesenKutter-Zuladungs-Vorschlag (Claude Haiku 4.5 + Web-Search,
-                                 # llm.py:25 _SUGGEST_MODEL, seit v7.4.2 — NICHT Sonnet 5; Sonnet 5 macht nur die
+ANTHROPIC_API_KEY=               # Optional — FriesenKutter-Zuladungs-Vorschlag (Claude Sonnet 5.5 + Web-Search,
+                                 # llm.py _SUGGEST_MODEL, seit 16.4.1, vorher Haiku 4.5; Sonnet 5 macht nur die
                                  # Sprüche, llm.py:295). Denselben Key wie TSBot verwenden.
 
 # TeamSpeak-Login-Benachrichtigung (Phase 1, alle Optional)

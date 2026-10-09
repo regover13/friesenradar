@@ -138,17 +138,17 @@ class TestSuggestHardening:
         assert calls["init"].get("max_retries") == 0
         assert "stream_kwargs" in calls  # Streaming-Pfad, nicht messages.create
 
-    def test_suggest_uses_haiku_without_effort(self):
-        """Nutzer-Entscheidung 2026-07-02: Spec-Lookup auf Haiku 4.5 (~4 ct statt ~7 ct;
-        Live-Probe: 18,5 s, korrekte Wilga). Haiku 4.5 lehnt den effort-Parameter mit 400 ab
-        — output_config darf nur das format enthalten. Die Sprüche bleiben auf Sonnet 5."""
+    def test_suggest_uses_sonnet_5_5_without_effort(self):
+        """Nutzer-Entscheidung 2026-10-09: Spec-Lookup auf Sonnet 5.5. Haiku 4.5 (seit
+        2026-07-02) schrieb die Tankfüllung in Litern als Kilogramm hin; gemessen ist Sonnet
+        5.5 mit output_config, das nur das format enthält. Die Sprüche bleiben auf Sonnet 5."""
         from app import llm
         calls: dict = {}
         fake = _fake_anthropic([_Resp("end_turn", self.SPEC)], calls)
         with patch.dict(sys.modules, {"anthropic": fake}):
             result = llm.suggest_aircraft_payload("C172")
         assert result is not None
-        assert calls["stream_kwargs"]["model"] == "claude-haiku-4-5"
+        assert calls["stream_kwargs"]["model"] == "claude-sonnet-5-5"
         assert "effort" not in calls["stream_kwargs"]["output_config"]
 
     def test_zu_langer_make_model_faellt_auf_den_code_zurueck(self):

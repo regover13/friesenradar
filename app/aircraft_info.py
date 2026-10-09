@@ -259,6 +259,13 @@ def _imageinfo_url(commons_titel: str) -> str:
             "&prop=imageinfo&iiprop=extmetadata%7Curl&format=json")
 
 
+def _commons_such_url(begriff: str) -> str:
+    return ("https://commons.wikimedia.org/w/api.php?action=query&format=json"
+            f"&generator=search&gsrnamespace=6&gsrlimit={_COMMONS_SUCHTIEFE}"
+            f"&gsrsearch={quote(begriff + ' filetype:bitmap', safe='')}"
+            "&prop=imageinfo&iiprop=extmetadata%7Curl%7Csize%7Cmime")
+
+
 def _meta(extmetadata: dict, key: str) -> str | None:
     wert = (extmetadata or {}).get(key)
     if isinstance(wert, dict):
@@ -297,6 +304,79 @@ def _waehle_bild(lang: str, titel: str, fetch) -> dict | None:
                 "photo_artist": re.sub(r"<[^>]+>", "", _meta(ext, "Artist") or "").strip() or None,
                 "photo_source_url": ii.get("descriptionurl"),
             }
+    return None
+
+
+_COMMONS_SUCHTIEFE = 20
+_COMMONS_MIN_BREITE = 1000
+# Wörter im Dateinamen, die kein Bild des ganzen Flugzeugs erwarten lassen.
+_KEIN_PORTRAET = (
+    "cockpit", "panel", "instrument", "interior", "cabin", "kabine", "engine", "motor",
+    "propeller", "wheel", "gear", "fahrwerk", "detail", "wreck", "crash", "accident",
+    "unfall", "model", "modell", "drawing", "diagram", "zeichnung", "logo", "map", "karte",
+    "formation", "museum",
+)
+
+
+def _flach(text: str) -> str:
+    return re.sub(r"[^A-Z0-9]", "", (text or "").upper())
+
+
+def artikel_gilt_der_familie(wiki_titel: str | None, modell: str) -> bool:
+    """Ist der Artikel allgemeiner als die Variante? Dann lohnt die Suche nach ihrem Foto.
+
+    „Piper PA-28“ trägt „PA-28RT-201T“ nicht im Titel: Familienartikel. „Cessna 172“ trägt
+    „172“: Der Artikel meint das Muster selbst, und sein Bild ist von Hand ausgesucht.
+
+    Die Suche auf Commons ist NUR für den ersten Fall gut genug. Probe über 79 Muster am
+    09.10.2026: 70 Treffer, davon rund zehn unbrauchbar (Rotorkopf bei B105, Cockpit bei
+    DHC2, Wehrmachtsfoto bei ME08, winzige Silhouetten bei DA40, PA24, C152). Fast alle
+    lagen bei Mustern, deren Artikel ohnehin das richtige Bild hatte.
+    """
+    kennung = _flach(modell)
+    return bool(kennung) and kennung not in _flach(wiki_titel or "")
+
+
+def waehle_commons_bild(hersteller: str, modell: str, fetch) -> dict | None:
+    """Ein Foto genau dieser Variante von Wikimedia Commons — oder ``None``.
+
+    Wozu: ``_waehle_bild`` nimmt das erste verwendbare Bild des ARTIKELS, und ein Artikel
+    gilt oft für eine ganze Familie. „Piper PA-28“ beginnt mit einer Archer; dasselbe Foto
+    stand deshalb bei P28A, P28B, P28S, PA28 — und bei der Turbo Arrow IV (P28U), die ein
+    T-Leitwerk hat (Nutzerfund 09.10.2026: „Das ist keine Turbo Arrow 4“).
+
+    Gesucht wird nach Hersteller und Modellbezeichnung („Piper PA-28RT-201T“). Ein Treffer
+    zählt nur, wenn sein Dateiname die Modellbezeichnung trägt — die Suche von Commons
+    findet auch Beschreibungen und liefert sonst das Bundesgesetzblatt, in dem das Muster
+    vorkommt. Dazu: JPEG, Querformat, breit genug, zulässige Lizenz, und kein Wort im Namen,
+    das ein Detail oder ein Wrack erwarten lässt. Die Reihenfolge ist die der Suche.
+    """
+    kennung = _flach(modell)
+    if not kennung:
+        return None
+    daten = fetch(_commons_such_url(f"{hersteller} {modell}".strip())) or {}
+    seiten = list(((daten.get("query") or {}).get("pages") or {}).values())
+    seiten.sort(key=lambda s: s.get("index") or 0)
+    for seite in seiten:
+        titel = seite.get("title") or ""
+        klein = titel.lower()
+        if kennung not in _flach(titel) or any(w in klein for w in _KEIN_PORTRAET):
+            continue
+        ii = (seite.get("imageinfo") or [{}])[0]
+        breite, hoehe = ii.get("width") or 0, ii.get("height") or 0
+        if ii.get("mime") != "image/jpeg" or breite < _COMMONS_MIN_BREITE or breite <= hoehe:
+            continue
+        ext = ii.get("extmetadata") or {}
+        short, terms = _meta(ext, "LicenseShortName"), _meta(ext, "UsageTerms")
+        if not licence_ok(short, terms):
+            continue
+        return {
+            "photo_commons_title": titel,
+            "photo_url": ii.get("url"),
+            "photo_licence": short,
+            "photo_artist": re.sub(r"<[^>]+>", "", _meta(ext, "Artist") or "").strip() or None,
+            "photo_source_url": ii.get("descriptionurl"),
+        }
     return None
 
 

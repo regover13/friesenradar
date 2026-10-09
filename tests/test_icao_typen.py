@@ -384,3 +384,135 @@ async def test_der_grund_steht_in_der_datenbank(db, tmp_path, monkeypatch):
     row = get_payload_research(get_connection(db), "D226")
     assert row["state"] == "nichts_gefunden"
     assert row["last_error"].startswith("unplausible Werte")
+
+
+# ---------------------------------------------------------------------------
+# Foto der Variante statt des Familienbilds
+# ---------------------------------------------------------------------------
+
+def test_suchbegriff_ist_hersteller_und_modellbezeichnung(liste):
+    assert icao_typen.suchbegriff("P28U") == ("Piper", "PA-28RT-201T")
+    assert icao_typen.suchbegriff("D228") == ("Dornier", "228")
+    assert icao_typen.suchbegriff("P34A") is None
+
+
+def test_wortanfang_entscheidet_nicht_irgendeine_stelle():
+    """C208 führt in der Liste auch die „AC-208“; gemeint ist die Caravan."""
+    icao_typen.setzen({"C208": [["CESSNA", "AC-208 Combat Caravan"], ["CESSNA", "208 Caravan 1"]]})
+    assert icao_typen.name_fuer("C208") == "Cessna 208 Caravan 1"
+
+
+@pytest.mark.parametrize("titel,modell,familie", [
+    ("Piper PA-28", "PA-28RT-201T", True),
+    ("Cessna 182 Skylane", "R182", True),
+    ("Cessna 172", "172", False),
+    ("Bölkow Bo 105", "BO-105", False),
+    ("Messerschmitt Bf 108", "Bf-108", False),
+    (None, "PA-28", True),
+])
+def test_artikel_gilt_der_familie(titel, modell, familie):
+    from app import aircraft_info
+    assert aircraft_info.artikel_gilt_der_familie(titel, modell) is familie
+
+
+def _commons(*seiten):
+    def _fetch(url):
+        _fetch.url = url
+        return {"query": {"pages": {str(i): s for i, s in enumerate(seiten)}}}
+    return _fetch
+
+
+def _seite(titel, index, *, mime="image/jpeg", breite=3000, hoehe=2000, lizenz="CC BY-SA 4.0"):
+    return {"title": titel, "index": index, "imageinfo": [{
+        "mime": mime, "width": breite, "height": hoehe,
+        "url": "https://upload/" + titel, "descriptionurl": "https://commons/" + titel,
+        "extmetadata": {"LicenseShortName": {"value": lizenz},
+                        "Artist": {"value": "<a href='x'>Fotografin</a>"}},
+    }]}
+
+
+def test_commons_bild_nimmt_den_ersten_treffer_der_die_variante_im_namen_traegt():
+    from app import aircraft_info
+    fetch = _commons(
+        _seite("File:Piper PA-28RT-201T Turbo Arrow IV (D-ELMS) 01.jpg", 3),
+        _seite("File:Federal Register 2006-02-07.pdf", 1, mime="application/pdf"),
+        _seite("File:Piper PA-28-181 Archer.jpg", 2),                       # andere Variante
+    )
+    bild = aircraft_info.waehle_commons_bild("Piper", "PA-28RT-201T", fetch)
+    assert bild["photo_commons_title"].endswith("(D-ELMS) 01.jpg")
+    assert bild["photo_artist"] == "Fotografin"
+    assert "PA-28RT-201T" in fetch.url and "filetype%3Abitmap" in fetch.url
+
+
+@pytest.mark.parametrize("seite", [
+    _seite("File:Piper PA-28RT-201T cockpit.jpg", 1),
+    _seite("File:Piper PA-28RT-201T.jpg", 1, lizenz="GFDL 1.2"),
+    _seite("File:Piper PA-28RT-201T.jpg", 1, breite=800, hoehe=600),
+    _seite("File:Piper PA-28RT-201T.jpg", 1, breite=2000, hoehe=3000),      # Hochformat
+    _seite("File:Piper PA-28RT-201T.png", 1, mime="image/png"),
+])
+def test_commons_bild_verwirft_unbrauchbares(seite):
+    from app import aircraft_info
+    assert aircraft_info.waehle_commons_bild("Piper", "PA-28RT-201T", _commons(seite)) is None
+
+
+@pytest.mark.asyncio
+async def test_familienartikel_bekommt_das_foto_der_variante(db, tmp_path, monkeypatch, liste):
+    """Der Nutzerfund vom 09.10.2026: Bei P28U stand eine Archer."""
+    from app import aircraft_info
+    _zuladung_leer_ausgegangen(db, "P28U")
+    p = _poller(db, tmp_path)
+    monkeypatch.setattr(p, "_now", lambda: T0)
+
+    def _wiki_mit_archer(name, fetch):
+        return {"wiki_lang": "de", "wiki_title": "Piper PA-28", "extract": "Text …",
+                "photo_url": "https://upload/archer.jpg", "photo_licence": "CC0",
+                "photo_artist": "A", "photo_source_url": "https://commons/File:archer.jpg"}
+
+    geladen = []
+    monkeypatch.setattr(aircraft_info, "resolve_type", _wiki_mit_archer)
+    monkeypatch.setattr(aircraft_info, "fetch_json", _commons(
+        _seite("File:Piper PA-28RT-201T Turbo Arrow IV (D-ELMS) 01.jpg", 1)))
+    monkeypatch.setattr(aircraft_info, "download_photo",
+                        lambda url, **kw: geladen.append(url) or _jpeg())
+
+    await p._resolve_aircraft_type("P28U")
+
+    assert geladen == ["https://upload/File:Piper PA-28RT-201T Turbo Arrow IV (D-ELMS) 01.jpg"]
+    row = get_connection(db).execute(
+        "SELECT photo_source_url, photo_licence FROM aircraft_types WHERE type_code='P28U'"
+    ).fetchone()
+    assert "D-ELMS" in row[0] and row[1] == "CC BY-SA 4.0"
+
+
+@pytest.mark.asyncio
+async def test_scheitert_die_fotosuche_bleibt_das_bild_des_artikels(
+        db, tmp_path, monkeypatch, liste):
+    from app import aircraft_info
+    _zuladung_leer_ausgegangen(db, "P28U")
+    p = _poller(db, tmp_path)
+    monkeypatch.setattr(p, "_now", lambda: T0)
+
+    def _kaputt(url):
+        raise aircraft_info.WikimediaError("HTTP 429", 429)
+
+    geladen = []
+    monkeypatch.setattr(aircraft_info, "resolve_type", lambda name, fetch: {
+        "wiki_lang": "de", "wiki_title": "Piper PA-28", "extract": "Text …",
+        "photo_url": "https://upload/archer.jpg", "photo_licence": "CC0"})
+    monkeypatch.setattr(aircraft_info, "fetch_json", _kaputt)
+    monkeypatch.setattr(aircraft_info, "download_photo",
+                        lambda url, **kw: geladen.append(url) or _jpeg())
+
+    await p._resolve_aircraft_type("P28U")
+
+    assert geladen == ["https://upload/archer.jpg"]
+    assert get_aircraft_type(get_connection(db), "P28U")["fetch_state"] == "ok"
+
+
+def _jpeg() -> bytes:
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (1600, 1000), (10, 20, 30)).save(buf, format="JPEG")
+    return buf.getvalue()

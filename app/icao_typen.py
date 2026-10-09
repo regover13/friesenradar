@@ -128,10 +128,14 @@ def _modell_passt(code: str, modell: str) -> int:
     if not m:
         return 0
     buchstaben, zahl = m.groups()
-    flach = re.sub(r"[^A-Z0-9]", "", modell.upper())
-    if buchstaben and buchstaben + zahl in flach:
+    woerter = [re.sub(r"[^A-Z0-9]", "", w) for w in modell.upper().split()]
+    # Am WORTANFANG, nicht irgendwo: Sonst gewinnt bei C208 die „AC-208“ (Kampfversion) vor
+    # der „208 Caravan“, bei UH1 die „CUH-1H“ und bei C337 die „MC337“.
+    if buchstaben and any(w.startswith(buchstaben + zahl) for w in woerter):
         return 2
-    return 1 if zahl in flach else 0
+    if any(w.startswith(zahl) for w in woerter):
+        return 2          # „208 Caravan“, „228“, „337 Super Skymaster“
+    return 1 if any(zahl in w for w in woerter) else 0
 
 
 def _eintraege_sortiert(code: str) -> list[tuple[str, str]]:
@@ -169,6 +173,23 @@ def name_fuer(code: str | None) -> str | None:
     if hersteller and not modell.lower().startswith(hersteller.lower()):
         return f"{hersteller} {modell}"
     return modell
+
+
+def suchbegriff(code: str | None) -> tuple[str, str] | None:
+    """(Hersteller, Modellbezeichnung) für die Fotosuche — oder ``None``.
+
+    Die Modellbezeichnung ist das erste Wort des Modellnamens, das eine Ziffer trägt:
+    „PA-28RT-201T“ aus „PA-28RT-201T Turbo Arrow 4“, „PC-21“, „228“. Der Rest des Namens
+    taugt für die Suche nicht — die ICAO schreibt „Turbo Arrow 4“, Commons „Turbo Arrow IV“.
+    """
+    eintraege = _eintraege_sortiert(code or "")
+    if not eintraege:
+        return None
+    hersteller, modell = eintraege[0]
+    for wort in modell.split():
+        if any(z.isdigit() for z in wort):
+            return _hersteller_schreibweise(hersteller), wort
+    return None
 
 
 def titel_passt(code: str | None, titel: str | None) -> bool:

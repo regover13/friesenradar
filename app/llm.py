@@ -1,7 +1,7 @@
 """Claude-API-Anbindung für FriesenRadar (aktuell: Zuladungs-Vorschlag pro Flugzeugtyp).
 
 Der Vorschlag **recherchiert per Web-Search** (serverseitiges Anthropic-Tool) die realen,
-dokumentierten Herstellerangaben und liefert sie als Structured Output. Modell: Haiku 4.5
+dokumentierten Herstellerangaben und liefert sie als Structured Output. Modell: Sonnet 5.5
 (Spec-Lookup); die KI-Sprüche laufen auf Sonnet 5.
 
 Bewusst mit Silent-Fail: der Vorschlag ist Komfort im Admin, kein kritischer Pfad. Ohne
@@ -20,11 +20,18 @@ from app.aircraft_info import harden_name
 
 logger = logging.getLogger(__name__)
 
-# Spec-Lookup auf Haiku 4.5 (Nutzer-Entscheidung 2026-07-02: ~4 ct statt ~7 ct pro Recherche;
-# Live-Probe: 18,5 s, korrektes Wilga-Ergebnis). Achtung: Haiku 4.5 lehnt den effort-Parameter
-# mit 400 ab — output_config nur mit format befüllen. Die KI-Sprüche bleiben auf Sonnet 5
-# (kontextreicher Humor, siehe flight_quip/event_summary).
-_SUGGEST_MODEL = "claude-haiku-4-5"
+# Spec-Lookup auf Sonnet 5.5 (Nutzer-Entscheidung 2026-10-09, vorher seit 2026-07-02 Haiku 4.5).
+# Gemessen am selben Tag, je sieben Abrufe mit ICAO-Hinweis (P28U, P28R, PC21):
+#   Haiku 4.5   schrieb die Tankfüllung in Litern als Kilogramm hin (272 statt 196 kg), in
+#               fünf von fünf PA-28-Läufen — die Zuladung kam rund 40 kg zu niedrig heraus.
+#   Haiku 5.5   rechnete richtig, schrieb aber in fünf von sieben Läufen Erklärungen ins
+#               Namensfeld und wechselte bei Wiederholung die Variante.
+#   Sonnet 5.5  war in allen sieben Läufen richtig, sauber und gleich; 6–8 s, eine bis zwei
+#               Suchen, rund 4–6 ct Tokenkosten je Recherche (Haiku 4.5: rund 2,5 ct).
+# Bei rund 50 Recherchen im Vierteljahr ist der Preisunterschied etwa ein Euro.
+# output_config trägt weiter nur das format (kein effort): so ist gemessen worden.
+# Die KI-Sprüche bleiben auf Sonnet 5 (siehe flight_quip/event_summary).
+_SUGGEST_MODEL = "claude-sonnet-5-5"
 # Standard-Pilotengewicht (kg) — zählt nicht als Fracht (Wert = database._CREW_KG_DEFAULT).
 _CREW_KG = 85.0
 # Serverseitiges Web-Search-Tool, BEWUSST die Basis-Variante 20250305: das neuere
@@ -210,7 +217,7 @@ def _extract_spec(resp) -> dict | None:
 
 
 def suggest_aircraft_payload(type_code: str, grund: list | None = None) -> dict | None:
-    """Vorschlag für die Zuladungs-Komponenten eines Flugzeugtyps — per Web-Recherche (Haiku 4.5).
+    """Vorschlag für die Zuladungs-Komponenten eines Flugzeugtyps — per Web-Recherche (Sonnet 5.5).
 
     Rückgabe (kg, im Admin editierbar) oder ``None``::
 
