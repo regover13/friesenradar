@@ -693,14 +693,14 @@ Das **Zahnrad ⚙ oben rechts** im Header öffnet die Einstellungen; die Benachr
 
 Kniebrett, FriesenBrügge und das Widget im Forum sind davon nicht betroffen.
 
-**Lotsen:** Dieselben Schalter melden auch, wenn ein Friese lotst. „Beim Online-gehen“ meldet, sobald er sich an einer Station anmeldet, mit Station, Frequenz und voraussichtlichem Ende. „Auch bei eingereichten Flugplänen“ meldet gebuchte Schichten: jeden Morgen um 7 Uhr eine Meldung mit allen, die an dem Tag lotsen, und sofort, wenn jemand erst im Lauf des Tages für denselben Tag bucht. Der Regler „Wer darf über mich benachrichtigt werden?“ gilt auch fürs Lotsen.
+**Lotsen:** Dieselben Schalter melden auch, wenn ein Friese lotst. „Beim Online-gehen benachrichtigen (Piloten und Lotsen)“ meldet, sobald er sich an einer Station anmeldet, mit Station, Frequenz und voraussichtlichem Ende. „Auch bei Geplantem (Flugpläne und Lotsenschichten)“ meldet gebuchte Schichten: jeden Morgen um 7 Uhr eine Meldung mit allen, die an dem Tag lotsen, und sofort, wenn jemand erst im Lauf des Tages für denselben Tag bucht. Der Regler „Wer darf über mich benachrichtigt werden?“ gilt auch fürs Lotsen.
 
 **Einrichten:**
 1. Zahnrad ⚙ klicken → Einstellungen öffnen sich
-2. „Beim Online-gehen benachrichtigen" aktivieren
+2. „Beim Online-gehen benachrichtigen (Piloten und Lotsen)" aktivieren
 3. Browser fragt nach Erlaubnis → **Zulassen**
 4. Optional: Filtern auf bestimmte Piloten (Alle Friesen oder nur ausgewählte)
-5. Optional: „Auch bei eingereichten Flugplänen" — standardmäßig aktiv
+5. Optional: „Auch bei Geplantem (Flugpläne und Lotsenschichten)" — standardmäßig aktiv
 6. Optional: **„Events"** — Erinnerung ~1 h vor jedem FriesenEvent + Bummel-Start/Ergebnis (opt-in, Standard: aus)
 7. **Speichern**
 

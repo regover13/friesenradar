@@ -106,3 +106,11 @@ def test_karte_zeichnet_lotsen_und_raeumt_sie_wieder_weg():
     assert "removeLayer" in fn and "L.marker" in fn and "icon-headset" in fn
     um = INDEX[INDEX.index("function updateMap(pilots)"):INDEX.index("function updateMap(pilots)") + 600]
     assert "_lotsenAufKarteZeichnen()" in um
+
+
+def test_schalter_in_den_einstellungen_nennen_auch_die_lotsen():
+    """Nutzer 09.10.2026: Die Schalter melden seit 16.2.0 auch Lotsen, das muss dranstehen."""
+    assert '<input type="checkbox" id="notif-enabled"> Beim Online-gehen benachrichtigen (Piloten und Lotsen)' in INDEX
+    assert '<input type="checkbox" id="notif-prefiles" checked> Auch bei Geplantem (Flugpläne und Lotsenschichten)' in INDEX
+    assert "Benachrichtigen wenn (gilt für Online, Geplantes &amp; TeamSpeak):" in INDEX
+    assert "Auch bei eingereichten Flugplänen" not in INDEX
