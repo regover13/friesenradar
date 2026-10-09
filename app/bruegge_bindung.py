@@ -22,6 +22,7 @@ laufende Bewährung, die dann von vorn zählt.
 """
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass, field
 
@@ -68,6 +69,12 @@ LOGON_TOLERANZ_S = 10.0
 VATSIM_FRISCH_S = 60.0
 #: These 5: Ab so langer Ablehnung erscheint eine Brügge als Hinweis in der Verwaltung.
 HINWEIS_AB_S = 120.0
+#: Eine NEUE Installation hat noch keine Zeile und damit keinen Hinweis in der Verwaltung. Findet
+#: sie so lange niemanden, obwohl jemand in dieser Nähe steht oder fliegt, kommt eine Zeile ins
+#: Log -- und danach höchstens alle ``OHNE_TREFFER_WIEDER_S``. Ohne die Nähe schriebe jeder, der
+#: den Simulator ohne VATSIM laufen lässt, eine Zeile, sobald irgendwo ein Friese online ist.
+OHNE_TREFFER_NAH_M = 2000.0
+OHNE_TREFFER_WIEDER_S = 600.0
 #: ⚠ Die Kennung, die die MSFS-Fassungen vom 11.–14.09.2026 auf JEDEM Rechner gleich erzeugt und
 #: in MSFS 2024 nach `\work` geschrieben haben. Spätere Fassungen haben sie nicht überschrieben;
 #: 1.18.0 liest sie wieder. Sie wird nie gebunden -- sonst teilten sich wieder mehrere Brügges
@@ -118,6 +125,8 @@ class Sitzung:
     beweis_cid: int | None = None
     beweis_seit: float | None = None
     beweis_zuletzt: float | None = None
+    # Wann zuletzt ins Log kam, dass diese neue Installation niemanden findet.
+    ohne_treffer_ts: float | None = None
 
 
 @dataclass
@@ -126,6 +135,8 @@ class Ergebnis:
     lage_gilt: bool
     kandidaten_da: bool
 
+
+_logger = logging.getLogger(__name__)
 
 _SITZUNGEN: dict[str, Sitzung] = {}
 #: Nach „vergessen" (Admin) gilt These 8 einmal nicht: Der Pilot ist ja längst verbunden, und die
@@ -220,8 +231,12 @@ def eindeutig_im_flug(m: Meldung, kands: list[Kand], vergeben: set[int]) -> Kand
     """
     if m.am_boden or m.gs_kt < BEWAEHRT_GS_KT:
         return None
-    pool = sorted((k for k in kands if k.cid not in vergeben), key=lambda k: _abstand(m, k))
-    if not pool or not _plausibel(m, pool[0]):
+    # Infrage kommt nur, wer auch in der Höhe passt. Sonst nimmt ein Flugzeug, das Tausende Fuß
+    # darüber oder darunter dieselbe Stelle überfliegt, dem richtigen den Vorsprung -- oder steht
+    # selbst vorn und lässt die Suche leer ausgehen.
+    pool = sorted((k for k in kands if k.cid not in vergeben and _plausibel(m, k)),
+                  key=lambda k: _abstand(m, k))
+    if not pool:
         return None
     if len(pool) > 1 and not _abstand(m, pool[0]) <= _abstand(m, pool[1]) * bruegge.PAARUNG_VORSPRUNG:
         return None
@@ -289,7 +304,38 @@ def zuordnen(conn, kennung: str, m: Meldung, kands: list[Kand],
     if zeile:
         return _bekannt(conn, kennung, zeile, m, kands, s, jetzt)
     _sitzung_festhalten(conn, kennung, s, jetzt)
-    return _neu(conn, kennung, m, kands, s, jetzt, da)
+    erg = _neu(conn, kennung, m, kands, s, jetzt, da)
+    if erg.cid is None:
+        _ohne_treffer_melden(kennung, m, kands, s, jetzt)
+    return erg
+
+
+def _ohne_treffer_melden(kennung: str, m: Meldung, kands: list[Kand], s: Sitzung,
+                         jetzt: float) -> None:
+    """Eine neue Installation, die niemanden findet, obwohl jemand in der Nähe ist: ins Log.
+
+    Am 25.09.2026 wurde eine Brügge minutenlang abgelehnt, und hinterher ließ sich nicht sagen,
+    welche es war und wo sie stand. Für bekannte Kennungen gibt es den Hinweis in der Verwaltung
+    (`_hinweis`); eine neue Installation hat keine Zeile, an der er hängen könnte."""
+    if jetzt - s.seit < HINWEIS_AB_S:
+        return
+    if s.ohne_treffer_ts is not None and jetzt - s.ohne_treffer_ts < OHNE_TREFFER_WIEDER_S:
+        return
+    nah = sorted(((_abstand(m, k), k) for k in kands), key=lambda e: e[0])
+    if not nah or nah[0][0] > OHNE_TREFFER_NAH_M:
+        return
+    s.ohne_treffer_ts = jetzt
+    _logger.info(
+        "Bruegge: neue Installation %s (%s) findet seit %d s niemanden @ %.5f,%.5f %.0f ft, "
+        "%s, %.0f kt -- %d Verbindung(en) im Umkreis von %.0f m, die naechste %s (CID %d) in "
+        "%.0f m, %s",
+        kennung, m.simulator or "?", int(jetzt - s.seit), m.lat, m.lon, m.alt_ft,
+        "am Boden" if m.am_boden else "in der Luft", m.gs_kt,
+        sum(1 for d, _ in nah if d <= OHNE_TREFFER_NAH_M), OHNE_TREFFER_NAH_M,
+        nah[0][1].callsign or "?", nah[0][1].cid, nah[0][0],
+        "angemeldet vor der Bruegge" if (nah[0][1].logon_ts is not None
+                                         and nah[0][1].logon_ts < s.seit - LOGON_TOLERANZ_S)
+        else "angemeldet nach der Bruegge")
 
 
 def _bekannt(conn, kennung: str, zeile: dict, m: Meldung, kands: list[Kand], s: Sitzung,

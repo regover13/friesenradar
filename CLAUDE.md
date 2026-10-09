@@ -494,6 +494,13 @@ Widerspruch) stehen je These in `app/bruegge_bindung.py`, der Beschluss in
 - **Kandidaten über die CID** (Forum-Anmeldung), nicht über das Rufzeichen. Das betrifft NUR die
   Zuordnung der Brügge — **Friese ist weiter, wer mit FRS-Rufzeichen fliegt** (Karte, Listen,
   Bummel, Kutter). Nicht verwechseln.
+- **Im Flug kommt nur infrage, wer auch in der Höhe passt** (`eindeutig_im_flug`, seit 10.10.2026).
+  Vorher nahm ein Flugzeug, das Tausende Fuß darüber dieselbe Stelle überflog, dem richtigen den
+  Vorsprung, und es wurde gar nicht gebunden.
+- **Eine neue Installation, die zwei Minuten lang niemanden findet, obwohl jemand im Umkreis von
+  2 km ist, schreibt eine Zeile ins Log** („neue Installation … findet seit … niemanden“, danach
+  höchstens alle zehn Minuten). Bekannte Kennungen stehen stattdessen als Hinweis in der Verwaltung.
+  Nachsehen: `docker logs friesenradar-friesenradar-1 | grep "neue Installation"`.
 - **Kein Wechsel zu einem „besseren“ Partner** — weder hier noch im Kniebrett. Zweimal gebaut,
   zweimal zurückgenommen (Kniebrett 16.08., Server 14./15.09.2026).
 - Die alte MSFS-Brügge (Protokoll 1/2) läuft über `_bruegge_zuordnen` bis zum Stichtag

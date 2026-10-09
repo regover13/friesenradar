@@ -365,3 +365,85 @@ def test_die_kollisionskennung_wird_nie_gebunden(conn):
     e = bb.zuordnen(conn, "9e3711c100000000", _m(), [_k(49, n=0.4)], jetzt=T0 + 60)
     assert e.cid is None
     assert bruegge_zuordnung_holen(conn, "9e3711c100000000") is None
+
+
+# --- Nacharbeit 10.10.2026: Höhe im Flug, Spur einer neuen Installation ---------------------
+
+def test_ein_flugzeug_in_anderer_hoehe_nimmt_im_flug_keinen_vorsprung(conn):
+    """Zwei Friesen über derselben Stelle, 5500 ft auseinander. Ohne Höhenfilter stand der
+    falsche gleich weit weg wie der richtige -- kein Vorsprung, keine Zuordnung, und stand er
+    vorn, ging die Suche ganz leer aus."""
+    m = _m(n=1000, gs=100, boden=False, alt=1500)
+    richtig = _k(1, n=970, gs=100, alt=1500)
+    darueber = _k(2, n=990, gs=100, alt=7000)       # horizontal sogar näher
+    assert bb.eindeutig_im_flug(m, [darueber, richtig], set()).cid == 1
+    assert bb.eindeutig_im_flug(m, [richtig, darueber], set()).cid == 1
+
+
+def test_in_gleicher_hoehe_bleibt_der_gleichstand_ein_gleichstand(conn):
+    """Die Gegenprobe: Der Höhenfilter hebelt den doppelten Abstand nicht aus."""
+    m = _m(n=1000, gs=100, boden=False, alt=1500)
+    assert bb.eindeutig_im_flug(
+        m, [_k(1, n=970, gs=100, alt=1500), _k(2, n=1030, gs=100, alt=1600)], set()) is None
+
+
+def test_ueber_den_endpunkt_der_bindung_wird_trotz_des_flugzeugs_darueber_gebunden(conn):
+    e = _fliegen(conn, "neu", 7, T0, 125,
+                 andere=[lambda n: _k(8, n=n - 10, gs=100, alt=7000)])
+    assert e.cid == 7
+
+
+def _log_zeilen(caplog):
+    return [r.getMessage() for r in caplog.records if "neue Installation" in r.getMessage()]
+
+
+def test_eine_neue_installation_ohne_treffer_steht_nach_zwei_minuten_im_log(conn, caplog):
+    """Der Fall vom 25.09.2026: Der Nachbar steht 22 m daneben und ist länger verbunden als die
+    Brügge läuft. Gebunden wird zu Recht nicht -- aber es muss sich nachlesen lassen, welche
+    Brügge wo stand."""
+    import logging
+    nachbar = _k(111, n=22, logon=T0 - 3600)
+    with caplog.at_level(logging.INFO, logger="app.bruegge_bindung"):
+        bb.zuordnen(conn, "neu1", _m(), [nachbar], jetzt=T0)
+        bb.zuordnen(conn, "neu1", _m(), [nachbar], jetzt=T0 + 60)
+        assert not _log_zeilen(caplog), "vor Ablauf der zwei Minuten bleibt es still"
+        e = bb.zuordnen(conn, "neu1", _m(), [nachbar], jetzt=T0 + 125)
+    assert e.cid is None
+    z = _log_zeilen(caplog)
+    assert len(z) == 1
+    assert "neu1" in z[0] and "msfs2024" in z[0] and "FRS111" in z[0]
+    assert "22 m" in z[0] and "angemeldet vor der Bruegge" in z[0]
+
+
+def test_die_zeile_flutet_das_log_nicht(conn, caplog):
+    """Die Brügge fragt alle paar Sekunden -- eine Zeile je Meldung wären Hunderte in der Stunde."""
+    import logging
+    nachbar = _k(111, n=22, logon=T0 - 3600)
+    with caplog.at_level(logging.INFO, logger="app.bruegge_bindung"):
+        for t in range(0, 601, 3):
+            bb.zuordnen(conn, "neu1", _m(), [nachbar], jetzt=T0 + t)
+        assert len(_log_zeilen(caplog)) == 1
+        for t in range(603, 800, 3):
+            bb.zuordnen(conn, "neu1", _m(), [nachbar], jetzt=T0 + t)
+    assert len(_log_zeilen(caplog)) == 2, "nach zehn Minuten kommt sie einmal wieder"
+
+
+def test_ohne_jemanden_in_der_naehe_bleibt_das_log_still(conn, caplog):
+    """Wer den Simulator ohne VATSIM laufen lässt, soll keine Zeile schreiben, nur weil irgendwo
+    ein Friese online ist."""
+    import logging
+    fern = _k(111, n=50_000, logon=T0 - 3600)
+    with caplog.at_level(logging.INFO, logger="app.bruegge_bindung"):
+        for t in (0, 130, 400, 900):
+            bb.zuordnen(conn, "neu1", _m(), [fern], jetzt=T0 + t)
+            bb.zuordnen(conn, "neu2", _m(), [], jetzt=T0 + t)
+    assert not _log_zeilen(caplog)
+
+
+def test_eine_gebundene_bruegge_schreibt_die_zeile_nicht(conn, caplog):
+    import logging
+    with caplog.at_level(logging.INFO, logger="app.bruegge_bindung"):
+        bb.zuordnen(conn, "k1", _m(), [], jetzt=T0)
+        for t in (90, 200, 400):
+            assert bb.zuordnen(conn, "k1", _m(), [_k(1, n=0.5)], jetzt=T0 + t).cid == 1
+    assert not _log_zeilen(caplog)
