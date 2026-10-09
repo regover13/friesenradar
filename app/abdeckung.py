@@ -214,11 +214,19 @@ def abstand_zu_strecke_km(zlat: float, zlon: float, alat: float, alon: float,
     return _abstand(zlat, zlon, alat, alon, blat, blon, _km_je_grad_lon(bezug_lat))
 
 
-def abdeckung(spuren, ziele: list[Ziel], fenster: Fenster) -> Abdeckung:
+def abdeckung(spuren, ziele: list[Ziel], fenster: Fenster,
+              hoehe_je_ziel: "dict[str, float] | None" = None) -> Abdeckung:
     """Wer hat welches Ziel zuerst tief und langsam überflogen?
 
     ``spuren`` ist eine Folge von ``(cid, punkte)``; die Punkte müssen zeitlich geordnet sein
     (so liefert es ``get_position_history``). Doppelte Zielschlüssel sind nicht vorgesehen.
+
+    ``hoehe_je_ziel`` gibt jedem Ziel seine EIGENE Höchsthöhe (Schlüssel -> Fuß über Meer). Eine
+    Strecke läuft über wechselndes Gelände, und „tief" heißt an jeder Stelle etwas anderes
+    (Deichkontrolle, 10.10.2026). Dann gilt ``fenster.hoehe_max_ft`` nicht mehr: Gewertet wird
+    ein Segment für ein Ziel, wenn BEIDE Endpunkte unter der Grenze dieses Ziels liegen. Ein
+    Ziel ohne Eintrag hat keine Regel und wird nicht gewertet. Ohne den Parameter rechnet die
+    Funktion wie bisher.
     """
     je_pilot: dict[int, int] = {}
     for cid, _punkte in spuren:
@@ -240,13 +248,19 @@ def abdeckung(spuren, ziele: list[Ziel], fenster: Fenster) -> Abdeckung:
     # Segmente sammeln und prüfen. Sortiert wird nach Segment-ENDE, dann nach CID: Das macht
     # „wer war zuerst" exakt, erlaubt den Abbruch beim ersten Treffer und liefert bei
     # Gleichstand zweimal dasselbe Ergebnis.
-    segmente: list[tuple[float, int, float, float, float, float, str]] = []
+    # Mit Grenzen je Ziel ist die hoechste von ihnen der grobe Vorfilter -- was darueber liegt,
+    # kann fuer kein Ziel zaehlen.
+    deckel = fenster.hoehe_max_ft
+    if hoehe_je_ziel is not None:
+        deckel = max((hoehe_je_ziel[z[0]] for z in ziele if z[0] in hoehe_je_ziel),
+                     default=float("-inf"))
+    segmente: list[tuple[float, int, float, float, float, float, str, float]] = []
     for cid, punkte in spuren:
         punkte = list(punkte)
         for a, b in zip(punkte, punkte[1:]):
             if a[2] is None or b[2] is None or a[3] is None or b[3] is None:
                 continue
-            if a[2] > fenster.hoehe_max_ft or b[2] > fenster.hoehe_max_ft:
+            if a[2] > deckel or b[2] > deckel:
                 continue
             if a[3] > fenster.gs_max_kt or b[3] > fenster.gs_max_kt:
                 continue
@@ -260,11 +274,11 @@ def abdeckung(spuren, ziele: list[Ziel], fenster: Fenster) -> Abdeckung:
                 continue
             if _strecke_km(a[0], a[1], b[0], b[1], km_lon) > fenster.sprung_max_km:
                 continue
-            segmente.append((t_b, cid, a[0], a[1], b[0], b[1], b[4]))
+            segmente.append((t_b, cid, a[0], a[1], b[0], b[1], b[4], max(a[2], b[2])))
     segmente.sort(key=lambda s: (s[0], s[1]))
 
     treffer: dict[str, Treffer] = {}
-    for _ende_s, cid, alat, alon, blat, blon, ende_ts in segmente:
+    for _ende_s, cid, alat, alon, blat, blon, ende_ts, hoch in segmente:
         if len(treffer) == len(ziele):
             break
         (ia, ja), (ib, jb) = kachel(alat, alon), kachel(blat, blon)
@@ -275,6 +289,9 @@ def abdeckung(spuren, ziele: list[Ziel], fenster: Fenster) -> Abdeckung:
                 for idx in eimer.get((i, j), ()):
                     schluessel, zlat, zlon, radius = ziele[idx]
                     if schluessel in treffer:
+                        continue
+                    if hoehe_je_ziel is not None and hoch > hoehe_je_ziel.get(
+                            schluessel, float("-inf")):
                         continue
                     if _abstand(zlat, zlon, alat, alon, blat, blon, km_lon) <= radius:
                         treffer[schluessel] = Treffer(schluessel, cid, ende_ts)
@@ -373,6 +390,16 @@ def zellen_aus_box(sued: float, west: float, nord: float, ost: float,
     return ziele
 
 
+def abschnitt_anzahl(gesamt_km: float, laenge_km: float) -> int:
+    """In wie viele Abschnitte eine Linie geteilt wird -- aufgerundet, mindestens einer.
+
+    Mit einem Hauch Toleranz: 10 km Strecke bei 1 km Sollänge sind zehn Abschnitte, auch wenn
+    die Gleitkommarechnung 10,0000001 km liefert. Eine Stelle für alle, die mitzählen müssen
+    (``app/strecke.py`` speichert die Geländehöhen in genau dieser Zahl).
+    """
+    return max(1, math.ceil(gesamt_km / max(float(laenge_km), 0.01) - 1e-6))
+
+
 def abschnitte_aus_linie(punkte: list[tuple[float, float]], laenge_km: float,
                          korridor_km: float, praefix: str = "a") -> list[Ziel]:
     """Einen Linienzug in Abschnitte schneiden — Küste, Deich, Fahrwasser.
@@ -393,7 +420,7 @@ def abschnitte_aus_linie(punkte: list[tuple[float, float]], laenge_km: float,
         gesamt += laenge
     if gesamt <= 0.0:
         return []
-    anzahl = max(1, math.ceil(gesamt / max(float(laenge_km), 0.01)))
+    anzahl = abschnitt_anzahl(gesamt, laenge_km)
     schritt = gesamt / anzahl
     ziele: list[Ziel] = []
     for k in range(anzahl):

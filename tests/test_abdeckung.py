@@ -474,3 +474,46 @@ def test_eine_innere_zelle_hat_kante_zum_quadrat():
     assert zellen_flaeche_km2(*box, 1.0, ["z3_4"]) == pytest.approx(1.0)
     assert zellen_flaeche_km2(*box, 0.5, ["z3_4"]) == pytest.approx(0.25)
     assert zellen_flaeche_km2(*box, 1.0, []) == 0.0
+
+
+# --- Höhengrenze je Ziel (Deichkontrolle, 10.10.2026) ------------------------------------------
+#
+# Eine Strecke läuft über wechselndes Gelände: Jeder Abschnitt hat seine eigene Höchsthöhe
+# (Gelände dort plus die eingestellte Höhe). Das Fenster kennt nur EINE Grenze für den Lauf.
+
+def _ueberflug(alt_ft: float, bei_km: float = 0.0):
+    """Ein Flug von West nach Ost, genau über die Nord-Süd-Lage ``bei_km``."""
+    return [(1, [(nord(bei_km), ost(-3.0), alt_ft, 100.0, "2026-10-10T18:00:00Z"),
+                 (nord(bei_km), ost(3.0), alt_ft, 100.0, "2026-10-10T18:00:50Z")])]
+
+
+def test_hoehe_je_ziel_laesst_nur_zaehlen_was_unter_der_grenze_des_ziels_liegt():
+    tal = ("tal", nord(0.0), ost(-1.0), 0.5)        # Gelände tief: Grenze 1.000 ft
+    berg = ("berg", nord(0.0), ost(1.0), 0.5)       # Gelände hoch: Grenze 6.000 ft
+    grenzen = {"tal": 1000.0, "berg": 6000.0}
+    erg = abdeckung(_ueberflug(5500.0), [tal, berg], OFFEN, hoehe_je_ziel=grenzen)
+    assert set(erg.treffer) == {"berg"}, "in 5.500 ft ist man über dem Tal zu hoch"
+    erg = abdeckung(_ueberflug(900.0), [tal, berg], OFFEN, hoehe_je_ziel=grenzen)
+    assert set(erg.treffer) == {"tal", "berg"}
+
+
+def test_hoehe_je_ziel_gilt_auch_ueber_der_grenze_des_fensters():
+    """Mit Grenzen je Ziel ist die des Fensters kein Deckel: Der Kamm liegt über 5.000 ft."""
+    berg = ("berg", nord(0.0), ost(1.0), 0.5)
+    eng = Fenster(hoehe_max_ft=2000, gs_max_kt=300)
+    erg = abdeckung(_ueberflug(8500.0), [berg], eng, hoehe_je_ziel={"berg": 9000.0})
+    assert set(erg.treffer) == {"berg"}
+
+
+def test_ein_ziel_ohne_eigene_grenze_wird_nicht_gewertet():
+    """Fehlt die Geländehöhe für einen Abschnitt, gibt es dort keine Regel -- also keinen Treffer."""
+    a = ("a", nord(0.0), ost(-1.0), 0.5)
+    b = ("b", nord(0.0), ost(1.0), 0.5)
+    erg = abdeckung(_ueberflug(500.0), [a, b], OFFEN, hoehe_je_ziel={"a": 1000.0})
+    assert set(erg.treffer) == {"a"}
+
+
+def test_ohne_hoehe_je_ziel_bleibt_die_rechnung_wie_sie_war():
+    a = ("a", nord(0.0), ost(-1.0), 0.5)
+    assert set(abdeckung(_ueberflug(4000.0), [a], OFFEN).treffer) == {"a"}
+    assert not abdeckung(_ueberflug(6000.0), [a], OFFEN).treffer
