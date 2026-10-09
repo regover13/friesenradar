@@ -216,3 +216,25 @@ def test_spaete_buchung_fuer_heute_kommt_sofort_und_nur_einmal():
 def test_ohne_buchung_heute_keine_sammelmeldung_aber_der_tag_gilt_als_erledigt():
     plan = lotsen.melde_plan([B_MORGEN], datetime(2026, 10, 9, 6, 0, tzinfo=UTC), morgen_tag="2026-10-08", gemeldet=set())
     assert plan == {"morgen": [], "spaet": [], "morgen_tag": "2026-10-09", "merken": []}
+
+
+# --- Erster echter Lauf, 09.10.2026: Meldung mit Platzhalter-Frequenz und ohne Ende ---------
+
+def test_wer_noch_keine_frequenz_gesetzt_hat_lotst_noch_nicht():
+    """Direkt nach dem Anmelden steht im Feed 199.998, bis der Lotse seine Frequenz schaltet.
+    Die erste echte Meldung nannte genau diese Zahl."""
+    feed = {"controllers": [_lotse(frequency="199.998")]}
+    assert lotsen.friesen_lotsen(feed, CIDS) == []
+    feed = {"controllers": [_lotse(frequency="121.805")]}
+    assert len(lotsen.friesen_lotsen(feed, CIDS)) == 1
+
+
+def test_endzeit_gilt_auch_wenn_er_kurz_vor_schichtbeginn_anfaengt():
+    """Der Lotse meldete sich 42 Sekunden vor Beginn seiner gebuchten Schicht an; die Meldung
+    kam deshalb ohne "bis ca."."""
+    b = [{"cid": 1000001, "callsign": "EDDP_GND", "von": "2026-10-09T17:30:00Z", "bis": "2026-10-09T20:00:00Z"}]
+    l = {"cid": 1000001, "callsign": "EDDP_GND", "infotext": []}
+    assert lotsen.endzeit(l, b, datetime(2026, 10, 9, 17, 29, 18, tzinfo=UTC)) == "20:00"
+    assert lotsen.endzeit(l, b, datetime(2026, 10, 9, 17, 0, 0, tzinfo=UTC)) == "20:00"
+    assert lotsen.endzeit(l, b, datetime(2026, 10, 9, 16, 59, 0, tzinfo=UTC)) is None, "mehr als eine halbe Stunde vorher nicht"
+    assert lotsen.endzeit(l, b, datetime(2026, 10, 9, 20, 0, 0, tzinfo=UTC)) is None

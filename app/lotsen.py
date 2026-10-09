@@ -20,6 +20,11 @@ from app.geo import icao_to_coords, _airports_icao
 BUCHUNGEN_URL = "https://atc-bookings.vatsim.net/api/booking"
 VORSCHAU_TAGE = 7
 _ORTSZEIT = ZoneInfo("Europe/Berlin")
+# Steht im Feed, solange ein Lotse zwar angemeldet ist, seine Frequenz aber noch nicht
+# geschaltet hat (und bei Beobachtern). Wer sie traegt, lotst noch nicht.
+_KEINE_FREQUENZ = "199.998"
+# Wer kurz vor Beginn seiner gebuchten Schicht anfaengt, bekommt deren Ende schon angezeigt.
+_VORLAUF = timedelta(minutes=30)
 _MORGEN_STUNDE = 7
 
 # Letzter Teil des Rufzeichens -> Anzeigename. Was hier nicht steht, ist keine Station an
@@ -66,7 +71,7 @@ def friesen_lotsen(vatsim_data: dict, cids: set[int]) -> list[dict]:
         if not isinstance(c, dict) or c.get("cid") not in cids:
             continue
         s = station(c.get("callsign", ""))
-        if s is None:
+        if s is None or str(c.get("frequency") or "") in ("", _KEINE_FREQUENZ):
             continue
         erg.append({
             "cid": c["cid"],
@@ -132,7 +137,8 @@ def endzeit_aus_infotext(zeilen) -> str | None:
 
 def endzeit(lotse: dict, buchungen: list[dict], jetzt: datetime) -> str | None:
     """Voraussichtliches Ende als ``HH:MM`` (UTC): erst der Infotext, sonst die laufende
-    Buchung desselben Lotsen an derselben Station. Sonst ``None``."""
+    (oder in der nächsten halben Stunde beginnende) Buchung desselben Lotsen an derselben
+    Station. Sonst ``None``."""
     aus_text = endzeit_aus_infotext(lotse.get("infotext"))
     if aus_text:
         return aus_text
@@ -140,7 +146,7 @@ def endzeit(lotse: dict, buchungen: list[dict], jetzt: datetime) -> str | None:
         if b.get("cid") != lotse.get("cid") or b.get("callsign") != lotse.get("callsign"):
             continue
         von, bis = _zeit(b.get("von")), _zeit(b.get("bis"))
-        if von and bis and von <= jetzt < bis:
+        if von and bis and von - _VORLAUF <= jetzt < bis:
             return bis.strftime("%H:%M")
     return None
 

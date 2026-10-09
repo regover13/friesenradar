@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.2.3",
+    "date": "2026-10-09",
+    "highlight": false,
+    "title": "Lotsen-Meldung mit richtiger Frequenz und Endzeit",
+    "items": [
+      "🎧 Ein Lotse wird erst gemeldet und angezeigt, wenn er seine Frequenz geschaltet hat. Die erste Meldung kam Sekunden zu früh und nannte deshalb 199.998.",
+      "🕗 Wer kurz vor Beginn seiner gebuchten Schicht anfängt, bekommt das „bis ca.“ jetzt trotzdem."
+    ]
+  },
+  {
     "version": "16.2.2",
     "date": "2026-10-09",
     "highlight": false,
