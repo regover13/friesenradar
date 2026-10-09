@@ -7,7 +7,8 @@
     "items": [
       "🎧 Ein Lotse wird erst gemeldet und angezeigt, wenn er seine Frequenz geschaltet hat. Die erste Meldung kam Sekunden zu früh und nannte deshalb 199.998.",
       "🕗 Wer kurz vor Beginn seiner gebuchten Schicht anfängt, bekommt das „bis ca.“ jetzt trotzdem.",
-      "📐 In der Live-Liste stehen Station, Frequenz und Ende eines Lotsen jetzt untereinander; die Spalte war zu breit."
+      "📐 In der Live-Liste stehen Station, Frequenz und Ende eines Lotsen jetzt untereinander; die Spalte war zu breit.",
+      "✂️ Die Lotsen-Meldungen nennen den Namen ohne den angehängten Heimatflugplatz."
     ]
   },
   {

@@ -158,7 +158,18 @@ def _spanne(b: dict) -> str:
     return f"{von:%H:%M}–{bis:%H:%M} UTC" if von and bis else ""
 
 
+_HEIMATPLATZ_RE = re.compile(r"\s+[A-Z]{4}\s*$")
+
+
+def meldename(name: str) -> str:
+    """Name für eine Meldung: ohne den Heimatflugplatz, den viele auf VATSIM anhängen
+    ("Erika EDWS" -> "Erika"). In den Listen bleibt der Name, wie er überall steht."""
+    roh = str(name or "").strip()
+    return _HEIMATPLATZ_RE.sub("", roh) or roh
+
+
 def payload_lotse_online(name: str, lotse: dict) -> dict:
+    name = meldename(name)
     body = f"{lotse['callsign']} auf {lotse['frequenz']}"
     if lotse.get("bis"):
         body += f", bis ca. {lotse['bis']} UTC"
@@ -167,11 +178,12 @@ def payload_lotse_online(name: str, lotse: dict) -> dict:
 
 def payload_lotsen_heute(eintraege: list[tuple[str, dict]]) -> dict:
     """Eine Meldung für den ganzen Tag. ``eintraege``: (Name, Buchung)."""
-    teile = [f"{name}, {b['station']} {_spanne(b)}" for name, b in eintraege]
+    teile = [f"{meldename(name)}, {b['station']} {_spanne(b)}" for name, b in eintraege]
     return {"title": "Heute lotsen 🎧", "body": " · ".join(teile), "url": "/"}
 
 
 def payload_lotse_spaet(name: str, buchung: dict) -> dict:
+    name = meldename(name)
     return {"title": f"{name} lotst heute {buchung['station']} 🎧",
             "body": f"{buchung['callsign']}, {_spanne(buchung)}", "url": "/"}
 

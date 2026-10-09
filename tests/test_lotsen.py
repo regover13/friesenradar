@@ -238,3 +238,22 @@ def test_endzeit_gilt_auch_wenn_er_kurz_vor_schichtbeginn_anfaengt():
     assert lotsen.endzeit(l, b, datetime(2026, 10, 9, 17, 0, 0, tzinfo=UTC)) == "20:00"
     assert lotsen.endzeit(l, b, datetime(2026, 10, 9, 16, 59, 0, tzinfo=UTC)) is None, "mehr als eine halbe Stunde vorher nicht"
     assert lotsen.endzeit(l, b, datetime(2026, 10, 9, 20, 0, 0, tzinfo=UTC)) is None
+
+
+# --- Name in den Meldungen ohne Heimatflugplatz (Nutzer 09.10.2026) ------------------------
+
+@pytest.mark.parametrize("roh, kurz", [
+    ("Erika EDWS", "Erika"), ("Erika Muster EDDB", "Erika Muster"), ("Erika Muster", "Erika Muster"),
+    ("HANS EDDH", "HANS"), ("EDDH", "EDDH"), ("FRS77", "FRS77"), ("Erika  EDWS ", "Erika"), ("", ""),
+    ("Max D", "Max D"), ("Erika edws", "Erika edws"),
+])
+def test_name_ohne_heimatflugplatz(roh, kurz):
+    assert lotsen.meldename(roh) == kurz
+
+
+def test_alle_drei_meldungen_nennen_den_namen_ohne_flugplatz():
+    l = {"callsign": "EDDW_GND", "station": "Bremen Ground", "frequenz": "121.755", "bis": "20:00"}
+    b = {"callsign": "EDDW_GND", "station": "Bremen Ground", "von": "2026-10-09T17:30:00Z", "bis": "2026-10-09T20:00:00Z"}
+    assert lotsen.payload_lotse_online("Erika EDWS", l)["title"] == "Erika lotst jetzt Bremen Ground 🎧"
+    assert lotsen.payload_lotse_spaet("Erika EDWS", b)["title"] == "Erika lotst heute Bremen Ground 🎧"
+    assert lotsen.payload_lotsen_heute([("Erika EDWS", b)])["body"] == "Erika, Bremen Ground 17:30–20:00 UTC"
