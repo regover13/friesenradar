@@ -564,6 +564,9 @@ class VatsimPoller:
         self._payload_research_inflight: set[str] = set()
         self._AIRCRAFT_INFO_LIMIT = 8      # Muster je Nachlese-Lauf
         self._photo_dir = Path(self.db_path).parent / "aircraft-photos"
+        # True vom Start bis zum Ende des ersten Abrufs der ICAO-Kuerzelliste (s.
+        # _resolve_aircraft_type). Ohne start() -- in fast allen Tests -- bleibt es False.
+        self._icao_ausstehend = False
         # Zweites, unabhängiges In-Flight-Set — gleiche Gefahrenklasse wie oben, andere
         # Gegenstelle (Wikipedia/Commons statt der LLM-API). aircraft_types.fetch_state entsteht
         # erst NACH der HTTP-Auflösung, und zwei Auslöser greifen unabhängig voneinander auf
@@ -693,6 +696,12 @@ class VatsimPoller:
             self._aip_hash_pruefen, "interval", weeks=1, id="aip_hash_pruefen",
             next_run_time=datetime.now(timezone.utc) + timedelta(minutes=10),
         )
+        # ICAO-Kürzelliste (Mustername ohne Raten): beim Start laden, holen wenn sie fehlt
+        # oder älter als 30 Tage ist, danach täglich nachsehen.
+        self._icao_ausstehend = True
+        self._scheduler.add_job(self._icao_typen_pflegen, "date", id="icao_typen_initial")
+        self._scheduler.add_job(self._icao_typen_pflegen, "interval", hours=24,
+                                id="icao_typen_pflege")
         # Muster-Infos: einmalig kurz nach Start, danach regelmäßig die fälligen.
         self._scheduler.add_job(
             self._resolve_due_aircraft_types, "date", id="aircraft_info_initial",
@@ -2545,7 +2554,8 @@ class VatsimPoller:
                 conn.close()
 
             try:
-                s = await asyncio.to_thread(llm.suggest_aircraft_payload, code)
+                grund: list[str] = []
+                s = await asyncio.to_thread(llm.suggest_aircraft_payload, code, grund)
             except llm.TransientResearchError as exc:
                 conn = get_connection(self.db_path)
                 try:
@@ -2569,9 +2579,12 @@ class VatsimPoller:
             conn = get_connection(self.db_path)
             try:
                 if s is None:
-                    mark_payload_research(conn, code, "nichts_gefunden", jetzt)
+                    # Der Grund steht in last_error: Eine Logzeile überlebt keinen Deploy.
+                    mark_payload_research(conn, code, "nichts_gefunden", jetzt,
+                                          last_error=(grund[0][:200] if grund else None))
                     conn.commit()
-                    logger.info("Auto-Zuladung: keine Daten für %s gefunden", code)
+                    logger.info("Auto-Zuladung: keine Daten für %s gefunden (%s)", code,
+                                grund[0] if grund else "ohne Grund")
                     return
                 if code in get_payload_map(conn):
                     mark_payload_research(conn, code, "ok", jetzt)
@@ -2672,7 +2685,7 @@ class VatsimPoller:
         Nachlese ruft diese Methode in einer Schleife auf, ein Kandidat darf die übrigen nicht
         mitreißen, und der Live-Auslöser darf keinen Poll-Durchlauf reißen.
         """
-        from app import aircraft_info, llm
+        from app import aircraft_info, icao_typen, llm
         from app.database import (
             get_aircraft_type, get_payload_map, get_payload_research, is_retry_due,
             mark_aircraft_type_state, upsert_aircraft_type_import,
@@ -2742,6 +2755,7 @@ class VatsimPoller:
             finally:
                 conn.close()
 
+            name_quelle = "payloads"
             if not lemma and not name:
                 # Kein brauchbarer Name (oder nur ein Prosa-Altwert) → nichts zu suchen.
                 #
@@ -2778,6 +2792,24 @@ class VatsimPoller:
                         code, (payload_zustand or {}).get("state"),
                     )
                     return
+                # Die Zuladungs-Recherche ist fertig und hat keinen Namen geliefert. Bis 16.4.0
+                # hiess das: 30 Tage Sperre, ohne Wikipedia je gefragt zu haben — auch fuer ein
+                # gewoehnliches Kuerzel (P28U am 09.10.2026: Die Recherche antwortete mit
+                # lauter Nullen). Die Liste der ICAO kennt den Namen, ohne zu raten. Sie kommt
+                # bewusst erst HIER dran und nicht in `_muster_name`: Solange die Recherche
+                # laeuft, soll ihr Name gewinnen, der trifft die geflogene Variante genauer.
+                if self._icao_ausstehend:
+                    # Die Liste wird gerade geholt: Beim Start laufen ihr Job und die Nachlese
+                    # gleichzeitig an, und beim ersten Start nach dem Deploy fehlt die Datei
+                    # noch. "Noch keine Liste" ist kein Urteil ueber das Muster -- ohne
+                    # Zustand zurueck, sonst sperrte genau dieser Augenblick ein bekanntes
+                    # Kuerzel fuer 30 Tage. Ist der Abruf durch (auch gescheitert), gilt
+                    # wieder das Urteil: Ohne Liste bliebe das Muster sonst Dauerkandidat.
+                    logger.debug("Muster-Info %s: ICAO-Liste wird noch geholt", code)
+                    return
+                name = icao_typen.name_fuer(code)
+                name_quelle = "icao"
+            if not lemma and not name:
                 conn = get_connection(self.db_path)
                 try:
                     mark_aircraft_type_state(conn, code, "nichts_gefunden", jetzt)
@@ -2802,6 +2834,15 @@ class VatsimPoller:
                     res = await asyncio.to_thread(
                         aircraft_info.resolve_type, name, aircraft_info.fetch_json
                     )
+                    if (res and name_quelle == "icao"
+                            and not icao_typen.titel_passt(code, res.get("wiki_title"))):
+                        # Der ICAO-Name ist sperriger als ein recherchierter („Beech 60
+                        # Duke“, „Tecnam P-2008“) und landete in der Probe vom 09.10.2026
+                        # viermal beim Artikel ueber den HERSTELLER. Ein falscher Artikel ist
+                        # schlimmer als keiner.
+                        logger.info("Muster-Info %s: Artikel '%s' passt nicht zum Kuerzel "
+                                    "— verworfen", code, res.get("wiki_title"))
+                        res = None
                 foto_datei = None
                 foto_fehler = None
                 if res and res.get("photo_url"):
@@ -2865,7 +2906,7 @@ class VatsimPoller:
                 else:
                     upsert_aircraft_type_import(
                         conn, code, now=jetzt,
-                        name=name, name_source="payloads" if name else None,
+                        name=name, name_source=name_quelle if name else None,
                         wiki_lang=res.get("wiki_lang"), wiki_title=res.get("wiki_title"),
                         extract=res.get("extract"),
                         photo_file=foto_datei,
@@ -2921,6 +2962,25 @@ class VatsimPoller:
             conn.commit()
         finally:
             conn.close()
+
+    async def _icao_typen_pflegen(self) -> None:
+        """ICAO-Kürzelliste laden und bei Bedarf auffrischen. Scheitern ist folgenlos.
+
+        Fehlt die Liste, kommt der Mustername wie früher nur aus der Zuladungs-Recherche.
+        """
+        from app import icao_typen
+        daten_dir = Path(self.db_path).parent
+        try:
+            if icao_typen.anzahl() == 0:
+                await asyncio.to_thread(icao_typen.laden, daten_dir)
+            if icao_typen.faellig(daten_dir):
+                n = await asyncio.to_thread(icao_typen.auffrischen, daten_dir)
+                logger.info("ICAO-Kürzelliste aufgefrischt: %d Kürzel", n)
+        except Exception as exc:  # noqa: BLE001 — Komfort, nie einen Job reißen
+            logger.warning("ICAO-Kürzelliste nicht aufgefrischt (%s) — es gilt der Stand "
+                           "von vorher (%d Kürzel)", exc, icao_typen.anzahl())
+        finally:
+            self._icao_ausstehend = False
 
     async def _resolve_due_aircraft_types(self) -> None:
         """Nachlese über fällige Muster — serialisiert, gedeckelt."""

@@ -34,3 +34,21 @@ def _kein_stichtag_fuer_die_alte_bruegge(monkeypatch):
     import app.main as main
     monkeypatch.setattr(main, "_BRUEGGE_P2_MSFS_BIS", None)
     yield
+
+
+@pytest.fixture(autouse=True)
+def _icao_liste_leer_und_ohne_netz(monkeypatch):
+    """Die ICAO-Kürzelliste lebt im Modul (`app.icao_typen`) und käme sonst aus dem Netz.
+
+    Jeder Test beginnt ohne Liste -- dann verhält sich die Muster-Recherche wie vor 16.4.1 --
+    und kein Test ruft die ICAO an, auch nicht über einen gestarteten Poller. Wer die Liste
+    braucht, setzt sie selbst (tests/test_icao_typen.py)."""
+    from app import icao_typen
+
+    def _kein_netz():
+        raise RuntimeError("Tests rufen die ICAO nicht an")
+
+    icao_typen.setzen({})
+    monkeypatch.setattr(icao_typen, "_holen", _kein_netz)
+    yield
+    icao_typen.setzen({})

@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.4.1",
+    "date": "2026-10-09",
+    "highlight": false,
+    "title": "Muster-Fenster findet mehr Muster",
+    "items": [
+      "✈️ Manche Muster blieben im Muster-Fenster ohne Namen, Text und Foto, obwohl ihr Kürzel ein ganz gewöhnliches ist, zuletzt die Turbo Arrow IV (P28U). Der Name kommt jetzt aus der amtlichen Kürzelliste der ICAO, wenn die Recherche keinen findet.",
+      "⚖️ Die Recherche der Zuladung bekommt denselben Namen mit auf den Weg und muss das Muster nicht mehr aus dem Kürzel erraten."
+    ]
+  },
+  {
     "version": "16.4.0",
     "date": "2026-10-09",
     "highlight": false,

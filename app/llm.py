@@ -209,7 +209,7 @@ def _extract_spec(resp) -> dict | None:
     return None
 
 
-def suggest_aircraft_payload(type_code: str) -> dict | None:
+def suggest_aircraft_payload(type_code: str, grund: list | None = None) -> dict | None:
     """Vorschlag für die Zuladungs-Komponenten eines Flugzeugtyps — per Web-Recherche (Haiku 4.5).
 
     Rückgabe (kg, im Admin editierbar) oder ``None``::
@@ -228,22 +228,36 @@ def suggest_aircraft_payload(type_code: str) -> dict | None:
     Default-Betankung = halber Tank: ``fuel_kg = fuel_full_kg / 2`` (Vorbefüllung im Admin),
     ``fuel_full_kg`` = Maximum (volle Tanks) fürs Label. ``payload_kg`` =
     ``max(0, mtow − empty − fuel_kg − crew)`` (Pilot abgezogen).
+
+    ``grund``: Wer eine Liste mitgibt, bekommt bei ``None`` den Grund hineingelegt. Der
+    Aufrufer schreibt ihn in die Datenbank — eine Logzeile überlebt keinen Deploy (09.10.2026:
+    Warum P28U am Vortag leer ausging, war nach dem Container-Tausch nicht mehr festzustellen).
     """
+    def _kein(text: str) -> None:
+        if grund is not None:
+            grund.append(text)
+        return None
+
     code = (type_code or "").strip().upper()
     if not code:
-        return None
+        return _kein("leeres Kürzel")
     from app.config import get_settings
     api_key = get_settings().ANTHROPIC_API_KEY.strip()
     if not api_key:
         logger.info("ANTHROPIC_API_KEY nicht gesetzt — Zuladungs-Vorschlag deaktiviert")
-        return None
+        return _kein("kein ANTHROPIC_API_KEY")
     try:
         import anthropic
     except ImportError:
         logger.warning("anthropic nicht installiert — Zuladungs-Vorschlag nicht möglich")
-        return None
+        return _kein("anthropic nicht installiert")
 
-    hint = _TYPE_HINTS.get(code, "")
+    # Ohne Hinweis muss das Modell das Muster aus dem nackten Kürzel erraten. Gemessen am
+    # 09.10.2026: Gelingt das nicht, antwortet es mit lauter Nullen (das Schema zwingt zu einer
+    # Antwort), oder es rät falsch („Pitcairn PA-34“). Die Liste der ICAO deckt alle amtlichen
+    # Kürzel ab; die kuratierten Hinweise bleiben vorn, sie sind knapper.
+    from app import icao_typen
+    hint = _TYPE_HINTS.get(code, "") or icao_typen.hinweis_fuer(code)
     prompt = (
         f"Recherchiere im Web die realen, dokumentierten Herstellerangaben für den "
         f"Luftfahrzeugtyp (Flugzeug oder Hubschrauber) mit ICAO-Typendesignator '{code}'"
@@ -285,7 +299,7 @@ def suggest_aircraft_payload(type_code: str) -> dict | None:
             messages.append({"role": "assistant", "content": resp.content})
         if resp is None or resp.stop_reason == "refusal":
             logger.warning("Zuladungs-Vorschlag für %s abgelehnt/leer", code)
-            return None
+            return _kein("abgelehnt oder leer")
         spec = _extract_spec(resp)
     except TransientResearchError:
         raise
@@ -295,21 +309,21 @@ def suggest_aircraft_payload(type_code: str) -> dict | None:
             logger.warning("Zuladungs-Vorschlag für %s vorübergehend gescheitert: %s", code, exc)
             raise TransientResearchError(str(exc)) from exc
         logger.warning("Zuladungs-Vorschlag für %s fehlgeschlagen: %s", code, exc)
-        return None
+        return _kein(f"Fehler: {exc}")
 
     if not spec:
         logger.warning(
             "Zuladungs-Vorschlag für %s: kein JSON erhalten (stop_reason=%s)",
             code, getattr(resp, "stop_reason", None),
         )
-        return None
+        return _kein(f"kein JSON (stop_reason={getattr(resp, 'stop_reason', None)})")
     try:
         mtow, empty, fuel_full = (
             float(spec["mtow_kg"]), float(spec["empty_kg"]), float(spec["fuel_full_kg"]),
         )
     except (KeyError, TypeError, ValueError) as exc:
         logger.warning("Zuladungs-Vorschlag für %s: unvollständige Werte (%s)", code, exc)
-        return None
+        return _kein(f"unvollständige Werte ({exc})")
     # json.loads akzeptiert Infinity/NaN als Erweiterung und float() lässt sie durch — ein
     # Phantom-Typcode (z. B. Buchstabendreher AS65→SA65) liefert dann inf/nan, was später die
     # ganze Zuladungs-Liste beim JSON-Encoding sprengt. Nur endliche, positive Werte akzeptieren.
@@ -318,7 +332,10 @@ def suggest_aircraft_payload(type_code: str) -> dict | None:
             "Zuladungs-Vorschlag für %s: unplausible Werte (mtow=%s empty=%s fuel=%s)",
             code, mtow, empty, fuel_full,
         )
-        return None
+        # Das Modell schreibt seine Begründung in make_model („Designator not found in ICAO
+        # registry“) — sie ist der eigentliche Befund und gehört in den Grund.
+        return _kein(f"unplausible Werte (mtow={mtow:g} empty={empty:g} fuel={fuel_full:g}); "
+                     f"Antwort: {str(spec.get('make_model') or '')[:120]}")
     # Die Schema-Vorgabe für make_model ist nur {"type": "string"} -- ohne Laengengrenze.
     # Live-Befund MR20: bei mehreren M20-Varianten ohne eindeutigen Favoriten schrieb das
     # Modell seine Unsicherheit als 1063-Zeichen-Prosaabsatz IN dieses Feld statt eines

@@ -1105,6 +1105,7 @@ FriesenRadar/
 │   ├── messeverkehr.py     # Messeverkehr: echte Flüge unter erfundener Identität abspielen
 │   ├── transport_stacks.py # FriesenKutter: Stapel-Modell der Ladung (reine Zustandsmaschine, keine DB)
 │   ├── aircraft_info.py    # Muster-Fenster: Text + Foto von Wikipedia/Wikimedia Commons
+│   ├── icao_typen.py       # Mustername aus der ICAO-Kürzelliste (wenn die Recherche keinen findet)
 │   ├── llm.py         # Claude-Anbindung (Zuladungs-Vorschlag, Kutter-Sprüche), Silent-Fail
 │   ├── aip_charts.py  # DFS-Kartenblätter (die Blätter sind keine PDFs)
 │   ├── ground_charts.py    # Flugplatz-/Rollkarten: Blattkunde und Handpassung (zwei geklickte Punkte)

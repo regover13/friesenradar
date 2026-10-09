@@ -1392,7 +1392,7 @@ class TestAutoPayloadResearch:
         laeuft = threading.Event()
         freigabe = threading.Event()
 
-        def _haengt(code):
+        def _haengt(code, grund=None):
             starts.append(code)
             laeuft.set()
             assert freigabe.wait(timeout=10), "Freigabe kam nie an"

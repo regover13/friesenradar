@@ -446,7 +446,7 @@ CREATE TABLE IF NOT EXISTS aircraft_types (
 
     -- importiert: NUR der Import schreibt diese Spalten
     name                TEXT,
-    name_source         TEXT,               -- 'payloads' | 'llm'
+    name_source         TEXT,               -- 'payloads' | 'llm' | 'icao'
     wiki_lang           TEXT,               -- 'de' | 'en'
     wiki_title          TEXT,
     extract             TEXT,

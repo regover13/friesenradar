@@ -69,7 +69,7 @@ async def test_transienter_fehler_sperrt_nicht_dauerhaft(db, monkeypatch):
     p = _poller(db)
     versuche = []
 
-    def _fake(code):
+    def _fake(code, grund=None):
         versuche.append(code)
         raise llm.TransientResearchError("Overloaded")
 
@@ -97,7 +97,7 @@ async def test_keine_daten_wird_nicht_stuendlich_wiederholt(db, monkeypatch):
     p = _poller(db)
     versuche = []
     monkeypatch.setattr(llm, "suggest_aircraft_payload",
-                        lambda code: versuche.append(code) or None)
+                        lambda code, grund=None: versuche.append(code) or None)
     monkeypatch.setattr(p, "_now", lambda: T0)
     await p._auto_research_payload("NAV")
     assert get_payload_research(get_connection(db), "NAV")["state"] == "nichts_gefunden"
@@ -112,7 +112,7 @@ async def test_keine_daten_wird_nicht_stuendlich_wiederholt(db, monkeypatch):
 @pytest.mark.asyncio
 async def test_erfolg_schreibt_payload_und_ok(db, monkeypatch):
     p = _poller(db)
-    monkeypatch.setattr(llm, "suggest_aircraft_payload", lambda code: {
+    monkeypatch.setattr(llm, "suggest_aircraft_payload", lambda code, grund=None: {
         "make_model": "Aeroprakt A-32 Vixxen", "mtow_kg": 600.0, "empty_kg": 350.0,
         "fuel_kg": 40.0, "fuel_full_kg": 80.0, "crew_kg": 85.0, "payload_kg": 125.0,
     })
@@ -136,7 +136,7 @@ async def test_manuell_gepflegt_wird_nie_ueberschrieben(db, monkeypatch):
     c.commit()
     p = _poller(db)
     monkeypatch.setattr(llm, "suggest_aircraft_payload",
-                        lambda code: pytest.fail("darf nicht aufgerufen werden"))
+                        lambda code, grund=None: pytest.fail("darf nicht aufgerufen werden"))
     monkeypatch.setattr(p, "_now", lambda: T0)
     await p._auto_research_payload("AP32")
     row = get_connection(db).execute(
@@ -153,7 +153,7 @@ async def test_nachlese_holt_altbestand_und_haelt_den_deckel(db, monkeypatch):
     p = _poller(db)
     geholt = []
     monkeypatch.setattr(llm, "suggest_aircraft_payload",
-                        lambda code: geholt.append(code) or None)
+                        lambda code, grund=None: geholt.append(code) or None)
     monkeypatch.setattr(p, "_now", lambda: T0)
     await p._research_due_payloads()
     assert len(geholt) == p._PAYLOAD_RESEARCH_LIMIT, "Deckel je Lauf nicht eingehalten"
@@ -167,7 +167,7 @@ async def test_nachlese_stirbt_nicht_an_einem_einzelnen_fehler(db, monkeypatch):
     p = _poller(db)
     gesehen = []
 
-    def _fake(code):
+    def _fake(code, grund=None):
         gesehen.append(code)
         if code == "AP32":
             raise RuntimeError("irgendwas Unerwartetes")
@@ -191,7 +191,7 @@ async def test_nachlese_uebersteht_db_fehler_beim_schreiben_eines_kandidaten(db,
     p = _poller(db)
     gesehen = []
     monkeypatch.setattr(llm, "suggest_aircraft_payload",
-                        lambda code: gesehen.append(code) or None)
+                        lambda code, grund=None: gesehen.append(code) or None)
 
     from app import database
     original = database.mark_payload_research
@@ -223,7 +223,7 @@ async def test_zweiter_start_waehrend_laufender_recherche_wird_unterdrueckt(db, 
     laeuft = threading.Event()      # erste Recherche haengt jetzt wirklich im Thread
     freigabe = threading.Event()    # ... bis der Test sie freigibt
 
-    def _haengt(code):
+    def _haengt(code, grund=None):
         starts.append(code)
         laeuft.set()
         assert freigabe.wait(timeout=10), "Freigabe kam nie an"
@@ -263,7 +263,7 @@ async def test_inflight_eintrag_verschwindet_auch_im_fehlerfall(db, monkeypatch)
     monkeypatch.setattr(p, "_now", lambda: T0)
 
     for fehler in (llm.TransientResearchError("Overloaded"), RuntimeError("unerwartet")):
-        def _boom(code, _f=fehler):
+        def _boom(code, grund=None, _f=fehler):
             raise _f
         monkeypatch.setattr(llm, "suggest_aircraft_payload", _boom)
         await p._auto_research_payload("AP32")
@@ -295,7 +295,7 @@ async def test_nachlese_ohne_api_key_ruehrt_nichts_an(db, monkeypatch):
 
     p = _poller(db)
     monkeypatch.setattr(llm, "suggest_aircraft_payload",
-                        lambda code: pytest.fail("ohne Key darf nicht recherchiert werden"))
+                        lambda code, grund=None: pytest.fail("ohne Key darf nicht recherchiert werden"))
     monkeypatch.setattr(p, "_now", lambda: T0)
     await p._research_due_payloads()
 
@@ -309,7 +309,7 @@ async def test_nachlese_ohne_api_key_ruehrt_nichts_an(db, monkeypatch):
     get_settings.cache_clear()
     geholt: list[str] = []
     monkeypatch.setattr(llm, "suggest_aircraft_payload",
-                        lambda code: geholt.append(code) or None)
+                        lambda code, grund=None: geholt.append(code) or None)
     await p._research_due_payloads()
     assert set(geholt) == {"AP32", "FK9", "M20T"}
 
