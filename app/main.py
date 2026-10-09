@@ -7815,6 +7815,323 @@ async def admin_reddung_aufnahme_freigeben(request: Request, event_id: int):
         conn.close()
 
 
+# ---------------------------------------------------------------------------
+# Deichkontrolle (#22) -- eine Strecke gemeinsam abfliegen
+# ---------------------------------------------------------------------------
+#
+# Spec: docs/superpowers/specs/2026-10-10-deichkontrolle-design.md. "Deichkontrolle" ist nur der
+# Name; im Code heisst der Eventtyp `strecke`.
+
+from app import strecke as _st                                            # noqa: E402
+from app.database import (                                                # noqa: E402
+    compute_strecke_stand, create_strecken_event, delete_strecken_event, get_strecken_event,
+    list_strecken_events, strecke_stand_verwerfen, update_strecken_event,
+    _STRECKE_OHNE_RECHNUNG, _effective_dtend,
+)
+
+#: So viele Koordinaten nimmt das Hoehenmodell je Anfrage. Gemessen am 10.10.2026 vom
+#: Container: 100 gehen, 101 werden mit 400 abgelehnt.
+_GELAENDE_BLOCK = 100
+
+
+async def _gelaende_ft_viele(punkte: list[tuple[float, float]]) -> list[float] | None:
+    """Gelaendehoehen (ft MSL) fuer viele Stellen, in Bloecken zu ``_GELAENDE_BLOCK``.
+
+    ``None`` bei JEDEM Fehler und bei einer unvollstaendigen Antwort -- halbe Hoehen waeren
+    schlimmer als keine: Die Liste gehoert Stelle fuer Stelle zu den Abschnitten der Strecke.
+
+    ⚠ Asynchron und mit kurzer Frist, wie ``_gelaende_ft``: Der Admin-Handler laeuft in der
+    Event-Loop. Und NIE innerhalb einer Datenbank-Transaktion aufrufen.
+    """
+    raus: list[float] = []
+    try:
+        async with _httpx.AsyncClient(timeout=10.0) as client:
+            for i in range(0, len(punkte), _GELAENDE_BLOCK):
+                teil = punkte[i:i + _GELAENDE_BLOCK]
+                r = await client.get(_GELAENDE_URL, params={
+                    "latitude": ",".join(f"{p[0]:.5f}" for p in teil),
+                    "longitude": ",".join(f"{p[1]:.5f}" for p in teil)})
+                if r.status_code != 200:
+                    _logger.warning("Geländehöhen der Strecke nicht geholt: HTTP %s",
+                                    r.status_code)
+                    return None
+                hoehen = r.json().get("elevation")
+                if not isinstance(hoehen, list) or len(hoehen) != len(teil):
+                    return None
+                raus.extend(round(float(m) * 3.28084, 1) for m in hoehen)
+    except Exception as e:  # noqa: BLE001 -- jeder Fehler heisst: keine Hoehen, kein Abbruch
+        _logger.warning("Geländehöhen der Strecke nicht geholt: %s", e)
+        return None
+    return raus
+
+
+async def _strecke_grund_holen(ev: dict) -> list[float] | None:
+    """Die Gelaendehoehe am Mittelpunkt jedes Abschnitts dieser Strecke."""
+    ziele = _st.ziele(ev)
+    if not ziele:
+        return None
+    return await _gelaende_ft_viele([(z[1], z[2]) for z in ziele])
+
+
+def _strecke_zeit(ev: dict, now: str) -> dict:
+    """„Laeuft" und „vorbei seit" rechnet der SERVER -- die Uhr im Kniebrett ist die des
+    Sim-PCs (wie bei der Reddung, #44 Punkt 10)."""
+    dtend = ev.get("dtend") or ""
+    vorbei = None
+    if dtend and dtend < now:
+        vorbei = int((datetime.strptime(now, "%Y-%m-%dT%H:%M:%SZ")
+                      - datetime.strptime(dtend, "%Y-%m-%dT%H:%M:%SZ")).total_seconds())
+    return {"laeuft": (ev.get("dtstart") or "") <= now <= dtend, "vorbei_seit_s": vorbei}
+
+
+@app.get("/api/strecke/events")
+def strecke_events():
+    """Alle Deichkontrollen mit ihrem Kurzstand -- fuer die Eventliste."""
+    now = _now_iso()
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        raus = []
+        for ev in list_strecken_events(conn, since=_retention_since(now)):
+            raus.append({**compute_strecke_stand(conn, ev), **_strecke_zeit(ev, now)})
+        conn.commit()          # das Fortschreiben hat den Snapshot ergaenzt
+        return raus
+    finally:
+        conn.close()
+
+
+@app.get("/api/strecke/events/{event_id}/stand")
+def strecke_stand(event_id: int):
+    """Der Stand EINER Deichkontrolle samt Geometrie: je Abschnitt sein Stueck der Strecke und
+    wer es wann zuerst abgeflogen hat. Fuer Karte und Eventansicht."""
+    now = _now_iso()
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        ev = get_strecken_event(conn, event_id)
+        if ev is None:
+            raise HTTPException(status_code=404, detail="unbekannt")
+        raus = {**compute_strecke_stand(conn, ev, mit_geometrie=True), **_strecke_zeit(ev, now)}
+        conn.commit()
+        return raus
+    finally:
+        conn.close()
+
+
+#: Was die Verwaltung schicken darf. Die Gelaendehoehen gehoeren nicht dazu -- die holt der
+#: Server selbst.
+_STRECKE_KOERPER = ("name", "dtstart", "dtend", "korridor_m", "hoehe_max_ft",
+                    "gs_max_kt", "gs_min_kt")
+_STRECKE_ZAHLEN = {"korridor_m": (_st.KORRIDOR_MIN_M, _st.KORRIDOR_MAX_M),
+                   "hoehe_max_ft": (100.0, 20000.0),
+                   "gs_max_kt": (20.0, 1000.0), "gs_min_kt": (0.0, 500.0)}
+_STRECKE_NAMEN = {"korridor_m": "Der Korridor", "hoehe_max_ft": "Die Höhe",
+                  "gs_max_kt": "Die Höchstgeschwindigkeit",
+                  "gs_min_kt": "Die Mindestgeschwindigkeit"}
+
+
+def _strecke_koerper_pruefen(body: dict, alt: dict | None = None) -> tuple[dict, list | None]:
+    """Eingabe der Verwaltung pruefen -- gegen den GESPEICHERTEN Stand, nicht gegen den Koerper
+    allein (bei der Reddung ging ein Teil-Update sonst ungeprueft durch, 21.09.2026).
+
+    Gibt ``(felder, punkte)`` zurueck; ``punkte`` ist ``None``, wenn die Strecke nicht mitkam.
+    Wirft 400 mit einem Satz fuer die Verwaltung.
+    """
+    felder: dict = {}
+    for k in _STRECKE_KOERPER:
+        if k in body:
+            felder[k] = body[k]
+    for k, (unten, oben) in _STRECKE_ZAHLEN.items():
+        if k not in felder:
+            continue
+        try:
+            wert = float(felder[k])
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail=f"{_STRECKE_NAMEN[k]} muss eine Zahl sein.")
+        if not (unten <= wert <= oben):
+            raise HTTPException(
+                status_code=400,
+                detail=f"{_STRECKE_NAMEN[k]} muss zwischen {unten:g} und {oben:g} liegen.")
+        felder[k] = wert
+    zusammen = {**(alt or {}), **felder}
+    gs_max = float(zusammen.get("gs_max_kt") or _st.VORGABE_GS_MAX_KT)
+    gs_min = float(zusammen.get("gs_min_kt")
+                   if zusammen.get("gs_min_kt") is not None else _st.VORGABE_GS_MIN_KT)
+    if gs_min >= gs_max:
+        raise HTTPException(status_code=400, detail="Die Mindestgeschwindigkeit muss unter der "
+                                                    "Höchstgeschwindigkeit liegen.")
+    if "dtstart" in felder or "dtend" in felder:
+        terr = _validate_event_times(zusammen.get("dtstart"), zusammen.get("dtend") or None)
+        if terr:
+            raise HTTPException(status_code=400, detail=terr)
+    punkte = None
+    if "punkte" in body or "korridor_m" in felder:
+        roh = body["punkte"] if "punkte" in body else _st.punkte(alt or {})
+        korr = zusammen.get("korridor_m")
+        try:
+            sauber = _st.pruefen(roh, korr if korr is not None else _st.VORGABE_KORRIDOR_M)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        if "punkte" in body:
+            punkte = [[la, lo] for la, lo in sauber]
+    return felder, punkte
+
+
+def _strecke_admin_zeile(conn, ev: dict, now: str) -> dict:
+    return {
+        **{k: ev.get(k) for k in ("id", "name", "dtstart", "dtend", "korridor_m",
+                                  "hoehe_max_ft", "gs_max_kt", "gs_min_kt", "grund_geholt_am")},
+        "punkte": [[la, lo] for la, lo in _st.punkte(ev)],
+        "laenge_km": round(_st.laenge_km(ev), 1),
+        "grund_da": _st.grund(ev) is not None,
+        "stand": compute_strecke_stand(conn, ev),
+        **_strecke_zeit(ev, now),
+    }
+
+
+@app.get("/api/admin/strecke/events")
+def admin_list_strecken_events(request: Request):
+    require_admin(request)
+    now = _now_iso()
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        raus = [_strecke_admin_zeile(conn, ev, now) for ev in list_strecken_events(conn)]
+        conn.commit()
+        return raus
+    finally:
+        conn.close()
+
+
+@app.post("/api/admin/strecke/events")
+async def admin_create_strecken_event(request: Request):
+    """Anlegen. Die Gelaendehoehen werden VOR dem Schreiben geholt -- kein Netzabruf innerhalb
+    einer Transaktion. Scheitert der Abruf, wird trotzdem gespeichert; gerechnet wird dann
+    nicht, bis sie da sind (``grund_fehlt`` in der Antwort)."""
+    require_admin(request)
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Objekt erwartet")
+    if not body.get("dtstart"):
+        raise HTTPException(status_code=400, detail="dtstart erforderlich")
+    if "punkte" not in body:
+        raise HTTPException(status_code=400, detail="Eine Strecke braucht mindestens zwei Punkte.")
+    felder, punkte = _strecke_koerper_pruefen(body)
+    grund = await _strecke_grund_holen({"punkte_json": punkte, **felder})
+    name = (str(felder.pop("name", "") or "").strip() or "Deichkontrolle")[:120]
+    dtstart, dtend = felder.pop("dtstart"), felder.pop("dtend", None) or None
+    if grund is not None:
+        felder["grund_json"] = json.dumps(grund)
+        felder["grund_geholt_am"] = _now_iso()
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        eid = create_strecken_event(conn, name=name, dtstart=dtstart, dtend=dtend,
+                                    punkte=punkte, **felder)
+        conn.commit()
+        return {"status": "ok", "id": eid, "grund_fehlt": grund is None}
+    finally:
+        conn.close()
+
+
+@app.post("/api/admin/strecke/events/{event_id}")
+async def admin_update_strecken_event(request: Request, event_id: int):
+    """Aendern.
+
+    ⚠ Das Formular schickt immer ALLE Felder. Der Stand wird deshalb nur verworfen, wenn sich
+    ein Rechenwert wirklich aendert -- sonst setzte ein neuer Name den Stand eines
+    abgeschlossenen Abends auf null, und nach zwoelf Stunden sind die Sekundenpunkte weg.
+    Aendern sich Strecke oder Korridor, passen die Gelaendehoehen nicht mehr zur Teilung und
+    werden neu geholt.
+    """
+    require_admin(request)
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Objekt erwartet")
+    # Zwei Verbindungen mit dem Netzabruf DAZWISCHEN (CLAUDE.md, Datenbank).
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        alt = get_strecken_event(conn, event_id)
+    finally:
+        conn.close()
+    if alt is None:
+        raise HTTPException(status_code=404, detail="unbekannt")
+    felder, punkte = _strecke_koerper_pruefen(body, alt)
+    if "name" in felder:
+        felder["name"] = (str(felder["name"] or "").strip() or "Deichkontrolle")[:120]
+    if "dtend" in felder:
+        # Leer heisst Mitternacht des Folgetags -- wie beim Anlegen.
+        felder["dtend"] = _effective_dtend(felder.get("dtstart") or alt["dtstart"],
+                                           felder["dtend"] or None)
+    if punkte is not None:
+        felder["punkte_json"] = json.dumps(punkte)
+
+    def _anders(k: str) -> bool:
+        neu, bisher = felder[k], alt.get(k)
+        if k == "punkte_json":
+            return _st.punkte({"punkte_json": neu}) != _st.punkte(alt)
+        if isinstance(neu, (int, float)) and isinstance(bisher, (int, float)):
+            return abs(float(neu) - float(bisher)) > 1e-9
+        return neu != bisher
+
+    geaendert = {k for k in felder if _anders(k)}
+    rechnung = bool(geaendert - _STRECKE_OHNE_RECHNUNG)
+    teilung_neu = bool(geaendert & {"punkte_json", "korridor_m"})
+    grund_fehlt = _st.grund(alt) is None
+    if teilung_neu:
+        grund = await _strecke_grund_holen({**alt, **felder})
+        felder["grund_json"] = json.dumps(grund) if grund is not None else None
+        felder["grund_geholt_am"] = _now_iso() if grund is not None else None
+        grund_fehlt = grund is None
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        if get_strecken_event(conn, event_id) is None:
+            raise HTTPException(status_code=404, detail="unbekannt")
+        update_strecken_event(conn, event_id, **felder)
+        if rechnung:
+            strecke_stand_verwerfen(conn, event_id)
+        conn.commit()
+        return {"status": "ok", "stand_verworfen": rechnung, "grund_fehlt": grund_fehlt}
+    finally:
+        conn.close()
+
+
+@app.post("/api/admin/strecke/events/{event_id}/grund")
+async def admin_strecke_grund(request: Request, event_id: int):
+    """Die Gelaendehoehen (neu) holen -- der Knopf fuer den Fall, dass der Abruf beim Speichern
+    gescheitert ist. Der Stand bleibt: Fehlten die Hoehen, wurde ohnehin nicht gerechnet."""
+    require_admin(request)
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        ev = get_strecken_event(conn, event_id)
+    finally:
+        conn.close()
+    if ev is None:
+        raise HTTPException(status_code=404, detail="unbekannt")
+    grund = await _strecke_grund_holen(ev)
+    if grund is None:
+        raise HTTPException(status_code=502, detail="Das Höhenmodell hat nicht geantwortet. "
+                                                    "Bitte später noch einmal versuchen.")
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        update_strecken_event(conn, event_id, grund_json=json.dumps(grund),
+                              grund_geholt_am=_now_iso())
+        conn.commit()
+        return {"status": "ok", "abschnitte": len(grund)}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/admin/strecke/events/{event_id}")
+def admin_delete_strecken_event(request: Request, event_id: int):
+    """Loeschen -- ein ganzer Eintrag, also mit erneutem Passwort (Regel vom 28.09.2026)."""
+    require_admin(request)
+    require_confirm(request)
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        delete_strecken_event(conn, event_id)
+        conn.commit()
+        return {"status": "ok"}
+    finally:
+        conn.close()
+
+
 @app.post("/api/admin/transport/events/{event_id}/push")
 async def admin_toggle_transport_push(request: Request, event_id: int):
     """Push-Benachrichtigungen für dieses Transport-Event ein-/ausschalten."""
