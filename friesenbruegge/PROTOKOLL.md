@@ -541,8 +541,9 @@ Für die alte MSFS-Brügge (Protokoll 1/2) galt das hier Beschriebene bis zum St
 weiter. **Seither ist es Geschichte:** Der Weg ist ausgebaut (`_bruegge_zuordnen`,
 `bruegge_kennung_fuer`, `bruegge_belegte_cids`, die Ablehnungszeilen aus `_bruegge_melder`), die
 alte Brügge bekommt 426. Eine Brügge mit BEKANNTER Kennung, die abgelehnt wird, erscheint nach
-zwei Minuten als Hinweis in der Verwaltung. **Eine neue Installation, die niemanden findet,
-hinterlässt dagegen keine Spur mehr** — weder Logzeile noch Hinweis.
+zwei Minuten als Hinweis in der Verwaltung. Eine neue Installation, die zwei Minuten lang
+niemanden findet, obwohl jemand im Umkreis von 2 km ist, schreibt eine Zeile ins Server-Log
+(„neue Installation … findet seit … niemanden“, `bruegge_bindung._ohne_treffer_melden`).
 
 **Ein Absturz des Simulators beendet auch die VATSIM-Verbindung** (Nutzer, 26.09.2026: *„Wenn
 der Sim crasht, wird auch vPilot das merken und beenden.“*). Nach jedem Neustart der Brügge ist
