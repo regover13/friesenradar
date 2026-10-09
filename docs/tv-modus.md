@@ -9,13 +9,13 @@ Stick 4K mit Fully Kiosk Browser 1.61.3 (WebView, Chrome 148).
 
 ## Ein- und Ausschalten
 
-- `html.tv` setzt das Kopfskript ganz oben in der Seite: bei `?tv=1` **oder** wenn im
-  Browser-Speicher `friesenradar_tv = '1'` steht. Im Kniebrett (`/panel`, `?vr=1`) nie; auf
-  schmalen Bildschirmen (≤ 600 px) gilt der Merker nicht.
+- `html.tv` setzt das Kopfskript ganz oben in der Seite, und zwar **nur bei `?tv=1`** in der
+  Adresse. Im Kniebrett (`/panel`, `?vr=1`) nie.
 - Der Schalter „TV-Modus An/Aus“ in den Einstellungen (`#einst-tv`, im Kniebrett und auf dem
-  Handy ausgeblendet) schreibt den Merker und lädt neu (`_tvModusSetzen`).
-- **Der Merker gehört dem Gerät, nicht dem Konto** (Nutzerentscheidung): Sonst startete auch
-  der PC desselben Mitglieds im TV-Modus. Also `localStorage`, nicht `_prefSchreib`.
+  Handy ausgeblendet) lädt die Seite mit bzw. ohne `?tv=1` neu (`_tvModusSetzen`).
+- **Gemerkt wird nichts** (Nutzerentscheidung 09.10.2026). Bis 16.2.1 stand der Schalter im
+  Browser-Speicher (`friesenradar_tv`); drei Mitglieder hatten ihn angeklickt und starteten
+  danach dauerhaft im TV-Modus. Das Kopfskript räumt den alten Merker weg.
 - Das Kartenvollbild des TV-Modus ist erzwungen und wird **nicht** gemerkt
   (`toggleMapFullscreen` schreibt im TV-Modus keinen Merker); „Aus“ setzt ihn zurück.
 - Weitere Parameter: `&rundflug=1` (alt: `&rundgang=1`) startet den Rundflug, `&mitte=lat,lon`

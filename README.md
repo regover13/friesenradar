@@ -659,7 +659,7 @@ FriesenRadar gibt es dunkel wie bisher oder hell in den Farben des Forums. Umsch
 
 ## 📺 TV-Modus
 
-FriesenRadar für den Fernseher: die Karte im Vollbild, bedienbar mit Pfeiltasten oder einer Fernbedienung. An- und ausschalten über das **Zahnrad ⚙ oben rechts** → **Einstellungen** → **Anzeige** → **TV-Modus: An / Aus** (auf dem Handy und im Kniebrett gibt es den Schalter nicht). Die Wahl merkt sich das Gerät, nicht dein Konto: Der Fernseher bleibt im TV-Modus, dein PC nicht. Geräte ohne Maus, etwa ein Fire TV Stick, öffnen die Seite gleich mit `?tv=1` am Ende der Adresse.
+FriesenRadar für den Fernseher: die Karte im Vollbild, bedienbar mit Pfeiltasten oder einer Fernbedienung. An- und ausschalten über das **Zahnrad ⚙ oben rechts** → **Einstellungen** → **Anzeige** → **TV-Modus: An / Aus** (auf dem Handy und im Kniebrett gibt es den Schalter nicht). Der TV-Modus gilt, solange `?tv=1` am Ende der Adresse steht; gemerkt wird er nicht. Wer die Seite das nächste Mal normal öffnet, sieht wieder die gewohnte Ansicht. Soll ein Gerät immer im TV-Modus starten, etwa ein Fire TV Stick, trägst du die Adresse mit `?tv=1` als Startadresse oder Lesezeichen ein.
 
 **Was du am Fernseher brauchst:** einen Browser. FriesenRadar ist eine Website, keine App aus dem Store des Fernsehers.
 

@@ -77,13 +77,13 @@ def test_ziel_ohne_anker():
 def test_gepaeck_kommt_heil_an_und_der_anker_ist_danach_sauber():
     erg = _js("""(function () {
       var g = {k: {friesenspy_theme: 'hell', friesenspy_layer: 'topo'},
-               l: {friesenradar_tv: '1', notif_ts: '0'}, push: 1};
+               l: {notif_events: '1', notif_ts: '0'}, push: 1};
       var ziel = _umzugZiel({pathname: '/', search: '', hash: '#tab=karte'}, g);
       return _umzugAuspacken(ziel.slice(ziel.indexOf('#')));
     })()""")
     assert erg["rest"] == "tab=karte"
     assert erg["gepaeck"]["k"] == {"friesenspy_theme": "hell", "friesenspy_layer": "topo"}
-    assert erg["gepaeck"]["l"] == {"friesenradar_tv": "1", "notif_ts": "0"}
+    assert erg["gepaeck"]["l"] == {"notif_events": "1", "notif_ts": "0"}
     assert erg["gepaeck"]["push"] == 1
 
 
@@ -100,10 +100,10 @@ def test_fremde_schluessel_und_uebergrosse_werte_fallen_weg():
     """Der Anker ist von aussen setzbar: Nur bekannte Speicher-Schluessel, nur kurze Texte."""
     erg = _js("""_umzugAuspacken('#umzug=' + encodeURIComponent(JSON.stringify({
       k: {friesenspy_theme: 'hell', 'boese;path=/': 'x', friesenspy_gross: new Array(2000).join('a'), friesenspy_zahl: 5},
-      l: {friesenradar_tv: '1', fs_user: 'geklaut', notif_ts: {a: 1}},
+      l: {notif_events: '1', friesenradar_tv: '1', fs_user: 'geklaut', notif_ts: {a: 1}},
       push: 'ja'})))""")
     assert erg["gepaeck"]["k"] == {"friesenspy_theme": "hell"}
-    assert erg["gepaeck"]["l"] == {"friesenradar_tv": "1"}
+    assert erg["gepaeck"]["l"] == {"notif_events": "1"}, "der TV-Merker reist nicht mehr mit"
     assert erg["gepaeck"]["push"] == 0
 
 

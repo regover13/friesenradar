@@ -12,7 +12,7 @@
     // wortgleich (tests/test_adress_umleitung.py vergleicht).
     var UMZUG_ALT = ['friesenspy.devprops.de', 'friesenradar.devprops.de'];
     var UMZUG_NEU = 'radar.friesenflieger.de';
-    var UMZUG_SPEICHER = ['friesenradar_tv', 'notif_prefiles', 'notif_ts', 'notif_events',
+    var UMZUG_SPEICHER = ['notif_prefiles', 'notif_ts', 'notif_events',
                           'notif_pilot_filter', 'fs_changelog_seen'];
 
     /** 'umleiten' | 'hinweis' (App vom Startbildschirm: sie haengt an ihrer Adresse) | 'bleiben' */
@@ -174,13 +174,12 @@
         document.documentElement.classList.add('vr-panel');
       }
       // TV-Modus: Bedienung mit der Fernbedienung (Fire TV in Fully Kiosk), s. "TV-MODUS".
-      // Eingeschaltet ueber die Adresse (?tv=1) oder ueber den Schalter in den Einstellungen --
-      // der merkt sich das GERAET (Browser-Speicher), nicht das Konto: Sonst startete auch der
-      // PC desselben Mitglieds im TV-Modus. Auf schmalen Bildschirmen gilt der Merker nie.
-      var tvMerker = false, schmal = false;
-      try { tvMerker = localStorage.getItem('friesenradar_tv') === '1'; } catch (e) {}
-      try { schmal = window.matchMedia('(max-width: 600px)').matches; } catch (e) {}
-      if (!isPanel && (qs.get('tv') === '1' || (tvMerker && !schmal))) {
+      // Gilt NUR, solange ?tv=1 in der Adresse steht (Nutzer 09.10.2026). Bis 16.2.1 merkte
+      // sich der Browser den Schalter aus den Einstellungen; wer ihn aus Neugier anklickte,
+      // startete danach dauerhaft im TV-Modus (drei Geraete in sechs Tagen). Der Fernseher
+      // ruft die Seite ohnehin mit ?tv=1 auf. Ein alter Merker wird hier weggeraeumt.
+      try { localStorage.removeItem('friesenradar_tv'); } catch (e) {}
+      if (!isPanel && qs.get('tv') === '1') {
         document.documentElement.classList.add('tv');
       }
 
@@ -18639,15 +18638,10 @@ function _tvStart() {
   }, 250);
 }
 
-/** TV-Modus An/Aus in den Einstellungen (Nutzer 03.10.2026). Umschalten laedt die Seite neu;
- *  der Parameter ?tv=1 allein geht weiter. */
+/** TV-Modus An/Aus in den Einstellungen (Nutzer 03.10.2026). Umschalten laedt die Seite neu,
+ *  mit oder ohne ?tv=1 -- gemerkt wird nichts (s. Kopfskript): Beim naechsten normalen
+ *  Oeffnen ist die Seite wieder die gewohnte. */
 function _tvModusSetzen(an) {
-  // Der Merker gehoert dem Geraet (s. Kopfskript). ?tv=1 bleibt in der Adresse, damit "An"
-  // auch dort wirkt, wo der Browser nichts speichern darf.
-  try {
-    if (an) localStorage.setItem('friesenradar_tv', '1');
-    else localStorage.removeItem('friesenradar_tv');
-  } catch (_e) {}
   if (!!an === _tvAn()) return;
   // Beim Ausschalten nicht im Vollbild landen (fruehere Fassungen hatten es gemerkt).
   if (!an) { try { _prefSchreib(_ZUSTAND_VOLLBILD_KEY, '0'); } catch (_e2) {} }
