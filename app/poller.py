@@ -24,6 +24,11 @@ from app.database import (
     ensure_pilot,
     get_connection,
     get_inactive_cids,
+    get_app_setting,
+    set_app_setting,
+    lotsen_bekannte,
+    lotsen_gemeldete,
+    lotsen_merken,
     get_live_positions,
     get_push_subscriptions_for_pilot,
     get_push_subscriptions_for_prefile,
@@ -57,6 +62,7 @@ from app.statsim import fetch_flight_track, fetch_pilot_flights
 from app.teamspeak import fetch_channel_clients, parse_channel_ids
 from app import vrp
 from app import bruegge
+from app import lotsen
 
 logger = logging.getLogger(__name__)
 
@@ -531,6 +537,14 @@ class VatsimPoller:
         self._prefile_sigs: dict | None = None
         # cid → Zeitpunkt der letzten Online-Benachrichtigung (Debounce gegen vPilot-Reconnects).
         self._online_last_notified: dict[int, datetime] = {}
+        # Friesen als Lotsen (#61): wer gerade lotst (aus dem Feed) und gebuchte Schichten der
+        # nächsten Tage (aus der Buchungsliste). Beides nur im Speicher -- es ist nach dem
+        # nächsten Abruf wieder da.
+        self.lotsen_online: list[dict] = []
+        self.lotsen_buchungen: list[dict] = []
+        self._lotsen_buchungen_da = False            # erster Abruf gelungen?
+        self._lotsen_bekannt: set[int] | None = None  # None = erster Durchlauf, nur Stand setzen
+        self._lotsen_last_notified: dict[int, datetime] = {}
         # TS-Login: FRS → Anzahl konsekutiver Polls, in denen die FRS präsent war.
         # None = vor dem ersten erfolgreichen Poll (Baseline noch nicht gesetzt).
         # Beim Start präsente FRS werden mit _TS_BASELINE_STREAK markiert (lösen nie aus).
@@ -763,6 +777,12 @@ class VatsimPoller:
             "date",
             id="vrp_initial",
         )
+        # Friesen als Lotsen (#61): Buchungsliste gleich beim Start und dann alle zehn Minuten;
+        # die Meldungen (7 Uhr, späte Buchung) jede Minute aus dem zuletzt geholten Stand.
+        self._scheduler.add_job(self._lotsen_buchungen_holen, "date", id="lotsen_buchungen_initial")
+        self._scheduler.add_job(self._lotsen_buchungen_holen, "interval", minutes=10,
+                                id="lotsen_buchungen")
+        self._scheduler.add_job(self._lotsen_melden, "interval", seconds=60, id="lotsen_melden")
         self._scheduler.add_job(
             self._refresh_vrp,
             "interval",
@@ -1366,6 +1386,7 @@ class VatsimPoller:
                 ]
             self._prefile_sigs = {cid: _prefile_sig(p) for cid, p in current_map.items()}
             self.last_prefiles = current_prefiles
+            self._lotsen_aus_feed(vatsim_data, excluded_cids)
             # Signaturen in DB persistieren (Neustart-Robustheit)
             sig_conn = get_connection(self.db_path)
             try:
@@ -1740,6 +1761,156 @@ class VatsimPoller:
 
         except Exception:
             logger.exception("Error in _poll_once")
+
+    # ------------------------------------------------------------------
+    # Friesen als Lotsen (#61)
+    # ------------------------------------------------------------------
+
+    def _lotsen_aus_feed(self, vatsim_data: dict, ausgenommen) -> None:
+        """Liest aus dem eben geholten Feed, welche Friesen lotsen, und meldet Neue.
+
+        Fängt alles ab: Ein Fehler hier darf den Poll-Zyklus nicht mitreißen."""
+        try:
+            conn = get_connection(self.db_path)
+            try:
+                bekannte = lotsen_bekannte(conn)
+            finally:
+                conn.close()
+            for cid in ausgenommen or ():
+                bekannte.pop(cid, None)
+            jetzt = self._now()
+            liste = lotsen.friesen_lotsen(vatsim_data, set(bekannte))
+            for l in liste:
+                l["name"] = bekannte.get(l["cid"], "")
+                l["bis"] = lotsen.endzeit(l, self.lotsen_buchungen, jetzt)
+                l.pop("infotext", None)
+            jetzt_da = {l["cid"] for l in liste}
+            neu = [] if self._lotsen_bekannt is None else \
+                [l for l in liste if l["cid"] not in self._lotsen_bekannt]
+            self._lotsen_bekannt = jetzt_da
+            self.lotsen_online = liste
+            for l in neu:
+                zuletzt = self._lotsen_last_notified.get(l["cid"])
+                if zuletzt and (jetzt - zuletzt).total_seconds() < self.vatsim_rejoin_debounce_sec:
+                    continue
+                self._lotsen_last_notified[l["cid"]] = jetzt
+                payload = lotsen.payload_lotse_online(l["name"], l)
+                self.broadcast_notify("online", l["cid"], payload)
+                if self.vapid_private_key:
+                    asyncio.create_task(self._lotse_push_online(l, payload))
+        except Exception:
+            logger.exception("Fehler beim Auslesen der Lotsen")
+
+    async def _lotsen_buchungen_holen(self) -> None:
+        """Buchungsliste von VATSIM holen. Scheitert der Abruf, bleibt die alte Liste stehen.
+
+        Erst das Netz, dann die Datenbank -- keine Verbindung offen, während gewartet wird."""
+        try:
+            assert self._http_client is not None, "HTTP client not initialised"
+            antwort = await self._http_client.get(
+                lotsen.BUCHUNGEN_URL,
+                headers={"User-Agent": "FriesenRadar/Lotsen (+https://radar.friesenflieger.de)",
+                         "Accept": "application/json"},
+            )
+            antwort.raise_for_status()
+            roh = antwort.json()
+            if not isinstance(roh, list):
+                raise ValueError("Buchungsliste ist keine Liste")
+            conn = get_connection(self.db_path)
+            try:
+                bekannte = lotsen_bekannte(conn)
+                for cid in get_inactive_cids(conn):
+                    bekannte.pop(cid, None)
+            finally:
+                conn.close()
+            buchungen = lotsen.buchungen_filtern(roh, set(bekannte), self._now())
+            for b in buchungen:
+                b["name"] = bekannte.get(b["cid"], "")
+            self.lotsen_buchungen = buchungen
+            self._lotsen_buchungen_da = True
+        except Exception as exc:
+            logger.warning("Lotsen-Buchungen nicht geholt: %r", exc)
+
+    async def _lotsen_melden(self, jetzt: datetime | None = None) -> None:
+        """Sammelmeldung um 7 Uhr deutscher Zeit und späte Buchungen für denselben Tag.
+
+        Der Stand wird VOR dem Versenden festgeschrieben: Lieber eine Meldung verlieren als
+        sie nach einem Absturz ein zweites Mal schicken."""
+        if not self._lotsen_buchungen_da:
+            return      # ohne Liste gälte der Tag als erledigt, bevor jemand nachgesehen hat
+        try:
+            jetzt = jetzt or self._now()
+            conn = get_connection(self.db_path)
+            try:
+                plan = lotsen.melde_plan(
+                    self.lotsen_buchungen, jetzt,
+                    morgen_tag=get_app_setting(conn, "lotsen_morgen_tag"),
+                    gemeldet=lotsen_gemeldete(conn),
+                )
+                set_app_setting(conn, "lotsen_morgen_tag", plan["morgen_tag"])
+                if plan["merken"]:
+                    lotsen_merken(conn, plan["merken"], jetzt.strftime("%Y-%m-%dT%H:%M:%SZ"))
+                conn.commit()
+            finally:
+                conn.close()
+            # Im Kniebrett je Schicht eine Meldung: Der Kanal dort kennt genau eine Person
+            # je Meldung (Sichtbarkeit), eine Sammelmeldung ließe sich nicht filtern.
+            for b in plan["morgen"] + plan["spaet"]:
+                self.broadcast_notify("prefile", b["cid"], lotsen.payload_lotse_spaet(b.get("name", ""), b))
+            if plan["morgen"]:
+                await self._lotsen_push_morgen(plan["morgen"])
+            for b in plan["spaet"]:
+                await self._lotse_push_buchung(b, lotsen.payload_lotse_spaet(b.get("name", ""), b))
+        except Exception:
+            logger.exception("Fehler beim Melden der Lotsenschichten")
+
+    async def _lotse_push_online(self, lotse: dict, payload: dict) -> None:
+        if not self.vapid_private_key:
+            return
+        conn = get_connection(self.db_path)
+        try:
+            empfaenger = visible_recipients(
+                conn, lotse["cid"], get_push_subscriptions_for_pilot(conn, lotse["cid"]), "online")
+        finally:
+            conn.close()
+        await send_web_push(self.vapid_private_key, self.vapid_contact_email, self.db_path,
+                            empfaenger, payload, label=f"WebPush[Lotse {lotse['callsign']}]")
+
+    async def _lotse_push_buchung(self, buchung: dict, payload: dict) -> None:
+        if not self.vapid_private_key:
+            return
+        conn = get_connection(self.db_path)
+        try:
+            empfaenger = visible_recipients(
+                conn, buchung["cid"], get_push_subscriptions_for_prefile(conn, buchung["cid"]), "prefile")
+        finally:
+            conn.close()
+        await send_web_push(self.vapid_private_key, self.vapid_contact_email, self.db_path,
+                            empfaenger, payload, label=f"WebPush[Schicht {buchung['callsign']}]")
+
+    async def _lotsen_push_morgen(self, buchungen: list[dict]) -> None:
+        """Eine Meldung je Empfänger. Wer über einen Lotsen nicht benachrichtigt werden darf
+        oder ihn abgewählt hat, bekommt die Zeile dieses Lotsen nicht -- deshalb wird der
+        Text je Empfänger zusammengesetzt und nach gleichem Inhalt gebündelt."""
+        if not self.vapid_private_key:
+            return
+        je_empfaenger: dict[str, tuple[dict, list[dict]]] = {}
+        conn = get_connection(self.db_path)
+        try:
+            for b in buchungen:
+                for sub in visible_recipients(
+                        conn, b["cid"], get_push_subscriptions_for_prefile(conn, b["cid"]), "prefile"):
+                    je_empfaenger.setdefault(sub["endpoint"], (sub, []))[1].append(b)
+        finally:
+            conn.close()
+        buendel: dict[tuple, tuple[list[dict], list[dict]]] = {}
+        for sub, seine in je_empfaenger.values():
+            schluessel = tuple(b["id"] for b in seine)
+            buendel.setdefault(schluessel, ([], seine))[0].append(sub)
+        for subs, seine in buendel.values():
+            payload = lotsen.payload_lotsen_heute([(b.get("name", ""), b) for b in seine])
+            await send_web_push(self.vapid_private_key, self.vapid_contact_email, self.db_path,
+                                subs, payload, label="WebPush[Lotsen heute]")
 
     async def _poll_teamspeak(self) -> None:
         """TS-ServerQuery pollen, neue FRS-Beitritte → WebPush. Exceptions nur loggen."""

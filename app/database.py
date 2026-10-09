@@ -245,6 +245,11 @@ CREATE TABLE IF NOT EXISTS bummel_overrides (
     PRIMARY KEY(race_id, cid)
 );
 
+CREATE TABLE IF NOT EXISTS lotsen_buchung_gemeldet (
+    buchung_id  INTEGER PRIMARY KEY,    -- Kennung aus der VATSIM-Buchungsliste (#61)
+    gemeldet_am TEXT
+);
+
 CREATE TABLE IF NOT EXISTS event_reminders_sent (
     uid     TEXT PRIMARY KEY,           -- calendar_events.uid, für den die ~1h-Erinnerung lief
     sent_at TEXT
@@ -12093,6 +12098,44 @@ def mark_event_reminded(conn: sqlite3.Connection, uid: str, ts: str) -> None:
         "INSERT OR IGNORE INTO event_reminders_sent (uid, sent_at) VALUES (?, ?)",
         (uid, ts),
     )
+
+
+# ---------------------------------------------------------------------------
+# Friesen als Lotsen (#61)
+# ---------------------------------------------------------------------------
+
+def lotsen_bekannte(conn: sqlite3.Connection) -> dict[int, str]:
+    """VATSIM-Nummer -> Anzeigename aller Friesen, die als Lotse erkannt werden sollen.
+
+    Lotsen tragen kein FRS-Rufzeichen; erkannt wird über die Nummer. Quellen: die aktive
+    Pilotenliste und die Rufzeichen aus der Forum-Anmeldung. Wer nur aus dem Forum bekannt
+    ist, heißt wie sein Rufzeichen. Abgeschaltete Piloten fehlen."""
+    aus = {r["cid"] for r in conn.execute("SELECT cid FROM pilots WHERE active = 0")}
+    bekannt: dict[int, str] = {}
+    for r in conn.execute("SELECT cid, callsign FROM forum_callsign ORDER BY callsign"):
+        if r["cid"] not in aus:
+            bekannt.setdefault(r["cid"], r["callsign"])
+    for r in conn.execute("SELECT cid, name FROM pilots WHERE active = 1"):
+        name = (r["name"] or "").strip()
+        if name and not name.isdigit():
+            bekannt[r["cid"]] = name
+        else:
+            bekannt.setdefault(r["cid"], "Ein Friese")
+    return bekannt
+
+
+def lotsen_gemeldete(conn: sqlite3.Connection) -> set[int]:
+    return {r[0] for r in conn.execute("SELECT buchung_id FROM lotsen_buchung_gemeldet")}
+
+
+def lotsen_merken(conn: sqlite3.Connection, ids, ts: str) -> None:
+    """Buchungen als gemeldet festhalten (kein commit). Räumt nebenbei alte Einträge weg:
+    Die Buchungsliste führt nichts Vergangenes, nach zwei Monaten braucht sie niemand mehr."""
+    conn.executemany(
+        "INSERT OR IGNORE INTO lotsen_buchung_gemeldet (buchung_id, gemeldet_am) VALUES (?, ?)",
+        [(int(i), ts) for i in ids],
+    )
+    conn.execute("DELETE FROM lotsen_buchung_gemeldet WHERE gemeldet_am < date(?, '-60 days')", (ts,))
 
 
 # ---------------------------------------------------------------------------

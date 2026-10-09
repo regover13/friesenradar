@@ -3975,6 +3975,14 @@
     /* =====================================================================
        KARTE TAB — Map icon button in live table
        ===================================================================== */
+    /* Lotsen-Markierung auf der Karte (#61): Kopfhoerer im Kreis, kein Flugzeug. */
+    .lotsen-marker {
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg-panel); color: var(--text-bright);
+      border: 2px solid var(--amber); border-radius: 50% !important;
+    }
+    .lotsen-marker .icon { width: 15px; height: 15px; }
+
     .td-map-btn {
       cursor: pointer;
       color: var(--text-label);
@@ -5092,7 +5100,7 @@
       </div>
     </div>
     <div class="panel" style="margin-top:16px;">
-      <div class="panel-title">Eingereichte Flugpläne (Prefile)</div>
+      <div class="panel-title">Geplant · Flugpläne und Lotsenschichten</div>
       <div id="prefiles-content">
         <div class="loading">
           <div class="loading-dot"></div>
@@ -9739,7 +9747,8 @@ function renderLiveTable(pilots) {
   const container = document.getElementById('live-content');
   if (!_istSichtbar(container)) return;
 
-  if (!pilots || pilots.length === 0) {
+  pilots = pilots || [];
+  if (pilots.length === 0 && _lotsen.online.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
         <div class="radar-sweep"></div>
@@ -9790,8 +9799,17 @@ function renderLiveTable(pilots) {
           </tr>`;
   }
 
+  for (const l of _lotsen.online) html += _lotsenZeile(l);
+
   html += `</tbody></table></div>`;
   container.innerHTML = html;
+
+  container.querySelectorAll('.td-lotse-map').forEach(td => {
+    td.addEventListener('click', (e) => {
+      e.stopPropagation();
+      _lotseAufKarte(_lotsen.online.find(l => l.callsign === td.dataset.lotse));
+    });
+  });
 
   // Attach click handlers after DOM update
   container.querySelectorAll('.td-callsign-link').forEach(td => {
@@ -9801,7 +9819,7 @@ function renderLiveTable(pilots) {
     });
   });
 
-  container.querySelectorAll('.td-map-btn').forEach(td => {
+  container.querySelectorAll('.td-map-btn:not(.td-lotse-map)').forEach(td => {
     td.addEventListener('click', (e) => {
       e.stopPropagation();
       switchToMapAndCenter(td.dataset.cs);
@@ -10955,11 +10973,151 @@ document.getElementById('ac-modal').addEventListener('click', (e) => {
 function _acEscHandler(e) { if (e.key === 'Escape') closeAcModal(); }
 
 // ==========================================================================
+//  FRIESEN ALS LOTSEN (#61)
+// ==========================================================================
+// Wer gerade lotst, steht in der Live-Liste; gebuchte Schichten der naechsten Tage stehen bei
+// den Flugplaenen. Beides kommt aus /api/lotsen, im Takt der Flugplaene. Ein Lotse ist kein
+// Flugzeug: keine Spur, kein Flugplan-Fenster, die Zeile oeffnet nichts -- deshalb auch kein
+// Blau (UI-Standard), nur das Sprungsymbol zur Karte.
+let _lotsen = { online: [], geplant: [] };
+const _lotsenMarker = {};   // Rufzeichen -> Leaflet-Marker
+
+// LOTSEN-FUNKTIONEN-ANFANG
+const _LOTSE_PIN = '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>';
+const _WOCHENTAGE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+
+function _zwei(n) { return String(n).padStart(2, '0'); }
+
+/** Spalte "Flugplan" eines Lotsen: Station, Frequenz und, wenn bekannt, das Ende. */
+function _lotseText(l) {
+  return l.station + ' · ' + l.frequenz + (l.bis ? ' · bis ca. ' + l.bis + ' UTC' : '');
+}
+
+function _lotsenZeile(l) {
+  const cs = escHtml(l.callsign || '');
+  return `
+          <tr class="lotsen-zeile" data-lotse="${cs}">
+            <td class="td-callsign">${cs}</td>
+            <td>${l.name ? pilotLinkHtml(l.name, l.cid) : '—'}</td>
+            <td class="mono">Lotse</td>
+            <td class="td-route">${escHtml(_lotseText(l))}</td>
+            <td class="td-alt">—</td>
+            <td class="td-gs">—</td>
+            <td class="td-time">${fmtOnlineTime(l.online_seit)}</td>
+            <td class="td-map-btn td-lotse-map" data-lotse="${cs}" title="Station auf Karte">${_LOTSE_PIN}</td>
+          </tr>`;
+}
+
+/** "So 11.10. 18:00–20:00 UTC" -- mit Datum, weil Schichten Tage vorausliegen. */
+function _schichtZeit(b) {
+  const von = new Date(b.von), bis = new Date(b.bis);
+  return _WOCHENTAGE[von.getUTCDay()] + ' ' + _zwei(von.getUTCDate()) + '.' + _zwei(von.getUTCMonth() + 1) + '. '
+       + _zwei(von.getUTCHours()) + ':' + _zwei(von.getUTCMinutes()) + '–'
+       + _zwei(bis.getUTCHours()) + ':' + _zwei(bis.getUTCMinutes()) + ' UTC';
+}
+
+/** Geplanter Abflug eines Flugplans als Zeitpunkt; ohne Uhrzeit 0 (steht dann oben). */
+function _flugplanZeit(p, jetztMs) {
+  const zeit = String(p.deptime || '');
+  if (!/^\d{3,4}$/.test(zeit)) return 0;
+  const hhmm = zeit.padStart(4, '0');
+  const dof = String(p.remarks || '').match(/DOF\/(\d{2})(\d{2})(\d{2})/);
+  const heute = new Date(jetztMs);
+  const jahr = dof ? 2000 + Number(dof[1]) : heute.getUTCFullYear();
+  const monat = dof ? Number(dof[2]) - 1 : heute.getUTCMonth();
+  const tag = dof ? Number(dof[3]) : heute.getUTCDate();
+  return Date.UTC(jahr, monat, tag, Number(hhmm.slice(0, 2)), Number(hhmm.slice(2)));
+}
+
+/** Flugplaene und Schichten in eine Liste, nach Beginn. `idx` zeigt in die Ursprungsliste. */
+function _geplantMischen(plaene, schichten, jetztMs) {
+  const alle = [];
+  (plaene || []).forEach((p, i) => alle.push({ art: 'flug', idx: i, zeit: _flugplanZeit(p, jetztMs), daten: p }));
+  (schichten || []).forEach((b, i) => alle.push({ art: 'schicht', idx: i, zeit: Date.parse(b.von) || 0, daten: b }));
+  alle.sort((a, b) => a.zeit - b.zeit || (a.art === b.art ? a.idx - b.idx : (a.art === 'flug' ? -1 : 1)));
+  return alle;
+}
+
+function _schichtZeile(b, i) {
+  return `<tr class="lotsen-zeile">
+      <td class="mono">${escHtml(b.callsign || '')}</td>
+      <td>${b.name ? pilotLinkHtml(b.name, b.cid) : '—'}</td>
+      <td class="mono">${escHtml('Lotse · ' + b.station)}</td>
+      <td class="mono text-label">${escHtml(_schichtZeit(b))}</td>
+      <td style="text-align:center"><span class="td-map-btn td-lotse-map" data-schicht="${i}" title="Station auf Karte">${_LOTSE_PIN}</span></td>
+    </tr>`;
+}
+// LOTSEN-FUNKTIONEN-ENDE
+
+/** Lotsen als Markierung an ihrem Flugplatz. Laeuft mit jedem Zeichnen der Karte mit. */
+function _lotsenAufKarteZeichnen() {
+  if (!mapInitialized || !liveMap) return;
+  const da = {};
+  (_lotsen.online || []).forEach((l, i) => {
+    if (typeof l.lat !== 'number' || typeof l.lon !== 'number') return;
+    da[l.callsign] = true;
+    // Mehrere Stationen am selben Platz (Ground und Tower) laegen sonst genau uebereinander.
+    const ort = [l.lat, l.lon + 0.03 * (_lotsen.online.slice(0, i).filter(x => x.icao === l.icao).length)];
+    const inhalt = '<strong>' + escHtml(l.callsign) + '</strong><br>' + escHtml((l.name ? l.name + ' · ' : '') + _lotseText(l));
+    let m = _lotsenMarker[l.callsign];
+    if (!m) {
+      m = L.marker(ort, {
+        icon: L.divIcon({
+          className: 'lotsen-marker',
+          html: '<svg class="icon"><use href="#icon-headset" xlink:href="#icon-headset"/></svg>',
+          iconSize: [26, 26], iconAnchor: [13, 13],
+        }),
+        zIndexOffset: -200,
+      }).addTo(liveMap);
+      _lotsenMarker[l.callsign] = m;
+    } else {
+      m.setLatLng(ort);
+    }
+    m.bindPopup(inhalt);
+  });
+  for (const cs of Object.keys(_lotsenMarker)) {
+    if (!da[cs]) { liveMap.removeLayer(_lotsenMarker[cs]); delete _lotsenMarker[cs]; }
+  }
+}
+
+/** Sprung zur Station: zur Markierung des Lotsen oder, bei einer gebuchten Schicht, zum Platz. */
+function _lotseAufKarte(eintrag) {
+  if (!eintrag || typeof eintrag.lat !== 'number') return;
+  const tab = document.querySelector('[data-tab="karte"]');
+  if (tab) tab.click();
+  let versuche = 0;
+  const springen = () => {
+    if (mapInitialized && liveMap) {
+      _lotsenAufKarteZeichnen();
+      liveMap.setView([eintrag.lat, eintrag.lon], 11);
+      const m = _lotsenMarker[eintrag.callsign];
+      if (m && !eintrag.von) { m.openPopup(); return; }
+      L.popup().setLatLng([eintrag.lat, eintrag.lon])
+        .setContent('<strong>' + escHtml(eintrag.callsign) + '</strong><br>'
+                    + escHtml((eintrag.name ? eintrag.name + ' · ' : '') + eintrag.station
+                              + (eintrag.von ? ' · ' + _schichtZeit(eintrag) : '')))
+        .openOn(liveMap);
+    } else if (versuche++ < 20) {
+      setTimeout(springen, 100);
+    }
+  };
+  setTimeout(springen, 250);
+}
+
+// ==========================================================================
 //  PREFILES
 // ==========================================================================
 async function fetchAndRenderPrefiles() {
   try {
+    // Lotsen (#61) im selben Takt, aber für sich: Scheitert ihr Abruf, bleiben der alte Stand
+    // und die Flugpläne stehen.
+    const lotsenAbruf = fetch('/api/lotsen').then(r => r.ok ? r.json() : null).catch(() => null);
     const res  = await fetch('/api/prefiles');
+    const lotsenNeu = await lotsenAbruf;
+    if (lotsenNeu && Array.isArray(lotsenNeu.online) && Array.isArray(lotsenNeu.geplant)) {
+      _lotsen = lotsenNeu;
+      _wennFingerFrei(_liveZeichnen);
+    }
     // 429 = transientes Rate-Limit: alten Stand behalten, nächster Intervall-Tick
     // versucht es erneut. Niemals als „Fehler beim Laden" anzeigen.
     if (res.status === 429) return;
@@ -10982,12 +11140,16 @@ function renderPrefiles(data) {
   _prefileData = data || [];
   const container = document.getElementById('prefiles-content');
   if (!container) return;
-  if (!data || data.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-state-text">Keine eingereichten Flugpläne</div></div>';
+  const schichten = _lotsen.geplant || [];
+  const eintraege = _geplantMischen(_prefileData, schichten, Date.now());
+  if (eintraege.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-text">Nichts geplant</div></div>';
     return;
   }
-  let html = '<div class="live-table-wrap"><table><thead><tr><th>Callsign</th><th>Pilot</th><th>Flugplan</th><th>Abflug (geplant)</th><th></th></tr></thead><tbody>';
-  data.forEach((p, i) => {
+  let html = '<div class="live-table-wrap"><table><thead><tr><th>Callsign</th><th>Pilot</th><th>Flugplan</th><th>Zeit (geplant)</th><th></th></tr></thead><tbody>';
+  eintraege.forEach((e) => {
+    if (e.art === 'schicht') { html += _schichtZeile(e.daten, e.idx); return; }
+    const p = e.daten, i = e.idx;
     const route = fmtRouteHtml(p.departure, p.arrival, { leerHtml: '—' });
     const dofMatch = (p.remarks || '').match(/DOF\/(\d{2})(\d{2})(\d{2})/);
     const dateStr = dofMatch ? `${dofMatch[3]}.${dofMatch[2]}.20${dofMatch[1]}, ` : '';
@@ -11009,16 +11171,22 @@ function renderPrefiles(data) {
 
   container.querySelectorAll('tr[data-idx]').forEach(tr => {
     tr.addEventListener('click', (e) => {
-      if (e.target.classList.contains('td-map-btn')) return;
+      if (e.target.closest('.td-map-btn')) return;
       const p = _prefileData[+tr.dataset.idx];
       if (p) openFpModal(Object.assign({}, p));
     });
   });
-  container.querySelectorAll('.td-map-btn').forEach(btn => {
+  container.querySelectorAll('.td-map-btn:not(.td-lotse-map)').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const p = _prefileData[+btn.dataset.idx];
       if (p) showPrefileRoute(p.departure, p.arrival);
+    });
+  });
+  container.querySelectorAll('.td-lotse-map').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      _lotseAufKarte(schichten[+btn.dataset.schicht]);
     });
   });
 }
@@ -15029,6 +15197,7 @@ function updateMap(pilots) {
   // Arbeit ohne Wirkung. Beim Wechsel auf den Karten-Tab laeuft refreshLiveData() und
   // baut alles aus liveData neu auf.
   if (!_istSichtbar(liveMap.getContainer())) return;
+  _lotsenAufKarteZeichnen();
 
   const currentCallsigns = new Set((pilots || []).map(p => p.callsign));
 

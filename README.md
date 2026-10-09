@@ -135,6 +135,10 @@ Zeigt alle Friesen, die gerade auf VATSIM fliegen — in Echtzeit, ohne Neuladen
 - Wie lange der Pilot bereits online ist
 - Aktuelle Position, Höhe, Geschwindigkeit und Kurs
 - Eingereichte Flugpläne (FRS*-Callsign, noch nicht online) mit geplantem Datum und Uhrzeit (aus DOF-Feld)
+- **Friesen als Lotsen:** Wer gerade an einem Flugplatz lotst (Delivery, Ground, Tower, Approach), steht mit in der Live-Liste: Station, Frequenz und, wenn bekannt, bis wann. Auf der Karte trägt die Station einen Kopfhörer, das Kartensymbol in der Zeile springt dorthin.
+- **Gebuchte Lotsenschichten** der nächsten sieben Tage stehen bei den Flugplänen unter „Geplant“, gemeinsam nach Zeit sortiert und mit Datum.
+
+**Woher das „bis ca.“ kommt:** VATSIM veröffentlicht keine Endzeit. FriesenRadar nimmt sie aus dem Infotext des Lotsen, wenn er dort eine nennt, sonst aus seiner gebuchten Schicht. Hat er weder gebucht noch etwas geschrieben, bleibt die Angabe weg. Kontrollzentralen (etwa Bremen Radar) und Beobachter werden nicht angezeigt.
 
 **Was du tun kannst:**
 - **Flugplan (DEP→ARR) anklicken** → öffnet das Flugplan-Modal mit allen Details (Route, Reiseflughöhe, Bemerkungen, TAS, Flight Rules usw.)
@@ -688,6 +692,8 @@ Das **Zahnrad ⚙ oben rechts** im Header öffnet die Einstellungen; die Benachr
 - **Die App auf dem Startbildschirm** (iPhone, iPad, Android). Sie bleibt an der alten Adresse und zeigt einen Hinweis: `radar.friesenflieger.de` im Browser öffnen, dort neu auf den Startbildschirm legen, die alte App löschen.
 
 Kniebrett, FriesenBrügge und das Widget im Forum sind davon nicht betroffen.
+
+**Lotsen:** Dieselben Schalter melden auch, wenn ein Friese lotst. „Beim Online-gehen“ meldet, sobald er sich an einer Station anmeldet, mit Station, Frequenz und voraussichtlichem Ende. „Auch bei eingereichten Flugplänen“ meldet gebuchte Schichten: jeden Morgen um 7 Uhr eine Meldung mit allen, die an dem Tag lotsen, und sofort, wenn jemand erst im Lauf des Tages für denselben Tag bucht. Der Regler „Wer darf über mich benachrichtigt werden?“ gilt auch fürs Lotsen.
 
 **Einrichten:**
 1. Zahnrad ⚙ klicken → Einstellungen öffnen sich

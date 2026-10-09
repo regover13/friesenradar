@@ -1,5 +1,18 @@
 [
   {
+    "version": "16.2.0",
+    "date": "2026-10-09",
+    "highlight": false,
+    "title": "Friesen als Lotsen",
+    "items": [
+      "🎧 Lotst ein Friese an einem Flugplatz, steht er jetzt mit in der Live-Liste: Station, Frequenz und, wenn bekannt, bis wann. Auch im Kniebrett.",
+      "🗓️ Gebuchte Lotsenschichten der nächsten sieben Tage stehen bei den Flugplänen. Die Liste heißt deshalb jetzt „Geplant“.",
+      "🗺️ Auf der Karte trägt die Station eines lotsenden Friesen einen Kopfhörer; das Kartensymbol in der Liste springt dorthin.",
+      "🔔 Benachrichtigungen: sofort, wenn ein Friese zu lotsen beginnt, und jeden Morgen um 7 Uhr, wer an dem Tag eine Schicht gebucht hat. Sie laufen über die vorhandenen Schalter für „online“ und „Flugpläne“.",
+      "ℹ️ Das „bis ca.“ kommt aus der gebuchten Schicht oder dem Infotext des Lotsen. Fehlt beides, bleibt es weg. Kontrollzentralen und Beobachter werden nicht angezeigt."
+    ]
+  },
+  {
     "version": "16.1.2",
     "date": "2026-10-08",
     "highlight": false,

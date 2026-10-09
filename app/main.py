@@ -4318,6 +4318,26 @@ async def get_prefiles(request: Request):
     return result
 
 
+def _lotsen_jetzt() -> datetime:
+    return datetime.now(_timezone.utc)
+
+
+@app.get("/api/lotsen")
+async def get_lotsen(request: Request):
+    """Friesen als Lotsen (#61): wer gerade lotst und wer in den nächsten Tagen gebucht hat.
+
+    Kommt aus dem Speicher des Pollers (Feed alle 15 s, Buchungsliste alle zehn Minuten).
+    Wer an seiner gebuchten Station schon lotst, steht nur noch unter ``online`` -- wie ein
+    Pilot, der vom Flugplan in die Live-Liste wandert."""
+    poller: VatsimPoller = request.app.state.poller
+    jetzt = _lotsen_jetzt().strftime("%Y-%m-%dT%H:%M:%SZ")
+    online = [dict(l) for l in poller.lotsen_online]
+    lotst = {(l["cid"], l["callsign"]) for l in online}
+    geplant = [dict(b) for b in poller.lotsen_buchungen
+               if b["bis"] > jetzt and (b["cid"], b["callsign"]) not in lotst]
+    return {"online": online, "geplant": geplant}
+
+
 @app.get("/api/teamspeak")
 async def get_teamspeak(request: Request):
     """Aktuell im TeamSpeak befindliche FriesenFlieger (FRS-getaggte Clients).
