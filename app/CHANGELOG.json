@@ -6,7 +6,8 @@
     "title": "TV-Modus bleibt nicht mehr hängen",
     "items": [
       "📺 Wer den TV-Modus in den Einstellungen einmal angeklickt hatte, startete danach immer wieder darin. Jetzt gilt er nur noch, solange ?tv=1 in der Adresse steht; beim nächsten normalen Öffnen ist die Seite wieder die gewohnte.",
-      "🔧 Für einen Fernseher, der immer im TV-Modus starten soll, die Adresse mit ?tv=1 am Ende als Startadresse eintragen."
+      "🔧 Für einen Fernseher, der immer im TV-Modus starten soll, die Adresse mit ?tv=1 am Ende als Startadresse eintragen.",
+      "ℹ️ Am Schalter in den Einstellungen steht jetzt dabei, dass der TV-Modus nicht gespeichert wird."
     ]
   },
   {

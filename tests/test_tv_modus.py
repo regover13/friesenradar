@@ -433,3 +433,11 @@ def test_tv_vollbild_wird_nicht_als_eigene_wahl_gemerkt():
     f = INDEX[start:INDEX.index("\n}\n", start)]
     assert "if (wrapId === _ZUSTAND_KARTE_WRAP && !_tvAn()) _prefSchreib(_ZUSTAND_VOLLBILD_KEY" in f
     assert "_prefSchreib(_ZUSTAND_VOLLBILD_KEY, '0')" in _funktion("_tvModusSetzen")
+
+
+def test_einstellung_sagt_dass_nichts_gemerkt_wird():
+    """Nutzer 09.10.2026: Am Schalter steht, dass der TV-Modus nicht gespeichert wird und wie
+    man ihn dauerhaft bekommt."""
+    a = INDEX.index('id="einst-tv"')
+    abschnitt = INDEX[a:INDEX.index('id="tv-an"', a)]
+    assert "Wird nicht gespeichert" in abschnitt and "?tv=1" in abschnitt
