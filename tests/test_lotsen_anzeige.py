@@ -16,6 +16,7 @@ def _js(ausdruck):
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function pilotLinkHtml(n,c){return '<a class="pilot-link">'+escHtml(n)+'</a>';}
 function fmtOnlineTime(t){return '01:27';}
+function listenLinkIcon(cs){return '<a class="listen-link-icon" href="https://listen.vatsim.net/live/'+cs+'"></a>';}
 """
     erg = subprocess.run(["node", "-e", stubs + block + "\nprocess.stdout.write(JSON.stringify(%s));" % ausdruck],
                          capture_output=True, text=True)
@@ -142,3 +143,9 @@ def test_spalte_heisst_online_und_das_ende_ist_nicht_in_der_farbe_der_online_zei
     assert "<th>Online</th>" in live and "<th>Online seit</th>" not in live
     assert re.search(r"\.td-time \.lotse-bis \{[^}]*color: var\(--text-label\)", INDEX), \
         "wie bisher in der Stationsspalte, nicht in der Farbe der Online-Zeit"
+
+
+def test_lotsenzeile_hat_das_mithoeren_symbol_wie_ein_pilot():
+    """Nutzer 09.10.2026: Der Lotse hatte kein Mithoeren-Symbol neben dem Rufzeichen."""
+    z = _js("_lotsenZeile(%s)" % json.dumps(LOTSE))
+    assert '<td class="td-callsign">EDDP_GND<a class="listen-link-icon" href="https://listen.vatsim.net/live/EDDP_GND"></a></td>' in z

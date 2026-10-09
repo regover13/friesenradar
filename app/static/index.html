@@ -11046,7 +11046,7 @@ function _lotsenZeile(l) {
   const cs = escHtml(l.callsign || '');
   return `
           <tr class="lotsen-zeile" data-lotse="${cs}">
-            <td class="td-callsign">${cs}</td>
+            <td class="td-callsign">${cs}${listenLinkIcon(l.callsign)}</td>
             <td>${l.name ? pilotLinkHtml(l.name, l.cid) : '—'}</td>
             <td class="mono">Lotse</td>
             <td class="td-route">${_lotseZelle(l)}</td>
