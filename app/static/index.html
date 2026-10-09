@@ -9770,9 +9770,9 @@ function renderLiveTable(pilots) {
         <thead>
           <tr>
             <th>Callsign</th>
-            <th>Pilot</th>
+            <th>Friese</th>
             <th>Muster</th>
-            <th>Flugplan</th>
+            <th>Flugplan / Station</th>
             <th>Höhe</th>
             <th>GS</th>
             <th>Online seit</th>
@@ -11146,7 +11146,7 @@ function renderPrefiles(data) {
     container.innerHTML = '<div class="empty-state"><div class="empty-state-text">Nichts geplant</div></div>';
     return;
   }
-  let html = '<div class="live-table-wrap"><table><thead><tr><th>Callsign</th><th>Pilot</th><th>Flugplan</th><th>Zeit (geplant)</th><th></th></tr></thead><tbody>';
+  let html = '<div class="live-table-wrap"><table><thead><tr><th>Callsign</th><th>Friese</th><th>Flugplan / Station</th><th>Zeit (geplant)</th><th></th></tr></thead><tbody>';
   eintraege.forEach((e) => {
     if (e.art === 'schicht') { html += _schichtZeile(e.daten, e.idx); return; }
     const p = e.daten, i = e.idx;

@@ -3,9 +3,10 @@
     "version": "16.2.1",
     "date": "2026-10-09",
     "highlight": false,
-    "title": "Einstellungen nennen auch die Lotsen",
+    "title": "Beschriftungen passen auch für Lotsen",
     "items": [
-      "🔔 Die Schalter für Benachrichtigungen sagen jetzt, was sie seit 16.2.0 tun: „Beim Online-gehen“ gilt für Piloten und Lotsen, „Auch bei Geplantem“ für Flugpläne und Lotsenschichten."
+      "🔔 Die Schalter für Benachrichtigungen sagen jetzt, was sie seit 16.2.0 tun: „Beim Online-gehen“ gilt für Piloten und Lotsen, „Auch bei Geplantem“ für Flugpläne und Lotsenschichten.",
+      "🏷️ In der Live-Liste und unter „Geplant“ heißen die Spalten jetzt „Friese“ und „Flugplan / Station“."
     ]
   },
   {

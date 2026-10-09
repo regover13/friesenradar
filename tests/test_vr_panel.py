@@ -291,7 +291,8 @@ def test_streckenzelle_kann_sonderfaelle_ohne_zweite_fassung():
 def test_flugplan_spalte_heisst_ueberall_gleich():
     """Dieselbe Angabe hiess in der Flugliste 'Plan' und sonst 'Flugplan'."""
     assert "<th>Plan</th>" not in INDEX
-    assert INDEX.count("<th>Flugplan</th>") >= 3
+    # Wo auch Lotsen stehen, heisst sie "Flugplan / Station" (16.2.1); sonst weiter "Flugplan".
+    assert len(re.findall(r"<th>Flugplan(?: / Station)?</th>", INDEX)) >= 4
 
 
 def test_flugplatz_symbol_haelt_abstand_ueber_css():

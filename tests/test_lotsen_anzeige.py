@@ -114,3 +114,11 @@ def test_schalter_in_den_einstellungen_nennen_auch_die_lotsen():
     assert '<input type="checkbox" id="notif-prefiles" checked> Auch bei Geplantem (Flugpläne und Lotsenschichten)' in INDEX
     assert "Benachrichtigen wenn (gilt für Online, Geplantes &amp; TeamSpeak):" in INDEX
     assert "Auch bei eingereichten Flugplänen" not in INDEX
+
+
+def test_spaltenkoepfe_passen_auch_fuer_lotsen():
+    """Nutzer 09.10.2026: „Pilot“ und „Flugplan“ passen fuer Lotsen nicht."""
+    live = INDEX[INDEX.index("function renderLiveTable("):INDEX.index("function escHtml(")]
+    assert "<th>Friese</th>" in live and "<th>Flugplan / Station</th>" in live and "<th>Pilot</th>" not in live
+    gepl = INDEX[INDEX.index("function renderPrefiles("):INDEX.index("async function showPrefileRoute(")]
+    assert "<th>Friese</th><th>Flugplan / Station</th><th>Zeit (geplant)</th>" in gepl
