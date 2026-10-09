@@ -433,6 +433,12 @@ _REDDUNG_SCHONFRIST_MIN = 10
 #: der Zeit. Wer kuerzer geht, misst vorher die Laufzeit mit vielen Teilnehmern.
 _REDDUNG_TAKT_S = 10
 
+#: Takt der Deichkontrolle. Hier wartet niemand auf einen Fund; die Karte fragt den Stand ohnehin
+#: selbst ab und schreibt dabei fort. Der Takt ist das Netz fuer den Abend ohne Zuschauer.
+_STRECKE_TAKT_S = 30
+#: So lange nach ``dtend`` laeuft ein Event noch durch den Takt.
+_STRECKE_NACHLAUF_S = 600
+
 
 def _meldet_noch(conn, cid: int, grenze: str) -> bool:
     """Hat dieser Pilot seit ``grenze`` gemeldet?
@@ -675,6 +681,15 @@ class VatsimPoller:
             "interval",
             seconds=_REDDUNG_TAKT_S,
             id="reddung_check",
+        )
+        # Deichkontrolle: den Stand laufender Strecken fortschreiben -- auch wenn niemand die
+        # Seite offen hat. Die Sekundenpunkte der Bruegge sind nach zwoelf Stunden weg; was
+        # bis dahin nicht im Stand steht, ist verloren.
+        self._scheduler.add_job(
+            self._check_strecke,
+            "interval",
+            seconds=_STRECKE_TAKT_S,
+            id="strecke_check",
         )
         # EIN Job fuer beide Kartentypen -- die Automatik ist zurueckgebaut (31.08.2026),
         # der Job vergleicht nur noch Hashes und meldet Aenderungen. Zwei Jobs, die dieselbe
@@ -3296,6 +3311,43 @@ class VatsimPoller:
                     ))
         except Exception:
             logger.exception("Error in _check_reddung")
+
+    async def _check_strecke(self) -> None:
+        """Periodisch: den Stand laufender Deichkontrollen fortschreiben.
+
+        Kein Latch und keine Meldung -- die Karte holt den Stand selbst. Der Takt sorgt nur
+        dafuer, dass der Stand auch dann waechst, wenn niemand zusieht: Gerechnet wird aus
+        ``bruegge_spur``, und die ist nach zwoelf Stunden leer.
+
+        Ein Event laeuft noch ``_STRECKE_NACHLAUF_S`` ueber ``dtend`` hinaus durch den Takt,
+        damit die letzten Sekunden des Abends sicher im Stand stehen; ``strecke_fortschreiben``
+        rechnet ohnehin nie ueber ``dtend`` hinaus, weil ``bis`` hier gedeckelt wird.
+        """
+        try:
+            from datetime import datetime, timedelta, timezone
+            from app.database import list_strecken_events, strecke_fortschreiben
+
+            now_dt = datetime.now(timezone.utc)
+            now = now_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+            seit = (now_dt - timedelta(seconds=_STRECKE_NACHLAUF_S)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            conn = get_connection(self.db_path)
+            try:
+                for ev in list_strecken_events(conn, since=seit):
+                    # EIN `try` JE EVENT -- ein kaputtes Event darf den Takt der anderen nicht
+                    # beenden (wie bei der Reddung, 21.09.2026).
+                    try:
+                        if now < (ev.get("dtstart") or ""):
+                            continue
+                        strecke_fortschreiben(conn, ev, bis=min(now, ev["dtend"]))
+                        conn.commit()
+                    except Exception:
+                        conn.rollback()
+                        logger.exception("Deichkontrolle %s: Fortschreiben gescheitert",
+                                         ev.get("id"))
+            finally:
+                conn.close()
+        except Exception:
+            logger.exception("Deichkontrolle: Takt gescheitert")
 
     async def _check_event_reminders(self) -> None:
         """Periodisch (~5 min): FriesenEvents, Bummel-Rennen, Kutter-Events und FriesenReddungen,
