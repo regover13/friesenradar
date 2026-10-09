@@ -3985,6 +3985,9 @@
       border: 2px solid var(--amber); border-radius: 50% !important;
     }
     .lotsen-marker .icon { width: 15px; height: 15px; }
+    /* Ende der Lotsenschicht unter der Online-Zeit: in der ruhigen Schriftfarbe der
+       Stationsspalte, nicht im Orange der Online-Zeit (Nutzer 09.10.2026). */
+    .td-time .lotse-bis { color: var(--text-label); white-space: nowrap; }
 
     .td-map-btn {
       cursor: pointer;
@@ -9815,7 +9818,7 @@ function renderLiveTable(pilots) {
             <th>Flugplan / Station</th>
             <th>Höhe</th>
             <th>GS</th>
-            <th>Online seit</th>
+            <th>Online</th>
             <th></th>
           </tr>
         </thead>
@@ -11033,10 +11036,10 @@ function _lotseText(l) {
   return l.station + ' · ' + l.frequenz + (l.bis ? ' · bis ' + l.bis + ' UTC' : '');
 }
 
-/** Dasselbe fuer die Zelle der Live-Liste: untereinander, sonst wird die Spalte zu breit
- *  (Nutzer 09.10.2026). */
+/** Zelle der Live-Liste: Station und Frequenz untereinander, sonst wird die Spalte zu breit.
+ *  Das Ende steht unter der Online-Zeit (Nutzer 09.10.2026, s. _lotsenZeile). */
 function _lotseZelle(l) {
-  return [l.station, l.frequenz].concat(l.bis ? ['bis ' + l.bis + ' UTC'] : []).map(escHtml).join('<br>');
+  return [l.station, l.frequenz].map(escHtml).join('<br>');
 }
 
 function _lotsenZeile(l) {
@@ -11049,7 +11052,7 @@ function _lotsenZeile(l) {
             <td class="td-route">${_lotseZelle(l)}</td>
             <td class="td-alt">—</td>
             <td class="td-gs">—</td>
-            <td class="td-time">${fmtOnlineTime(l.online_seit)}</td>
+            <td class="td-time">${fmtOnlineTime(l.online_seit)}${l.bis ? '<br><span class="lotse-bis">' + escHtml('bis ' + l.bis + ' UTC') + '</span>' : ''}</td>
             <td class="td-map-btn td-lotse-map" data-lotse="${cs}" title="Station auf Karte">${_LOTSE_PIN}</td>
           </tr>`;
 }

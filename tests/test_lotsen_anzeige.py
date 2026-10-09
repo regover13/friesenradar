@@ -34,9 +34,10 @@ def test_flugplan_spalte_nennt_station_frequenz_und_ende():
     assert _js("_lotseText(%s)" % json.dumps(dict(LOTSE, bis=None))) == "Leipzig Ground · 121.805"
 
 
-def test_zelle_in_der_live_liste_bricht_in_drei_zeilen_um():
-    """Nutzer 09.10.2026: Die Spalte war viel zu breit. Station, Frequenz und Ende untereinander."""
-    assert _js("_lotseZelle(%s)" % json.dumps(LOTSE)) == "Leipzig Ground<br>121.805<br>bis 20:00 UTC"
+def test_zelle_in_der_live_liste_station_und_frequenz_untereinander():
+    """Nutzer 09.10.2026: Die Spalte war viel zu breit. Station und Frequenz untereinander;
+    das Ende steht unter der Online-Zeit (s. u.)."""
+    assert _js("_lotseZelle(%s)" % json.dumps(LOTSE)) == "Leipzig Ground<br>121.805"
     assert _js("_lotseZelle(%s)" % json.dumps(dict(LOTSE, bis=None))) == "Leipzig Ground<br>121.805"
     boese = dict(LOTSE, station="<b>x</b>")
     assert "<b>" not in _js("_lotseZelle(%s)" % json.dumps(boese))
@@ -46,7 +47,11 @@ def test_zeile_in_der_live_liste():
     z = _js("_lotsenZeile(%s)" % json.dumps(LOTSE))
     assert z.count("<td") == 8, "dieselben acht Spalten wie eine Pilotenzeile"
     assert ">EDDP_GND<" in z and "Erika Muster" in z and ">Lotse<" in z
-    assert "Leipzig Ground<br>121.805<br>bis 20:00 UTC" in z and "01:27" in z
+    assert '<td class="td-route">Leipzig Ground<br>121.805</td>' in z
+    assert '<td class="td-time">01:27<br><span class="lotse-bis">bis 20:00 UTC</span></td>' in z, \
+        "das Ende steht unter der Online-Zeit"
+    ohne = _js("_lotsenZeile(%s)" % json.dumps(dict(LOTSE, bis=None)))
+    assert '<td class="td-time">01:27</td>' in ohne and "lotse-bis" not in ohne
     assert "td-callsign-link" not in z and "text-green" not in z, "die Zeile oeffnet nichts, also kein Blau"
     assert 'data-callsign=' not in z, "sonst hielte die Karte den Lotsen fuer ein Flugzeug"
     assert 'class="td-map-btn td-lotse-map"' in z and 'data-lotse="EDDP_GND"' in z
@@ -130,3 +135,10 @@ def test_spaltenkoepfe_passen_auch_fuer_lotsen():
     assert "<th>Friese</th>" in live and "<th>Flugplan / Station</th>" in live and "<th>Pilot</th>" not in live
     gepl = INDEX[INDEX.index("function renderPrefiles("):INDEX.index("async function showPrefileRoute(")]
     assert "<th>Friese</th><th>Flugplan / Station</th><th>Zeit (geplant)</th>" in gepl
+
+
+def test_spalte_heisst_online_und_das_ende_ist_nicht_in_der_farbe_der_online_zeit():
+    live = INDEX[INDEX.index("function renderLiveTable("):INDEX.index("function escHtml(")]
+    assert "<th>Online</th>" in live and "<th>Online seit</th>" not in live
+    assert re.search(r"\.td-time \.lotse-bis \{[^}]*color: var\(--text-label\)", INDEX), \
+        "wie bisher in der Stationsspalte, nicht in der Farbe der Online-Zeit"

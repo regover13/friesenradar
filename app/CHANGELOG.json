@@ -3,9 +3,10 @@
     "version": "16.3.0",
     "date": "2026-10-09",
     "highlight": false,
-    "title": "Radarlinie abschaltbar",
+    "title": "Radarlinie abschaltbar, Lotsenzeile kompakter",
     "items": [
-      "〰️ Die Linie, die von oben nach unten über die Seite läuft, lässt sich jetzt abschalten: Zahnrad → Anzeige → Radarlinie → Aus. Die Wahl bleibt gespeichert."
+      "〰️ Die Linie, die von oben nach unten über die Seite läuft, lässt sich jetzt abschalten: Zahnrad → Anzeige → Radarlinie → Aus. Die Wahl bleibt gespeichert.",
+      "📐 In der Live-Liste stehen bei einem Lotsen nur noch Station und Frequenz untereinander; das Ende der Schicht steht unter der Online-Zeit. Die Spalte heißt jetzt „Online“."
     ]
   },
   {
