@@ -30,15 +30,23 @@ SCHICHT = {"id": 1, "cid": 1000001, "name": "Erika Muster", "callsign": "EDDS_TW
 
 
 def test_flugplan_spalte_nennt_station_frequenz_und_ende():
-    assert _js("_lotseText(%s)" % json.dumps(LOTSE)) == "Leipzig Ground · 121.805 · bis ca. 20:00 UTC"
+    assert _js("_lotseText(%s)" % json.dumps(LOTSE)) == "Leipzig Ground · 121.805 · bis 20:00 UTC"
     assert _js("_lotseText(%s)" % json.dumps(dict(LOTSE, bis=None))) == "Leipzig Ground · 121.805"
+
+
+def test_zelle_in_der_live_liste_bricht_in_drei_zeilen_um():
+    """Nutzer 09.10.2026: Die Spalte war viel zu breit. Station, Frequenz und Ende untereinander."""
+    assert _js("_lotseZelle(%s)" % json.dumps(LOTSE)) == "Leipzig Ground<br>121.805<br>bis 20:00 UTC"
+    assert _js("_lotseZelle(%s)" % json.dumps(dict(LOTSE, bis=None))) == "Leipzig Ground<br>121.805"
+    boese = dict(LOTSE, station="<b>x</b>")
+    assert "<b>" not in _js("_lotseZelle(%s)" % json.dumps(boese))
 
 
 def test_zeile_in_der_live_liste():
     z = _js("_lotsenZeile(%s)" % json.dumps(LOTSE))
     assert z.count("<td") == 8, "dieselben acht Spalten wie eine Pilotenzeile"
     assert ">EDDP_GND<" in z and "Erika Muster" in z and ">Lotse<" in z
-    assert "Leipzig Ground · 121.805 · bis ca. 20:00 UTC" in z and "01:27" in z
+    assert "Leipzig Ground<br>121.805<br>bis 20:00 UTC" in z and "01:27" in z
     assert "td-callsign-link" not in z and "text-green" not in z, "die Zeile oeffnet nichts, also kein Blau"
     assert 'data-callsign=' not in z, "sonst hielte die Karte den Lotsen fuer ein Flugzeug"
     assert 'class="td-map-btn td-lotse-map"' in z and 'data-lotse="EDDP_GND"' in z

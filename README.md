@@ -138,7 +138,7 @@ Zeigt alle Friesen, die gerade auf VATSIM fliegen — in Echtzeit, ohne Neuladen
 - **Friesen als Lotsen:** Wer gerade an einem Flugplatz lotst (Delivery, Ground, Tower, Approach), steht mit in der Live-Liste: Station, Frequenz und, wenn bekannt, bis wann. Auf der Karte trägt die Station einen Kopfhörer, das Kartensymbol in der Zeile springt dorthin.
 - **Gebuchte Lotsenschichten** der nächsten sieben Tage stehen bei den Flugplänen unter „Geplant“, gemeinsam nach Zeit sortiert und mit Datum.
 
-**Woher das „bis ca.“ kommt:** VATSIM veröffentlicht keine Endzeit. FriesenRadar nimmt sie aus dem Infotext des Lotsen, wenn er dort eine nennt, sonst aus seiner gebuchten Schicht. Hat er weder gebucht noch etwas geschrieben, bleibt die Angabe weg. Kontrollzentralen (etwa Bremen Radar) und Beobachter werden nicht angezeigt.
+**Woher die Endzeit („bis …“) kommt:** VATSIM veröffentlicht keine Endzeit. FriesenRadar nimmt sie aus dem Infotext des Lotsen, wenn er dort eine nennt, sonst aus seiner gebuchten Schicht. Hat er weder gebucht noch etwas geschrieben, bleibt die Angabe weg. Kontrollzentralen (etwa Bremen Radar) und Beobachter werden nicht angezeigt.
 
 **Was du tun kannst:**
 - **Flugplan (DEP→ARR) anklicken** → öffnet das Flugplan-Modal mit allen Details (Route, Reiseflughöhe, Bemerkungen, TAS, Flight Rules usw.)

@@ -10987,9 +10987,15 @@ const _WOCHENTAGE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 
 function _zwei(n) { return String(n).padStart(2, '0'); }
 
-/** Spalte "Flugplan" eines Lotsen: Station, Frequenz und, wenn bekannt, das Ende. */
+/** Station, Frequenz und, wenn bekannt, das Ende -- in einer Zeile (Karten-Popup). */
 function _lotseText(l) {
-  return l.station + ' · ' + l.frequenz + (l.bis ? ' · bis ca. ' + l.bis + ' UTC' : '');
+  return l.station + ' · ' + l.frequenz + (l.bis ? ' · bis ' + l.bis + ' UTC' : '');
+}
+
+/** Dasselbe fuer die Zelle der Live-Liste: untereinander, sonst wird die Spalte zu breit
+ *  (Nutzer 09.10.2026). */
+function _lotseZelle(l) {
+  return [l.station, l.frequenz].concat(l.bis ? ['bis ' + l.bis + ' UTC'] : []).map(escHtml).join('<br>');
 }
 
 function _lotsenZeile(l) {
@@ -10999,7 +11005,7 @@ function _lotsenZeile(l) {
             <td class="td-callsign">${cs}</td>
             <td>${l.name ? pilotLinkHtml(l.name, l.cid) : '—'}</td>
             <td class="mono">Lotse</td>
-            <td class="td-route">${escHtml(_lotseText(l))}</td>
+            <td class="td-route">${_lotseZelle(l)}</td>
             <td class="td-alt">—</td>
             <td class="td-gs">—</td>
             <td class="td-time">${fmtOnlineTime(l.online_seit)}</td>
