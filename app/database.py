@@ -2995,41 +2995,6 @@ def get_live_positions(conn: sqlite3.Connection) -> list[dict]:
 # Bruegge (friesenbruegge/PROTOKOLL.md, Fassung 1 -- abgenommen 11.09.2026)
 # ---------------------------------------------------------------------------
 
-def friesen_in_der_luft(conn: sqlite3.Connection, prefix: str = "FRS") -> list[dict]:
-    """Die Kandidaten fuer den Positionsmatch: Friesen, die JETZT auf VATSIM sind.
-
-    Nur Zeilen mit Koordinaten -- eine Zeile ohne lat/lon kann keinen Partner abgeben, und
-    sie hier zu behalten hiesse, sie im Matching nochmal wegzuwerfen.
-    """
-    rows = conn.execute(
-        "SELECT cid, callsign, latitude, longitude, altitude, groundspeed, heading, "
-        "       updated_at "
-        "FROM live_positions "
-        "WHERE latitude IS NOT NULL AND longitude IS NOT NULL "
-        "  AND callsign LIKE ? || '%'",
-        (prefix,),
-    ).fetchall()
-    return [_row_to_dict(r) for r in rows]
-
-
-def cid_ist_authentifiziert(conn: sqlite3.Connection, cid: int) -> bool:
-    """Hat sich diese CID jemals per Forum-Login angemeldet?
-
-    Die Zeile in `forum_callsign` entsteht NUR beim Login, aus dem Forum-Profil
-    (`main.py`, Forum-SSO). Ein gesetztes FRS-Callsign allein genuegt also nicht -- sonst
-    koennte jeder ein Praefix waehlen und damit melden.
-
-    GEPRUEFT WIRD DIE CID, NICHT DAS CALLSIGN. Am Callsign zu pruefen zerbricht beim ersten
-    Wechsel, und der kommt bei fast jedem Friesen genau einmal: wenn er das N verliert und
-    aus FRS123N ein FRS556 wird. Die Tabelle zieht zwar nach, aber erst beim naechsten Login.
-    Die CID ist der VATSIM-Kontoschluessel und aendert sich nie.
-    """
-    row = conn.execute(
-        "SELECT 1 FROM forum_callsign WHERE cid = ? LIMIT 1", (int(cid),)
-    ).fetchone()
-    return row is not None
-
-
 def bruegge_zuordnung_holen(conn: sqlite3.Connection, kennung: str) -> dict | None:
     """Die gemerkte Zuordnung einer Kennung -- oder ``None``."""
     if not kennung:
@@ -3203,7 +3168,13 @@ def bruegge_vergebene_cids(conn: sqlite3.Connection, ausser_kennung: str,
 
 
 def forum_cids(conn: sqlite3.Connection) -> set[int]:
-    """Alle CIDs, die sich je ueber das Forum angemeldet haben (s. cid_ist_authentifiziert)."""
+    """Alle CIDs, die sich je ueber das Forum angemeldet haben.
+
+    Die Zeile in `forum_callsign` entsteht NUR beim Login, aus dem Forum-Profil. Ein gesetztes
+    FRS-Callsign allein genuegt also nicht -- sonst koennte jeder ein Praefix waehlen und damit
+    melden. Geprueft wird die CID, nicht das Callsign: Das wechselt bei fast jedem Friesen
+    einmal (aus FRS123N wird FRS556), die CID nie.
+    """
     return {int(r[0]) for r in conn.execute("SELECT DISTINCT cid FROM forum_callsign")}
 
 
@@ -3237,9 +3208,9 @@ def bruegge_fassungen_fuer(conn: sqlite3.Connection, cid: int) -> list[dict]:
     """Die Brueggen DIESES Piloten mit ihrer gemeldeten Fassung -- neueste Meldung zuerst.
 
     Grundlage des Hinweises, den der Pilot auf der Website und im Kniebrett sieht. Mehrere
-    Zeilen sind der Regelfall und kein Fehler: Die Kennung haelt in MSFS nicht ueber einen
-    Sim-Neustart, also zieht jede Sitzung eine neue (s. ``bruegge_zuordnung_setzen``). Wer
-    beide Simulatoren benutzt, hat ohnehin zwei.
+    Zeilen sind der Regelfall und kein Fehler: Die Kennung benennt die Installation, und wer
+    mehrere Simulatoren oder Rechner benutzt, hat mehrere. Dazu kommen Altzeilen aus der Zeit
+    bis Bruegge 1.17.0, als die Kennung in MSFS keinen Sim-Neustart ueberlebte.
     """
     rows = conn.execute(
         "SELECT kennung, simulator, bruegge_version, gesehen_am FROM bruegge_zuordnung "
@@ -3408,11 +3379,11 @@ def bruegge_position_loeschen(conn: sqlite3.Connection, cid: int) -> None:
 #: Wie lange eine Zuordnung stehen bleibt. **400 Tage, nicht mehr 24 Stunden** -- die
 #: Aenderung ist eine Nutzerentscheidung vom 20.09.2026, und der alte Wert loeste ein Problem,
 #: das es nicht mehr gibt: Damals zog die Bruegge bei JEDEM Sim-Start eine neue Kennung (die
-#: Datei-API des WASM-Moduls hielt nicht), die Tabelle wuchs also je Sitzung. Seit 14.53.0
-#: bekommt sie ihre Kennung vom Server und wird wiedererkannt, und `bruegge_zuordnung_setzen`
-#: raeumt aeltere Zeilen derselben CID im selben Simulator ohnehin selbst weg. Damit ist die
-#: Tabelle von Natur aus klein: eine Zeile je Pilot je Simulator, bei 58 aktiven Piloten also
-#: rund 170.
+#: Datei-API des WASM-Moduls hielt nicht), die Tabelle wuchs also je Sitzung. Seit Bruegge
+#: 1.18.1 (Protokoll 3) speichert sie ihre Kennung selbst und wird wiedererkannt. Damit ist
+#: die Tabelle von Natur aus klein: eine Zeile je Installation, also je Pilot, Simulator und
+#: Rechner. (Bis zum Ausbau des alten MSFS-Wegs raeumte `bruegge_zuordnung_setzen` aeltere
+#: Zeilen derselben CID im selben Simulator weg; das gibt es nicht mehr.)
 #:
 #: Was die 24 Stunden dagegen kosteten, war die einzige Auskunft darueber, WER die Bruegge
 #: hat und mit welcher Fassung -- nach einem Tag war sie weg. Genau die braucht der

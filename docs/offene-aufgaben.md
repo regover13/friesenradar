@@ -19,8 +19,11 @@ Friesen 50 m auseinander bestanden (Diagnose „zuordnung“, `davonFriesen` 2, 
 1. ✅ **Der alte Weg ist zurückgebaut** (`_bruegge_zuordnen`, `bruegge_kennung_fuer`,
    `bruegge_belegte_cids`, `bruegge.zuordnen`, die Test-Vorbereitung in `tests/conftest.py`); die
    alte MSFS-Brügge bekommt 426. Alte Zeilen (`protokoll` NULL) stehen weiter in
-   `bruegge_zuordnung`: Sie binden nichts mehr und fallen mit `bruegge_aufraeumen` nach 400 Tagen
-   ohne Meldung weg.
+   `bruegge_zuordnung`, und **sie gelten weiter**: Der neue Weg sucht eine Zeile allein über die
+   Kennung. Eine Brügge, die eine solche Kennung noch meldet (X-Plane von vor dem 26.09.), wird
+   darüber ohne Suche an ihre CID zurückgebunden; „vergeben“ kann eine Altzeile nicht sein, weil
+   der alte Weg nie bewährt hat. Weg fällt sie erst nach 400 Tagen ohne Meldung
+   (`bruegge_aufraeumen`).
 2. **Nach dem nächsten Start von MSFS 2024 prüfen**, ob das Kniebrett des Nutzers (CID 1602713) in
    `panel_devices` 2.3.2 meldet — dann lädt es aus `Community`. Verlegt am 26.09.2026 abends,
    `Community2024` ist leer (Regel in `CLAUDE.md`: nie dorthin installieren).

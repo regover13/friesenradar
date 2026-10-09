@@ -493,7 +493,9 @@ damit die Objekte, die für den anderen gesetzt waren. Die vorhandene Plausibili
 konnte das nicht sehen: Die Toleranz für ein stehendes Flugzeug ist 400 m, und **auf einem
 Flugplatz stehen alle näher beieinander.** Bei einem Kieker-Event ist das der Normalfall.
 
-**Der Ablauf ist jetzt:**
+**Der Ablauf war bis zum Ausbau des alten MSFS-Wegs (Stichtag 24.10.2026) dieser.** Was heute
+gilt, steht in Abschnitt 9, Fassung 3; die Absätze bis zum Beschluss vom 26.09.2026 sind
+Geschichte.
 
 ```
 1. Erste Meldung überhaupt   →  "kennung": ""        (die Brügge hat keine)
@@ -538,7 +540,9 @@ Zuordnung. Alles in `docs/superpowers/specs/2026-09-26-bruegge-kennung-und-zuord
 Für die alte MSFS-Brügge (Protokoll 1/2) galt das hier Beschriebene bis zum Stichtag 24.10.2026
 weiter. **Seither ist es Geschichte:** Der Weg ist ausgebaut (`_bruegge_zuordnen`,
 `bruegge_kennung_fuer`, `bruegge_belegte_cids`, die Ablehnungszeilen aus `_bruegge_melder`), die
-alte Brügge bekommt 426. Wen der Server ablehnt, zeigt jetzt der Hinweis in der Verwaltung.
+alte Brügge bekommt 426. Eine Brügge mit BEKANNTER Kennung, die abgelehnt wird, erscheint nach
+zwei Minuten als Hinweis in der Verwaltung. **Eine neue Installation, die niemanden findet,
+hinterlässt dagegen keine Spur mehr** — weder Logzeile noch Hinweis.
 
 **Ein Absturz des Simulators beendet auch die VATSIM-Verbindung** (Nutzer, 26.09.2026: *„Wenn
 der Sim crasht, wird auch vPilot das merken und beenden.“*). Nach jedem Neustart der Brügge ist
