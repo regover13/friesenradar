@@ -135,10 +135,10 @@ Zeigt alle Friesen, die gerade auf VATSIM fliegen — in Echtzeit, ohne Neuladen
 - Wie lange der Pilot bereits online ist
 - Aktuelle Position, Höhe, Geschwindigkeit und Kurs
 - Eingereichte Flugpläne (FRS*-Callsign, noch nicht online) mit geplantem Datum und Uhrzeit (aus DOF-Feld)
-- **Friesen als Lotsen:** Wer gerade an einem Flugplatz lotst (Delivery, Ground, Tower, Approach), steht mit in der Live-Liste: Station, Frequenz und, wenn bekannt, bis wann. Auf der Karte trägt die Station einen Kopfhörer, das Kartensymbol in der Zeile springt dorthin.
+- **Friesen als Lotsen:** Wer gerade lotst, steht mit in der Live-Liste: Station, Frequenz und, wenn bekannt, bis wann. Das gilt für Stationen an einem Flugplatz (Delivery, Ground, Tower, Approach) und für Center. Auf der Karte trägt die Station einen Kopfhörer, das Kartensymbol in der Zeile springt dorthin. Ein Center-Lotse steht mitten in seinem Kontrollbezirk; über Deutschland sind das Bremen, Langen, München, Rhein und Maastricht.
 - **Gebuchte Lotsenschichten** der nächsten sieben Tage stehen bei den Flugplänen unter „Geplant“, gemeinsam nach Zeit sortiert und mit Datum.
 
-**Woher die Endzeit („bis …“) kommt:** VATSIM veröffentlicht keine Endzeit. FriesenRadar nimmt sie aus dem Infotext des Lotsen, wenn er dort eine nennt, sonst aus seiner gebuchten Schicht. Hat er weder gebucht noch etwas geschrieben, bleibt die Angabe weg. Kontrollzentralen (etwa Bremen Radar) und Beobachter werden nicht angezeigt.
+**Woher die Endzeit („bis …“) kommt:** VATSIM veröffentlicht keine Endzeit. FriesenRadar nimmt sie aus dem Infotext des Lotsen, wenn er dort eine nennt, sonst aus seiner gebuchten Schicht. Hat er weder gebucht noch etwas geschrieben, bleibt die Angabe weg. Beobachter werden nicht angezeigt. Die Lage der Kontrollbezirke stammt aus dem [VATSpy Data Project](https://github.com/vatsimnetwork/vatspy-data-project) von VATSIM (CC BY-SA 4.0).
 
 **Was du tun kannst:**
 - **Flugplan (DEP→ARR) anklicken** → öffnet das Flugplan-Modal mit allen Details (Route, Reiseflughöhe, Bemerkungen, TAS, Flight Rules usw.)

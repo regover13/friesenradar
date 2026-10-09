@@ -6,13 +6,17 @@ Erkannt wird ein Friese hier über seine VATSIM-Nummer, nicht über das Rufzeich
 meldet sich als ``EDDP_GND`` an, nie als ``FRS…``. Für alles andere (Karte, Listen, Wertungen)
 bleibt Friese, wer mit FRS-Rufzeichen fliegt.
 
-Angezeigt werden nur Stationen an einem Flugplatz. Kontrollzentralen (``_CTR``, ``_FSS``)
-bleiben ganz weg (Nutzerentscheidung 09.10.2026), Beobachter und ATIS ohnehin.
+Angezeigt werden Stationen an einem Flugplatz und Center-Lotsen (``_CTR``). Ein Center
+steht mitten in seinem Kontrollbezirk, in Deutschland in einem der fünf großen
+(Nutzerentscheidung 09.10.2026 abends; mittags hieß es noch „Center bleiben weg“).
+``_FSS``, Beobachter und ATIS werden nicht angezeigt.
 """
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from app.geo import icao_to_coords, _airports_icao
@@ -45,11 +49,50 @@ _ORT_DEUTSCH = {
 }
 
 
+# Die fünf großen Bezirke über Deutschland heißen am Funk "Radar".
+_BEZIRK_DEUTSCH = {
+    "EDWW": "Bremen Radar", "EDGG": "Langen Radar", "EDMM": "München Radar",
+    "EDUU": "Rhein Radar", "EDYY": "Maastricht Radar",
+}
+_BEZIRKE_DATEI = Path(__file__).resolve().parent / "data" / "vatsim_bezirke.json"
+_BEZIRKE: dict | None = None
+
+
+def _bezirke() -> dict:
+    """Rufzeichen-Anfang -> [Name, Breite, Länge]; gebaut von scripts/vatsim_bezirke_bauen.py
+    aus dem VATSpy Data Project (CC BY-SA 4.0). Einmal gelesen."""
+    global _BEZIRKE
+    if _BEZIRKE is None:
+        try:
+            _BEZIRKE = json.loads(_BEZIRKE_DATEI.read_text(encoding="utf-8"))["bezirke"]
+        except (OSError, ValueError, KeyError):
+            _BEZIRKE = {}
+    return _BEZIRKE
+
+
+def _center(teile: list[str]) -> dict | None:
+    """Center-Lotse: steht am Punkt des ganzen Bezirks, auch wenn er nur einen Teilsektor
+    macht (``EDWW_EMS_CTR`` -> Bremen)."""
+    anfang = teile[0]
+    eintrag = _bezirke().get(anfang)
+    if not eintrag:
+        return None
+    name = _BEZIRK_DEUTSCH.get(anfang)
+    if not name:
+        roh = str(eintrag[0])
+        name = roh if re.search(r"radar|control|cent(er|re)|radio", roh, re.IGNORECASE) else f"{roh} Center"
+    return {"icao": anfang, "art": "Center", "name": name,
+            "lat": float(eintrag[1]), "lon": float(eintrag[2])}
+
+
 def station(callsign: str) -> dict | None:
-    """Zerlegt ein Lotsen-Rufzeichen. ``None``, wenn es keine Station an einem Flugplatz ist."""
+    """Zerlegt ein Lotsen-Rufzeichen. ``None``, wenn es weder eine Station an einem Flugplatz
+    noch ein Center in einem bekannten Bezirk ist."""
     teile = [t for t in str(callsign or "").upper().split("_") if t]
     if len(teile) < 2:
         return None
+    if teile[-1] == "CTR":
+        return _center(teile)
     art = _ARTEN.get(teile[-1])
     icao = teile[0]
     if not art or len(icao) != 4:

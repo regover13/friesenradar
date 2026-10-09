@@ -39,11 +39,32 @@ def test_station_an_einem_flugplatz(callsign, icao, art):
 
 
 @pytest.mark.parametrize("callsign", [
-    "EDWW_EMS_CTR", "EDGG_CTR", "EURM_FSS", "EDDF_ATIS", "MM_OBS", "EDDP", "", "XXXX_TWR", "EDWW_TWR",
+    "EURM_FSS", "EDDF_ATIS", "MM_OBS", "EDDP", "", "XXXX_TWR", "EDWW_TWR", "QQQQ_CTR", "EDDP_CTR",
 ])
-def test_zentralen_beobachter_und_unbekanntes_sind_keine_station(callsign):
-    """Nutzer 09.10.2026: Kontrollzentralen bleiben ganz weg. EDWW ist eine Zentrale, kein Platz."""
+def test_beobachter_und_unbekanntes_sind_keine_station(callsign):
+    """EDWW ist ein Kontrollbezirk, kein Platz: einen Tower gibt es dort nicht. Und ein Center
+    ohne bekannten Bezirk hat keinen Ort."""
     assert lotsen.station(callsign) is None
+
+
+@pytest.mark.parametrize("callsign, bezirk, name, lat, lon", [
+    ("EDWW_EMS_CTR", "EDWW", "Bremen Radar", 52.8, 10.8),
+    ("EDWW_CTR", "EDWW", "Bremen Radar", 52.8, 10.8),
+    ("EDGG_KTG_CTR", "EDGG", "Langen Radar", 50.28, 8.25),
+    ("EDMM_ZUG_CTR", "EDMM", "München Radar", 49.712, 11.787),
+    ("EDUU_WUR_CTR", "EDUU", "Rhein Radar", 49.6, 10.2),
+    ("EDYY_CTR", "EDYY", "Maastricht Radar", 52.0, 6.6),
+    ("LON_S_CTR", "LON", "London Center", 51.917, -1.5),
+    ("LOVV_CTR", "LOVV", "Wien Center", 47.3, 14.15),
+    ("LSAS_CTR", "LSAS", "Swiss Radar", 46.763, 7.862),
+    ("ny_ctr", "NY", "New York Center", 40.5, -74.0),
+])
+def test_center_lotsen_stehen_mitten_in_ihrem_bezirk(callsign, bezirk, name, lat, lon):
+    """Nutzer 09.10.2026 (abends): Center doch anzeigen -- in Deutschland die grossen Bezirke,
+    sonst mitten im Bezirk. Ein Teilsektor (EMS, KTG) steht am Punkt des ganzen Bezirks."""
+    s = lotsen.station(callsign)
+    assert s is not None
+    assert (s["icao"], s["name"], s["lat"], s["lon"]) == (bezirk, name, lat, lon)
 
 
 def test_stationsname_ist_ort_plus_art():
@@ -57,7 +78,7 @@ def test_nur_bekannte_nummern_an_flugplatz_stationen():
     feed = {"controllers": [
         _lotse(),
         _lotse(cid=7777777, callsign="EDDH_TWR"),                    # kein Friese
-        _lotse(cid=1000002, callsign="EDWW_EMS_CTR", facility=6),    # Zentrale
+        _lotse(cid=1000002, callsign="QQQQ_CTR", facility=6),        # Center ohne bekannten Bezirk
         _lotse(cid=1000002, callsign="XY_OBS", facility=0, frequency="199.998"),   # Beobachter
     ]}
     erg = lotsen.friesen_lotsen(feed, CIDS)
@@ -84,7 +105,7 @@ def test_buchungen_der_naechsten_sieben_tage_nach_beginn_sortiert():
         _buchung(id=1),
         _buchung(id=4, start="2026-10-16 15:01:00", end="2026-10-16 17:00:00"),   # zu spaet
         _buchung(id=5, cid=7777777),                                              # kein Friese
-        _buchung(id=6, callsign="EDWW_EMS_CTR"),                                  # Zentrale
+        _buchung(id=6, callsign="QQQQ_CTR"),                                      # unbekannter Bezirk
         _buchung(id=7, start="2026-10-09 12:00:00", end="2026-10-09 14:00:00"),   # schon vorbei
         _buchung(id=2, start="2026-10-09 14:00:00", end="2026-10-09 16:00:00", cid=1000002, callsign="EDDH_DEL"),
     ]
@@ -257,3 +278,11 @@ def test_alle_drei_meldungen_nennen_den_namen_ohne_flugplatz():
     assert lotsen.payload_lotse_online("Erika EDWS", l)["title"] == "Erika lotst jetzt Bremen Ground 🎧"
     assert lotsen.payload_lotse_spaet("Erika EDWS", b)["title"] == "Erika lotst heute Bremen Ground 🎧"
     assert lotsen.payload_lotsen_heute([("Erika EDWS", b)])["body"] == "Erika, Bremen Ground 17:30–20:00 UTC"
+
+
+def test_center_lotse_im_feed_und_in_der_buchungsliste():
+    feed = {"controllers": [_lotse(cid=1000002, callsign="EDWW_EMS_CTR", facility=6, frequency="125.650")]}
+    l = lotsen.friesen_lotsen(feed, CIDS)[0]
+    assert (l["station"], l["icao"], l["frequenz"]) == ("Bremen Radar", "EDWW", "125.650")
+    b = lotsen.buchungen_filtern([_buchung(callsign="EDWW_EMS_CTR")], CIDS, JETZT)[0]
+    assert b["station"] == "Bremen Radar" and b["lat"] == 52.8
