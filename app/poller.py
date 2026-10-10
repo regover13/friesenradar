@@ -3357,8 +3357,8 @@ class VatsimPoller:
                             pushes.append({
                                 "title": ev.get("name") or "Deichkontrolle",
                                 "body": ("Die Deichkontrolle läuft — fliegt die Strecke "
-                                         "gemeinsam ab. \U0001f30a Gewertet wird, wer mit dem "
-                                         "Kniebrett oder der FriesenBrügge fliegt."),
+                                         "gemeinsam ab. \U0001f30a Gewertet wird nur, wer mit der "
+                                         "FriesenBrügge fliegt."),
                                 "url": "/"})
                         strecke_fortschreiben(conn, ev, bis=min(now, ev["dtend"]))
                         conn.commit()

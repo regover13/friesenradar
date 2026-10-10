@@ -158,7 +158,7 @@ def test_zum_beginn_kommt_einmal_eine_meldung(db):
     assert len(p.gesendet) == 1
     kanal, payload = p.gesendet[0]
     assert kanal == "events" and payload["title"] == "Grenzflug"
-    assert "Kniebrett" in payload["body"] and "FriesenBrügge" in payload["body"]
+    assert "FriesenBrügge" in payload["body"]
 
 
 def test_ohne_push_bleibt_es_still_und_spaeter_wird_nicht_nachgeholt(db):

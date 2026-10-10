@@ -1248,8 +1248,9 @@ Stand fort; ein Server-Ereignis für Änderungen gibt es nicht, die Karte fragt 
 - Quelle sind die Sekundenpunkte aus dem Simulator (`bruegge_spur`): von der FriesenBrügge
   (`bruegge_spur_schreiben`) und vom Kniebrett, das die Position des eigenen Flugzeugs meldet
   (`kniebrett_spur_schreiben`, `quelle = 'kniebrett'`). Geschrieben wird nur im Umkreis laufender
-  Strecken. VATSIM füllt Lücken nur für Piloten, die seit Eventbeginn auf einem der beiden Wege
-  gemeldet haben. Die Reddung wertet die Punkte des Kniebretts nicht.
+  Strecken. **Teilnehmer ist nur, wessen FriesenBrügge seit Eventbeginn gemeldet hat**; für ihn
+  zählen dann auch die Punkte des Kniebretts, und VATSIM füllt Lücken. Die Reddung wertet die
+  Punkte des Kniebretts nicht.
 - `analyse` in der Liste nennt Platz und Radius für die Flugspuren unter der Eventansicht.
 - Der Stand liegt in `progress_snapshot` (`kind = 'strecke'`) und wird vom Poller alle 30 s
   fortgeschrieben (`_check_strecke`), auch ohne Zuschauer.

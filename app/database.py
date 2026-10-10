@@ -3609,9 +3609,11 @@ def kniebrett_spur_schreiben(conn: sqlite3.Connection, cid: int, lat: float, lon
     """Die vom KNIEBRETT gemeldete Position des eigenen Flugzeugs als Sekundenpunkt ablegen --
     nur im Umkreis einer laufenden Deichkontrolle (kein commit).
 
-    Wer mit dem Kniebrett fliegt, soll an der Deichkontrolle teilnehmen koennen (Nutzer,
-    10.10.2026). Das Kniebrett meldet aus dem Simulator, also genauso genau wie die Bruegge, und
-    der Meldeweg hat die Position schon gegen VATSIM geprueft.
+    Bei vielen Piloten ist beides installiert, und die Position kommt dann oft aus dem Kniebrett.
+    Sie soll nicht zwingend aus der Bruegge kommen muessen (Nutzer, 10.10.2026). Das Kniebrett
+    meldet aus dem Simulator, also genauso genau, und der Meldeweg hat die Position schon gegen
+    VATSIM geprueft. **Teilnehmer wird dadurch niemand:** Dafuer muss die Bruegge gemeldet haben
+    (s. ``_reddung_punkte_mischen``).
 
     ``INSERT OR IGNORE``: Meldet in derselben Sekunde auch die Bruegge dieses Piloten, gilt ihr
     Punkt (sie schreibt mit ``OR REPLACE``).
@@ -10282,9 +10284,13 @@ def _reddung_punkte_mischen(conn: sqlite3.Connection, von: str, bis: str,
     (FriesenBummel, FriesenKutter) stellen nichts in den Simulator und bleiben unberührt.
 
     ``mit_kniebrett`` nimmt auch die Sekundenpunkte, die das KNIEBRETT eines Piloten gemeldet
-    hat (``quelle = 'kniebrett'``). Für die Reddung bleibt es aus -- ein Kniebrett stellt kein
-    Wrack in den Simulator. Die Deichkontrolle schaltet es ein: Dort zählt nur die Genauigkeit
-    der Position, und die hat das Kniebrett auch (Nutzer, 10.10.2026).
+    hat (``quelle = 'kniebrett'``). Die Deichkontrolle schaltet es ein, die Reddung nicht.
+
+    ⚠ **Wer teilnimmt, entscheidet trotzdem allein die FriesenBrügge** (Nutzer, 10.10.2026:
+    „Wer keine Friesenbrücke hat, kann nicht mitmachen. Aber oft kommt die Position eben aus dem
+    Kniebrett, weil beides installiert ist."). ``mit_kniebrett`` erlaubt nur, dass die POSITION
+    eines Teilnehmers auch vom Kniebrett kommen darf -- ein Pilot, der nur das Kniebrett hat,
+    wird nicht gewertet.
     """
     nur = "" if mit_kniebrett else " AND quelle IS NULL"
     sued, nord, west, ost = grenzen
@@ -10293,13 +10299,15 @@ def _reddung_punkte_mischen(conn: sqlite3.Connection, von: str, bis: str,
     mit_bruegge: set[int] | None = None
     if gemeldet_seit is not None:
         mit_bruegge = {int(r[0]) for r in conn.execute(
-            "SELECT DISTINCT cid FROM bruegge_spur WHERE ts > ?" + nur,
+            "SELECT DISTINCT cid FROM bruegge_spur WHERE ts > ? AND quelle IS NULL",
             (gemeldet_seit,)).fetchall()}
     for cid, lat, lon, alt, gs, ts in conn.execute(
             "SELECT cid, lat, lon, alt_msl_ft, gs_kt, ts FROM bruegge_spur "
             "WHERE ts > ? AND ts <= ? AND lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?" + nur
             + " ORDER BY cid, ts", (von, bis, sued, nord, west, ost)).fetchall():
         cid = int(cid)
+        if mit_bruegge is not None and cid not in mit_bruegge:
+            continue                      # nur Kniebrett, keine Brügge -- nimmt nicht teil
         je_cid.setdefault(cid, []).append(
             (lat, lon, float(alt) if alt is not None else None,
              float(gs) if gs is not None else None, ts))

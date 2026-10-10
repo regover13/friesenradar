@@ -266,11 +266,19 @@ def test_vor_dem_beginn_schreibt_die_wache_nichts(conn, monkeypatch):
     assert bruegge_spur_schreiben(conn, 7, lage) is False
 
 
-# --- Wer mit dem Kniebrett fliegt, nimmt teil (Nutzer, 10.10.2026) --------------------------------
+# --- Die Position darf auch vom Kniebrett kommen (Nutzer, 10.10.2026) -----------------------------
 #
-# „Was ist mit Menschen, die mit dem Kniebrett fliegen? Das muss auch funktionieren." Das
-# Kniebrett meldet die Position des eigenen Flugzeugs im Sekundentakt aus dem Simulator; im
-# Umkreis einer laufenden Strecke wird sie mitgeschrieben wie ein Punkt der FriesenBrügge.
+# „Wer keine Friesenbrücke hat, kann nicht mitmachen. Aber oft kommt die Position eben aus dem
+# Kniebrett, weil beides installiert ist." Das Kniebrett meldet die Position des eigenen Flugzeugs
+# im Sekundentakt; im Umkreis einer laufenden Strecke wird sie mitgeschrieben. Teilnehmer ist aber
+# nur, wessen FriesenBrügge an diesem Abend gemeldet hat.
+
+def _bruegge_da(conn, cid, sekunde=5):
+    """Die FriesenBrügge dieses Piloten hat gemeldet -- ein Punkt abseits der Abschnitte genügt."""
+    conn.execute("INSERT OR REPLACE INTO bruegge_spur (cid, ts, lat, lon, alt_msl_ft, gs_kt) "
+                 "VALUES (?, ?, ?, ?, 800, 100)", (cid, _zeit(sekunde), _nord(5.0), _ost(-5.0)))
+    conn.commit()
+
 
 def _kniebrett(conn, cid, von_km, bis_km, *, ab_s=10, alt=800.0, gs=100.0):
     from app.database import kniebrett_spur_schreiben
@@ -286,14 +294,24 @@ def _kniebrett(conn, cid, von_km, bis_km, *, ab_s=10, alt=800.0, gs=100.0):
 def test_das_kniebrett_deckt_ab_wie_die_bruegge(conn, monkeypatch):
     ev = get_strecken_event(conn, _ev(conn))
     monkeypatch.setattr(db, "_now_utc", lambda: _zeit(120))
+    _bruegge_da(conn, 7)
     _kniebrett(conn, 7, 0.0, 3.8)
     stand = strecke_fortschreiben(conn, ev, bis=_zeit(300))
     assert sorted(stand["treffer"]) == ["a0", "a1", "a2", "a3"] and stand["je_pilot"] == {7: 4}
 
 
+def test_nur_mit_dem_kniebrett_und_ohne_bruegge_wird_niemand_gewertet(conn, monkeypatch):
+    ev = get_strecken_event(conn, _ev(conn))
+    monkeypatch.setattr(db, "_now_utc", lambda: _zeit(120))
+    _kniebrett(conn, 7, 0.0, 3.8)
+    stand = strecke_fortschreiben(conn, ev, bis=_zeit(300))
+    assert stand["treffer"] == {} and stand["je_pilot"] == {}
+
+
 def test_vatsim_fuellt_auch_die_luecke_eines_kniebrett_piloten(conn, monkeypatch):
     ev = get_strecken_event(conn, _ev(conn))
     monkeypatch.setattr(db, "_now_utc", lambda: _zeit(120))
+    _bruegge_da(conn, 5)
     ende = _kniebrett(conn, 5, 0.0, 1.8)
     _vatsim(conn, 5, 3.0, 6.0, ab_s=ende + 20)
     stand = strecke_fortschreiben(conn, ev, bis=_zeit(400))
@@ -336,4 +354,8 @@ def test_bei_der_reddung_zaehlt_das_kniebrett_nicht(conn, monkeypatch):
     assert nur_bruegge == {}
     beide = _reddung_punkte_mischen(conn, START, _zeit(900), grenzen, gemeldet_seit=START,
                                     mit_kniebrett=True)
-    assert 5 in beide and len(beide[5]) > 1
+    assert beide == {}, "ohne Brügge nimmt auch mit Kniebrett-Punkten niemand teil"
+    _bruegge_da(conn, 5)
+    beide = _reddung_punkte_mischen(conn, START, _zeit(900), grenzen, gemeldet_seit=START,
+                                    mit_kniebrett=True)
+    assert 5 in beide and len(beide[5]) > 2

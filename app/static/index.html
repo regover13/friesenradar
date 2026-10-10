@@ -17658,14 +17658,13 @@ function _streckeBalken(r) {
   return `<div class="strecke-balken"><span style="width:${pct.toFixed(1)}%"></span></div>`;
 }
 
-// Wer gewertet wird: Gebraucht werden die genauen Positionen aus dem Simulator, und die liefern
-// das Kniebrett und die FriesenBruegge (Nutzer, 10.10.2026: „Was ist mit Menschen, die mit dem
-// Kniebrett fliegen? Das muss auch funktionieren."). Im Kniebrett gibt es keine Links -- dort
-// steht die Adresse als Text (wie beim Reddung-Hinweis).
+// Wer gewertet wird: nur, wer die FriesenBruegge hat. Die Position darf dabei auch vom Kniebrett
+// kommen, wenn beides installiert ist -- das ist Sache des Servers und steht hier nicht (Nutzer,
+// 10.10.2026: „Wer keine Friesenbrücke hat, kann nicht mitmachen."). Im Kniebrett gibt es keine
+// Links -- dort steht die Adresse als Text (wie beim Reddung-Hinweis).
 function _streckeBrueggeHtml() {
-  return '<div class="bb-sub">Gewertet wird nur, wer mit dem <strong>Kniebrett</strong> oder der '
-    + '<strong>FriesenBrügge</strong> fliegt — gebraucht werden die genauen Positionen aus dem '
-    + 'Simulator. '
+  return '<div class="bb-sub">Gewertet wird nur, wer mit der <strong>FriesenBrügge</strong> fliegt — '
+    + 'gebraucht werden die genauen Positionen aus dem Simulator. '
     + (_PANEL_MODUS
        ? 'radar.friesenflieger.de/download'
        : '<a href="/download" target="_blank" rel="noopener">Zur Download-Seite</a>')

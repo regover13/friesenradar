@@ -457,7 +457,7 @@ anderen Fläche weg, die nie jemand angesehen hat.
 | FriesenBummel | nein | VATSIM genügt — **nicht anfassen** |
 | FriesenKutter | nein | VATSIM genügt — **nicht anfassen** |
 | FriesenReddung | ja (Wrack, Rauchsäulen) | nur wer per FriesenBrügge gemeldet hat |
-| Deichkontrolle (`strecke`) | nein | **nur mit Kniebrett oder FriesenBrügge**: Gewertet wird mit den genauen Positionen aus dem Simulator (Nutzer, 10.10.2026) |
+| Deichkontrolle (`strecke`) | noch nicht (Fundstellen geplant) | **nur wer per FriesenBrügge gemeldet hat**; die Position darf auch vom Kniebrett kommen (Nutzer, 10.10.2026) |
 | Kieker, Baake | noch offen | dieselbe Frage entscheidet es |
 Nutzerentscheidung vom 20.09.2026: *„Die Brügge ist zwingend für dieses Event! Keine Teilnahme
 ohne Brügge! Wir stellen was in den Simulator! Das geht nur mit Brügge!"* — und dazu: *„Dann
@@ -495,11 +495,15 @@ Feld ohne Einfluss auf den Stand anlegt, trägt es dort ein.
   Kopfzeile mit Abzeichen (Zustand, Herkunft, Push an/aus), Stand als Satz, Einzelheiten als
   kleine Tabelle, darunter Bearbeiten · 🔗 Link · Push ein/aus · Löschen. *„das soll bei allen
   neuen Events so aussehen wie hier“* — keine eigene Tabellenform erfinden.
-- **Kniebrett ODER FriesenBrügge.** *„Was ist mit Menschen, die mit dem Kniebrett fliegen? Das
-  muss auch funktionieren.“* Der Meldeweg des Kniebretts schreibt die Position des EIGENEN
-  Flugzeugs im Umkreis einer laufenden Strecke als Sekundenpunkt mit (`bruegge_spur`,
-  `quelle = 'kniebrett'`). **Bei der Reddung zählen diese Punkte nicht** — dort stellt die Brügge
-  etwas in den Simulator (`mit_kniebrett` in `_reddung_punkte_mischen` bleibt dort aus).
+- **Die FriesenBrügge ist Voraussetzung, die Position darf auch vom Kniebrett kommen.** *„Wer
+  keine Friesenbrücke hat, kann nicht mitmachen. Aber oft kommt die Position eben aus dem
+  Kniebrett, weil beides installiert ist. Ich wollte nur verhindern, dass auch die Position
+  zwingend aus der Brücke kommen muss.“* Der Meldeweg des Kniebretts schreibt die Position des
+  EIGENEN Flugzeugs im Umkreis einer laufenden Strecke als Sekundenpunkt mit (`bruegge_spur`,
+  `quelle = 'kniebrett'`); gewertet wird sie nur für Piloten, deren Brügge an dem Abend gemeldet
+  hat. ⚠ Ein Zwischenstand vom selben Tag ließ Piloten nur mit Kniebrett teilnehmen — das war
+  eine Fehldeutung der Frage „Was ist mit Menschen, die mit dem Kniebrett fliegen?“. **Bei der
+  Reddung zählen Kniebrett-Punkte gar nicht** (`mit_kniebrett` bleibt dort aus).
 - **Die Höhe zählt über der Strecke, „wie bei Reddung“:** Geländehöhe je Abschnitt aus dem
   Höhenmodell, verglichen mit der Höhe über Meer. Nicht die Höhe über Grund aus dem Simulator —
   die misst am Bergkamm den Talboden.

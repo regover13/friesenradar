@@ -324,6 +324,8 @@ def test_unter_der_ansicht_stehen_die_flugspuren_des_abends():
     assert "searchEvents()" in rumpf
 
 
-def test_gewertet_wird_mit_kniebrett_oder_friesenbruegge():
+def test_die_friesenbruegge_ist_voraussetzung():
+    """Nutzer, 10.10.2026: „Wer keine Friesenbrücke hat, kann nicht mitmachen." Dass die Position
+    auch vom Kniebrett kommen darf, regelt der Server; in der Ansicht steht nur die Voraussetzung."""
     rumpf = _ohne_kommentare(_funktion("_streckeBrueggeHtml"))
-    assert "Kniebrett" in rumpf and "FriesenBrügge" in rumpf
+    assert "FriesenBrügge" in rumpf and "Kniebrett</strong>" not in rumpf
