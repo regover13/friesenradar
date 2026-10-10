@@ -332,3 +332,51 @@ def test_der_name_wird_nicht_bei_jedem_durchlauf_neu_geschrieben(pfad):
     finally:
         c.close()
     assert stand
+
+
+# --- Gemerkte Namen nicht länger behalten als nötig (Sicherheitsprüfung 10.10.2026) --------
+
+def _gemerkt(pfad):
+    c = get_connection(pfad)
+    try:
+        return {r["cid"]: r["name"] for r in c.execute("SELECT cid, name FROM lotsen_name")}
+    finally:
+        c.close()
+
+
+def test_wer_seinen_namen_bei_vatsim_verbirgt_wird_auch_hier_vergessen(pfad):
+    p = _poller(pfad)
+    p._lotsen_aus_feed(_feed_mit_namen(1000004, "EDWW_E1D_CTR", "Frieda Forum EDDW"), set())
+    assert _gemerkt(pfad) == {1000004: "Frieda Forum EDDW"}
+    p._lotsen_aus_feed(_feed_mit_namen(1000004, "EDWW_E1D_CTR", "1000004"), set())
+    assert _gemerkt(pfad) == {}
+    assert p.lotsen_online[0]["name"] == "FRS77"
+
+
+def test_aufraeumen_vergisst_wer_nicht_mehr_dazugehoert_oder_inzwischen_in_der_pilotenliste_steht(pfad):
+    c = get_connection(pfad)
+    try:
+        db.lotsen_name_merken(c, 1000004, "Frieda Forum", "2026-10-10T08:00:00Z")   # bleibt
+        db.lotsen_name_merken(c, 1000001, "Alt Erika", "2026-10-10T08:00:00Z")      # steht in der Pilotenliste
+        db.lotsen_name_merken(c, 5555555, "Nicht Mehr Dabei", "2026-10-10T08:00:00Z")  # kein Forum, keine Liste
+        db.lotsen_namen_aufraeumen(c, "2026-10-10T09:00:00Z")
+        c.commit()
+    finally:
+        c.close()
+    assert _gemerkt(pfad) == {1000004: "Frieda Forum"}
+
+
+def test_aufraeumen_vergisst_namen_die_ein_jahr_nicht_bestaetigt_wurden(pfad):
+    c = get_connection(pfad)
+    try:
+        db.lotsen_name_merken(c, 1000004, "Frieda Forum", "2025-10-01T08:00:00Z")
+        db.lotsen_namen_aufraeumen(c, "2026-10-10T09:00:00Z")
+        c.commit()
+    finally:
+        c.close()
+    assert _gemerkt(pfad) == {}
+
+
+def test_aufraeumen_laeuft_mit_dem_abruf_der_buchungen():
+    import inspect
+    assert "lotsen_namen_aufraeumen(" in inspect.getsource(VatsimPoller._lotsen_buchungen_holen)

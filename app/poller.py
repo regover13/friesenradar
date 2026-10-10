@@ -30,6 +30,8 @@ from app.database import (
     lotsen_gemeldete,
     lotsen_mit_pilotenname,
     lotsen_name_merken,
+    lotsen_name_vergessen,
+    lotsen_namen_aufraeumen,
     lotsen_merken,
     get_live_positions,
     get_push_subscriptions_for_pilot,
@@ -1793,15 +1795,23 @@ class VatsimPoller:
                 # dem Feed -- und wir merken ihn uns, damit er auch bei seinen gebuchten
                 # Schichten steht. Geschrieben wird nur, wenn er neu ist oder sich ändert.
                 mit_pilotenname = lotsen_mit_pilotenname(conn)
-                geschrieben = False
+                geschrieben = neu_lesen = False
                 for l in liste:
                     name = l.pop("feedname", "")
-                    if name and l["cid"] not in mit_pilotenname and bekannte.get(l["cid"]) != name:
+                    if l["cid"] in mit_pilotenname:
+                        continue
+                    if not name:
+                        # Verbirgt jemand seinen Namen bei VATSIM, behalten wir den alten nicht.
+                        if lotsen_name_vergessen(conn, l["cid"]):
+                            geschrieben = neu_lesen = True
+                    elif bekannte.get(l["cid"]) != name:
                         lotsen_name_merken(conn, l["cid"], name, jetzt.strftime("%Y-%m-%dT%H:%M:%SZ"))
                         bekannte[l["cid"]] = name
                         geschrieben = True
                 if geschrieben:
                     conn.commit()
+                if neu_lesen:
+                    bekannte = lotsen_bekannte(conn)
             finally:
                 conn.close()
             for l in liste:
@@ -1842,6 +1852,9 @@ class VatsimPoller:
                 raise ValueError("Buchungsliste ist keine Liste")
             conn = get_connection(self.db_path)
             try:
+                # Alle zehn Minuten nebenbei: gemerkte Namen, die niemand mehr braucht, löschen.
+                if lotsen_namen_aufraeumen(conn, self._now().strftime("%Y-%m-%dT%H:%M:%SZ")):
+                    conn.commit()
                 bekannte = lotsen_bekannte(conn)
                 for cid in get_inactive_cids(conn):
                     bekannte.pop(cid, None)

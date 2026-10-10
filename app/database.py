@@ -12152,6 +12152,34 @@ def lotsen_name_merken(conn: sqlite3.Connection, cid: int, name: str, ts: str) -
     )
 
 
+def lotsen_name_vergessen(conn: sqlite3.Connection, cid: int) -> bool:
+    """Gemerkten Namen löschen (kein commit). ``True``, wenn es einen gab.
+
+    Erst lesen: Der Aufruf kommt alle 15 s aus dem Poll, und ein DELETE ohne Treffer nähme
+    trotzdem die Schreibsperre."""
+    if conn.execute("SELECT 1 FROM lotsen_name WHERE cid = ?", (int(cid),)).fetchone() is None:
+        return False
+    conn.execute("DELETE FROM lotsen_name WHERE cid = ?", (int(cid),))
+    return True
+
+
+def lotsen_namen_aufraeumen(conn: sqlite3.Connection, ts: str) -> int:
+    """Gemerkte Namen nicht länger behalten als nötig (kein commit). Gelöscht wird, wer nicht
+    mehr über das Forum bekannt ist, wer inzwischen mit Namen in der Pilotenliste steht
+    (die geht ohnehin vor) und wessen Name seit einem Jahr nicht mehr bestätigt wurde --
+    beim nächsten Lotsen wird er neu gelernt."""
+    bedingung = (
+        "cid NOT IN (SELECT cid FROM forum_callsign) "
+        "OR cid IN (SELECT cid FROM pilots WHERE TRIM(COALESCE(name, '')) != '' "
+        "           AND TRIM(name) GLOB '*[^0-9]*') "
+        "OR gesehen_am < date(?, '-365 days')"
+    )
+    # Erst lesen, aus demselben Grund wie oben: meist gibt es nichts zu löschen.
+    if conn.execute(f"SELECT 1 FROM lotsen_name WHERE {bedingung} LIMIT 1", (ts,)).fetchone() is None:
+        return 0
+    return conn.execute(f"DELETE FROM lotsen_name WHERE {bedingung}", (ts,)).rowcount
+
+
 def lotsen_gemeldete(conn: sqlite3.Connection) -> set[int]:
     return {r[0] for r in conn.execute("SELECT buchung_id FROM lotsen_buchung_gemeldet")}
 
