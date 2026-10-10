@@ -992,6 +992,29 @@
     .typ-panel { display: none; }
     .typ-panel.active { display: block; }
 
+    /* === DEICHKONTROLLE (Eventtyp `strecke`) === */
+    /* Die Karte zum Klicken: hoch genug zum Arbeiten, aber nie höher als der Bildschirm --
+       auf dem Handy muss darunter noch Platz bleiben, um die Seite weiterzuschieben. */
+    .sk-karte { height: min(62vh, 30rem); min-height: 18rem; border-radius: 6px; margin-bottom: 0.6rem; }
+    .sk-karte, .sk-karte .leaflet-grab, .sk-karte .leaflet-interactive { cursor: crosshair; }
+    .sk-karte .sk-punkt { cursor: grab; }
+    /* Der Punkt ist als Fläche größer als sein Bild: 1.75rem zum Greifen mit dem Finger. */
+    .sk-punkt { display: flex; align-items: center; justify-content: center; }
+    .sk-punkt i {
+      display: block; width: 0.8rem; height: 0.8rem; border-radius: 50%;
+      background: #fff; border: 0.16rem solid #D75F28; box-shadow: 0 0 0 1px rgba(4,8,15,0.7);
+    }
+    .sk-punkt.sk-anfang i { background: #D75F28; border-color: #fff; }
+    .sk-knoepfe { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.6rem; }
+    .sk-vorschau { font-family: var(--text-mono); font-size: 0.85rem; color: var(--text-bright); margin: 0 0 0.3rem; }
+    .sk-warnung { color: #e0a33e; font-size: 0.82rem; line-height: 1.4; margin: 0 0 0.6rem; }
+    .sk-menue { font-size: 0.82rem; color: #1a2530; }
+    .sk-menue button { margin-top: 0.4rem; }
+    #sk-tabelle { font-size: 0.8rem; border-collapse: collapse; }
+    #sk-tabelle th { text-align: left; font-weight: 500; color: var(--text-label); padding: 0.3rem 0.9rem 0.3rem 0; }
+    #sk-tabelle td { padding: 0.45rem 0.9rem 0.3rem 0; white-space: nowrap; }
+    #sk-tabelle tr.dg-actions td { white-space: normal; }
+
     @media (max-width: 640px) {
       .race-card-header { flex-direction: column; }
       .form-grid { grid-template-columns: 1fr; }
@@ -1088,13 +1111,14 @@
       <div style="padding-top:24px;">
         <div class="tab-panel active" id="tab-events">
 
-          <!-- Die zweite Ebene: ein Chip je Event-Typ. Bummel, Kutter und FriesenReddung
-               sind da; Kieker, Deichkontrolle und Baake kommen mit ihrem Typ dazu.
+          <!-- Die zweite Ebene: ein Chip je Event-Typ. Bummel, Kutter, FriesenReddung
+               und Deichkontrolle sind da; Kieker und Baake kommen mit ihrem Typ dazu.
                Ein Chip ohne Inhalt dahinter ist eine Einladung ins Leere. -->
           <div class="typ-nav">
             <button class="typ-btn active" data-typ="bummel">🏁 Bummel</button>
             <button class="typ-btn" data-typ="kutter">🦐 Kutter</button>
             <button class="typ-btn" data-typ="reddung">🚨 Reddung</button>
+            <button class="typ-btn" data-typ="strecke">🌊 Deichkontrolle</button>
           </div>
 
           <div class="typ-panel active" id="typ-bummel">
@@ -1585,6 +1609,104 @@
             </div>
           </div>
           <div id="rd-liste" class="scroll-list"><div class="empty-hint">Lade Events…</div></div>
+        </div>
+          </div>
+
+          <div class="typ-panel" id="typ-strecke">
+
+        <!-- DEICHKONTROLLE — EINE STRECKE GEMEINSAM ABFLIEGEN (im Code neutral `strecke`) -->
+        <div class="panel">
+          <div class="panel-title">
+            <span>🌊 Deichkontrolle &ndash; Strecken-Events</span>
+            <button class="btn btn-sm btn-primary" id="sk-toggle-form-btn">+ Neues Event</button>
+          </div>
+          <p style="color:#8aa0b8;font-size:0.82rem;margin:4px 0 12px;">
+            Die Gruppe fliegt gemeinsam eine Strecke ab, tief und nah daran entlang. Gewertet
+            wird, welcher Anteil am Ende abgeflogen ist, von allen zusammen. Die Strecke
+            klickst du selbst auf der Karte. Teilnehmen kann nur, wer mit der FriesenBrügge
+            fliegt.
+          </p>
+          <div id="sk-form" class="hidden">
+            <div class="new-race-form-inner">
+              <div class="form-section-title" id="sk-form-title">Neues Event anlegen</div>
+
+              <div class="form-grid" style="margin-bottom:14px;">
+                <div class="form-group">
+                  <label for="sk-name">Name</label>
+                  <input type="text" id="sk-name" maxlength="120" placeholder="z.B. Deichkontrolle im Herbst" />
+                </div>
+                <div class="form-group">
+                  <label for="sk-dtstart">Start (UTC)</label>
+                  <input type="datetime-local" id="sk-dtstart" data-end="sk-dtend" required />
+                </div>
+                <div class="form-group">
+                  <label for="sk-dtend">Ende (UTC, optional)</label>
+                  <input type="datetime-local" id="sk-dtend" />
+                </div>
+                <p class="form-hint" style="grid-column:1/-1;margin:0;">
+                  Bleibt das Ende leer, läuft das Event bis Mitternacht UTC.
+                </p>
+              </div>
+
+              <div class="form-section-title">Strecke</div>
+              <p class="form-hint" style="margin:0 0 8px;">
+                <b>Jeder Klick auf die Karte hängt einen Punkt an.</b> Punkte lassen sich
+                ziehen; ein Klick auf einen Punkt öffnet ein kleines Menü zum Entfernen.
+              </p>
+              <div id="sk-karte" class="sk-karte"></div>
+              <div class="sk-knoepfe">
+                <button type="button" class="btn btn-sm" id="sk-zurueck-btn">Letzten Punkt zurück</button>
+                <button type="button" class="btn btn-sm" id="sk-leeren-btn">Strecke leeren</button>
+                <button type="button" class="btn btn-sm" id="sk-einpassen-btn">Karte auf die Strecke einpassen</button>
+              </div>
+              <p class="sk-vorschau" id="sk-vorschau"></p>
+              <p class="sk-warnung hidden" id="sk-warnung"></p>
+
+              <div class="form-section-title">Was als abgeflogen zählt</div>
+              <div class="form-grid" style="margin-bottom:14px;">
+                <div class="form-group">
+                  <label for="sk-korridor">Korridor (m, nach jeder Seite)</label>
+                  <input type="number" id="sk-korridor" min="50" max="10000" step="50" value="500" />
+                </div>
+                <div class="form-group">
+                  <label for="sk-hoehe">Höhe über der Strecke (ft)</label>
+                  <input type="number" id="sk-hoehe" min="100" max="20000" step="100" value="1000" />
+                </div>
+                <div class="form-group">
+                  <label for="sk-gsmax">Höchstgeschwindigkeit (kt)</label>
+                  <input type="number" id="sk-gsmax" min="20" max="1000" step="5" value="140" />
+                </div>
+                <div class="form-group">
+                  <label for="sk-gsmin">Mindestgeschwindigkeit (kt)</label>
+                  <input type="number" id="sk-gsmin" min="0" max="500" step="5" value="30" />
+                </div>
+                <p class="form-hint" style="grid-column:1/-1;margin:0;">
+                  <b>Korridor:</b> So weit neben der Strecke darf geflogen werden, nach jeder
+                  Seite. Das gelbe Band auf der Karte zeigt ihn in echter Breite. Ein Abschnitt
+                  ist doppelt so lang wie der Korridor.
+                </p>
+                <p class="form-hint" style="grid-column:1/-1;margin:0;">
+                  <b>Höhe:</b> So hoch über dem Gelände an der Strecke darf höchstens geflogen
+                  werden. Die Geländehöhen holt der Server beim Speichern für jeden Abschnitt
+                  aus dem Höhenmodell.
+                </p>
+                <p class="form-hint" style="grid-column:1/-1;margin:0;">
+                  <b>Höchstgeschwindigkeit:</b> Wer schneller über Grund fliegt, holt in dieser
+                  Zeit keinen Abschnitt.
+                </p>
+                <p class="form-hint" style="grid-column:1/-1;margin:0;">
+                  <b>Mindestgeschwindigkeit:</b> Wer langsamer ist, zählt nicht. Das verhindert,
+                  dass ein abgestelltes Flugzeug neben der Strecke etwas holt.
+                </p>
+              </div>
+
+              <div class="form-actions">
+                <button class="btn btn-primary" id="sk-save-btn">Speichern</button>
+                <button class="btn" id="sk-cancel-btn">Abbrechen</button>
+              </div>
+            </div>
+          </div>
+          <div id="sk-liste" class="scroll-list"><div class="empty-hint">Lade Events…</div></div>
         </div>
           </div>
         </div>
@@ -7248,16 +7370,19 @@
 
     // ICAO-Suche: Kennung tippen, Vorschlag waehlen oder Enter -- die Karte springt auf den
     // Platz. Schlichter als auf der Live-Karte: Im Admin sitzt man an einer echten Tastatur.
-    function _rdIcaoSuche(karte) {
+    function _rdIcaoSuche(karte, listenId) {
+      // Jede Karte braucht ihre EIGENE Vorschlagsliste: Zwei <datalist> mit derselben id
+      // gibt es im Dokument nur einmal, das zweite Suchfeld zeigte die Treffer des ersten.
+      listenId = listenId || 'rd-icao-vorschlaege';
       const Suche = L.Control.extend({
         options: { position: 'topleft' },
         onAdd: function () {
           const kasten = L.DomUtil.create('div', 'leaflet-bar');
           kasten.style.cssText = 'background:#0d1a26;padding:4px;';
-          kasten.innerHTML = '<input type="text" maxlength="4" placeholder="ICAO" list="rd-icao-vorschlaege"'
+          kasten.innerHTML = '<input type="text" maxlength="4" placeholder="ICAO" list="' + listenId + '"'
             + ' aria-label="Flugplatz nach ICAO-Kennung suchen" autocomplete="off" spellcheck="false"'
             + ' style="width:5.5em;text-transform:uppercase;background:transparent;color:inherit;border:none;">'
-            + '<datalist id="rd-icao-vorschlaege"></datalist>';
+            + '<datalist id="' + listenId + '"></datalist>';
           // ⚠ Ein Klick in die Karte setzt eine Sektorecke -- einer ins Suchfeld darf es nicht.
           L.DomEvent.disableClickPropagation(kasten);
           L.DomEvent.disableScrollPropagation(kasten);
@@ -7618,11 +7743,490 @@
       } catch { toast('Kopieren fehlgeschlagen — Link: ' + url, true); }
     }
 
+    // ====================================================================
+    // DEICHKONTROLLE — im Code neutral `strecke`: eine frei geklickte Strecke gemeinsam abfliegen
+    // ====================================================================
+    // Grenzen und Vorgaben wie in app/strecke.py. Der Server prueft ohnehin; hier stehen sie,
+    // damit die Vorschau VOR dem Speichern sagt, was nicht gehen wird.
+    const _SK_ABSCHNITTE_MAX = 2000;
+    const _SK_PUNKTE_MAX = 500;
+    const _SK_KORRIDOR_MIN_M = 50, _SK_KORRIDOR_MAX_M = 10000;
+    const _SK_VORGABEN = { 'sk-korridor': 500, 'sk-hoehe': 1000, 'sk-gsmax': 140, 'sk-gsmin': 30 };
+    const _SK_KM_JE_GRAD_LAT = 111.32;
+    const _SK_FARBE_LINIE = '#D75F28', _SK_FARBE_BAND = '#f5c542';
+
+    let _skEvents = [];
+    let _skEditingId = null;
+    /** Die Strecke im Formular: [[lat, lon], …] in der Reihenfolge der Klicks. */
+    let _skPunkte = [];
+    let _skKarte = null, _skLinie = null, _skBand = null, _skMarken = null;
+    let _skMenueZuAm = 0;
+
+    function _skZahl(n, stellen) {
+      return Number(n || 0).toLocaleString('de-DE',
+        { minimumFractionDigits: stellen || 0, maximumFractionDigits: stellen || 0 });
+    }
+
+    function _skMittlereBreite(punkte) {
+      if (!punkte.length) return 0;
+      return punkte.reduce(function (s, p) { return s + p[0]; }, 0) / punkte.length;
+    }
+
+    /** Laenge des Linienzugs in km -- dieselbe ebene Rechnung wie der Server (`_kanten` in
+     *  app/strecke.py): Laengengrade mit dem Kosinus der MITTLEREN Breite aller Punkte. */
+    function _skLaengeKm(punkte) {
+      if (punkte.length < 2) return 0;
+      const kmLon = _SK_KM_JE_GRAD_LAT * Math.cos(_skMittlereBreite(punkte) * Math.PI / 180);
+      let gesamt = 0;
+      for (let i = 1; i < punkte.length; i++) {
+        gesamt += Math.hypot((punkte[i][1] - punkte[i - 1][1]) * kmLon,
+                             (punkte[i][0] - punkte[i - 1][0]) * _SK_KM_JE_GRAD_LAT);
+      }
+      return gesamt;
+    }
+
+    /** Die Teilung wie der Server (`abschnitt_anzahl`): Sollaenge ist 2 x Korridor, die Zahl
+     *  wird aufgerundet (mit demselben Hauch Toleranz), mindestens 1; die Strecke wird dann
+     *  gleichmaessig verteilt. Ohne Strecke 0 Abschnitte. */
+    function _skTeilung(punkte, korridorM) {
+      const km = _skLaengeKm(punkte);
+      if (!(km > 0) || !(korridorM > 0)) return { km: km, anzahl: 0, abschnittM: 0 };
+      const sollKm = 2 * korridorM / 1000;
+      const anzahl = Math.max(1, Math.ceil(km / Math.max(sollKm, 0.01) - 1e-6));
+      return { km: km, anzahl: anzahl, abschnittM: km / anzahl * 1000 };
+    }
+
+    /** Breite des Korridorbands in Pixeln: zweimal der Korridor in Metern, geteilt durch die
+     *  Meter je Pixel der Zoomstufe auf der Breite der Strecke. Muss bei `zoomend` neu. */
+    function _skBandBreitePx(korridorM) {
+      if (!_skKarte) return 2;
+      const breite = _skPunkte.length ? _skMittlereBreite(_skPunkte) : _skKarte.getCenter().lat;
+      const mProPx = 156543.03392 * Math.cos(breite * Math.PI / 180) / Math.pow(2, _skKarte.getZoom());
+      // Nach oben gedeckelt: Bei sehr starker Vergroesserung liegt der Ausschnitt ohnehin
+      // ganz im Band, und ein Strich von zigtausend Pixeln macht die Karte zaeh.
+      return Math.min(6000, Math.max(2, 2 * korridorM / mProPx));
+    }
+
+    function _skKorridor() { return _rdZahl('sk-korridor', NaN); }
+
+    /** Laenge, Abschnitte, Warnungen -- und ob gespeichert werden darf. */
+    function _skVorschau() {
+      const korr = _skKorridor();
+      const t = _skTeilung(_skPunkte, korr);
+      const zeile = document.getElementById('sk-vorschau');
+      const warn = document.getElementById('sk-warnung');
+      const knopf = document.getElementById('sk-save-btn');
+      if (!zeile || !warn) return t;
+      let fehler = '';
+      if (!isFinite(korr) || korr < _SK_KORRIDOR_MIN_M || korr > _SK_KORRIDOR_MAX_M) {
+        fehler = 'Der Korridor muss zwischen ' + _skZahl(_SK_KORRIDOR_MIN_M) + ' m und '
+          + _skZahl(_SK_KORRIDOR_MAX_M) + ' m liegen.';
+      } else if (_skPunkte.length > _SK_PUNKTE_MAX) {
+        fehler = 'Höchstens ' + _SK_PUNKTE_MAX + ' Punkte je Strecke.';
+      } else if (t.anzahl > _SK_ABSCHNITTE_MAX) {
+        fehler = 'Das ergäbe ' + _skZahl(t.anzahl) + ' Abschnitte, höchstens '
+          + _skZahl(_SK_ABSCHNITTE_MAX) + ' sind möglich. Den Korridor vergrößern oder die '
+          + 'Strecke kürzen.';
+      }
+      if (_skPunkte.length < 2) {
+        zeile.textContent = _skPunkte.length
+          ? '1 Punkt gesetzt — die Strecke braucht mindestens zwei.'
+          : 'Noch keine Strecke — klick auf die Karte.';
+      } else if (t.anzahl === 0) {
+        zeile.textContent = _skPunkte.length + ' Punkte · ' + _skZahl(t.km, 1) + ' km';
+      } else {
+        zeile.textContent = _skPunkte.length + ' Punkte · ' + _skZahl(t.km, 1) + ' km · '
+          + _skZahl(t.anzahl) + (t.anzahl === 1 ? ' Abschnitt zu ' : ' Abschnitte zu je ')
+          + _skZahl(t.abschnittM) + ' m';
+      }
+      warn.textContent = fehler;
+      warn.classList.toggle('hidden', !fehler);
+      if (knopf) knopf.disabled = !!fehler;
+      return t;
+    }
+
+    function _skPunktIcon(i) {
+      return L.divIcon({
+        className: 'sk-punkt' + (i === 0 ? ' sk-anfang' : ''),
+        html: '<i></i>', iconSize: [28, 28], iconAnchor: [14, 14],
+      });
+    }
+
+    /** Linie und Band an die Punkte anpassen, ohne die Marken neu zu bauen -- waehrend des
+     *  Ziehens darf die gegriffene Marke nicht ersetzt werden. */
+    function _skLinieNachziehen() {
+      _skVorschau();
+      if (!_skKarte) return;
+      const korr = _skKorridor();
+      _skLinie.setLatLngs(_skPunkte);
+      _skBand.setLatLngs(_skPunkte);
+      _skBand.setStyle({ weight: _skBandBreitePx(isFinite(korr) && korr > 0 ? korr : 0) });
+    }
+
+    /** Alles neu zeichnen: Marken, Linie, Band, Vorschau. */
+    function _skZeichnen() {
+      if (!_skKarte) { _skVorschau(); return; }
+      _skMarken.clearLayers();
+      _skPunkte.forEach(function (p, i) {
+        const marke = L.marker(p, { icon: _skPunktIcon(i), draggable: true, keyboard: false,
+                                    title: 'Punkt ' + (i + 1) + ' — ziehen oder anklicken' });
+        marke.on('drag', function (e) {
+          const ll = e.target.getLatLng();
+          _skPunkte[i] = [ll.lat, ll.lng];
+          _skLinieNachziehen();
+        });
+        marke.on('dragend', _skZeichnen);
+        marke.bindPopup(function () { return _skPunktMenue(i); }, { closeButton: false, offset: [0, -6] });
+        marke.addTo(_skMarken);
+      });
+      _skLinieNachziehen();
+    }
+
+    /** Das kleine Menue am Punkt. Ein eigenes DOM-Element statt eines HTML-Texts mit
+     *  `onclick`: Der Index gehoert zu genau dieser Zeichnung. */
+    function _skPunktMenue(i) {
+      const kasten = document.createElement('div');
+      kasten.className = 'sk-menue';
+      const p = _skPunkte[i] || [0, 0];
+      const titel = document.createElement('div');
+      titel.textContent = 'Punkt ' + (i + 1) + ' von ' + _skPunkte.length + ' · '
+        + p[0].toFixed(4) + ' / ' + p[1].toFixed(4);
+      const knopf = document.createElement('button');
+      knopf.type = 'button';
+      knopf.className = 'btn btn-sm btn-danger sk-punkt-weg';
+      knopf.textContent = 'Punkt entfernen';
+      knopf.addEventListener('click', function () { skPunktEntfernen(i); });
+      kasten.appendChild(titel);
+      kasten.appendChild(knopf);
+      return kasten;
+    }
+
+    function skPunktEntfernen(i) {
+      if (_skKarte) _skKarte.closePopup();
+      _skPunkte.splice(i, 1);
+      _skZeichnen();
+    }
+
+    function skLetzterZurueck() {
+      if (!_skPunkte.length) return;
+      skPunktEntfernen(_skPunkte.length - 1);
+    }
+
+    function skLeeren() {
+      if (_skKarte) _skKarte.closePopup();
+      _skPunkte = [];
+      _skZeichnen();
+    }
+
+    function _skEinpassen() {
+      if (!_skKarte) return;
+      if (_skPunkte.length >= 2) {
+        _skKarte.fitBounds(L.latLngBounds(_skPunkte).pad(0.15));
+      } else if (_skPunkte.length === 1) {
+        _skKarte.setView(_skPunkte[0], Math.max(_skKarte.getZoom(), 11));
+      }
+    }
+
+    function _skKarteAufbauen() {
+      if (_skKarte) { _skKarte.invalidateSize(); return; }
+      if (!document.getElementById('sk-karte')) return;
+      // Ganze Zoomstufen (Leaflets Vorgabe): Mit Zwischenstufen zeigen die Kacheln des
+      // Luftbilds feine Nahtlinien, die wie ein Rechteck auf der Karte aussehen.
+      _skKarte = L.map('sk-karte', { zoomControl: true });
+      // Luftbild als Vorgabe wie bei der Reddung: Eine Strecke klickt man am Gelaende entlang.
+      L.tileLayer(_RD_TILE_SAT, { maxZoom: 19, attribution: 'Tiles &copy; Esri' }).addTo(_skKarte);
+      _skKarte.setView([53.72, 7.25], 9);
+      // Das Band liegt in einer eigenen Ebene UNTER der Linie und nimmt keine Klicks an --
+      // sonst haengte ein Klick ins Band keinen Punkt an.
+      _skKarte.createPane('sk-band').style.zIndex = 390;
+      _skBand = L.polyline([], { pane: 'sk-band', color: _SK_FARBE_BAND, opacity: 0.4, weight: 2,
+                                 lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(_skKarte);
+      _skLinie = L.polyline([], { color: _SK_FARBE_LINIE, weight: 3, opacity: 1,
+                                  lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(_skKarte);
+      _skMarken = L.layerGroup().addTo(_skKarte);
+      // Ein Klick neben das offene Punktmenue schliesst nur das Menue -- er haengt keinen
+      // Punkt an. Leaflet meldet erst `popupclose`, dann `click`.
+      _skKarte.on('popupclose', function () { _skMenueZuAm = Date.now(); });
+      _skKarte.on('click', function (e) {
+        if (Date.now() - _skMenueZuAm < 80) return;
+        if (_skPunkte.length >= _SK_PUNKTE_MAX) {
+          toast('Höchstens ' + _SK_PUNKTE_MAX + ' Punkte je Strecke.', true);
+          return;
+        }
+        // Fuenf Nachkommastellen sind rund ein Meter -- genauer klickt niemand.
+        _skPunkte.push([Number(e.latlng.lat.toFixed(5)), Number(e.latlng.lng.toFixed(5))]);
+        _skZeichnen();
+      });
+      // Die Bandbreite haengt an der Zoomstufe: Meter bleiben, Pixel nicht.
+      _skKarte.on('zoomend', _skLinieNachziehen);
+      _rdKartenEbenen(_skKarte);
+      _rdIcaoSuche(_skKarte, 'sk-icao-vorschlaege');
+      // Erst nach dem Einblenden hat der Kasten eine Groesse -- ohne das bleibt die Karte grau.
+      setTimeout(function () { _skKarte.invalidateSize(); _skEinpassen(); }, 60);
+    }
+
+    /** Die Fehlermeldung des Servers zeigen -- er schickt einen fertigen deutschen Satz. */
+    async function _skFehler(res, vorgabe) {
+      if (!res) return;                       // Verbindungsfehler hat `api()` schon gemeldet
+      let detail = vorgabe || 'Das hat nicht geklappt.';
+      try { detail = ((await res.json()) || {}).detail || detail; } catch (e) { /* kein JSON */ }
+      if (detail === 'confirm_required') return;   // Passwortabfrage abgebrochen
+      toast(detail, true);
+    }
+
+    function _skZustand(ev) {
+      if (ev.laeuft) return '<span class="badge badge-running">läuft</span>';
+      if (ev.vorbei_seit_s !== null && ev.vorbei_seit_s !== undefined) {
+        return '<span class="badge badge-done">vorbei</span>';
+      }
+      return '<span class="badge badge-scheduled">geplant</span>';
+    }
+
+    async function loadStrecke() {
+      if (_skKarte) setTimeout(function () { _skKarte.invalidateSize(); }, 60);
+      const res = await api('GET', '/api/admin/strecke/events');
+      if (!res || !res.ok) return;
+      const daten = await res.json();
+      _skEvents = Array.isArray(daten) ? daten : (daten.events || []);
+      const c = document.getElementById('sk-liste');
+      if (!_skEvents.length) {
+        c.innerHTML = '<div class="empty-hint">Noch keine Events.</div>';
+        return;
+      }
+      const zeilen = _skEvents.map(function (ev) {
+        const st = ev.stand || {};
+        const abschnitte = st.abschnitte || 0;
+        const stand = _skZahl(st.km_abgedeckt, 1) + ' von ' + _skZahl(st.km_gesamt, 1) + ' km · '
+          + _skZahl((st.anteil || 0) * 100) + ' %';
+        const grundFehlt = !ev.grund_da;
+        return '<tr class="dg-row">'
+          + '<td><strong>' + escH(ev.name) + '</strong> ' + _skZustand(ev) + '</td>'
+          + '<td>' + escH(fmtDt(ev.dtstart)) + ' – ' + escH(fmtDt(ev.dtend)) + '</td>'
+          + '<td style="text-align:right;">' + _skZahl(ev.laenge_km, 1) + ' km</td>'
+          + '<td style="text-align:right;">' + _skZahl(abschnitte)
+          + (st.abschnitt_m ? ' <span class="hint">zu je ' + _skZahl(st.abschnitt_m) + ' m</span>' : '')
+          + '</td>'
+          + '<td>' + stand + '</td>'
+          + '</tr>'
+          + '<tr class="dg-actions"><td colspan="5">'
+          + (grundFehlt
+             // Der Hinweis als eigene Zeile UEBER den Knoepfen: In einer Reihe schoebe er sie
+             // auf dem Handy aus dem Bild (die Tabelle ist so breit wie ihr Inhalt).
+             ? '<div class="sk-grund-fehlt sk-warnung" style="margin:0 0 0.4rem;">⚠ Geländehöhen fehlen – es wird nicht gerechnet</div>'
+               + '<button class="btn btn-sm" onclick="skGrundHolen(' + ev.id + ', this)">Geländehöhen holen</button> '
+             : '')
+          + '<button class="btn btn-sm" onclick="skEdit(' + ev.id + ')">Bearbeiten</button> '
+          + '<button class="btn btn-sm btn-danger" onclick="skLoeschen(' + ev.id + ')">Löschen</button>'
+          + '</td></tr>';
+      }).join('');
+      c.innerHTML = '<div class="table-wrap"><table id="sk-tabelle">'
+        + '<thead><tr><th>Name</th><th>Zeitraum</th><th style="text-align:right;">Länge</th>'
+        + '<th style="text-align:right;">Abschnitte</th><th>Stand</th></tr></thead>'
+        + '<tbody>' + zeilen + '</tbody></table></div>';
+    }
+
+    async function skGrundHolen(id, knopf) {
+      if (knopf) { knopf.disabled = true; knopf.textContent = 'Hole Geländehöhen…'; }
+      const res = await api('POST', '/api/admin/strecke/events/' + id + '/grund');
+      if (res && res.ok) {
+        const d = await res.json();
+        toast('Geländehöhen geholt (' + _skZahl(d.abschnitte) + ' Abschnitte)');
+      } else {
+        await _skFehler(res, 'Die Geländehöhen ließen sich nicht holen.');
+      }
+      loadStrecke();
+    }
+
+    async function skLoeschen(id) {
+      // `confirmCritical` wie bei Bummel, Kutter und Reddung: Der Endpunkt verlangt das
+      // Passwort erneut (`require_confirm`) -- ein ganzer Eintrag samt Stand.
+      const ev = _skEvents.find(function (x) { return x.id === id; });
+      const ok = await confirmCritical('Event löschen?',
+        '„' + ((ev && ev.name) || 'Event') + '“ wird samt Strecke und Stand gelöscht.', 'Löschen', true);
+      if (!ok) return;
+      const res = await api('DELETE', '/api/admin/strecke/events/' + id);
+      if (res && res.ok) {
+        toast('Gelöscht');
+        if (_skEditingId === id) _skFormSchliessen();
+        loadStrecke();
+      } else {
+        await _skFehler(res);
+      }
+    }
+
+    /** Ohne Ende gilt Mitternacht UTC nach dem Starttag -- wie `_effective_dtend` im Server. */
+    function _skEndeVorgabe(dtstartIso) {
+      const d = new Date(dtstartIso);
+      if (isNaN(d.getTime())) return null;
+      return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1))
+        .toISOString().slice(0, 19) + 'Z';
+    }
+
+    /** Aendert dieses Speichern einen RECHENWERT -- Strecke, Korridor, Hoehe, Geschwindigkeit
+     *  oder Zeiten? Dann verwirft der Server den bisherigen Stand. Der Name zaehlt nicht. */
+    function _skRechenwerteGeaendert(ev, koerper) {
+      const zahlAnders = function (feld) {
+        return Math.abs(Number(koerper[feld]) - Number(ev[feld])) > 1e-9;
+      };
+      if (['korridor_m', 'hoehe_max_ft', 'gs_max_kt', 'gs_min_kt'].some(zahlAnders)) return true;
+      if (koerper.dtstart !== ev.dtstart) return true;
+      if ((koerper.dtend || _skEndeVorgabe(koerper.dtstart)) !== ev.dtend) return true;
+      const alt = ev.punkte || [];
+      if (alt.length !== koerper.punkte.length) return true;
+      return koerper.punkte.some(function (p, i) {
+        return Math.abs(p[0] - alt[i][0]) > 1e-12 || Math.abs(p[1] - alt[i][1]) > 1e-12;
+      });
+    }
+
+    async function skSpeichern() {
+      const dtstart = document.getElementById('sk-dtstart').value;
+      const dtend = document.getElementById('sk-dtend').value;
+      if (!dtstart) { toast('Start fehlt.', true); return; }
+      if (endNotAfterStart(dtstart, dtend)) {
+        toast('Enddatum muss nach dem Startdatum liegen.', true);
+        return;
+      }
+      if (_skPunkte.length < 2) {
+        toast('Eine Strecke braucht mindestens zwei Punkte.', true);
+        return;
+      }
+      const t = _skVorschau();
+      if (t.anzahl > _SK_ABSCHNITTE_MAX) {
+        toast('Zu viele Abschnitte — den Korridor vergrößern oder die Strecke kürzen.', true);
+        return;
+      }
+      const koerper = {
+        name: document.getElementById('sk-name').value.trim() || 'Deichkontrolle',
+        dtstart: localToIso(dtstart),
+        dtend: dtend ? localToIso(dtend) : null,
+        punkte: _skPunkte.map(function (p) { return [p[0], p[1]]; }),
+        korridor_m: _rdZahl('sk-korridor', NaN),
+        hoehe_max_ft: _rdZahl('sk-hoehe', NaN),
+        gs_max_kt: _rdZahl('sk-gsmax', NaN),
+        gs_min_kt: _rdZahl('sk-gsmin', NaN),
+      };
+      const leer = ['korridor_m', 'hoehe_max_ft', 'gs_max_kt', 'gs_min_kt']
+        .some(function (f) { return !isFinite(koerper[f]); });
+      if (leer) { toast('Korridor, Höhe und beide Geschwindigkeiten brauchen eine Zahl.', true); return; }
+
+      // VOR dem Speichern warnen: Laeuft das Event schon oder ist es vorbei, kostet eine
+      // Aenderung an einem Rechenwert den bisherigen Stand -- und die Sekundenpunkte der
+      // FriesenBruegge sind nach zwoelf Stunden fort, ein Neurechnen faende sie nicht mehr.
+      const altEv = _skEditingId ? _skEvents.find(function (x) { return x.id === _skEditingId; }) : null;
+      const hatStand = altEv && (altEv.laeuft
+        || (altEv.vorbei_seit_s !== null && altEv.vorbei_seit_s !== undefined));
+      if (hatStand && _skRechenwerteGeaendert(altEv, koerper)) {
+        const ok = await showModal('Der bisherige Stand wird verworfen',
+          'Du hast Strecke, Korridor, Höhe, Geschwindigkeit oder Zeiten geändert. Das Event '
+          + (altEv.laeuft ? 'läuft schon' : 'ist schon vorbei')
+          + ': Was bisher abgeflogen wurde, geht dabei verloren und wird nur aus dem neu '
+          + 'gerechnet, was an Positionen noch da ist. Ein neuer Name allein ändert nichts.',
+          'Trotzdem speichern', true);
+        if (!ok) return;
+      }
+
+      const knopf = document.getElementById('sk-save-btn');
+      if (knopf) { knopf.disabled = true; knopf.textContent = 'Speichere…'; }
+      const pfad = _skEditingId
+        ? '/api/admin/strecke/events/' + _skEditingId
+        : '/api/admin/strecke/events';
+      const res = await api('POST', pfad, koerper);
+      if (knopf) { knopf.disabled = false; knopf.textContent = 'Speichern'; }
+      if (!res || !res.ok) { await _skFehler(res, 'Speichern fehlgeschlagen.'); return; }
+      const antwort = await res.json();
+      if (antwort.grund_fehlt) {
+        toast('Gespeichert, aber die Geländehöhen fehlen – es wird nicht gerechnet. '
+          + 'In der Liste „Geländehöhen holen“ drücken.', true);
+      } else {
+        toast((_skEditingId ? 'Event gespeichert' : 'Event angelegt')
+          + (antwort.stand_verworfen ? ' — der Stand wird neu gerechnet' : ''));
+      }
+      _skFormSchliessen();
+      loadStrecke();
+    }
+
+    /** Formular zu und alles zurueck auf Anfang -- sonst legte der naechste Klick auf
+     *  "+ Neues Event" ein UPDATE auf das zuletzt bearbeitete Event ab, oder die Strecke des
+     *  letzten Events wanderte ins naechste. */
+    function _skFormSchliessen() {
+      document.getElementById('sk-form').classList.add('hidden');
+      _skEditingId = null;
+      _skPunkte = [];
+      ['sk-name', 'sk-dtstart', 'sk-dtend'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      Object.keys(_SK_VORGABEN).forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.value = _SK_VORGABEN[id];
+      });
+      const t = document.getElementById('sk-form-title');
+      if (t) t.textContent = 'Neues Event anlegen';
+      if (_skKarte) _skKarte.closePopup();
+      _skZeichnen();
+    }
+
+    function _skFormOeffnen() {
+      document.getElementById('sk-form').classList.remove('hidden');
+      _skKarteAufbauen();
+      _skZeichnen();
+      // Die Karte misst sich erst nach dem Einblenden richtig -- danach einpassen.
+      setTimeout(function () { if (_skKarte) { _skKarte.invalidateSize(); _skEinpassen(); } }, 80);
+    }
+
+    function skEdit(id) {
+      const ev = _skEvents.find(function (x) { return x.id === id; });
+      if (!ev) return;
+      _skFormSchliessen();
+      _skEditingId = id;
+      // Die Punkte unveraendert uebernehmen (nicht runden): Der Server vergleicht sie beim
+      // Speichern mit dem Bestand, und ein gerundeter Punkt gaelte als geaenderte Strecke.
+      _skPunkte = (ev.punkte || []).map(function (p) { return [Number(p[0]), Number(p[1])]; });
+      const setz = function (feld, wert) {
+        const el = document.getElementById(feld);
+        if (el) el.value = (wert === null || wert === undefined) ? '' : wert;
+      };
+      setz('sk-name', ev.name);
+      setz('sk-dtstart', isoToLocal(ev.dtstart));
+      setz('sk-dtend', isoToLocal(ev.dtend));
+      setz('sk-korridor', ev.korridor_m);
+      setz('sk-hoehe', ev.hoehe_max_ft);
+      setz('sk-gsmax', ev.gs_max_kt);
+      setz('sk-gsmin', ev.gs_min_kt);
+      const t = document.getElementById('sk-form-title');
+      if (t) t.textContent = 'Event bearbeiten: ' + (ev.name || '');
+      _skFormOeffnen();
+      document.getElementById('sk-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function _skVerdrahten() {
+      const auf = document.getElementById('sk-toggle-form-btn');
+      if (auf) auf.addEventListener('click', function () {
+        const offen = !document.getElementById('sk-form').classList.contains('hidden');
+        _skFormSchliessen();                  // Bearbeitungsstand loeschen, DANN oeffnen
+        if (!offen) _skFormOeffnen();
+      });
+      const an = function (id, fn) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', fn);
+      };
+      an('sk-save-btn', skSpeichern);
+      an('sk-cancel-btn', _skFormSchliessen);
+      an('sk-zurueck-btn', skLetzterZurueck);
+      an('sk-leeren-btn', skLeeren);
+      an('sk-einpassen-btn', _skEinpassen);
+      // Der Korridor aendert Band und Teilung sofort -- man soll die Wirkung der Breite
+      // sehen, BEVOR man speichert.
+      const korr = document.getElementById('sk-korridor');
+      if (korr) korr.addEventListener('input', _skLinieNachziehen);
+    }
+
     function _typLader(typ) {
       return ({
         bummel: function () { loadRaces(); },
         kutter: function () { loadKutterAdmin(); },
         reddung: function () { loadReddung(); },
+        strecke: function () { loadStrecke(); },
       })[typ];
     }
 
@@ -7751,6 +8355,7 @@
     document.querySelectorAll('.typ-btn').forEach(function (b) {
       b.addEventListener('click', function () { typOeffnen(b.dataset.typ); });
     });
+    _skVerdrahten();
 
     // ====================================================================
     // INIT

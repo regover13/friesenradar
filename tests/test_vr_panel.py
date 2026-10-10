@@ -385,8 +385,9 @@ def test_kachel_einblendung_im_panel_abgeschaltet():
     sie zurueck (Nutzer, in beiden Ansichten bestaetigt). Erklaert auch den aeltesten
     ungeklaerten Fund: Satellitenkacheln, die vollstaendig ankamen und nicht erschienen."""
     assert "const _KARTE_EINBLENDEN = !document.documentElement.classList.contains('vr-panel');" in INDEX
-    # Alle drei Karten muessen die Option bekommen, sonst bleibt eine Ansicht kaputt
-    assert INDEX.count("fadeAnimation: _KARTE_EINBLENDEN") == 3
+    # Alle vier Karten muessen die Option bekommen, sonst bleibt eine Ansicht kaputt (die
+    # vierte ist die Karte in der Eventansicht der Deichkontrolle, `strecke-karte`)
+    assert INDEX.count("fadeAnimation: _KARTE_EINBLENDEN") == 4
 
 
 def test_dauerlaufende_zierde_animationen_im_panel_aus():

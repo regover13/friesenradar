@@ -20,6 +20,7 @@ VATSIM Live-Tracker für die FriesenFlieger Virtual Airline. Zeigt wer von der G
   - [Badge fürs Forum](#badge-fürs-forum)
 - [🦐 FriesenKutter (Transportflüge)](#-friesenkutter-transportflüge)
 - [🚨 FriesenReddung (Suchen und Retten)](#-friesenreddung-suchen-und-retten)
+- [🌊 Deichkontrolle (eine Strecke gemeinsam abfliegen)](#-deichkontrolle-eine-strecke-gemeinsam-abfliegen)
 - [🔧 Verwaltung (Admin)](#-verwaltung-admin)
   - [Board-Login (Forum-SSO, optional)](#board-login-forum-sso-optional)
   - [Rund um den FriesenBummel](#rund-um-den-friesenbummel)
@@ -477,6 +478,56 @@ nicht gewertet" mit dem Grund.
 
 ---
 
+## 🌊 Deichkontrolle (eine Strecke gemeinsam abfliegen)
+
+Bei der **Deichkontrolle** fliegt die Gruppe gemeinsam eine **Strecke** ab: tief und nah daran
+entlang. Gewertet wird, welcher Teil der Strecke am Ende abgeflogen ist, von allen zusammen. Einen
+Sieger gibt es nicht; ein Balken füllt sich mit Kilometern, wie beim FriesenKutter mit Kilogramm.
+Der Name ist nur ein Name — welche Strecke es ist, legt der Veranstalter für jedes Event neu fest.
+
+**So zählt ein Abschnitt:** Die Strecke ist in gleich lange Abschnitte geteilt. Ein Abschnitt
+gilt als abgeflogen, sobald jemand nah genug daran und niedrig genug darüber entlangfliegt, nicht
+zu schnell und nicht zu langsam. Wie nah, wie hoch und wie schnell, steht als Satz in der Ansicht
+des Events, zum Beispiel „höchstens 500 m neben der Strecke und höchstens 1.000 ft darüber, 30 bis
+140 kt". Die Höhe zählt über dem Gelände an der Strecke, nicht über dem Tal daneben. Ein Abschnitt
+gehört dem, der ihn zuerst abfliegt; wer später dieselbe Stelle überfliegt, ändert daran nichts.
+Lohnender ist es also, sich aufzuteilen.
+
+**Die FriesenBrügge ist Voraussetzung.** Für die Wertung braucht es die genauen Positionen aus
+deinem Simulator, VATSIM allein ist dafür zu grob. Wer ohne FriesenBrügge fliegt, wird nicht
+gewertet. Du bekommst sie auf der Download-Seite (`radar.friesenflieger.de/download`); der Hinweis
+darauf steht auch in der Ansicht des Events. Setzt deine FriesenBrügge unterwegs kurz aus, füllt
+VATSIM die Lücke.
+
+**Was du davon siehst:**
+
+- **Live-Ansicht:** Läuft eine Deichkontrolle, steht sie oben — mit dem Balken, wie viele
+  Kilometer schon abgeflogen sind, der Vorgabe und dem Ende des Events. **Zur Karte** springt
+  direkt auf die Strecke und schaltet dabei die mitlaufende Karte ab, sonst zöge sie dich gleich
+  wieder zum eigenen Flugzeug.
+- **Karte:** Die Ebene **Deichkontrolle** zeigt die Strecke: blass gestrichelt, was noch offen
+  ist, kräftig orange, was schon abgeflogen ist. Darunter liegt ein blasses gelbes Band, so breit,
+  wie man neben der Strecke fliegen darf — weit herausgezoomt ist es nur ein feiner Saum, beim
+  Hineinzoomen wird es breiter. So seht ihr in der Luft, wo noch niemand war. Ein Tipp auf die
+  Strecke nennt den Abschnitt und wer ihn wann abgeflogen hat. Die Ebene frischt sich alle 30
+  Sekunden auf, auch im Kniebrett, und ist nur da, solange eine Deichkontrolle läuft. Schaltest
+  du sie ab, gilt das für dieses Event.
+- **Events:** In der Eventliste steht die Deichkontrolle mit ihrem Stand („50,6 von 92,3 km ·
+  55 %"). Ein Klick öffnet ihre Ansicht: Balken und Stand, die Vorgabe, die Karte mit der Strecke
+  und darunter die Piloten mit ihren Kilometern — ohne Rangfolge. Solange das Event läuft, wächst
+  die Ansicht von selbst mit; danach bleibt der Endstand stehen. **Teilen** oben rechts kopiert
+  den Link auf die Ansicht.
+- **Eine Farbe oder je Pilot eine:** Über der Karte in der Ansicht des Events wählst du, ob alles
+  Abgeflogene orange ist oder jeder Pilot seine eigene Farbe hat. Die Wahl gilt auch für die
+  Live-Karte. Die Farben werden in der Reihenfolge vergeben, in der die Piloten ihren ersten
+  Abschnitt geholt haben, und jeder behält seine; dieselbe Farbe steht als Marke vor seinem Namen
+  in der Liste. Dein Browser merkt sich die Wahl. Im Kniebrett gilt nach jedem Start wieder eine
+  Farbe für alle.
+- **Fehlen die Geländehöhen** für eine Strecke, steht das als Hinweis in der Ansicht. Solange
+  wird nichts gewertet — sonst würde ohne Höhenprüfung gezählt.
+
+---
+
 ## 🔧 Verwaltung (Admin)
 
 Die Admin-Seite ist unter `/admin` erreichbar und passwortgeschützt. Das Passwort wird über `ADMIN_PASSWORD` in `config.env` gesetzt (leer = Admin-Bereich deaktiviert; niemals in git). Der Login setzt ein signiertes httponly-Cookie (`fs_admin`), das für die Browsersitzung gültig bleibt — ein Passwort- oder Key-Wechsel invalidiert alle bestehenden Cookies sofort.
@@ -487,7 +538,7 @@ Oben steht eine Leiste mit sechs Bereichen: **Events · Stammdaten · Karten · 
 Brügge · Betrieb**. Früher stand alles untereinander auf einer einzigen langen Seite.
 
 Im Bereich **Events** liegt darunter eine zweite Reihe — ein Knopf je Event-Typ, derzeit
-**🏁 Bummel**, **🦐 Kutter** und **🚨 Reddung**. Jeder weitere Typ bekommt dort seinen eigenen Knopf, und alles,
+**🏁 Bummel**, **🦐 Kutter**, **🚨 Reddung** und **🌊 Deichkontrolle**. Jeder weitere Typ bekommt dort seinen eigenen Knopf, und alles,
 was zu ihm gehört, steht dahinter beieinander.
 
 **Der offene Bereich steht in der Adresszeile.** Lädst du die Seite neu, landest du wieder dort,
@@ -606,6 +657,14 @@ laufen hat, sieht einen leeren Sektor und wird auch nicht gewertet. Als Veransta
 dafür nichts einstellen — wer ohne fliegt, bekommt den Hinweis von allein in der Live-Ansicht,
 solange das Event läuft und noch nicht aufgelöst ist. Für einen Piloten mit Brügge füllt
 VATSIM weiterhin die Sekunden, in denen sie schweigt.
+
+### Rund um die Deichkontrolle
+- **Strecke auf der Karte klicken** — jeder Klick hängt einen Punkt an. Punkte lassen sich ziehen; ein Klick auf einen Punkt öffnet ein kleines Menü zum Entfernen. Darunter stehen „Letzten Punkt zurück“, „Strecke leeren“ und „Karte auf die Strecke einpassen“. Was abgeflogen wird, bestimmst allein du: eine Grenze, ein Fluss, ein Bergkamm, eine Küste.
+- **Vorschau** — unter der Karte stehen sofort Länge, Zahl der Abschnitte und ihre Länge. Das gelbe Band zeigt den Korridor in echter Breite; zoomst du hinein, wird es breiter.
+- **Was als abgeflogen zählt** — vier Zahlen je Event: der **Korridor** (wie weit neben der Strecke, nach jeder Seite), die **Höhe über der Strecke**, die **Höchst-** und die **Mindestgeschwindigkeit**. Ein Abschnitt ist immer doppelt so lang wie der Korridor breit ist; je schmaler der Korridor, desto mehr und kürzere Abschnitte.
+- **Geländehöhen** — beim Speichern holt FriesenRadar für jeden Abschnitt die Höhe des Geländes. Die Höhe zählt damit über der Strecke selbst, auch im Gebirge. Klappt das einmal nicht, steht in der Liste „Geländehöhen fehlen – es wird nicht gerechnet“ mit dem Knopf **Geländehöhen holen**. Bis sie da sind, wird nichts gewertet; danach wird nachgeholt, was inzwischen geflogen wurde.
+- **Bearbeiten** — ein neuer Name ändert am Stand nichts. Änderst du bei einem laufenden oder vergangenen Event Strecke, Korridor, Höhe, Geschwindigkeit oder Zeiten, fragt die Verwaltung vorher nach: Der bisherige Stand wird dann verworfen und neu gerechnet. **Nach einem halben Tag geht das nicht mehr vollständig**, weil die genauen Positionen der FriesenBrügge nur zwölf Stunden aufbewahrt werden.
+- **Löschen** — entfernt das Event samt Stand und verlangt das Passwort erneut.
 
 ### Flugbetrieb und Daten
 

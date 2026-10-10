@@ -118,4 +118,5 @@ class TestAdminAufbau:
         assert "Kieker" in fehlende_admin_eventtypen(readme, mehr)
 
     def test_findet_die_eventtypen_ueberhaupt(self, admin_html):
-        assert eventtypen_der_adminseite(admin_html) == ["Bummel", "Kutter", "Reddung"]
+        assert eventtypen_der_adminseite(admin_html) == [
+            "Bummel", "Kutter", "Reddung", "Deichkontrolle"]

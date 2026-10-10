@@ -18,8 +18,9 @@ SKRIPT = "\n".join(re.findall(r"<script>(.*?)</script>", ADMIN, re.S))
 
 GRUPPEN = ["events", "stammdaten", "karten", "mitteilungen", "bruegge", "betrieb"]
 #: Reihenfolge der Chips in der Typ-Leiste. Waechst mit jedem neuen Eventtyp --
-#: "reddung" kam am 20.09.2026 dazu (FriesenReddung, #21).
-TYPEN = ["bummel", "kutter", "reddung"]
+#: "reddung" kam am 20.09.2026 dazu (FriesenReddung, #21), "strecke" am 10.10.2026
+#: (Deichkontrolle, #22).
+TYPEN = ["bummel", "kutter", "reddung", "strecke"]
 
 
 def _rumpf(name: str) -> str:
@@ -108,7 +109,8 @@ def test_alle_panels_sind_noch_da():
     19), und faellt nur, wenn beim Umsortieren eines verlorengegangen ist. Genau deshalb steht
     hier eine Zahl und keine Untergrenze.
     """
-    assert len(_baum().panels) == 20
+    # ... und am 10.10.2026 die Deichkontrolle (`typ-strecke`), von 20 auf 21.
+    assert len(_baum().panels) == 21
 
 
 # --------------------------------------------------- Laden erst beim Oeffnen

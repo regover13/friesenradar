@@ -230,7 +230,7 @@ def test_ein_verlorenes_loslassen_legt_die_seite_nicht_still():
 
 @pytest.mark.parametrize("aufruf", [
     "fetchAndRenderPrefiles", "fetchAndRenderTeamspeak", "fetchBummelActive",
-    "fetchKutterActive", "_reddungTakt", "refreshLiveData", "_refreshKutterDetail",
+    "fetchKutterActive", "_reddungTakt", "_streckeTakt", "refreshLiveData", "_refreshKutterDetail",
 ])
 def test_jeder_selbsttaetige_takt_wartet_auf_den_finger(aufruf):
     assert re.search(rf"setInterval\(_imTakt\({re.escape(aufruf)}\)", _INDEX), aufruf

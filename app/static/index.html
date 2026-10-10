@@ -1154,6 +1154,7 @@
     html.vr-panel [onclick*="copyReddungShareHeader"],
     html.vr-panel [onclick*="copyReddungForumText"],
     html.vr-panel [onclick*="copyReddungBadgeCode"],
+    html.vr-panel [onclick*="copyStreckeShareHeader"],
     html.vr-panel #changelog-banner,
     html.vr-panel #app-version {
       display: none !important;
@@ -1512,20 +1513,21 @@
       color: var(--green);
       white-space: nowrap;
     }
-    #bummel-banner, #kutter-banner, #reddung-banner {
+    #bummel-banner, #kutter-banner, #reddung-banner, #strecke-banner {
       border: 1px solid var(--green-dim);
       background: linear-gradient(180deg, rgba(var(--green-rgb),0.10), rgba(var(--green-rgb),0.02));
       padding: 12px 14px;
       margin-bottom: 16px;
     }
-    #bummel-banner .bb-title, #kutter-banner .bb-title, #reddung-banner .bb-title {
+    #bummel-banner .bb-title, #kutter-banner .bb-title, #reddung-banner .bb-title, #strecke-banner .bb-title {
       font-family: var(--text-display);
       font-size: 0.8rem;
       letter-spacing: 0.06em;
       color: var(--green);
       margin-bottom: 6px;
     }
-    #bummel-banner .bb-sub, #kutter-banner .bb-sub, #reddung-banner .bb-sub, #reddung-results .bb-sub {
+    #bummel-banner .bb-sub, #kutter-banner .bb-sub, #reddung-banner .bb-sub, #reddung-results .bb-sub,
+    #strecke-banner .bb-sub, #strecke-results .bb-sub {
       font-family: var(--text-mono);
       font-size: 0.78rem;
       color: var(--text-label);
@@ -1559,6 +1561,35 @@
       border-left: 3px solid #e0a33e;
       background: rgba(224,163,62,0.08);
     }
+    /* Deichkontrolle (Eventtyp `strecke`): Balken und Punkte in der Farbe der abgeflogenen
+       Strecke -- Blau bleibt dem Klickbaren. Groessen in rem. */
+    .strecke-balken { height: 0.75rem; background: rgba(215,95,40,0.16); margin: 0.5rem 0 0.4rem; }
+    .strecke-balken > span { display: block; height: 100%; background: #D75F28; }
+    .strecke-stand { font-family: var(--text-mono); font-size: 1.05rem; color: var(--text-bright); margin-bottom: 0.4rem; }
+    .strecke-vorgabe { font-size: 0.85rem; line-height: 1.45; margin: 0.4rem 0; }
+    .strecke-warnung { color: #e0a33e; }
+    .strecke-live-block + .strecke-live-block {
+      margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--green-dim);
+    }
+    #strecke-banner a, #strecke-results .bb-sub a { color: var(--green); }
+    .strecke-umschalter { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.8rem 0 0.5rem; }
+    .strecke-umschalter button {
+      background: transparent; border: 1px solid var(--green-dim); color: var(--green);
+      font-family: var(--text-display); font-size: 0.72rem; letter-spacing: 0.06em;
+      padding: 0.4rem 0.75rem; cursor: pointer;
+    }
+    .strecke-umschalter button.aktiv { background: var(--green); color: var(--bg-panel); border-color: var(--green); }
+    #strecke-karte { width: 100%; height: 62vh; min-height: 18rem; max-height: 36rem; }
+    .strecke-legende { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.75rem; color: var(--text-label); margin: 0.4rem 0 0.8rem; }
+    .strecke-legende i { display: inline-block; width: 1.6rem; height: 0; vertical-align: middle; margin-right: 0.35rem; border-top: 0.25rem solid; }
+    .strecke-legende .sl-offen { border-top-style: dashed; border-top-color: #6b9ab8; }
+    .strecke-legende .sl-ab { border-top-color: #D75F28; }
+    .strecke-legende .sl-band { border-top-width: 0.6rem; border-top-color: rgba(245,197,66,0.5); }
+    .strecke-punkt {
+      display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%;
+      border: 1px solid var(--text-label); margin-right: 0.45rem; vertical-align: -0.05rem;
+    }
+    #strecke-knoepfe { margin-top: 0.5rem; }
     .bummel-rank-1 { color: #ffd24a; font-weight: 700; }
     .bummel-avg-row {
       font-family: var(--text-mono);
@@ -4429,6 +4460,7 @@
        test_helle_schrift_hat_im_hellen_eine_gegenregel). Orange = FriesenOrange (#D75F28) fuer
        Hervorhebungen, Rot = Forumsrot (#BC2A4D), Trennlinien = Forumsrahmen (#CADCEB). */
     html.hell #reddung-banner .reddung-status-fehlt,
+    html.hell .strecke-warnung,
     html.hell .bummel-rank-1,
     html.hell .bummel-incomplete .bi-missing { color: #D75F28; }
     html.hell .reddung-lage { border-left-color: #D75F28; }
@@ -5104,6 +5136,7 @@
        ===================================================================== -->
   <div id="tab-live" class="tab-panel active">
     <div id="reddung-banner" hidden></div>
+    <div id="strecke-banner" hidden></div>
     <div id="bummel-banner" hidden></div>
     <div id="kutter-banner" hidden></div>
     <div class="panel">
@@ -5211,6 +5244,7 @@
               <li><strong>Meldepunkte</strong> — VFR-Meldepunkte weltweit; gefüllt heißt meldepflichtig, hohl heißt auf Anforderung</li>
               <li><strong>FSE-Plätze</strong> und <strong>FSE-Landeflächen</strong> — zwei eigene Haken: Plätze aus FSEconomy mit Bahnlänge, Belag und dem Namen, unter dem der Platz im Simulator zu finden ist</li>
               <li><strong>FriesenReddung</strong> — der Suchsektor als rot gestrichelter Rahmen, darin blau, was schon abgesucht ist; erscheint nur, solange eine FriesenReddung läuft, und verschwindet mit ihrem Ende. Danach stehen Sektor und Zellen auf der Karte unter ihrer Bilanz. Wo der Havarist liegt, zeigt sie nie</li>
+              <li><strong data-strecke-name></strong> — die Strecke, die gemeinsam abgeflogen wird: blass gestrichelt, was noch offen ist, kräftig, was schon abgeflogen ist, darunter als blasses Band, wie nah man dran sein muss. Ein Tipp auf die Strecke nennt Abschnitt, Pilot und Uhrzeit. Die Ebene erscheint nur, solange ein solches Event läuft; danach steht die Strecke auf der Karte in seiner Ansicht unter Events</li>
               <li><strong>Verkehr</strong> — der fremde VATSIM-Verkehr (grau, siehe oben); aus Platzgründen erst ab Zoomstufe 7</li>
               <li><strong>Radar Label</strong> — blendet die Beschriftungen am Fremdverkehr aus, wenn das Bild ruhiger sein soll; der Haken erscheint erst mit eingeschaltetem „Verkehr"</li>
             </ul>
@@ -5302,6 +5336,31 @@
           <button class="btn-share" onclick="copyReddungShareHeader(this)">⎘ Teilen</button>
         </div>
         <div id="reddung-content"></div>
+      </div>
+    </div>
+
+    <div id="strecke-results" class="hidden">
+      <div class="panel">
+        <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span id="strecke-title"></span>
+          <button class="btn-share" onclick="copyStreckeShareHeader(this)">⎘ Teilen</button>
+        </div>
+        <div id="strecke-content"></div>
+        <div id="strecke-rest" hidden>
+          <div id="strecke-umschalter" class="strecke-umschalter">
+            <button type="button" data-wahl="eine" onclick="streckeFarbwahlSetzen('eine')">Eine Farbe für alle</button>
+            <button type="button" data-wahl="pilot" onclick="streckeFarbwahlSetzen('pilot')">Je Pilot eine Farbe</button>
+          </div>
+          <div id="strecke-karte"></div>
+          <div class="strecke-legende">
+            <span><i class="sl-offen"></i>offen</span>
+            <span><i class="sl-ab"></i>abgeflogen</span>
+            <span><i class="sl-band"></i>so nah muss man dran sein</span>
+            <span>Tipp auf die Strecke: wer den Abschnitt wann abgeflogen hat</span>
+          </div>
+          <div id="strecke-piloten"></div>
+          <div id="strecke-knoepfe"></div>
+        </div>
       </div>
     </div>
 
@@ -11364,6 +11423,22 @@ async function fetchFriesenEvents() {
           _manual: r.source === 'manual',
         })));
     } catch (_) { /* ignorieren */ }
+    // Deichkontrollen ergänzen (toleriert Fehler) -- mit ihrem Kurzstand.
+    try {
+      const stRes = await fetch('/api/strecke/events');
+      const strecken = await stRes.json();
+      objectEvents = objectEvents.concat((strecken || [])
+        .map(r => ({
+          summary: r.name,
+          dtstart: r.dtstart,
+          dtend: r.dtend,
+          route: '',
+          location: '',
+          is_strecke: 1,
+          _streckeId: r.id,
+          _streckeKurz: _streckeStandText(r),
+        })));
+    } catch (_) { /* ignorieren */ }
     const combined = [...calEvents, ...objectEvents]
       .sort((a, b) => (b.dtstart || '').localeCompare(a.dtstart || ''));
     renderFriesenEvents(combined);
@@ -11393,6 +11468,7 @@ function _eventKey(ev) {
   if (ev.uid) return `uid:${ev.uid}`;
   if (ev._raceId != null) return `race:${ev._raceId}`;
   if (ev._kutterId != null) return `kutter:${ev._kutterId}`;
+  if (ev._streckeId != null) return `strecke:${ev._streckeId}`;
   return `${ev.summary || ''}|${ev.dtstart || ''}`;
 }
 
@@ -11407,7 +11483,8 @@ function renderFriesenEvents(data) {
   data.forEach((ev, i) => {
     const badge = ev.is_bummel ? '<span class="bummel-badge">' + emoji('checkered-flag') + ' BUMMEL</span>'
       : ev.is_transport ? '<span class="bummel-badge">' + emoji('shrimp') + ' KUTTER</span>'
-      : ev.is_reddung ? '<span class="bummel-badge">🚨 REDDUNG</span>' : '';
+      : ev.is_reddung ? '<span class="bummel-badge">🚨 REDDUNG</span>'
+      : ev.is_strecke ? '<span class="bummel-badge">' + _streckeZeichenHtml() + ' ' + escHtml(_STRECKE_NAME.toUpperCase()) + '</span>' : '';
     const manuelHint = ev._manual ? ' <span class="text-label" style="font-size:0.8em;">(manuell)</span>' : '';
     // Kutter: kein Routen-Kettentext (irreführend, s. #12) — nur das Ziel, wohin die Fracht soll.
     // Fallback (Kalender-Events ohne destination): letzter ICAO der Route = Default-Ziel.
@@ -11424,6 +11501,8 @@ function renderFriesenEvents(data) {
       icaoCell = st.gefunden
         ? 'gefunden von ' + (st.gefunden.name || '?')
         : anteil + ' % abgesucht';
+    } else if (ev.is_strecke) {
+      icaoCell = ev._streckeKurz || '—';
     } else if (ev.is_bummel && ev.route) {
       icaoCell = ev.route.replace(/,/g, ' - ');
     } else {
@@ -11445,6 +11524,7 @@ function renderFriesenEvents(data) {
       if (ev.is_bummel) openBummel(ev);
       else if (ev.is_transport) ev._kutterId ? openKutterDetail(ev._kutterId) : openKutter(ev);
       else if (ev.is_reddung) openReddungDetail(ev._reddungId);
+      else if (ev.is_strecke) openStreckeDetail(ev._streckeId);
       else _prefillEventForm(ev);
     });
   });
@@ -11464,6 +11544,7 @@ function _prefillEventForm(ev) {
   document.getElementById('bummel-results').classList.add('hidden');
   document.getElementById('kutter-results').classList.add('hidden');
   _reddungZu();
+  _streckeZu();
   clearInterval(_kutterPollTimer);
   _kutterPollTimer = null;
   _kutterOpenId = null;
@@ -11498,6 +11579,7 @@ let _activeBummelId = null;  // id des gerade geöffneten Rennens (für den Teil
 async function openBummel(ev) {
   document.getElementById('kutter-results').classList.add('hidden');
   _reddungZu();
+  _streckeZu();
   clearInterval(_kutterPollTimer);
   _kutterPollTimer = null;
   _kutterOpenId = null;
@@ -16132,7 +16214,7 @@ function renderEventsResults(data, icaoStr, radiusKm, startVal, endVal) {
   // openBummel()/openKutterDetail()/openReddungDetail() bereits auf das jeweilige Panel
   // gescrollt, der Event-Scroll würde daran vorbeispringen (Nutzer, 25.09.2026: „das soll
   // aber auf das Event scrollen und nicht auf die Tracks!").
-  if (!_activeBummel && _kutterOpenId == null && _reddungOffenId == null) {
+  if (!_activeBummel && _kutterOpenId == null && _reddungOffenId == null && _streckeOffenId == null) {
     results.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
@@ -16648,6 +16730,7 @@ async function openKutter(ev) {
 async function openKutterDetail(id) {
   document.getElementById('bummel-results').classList.add('hidden');
   _reddungZu();
+  _streckeZu();
   _activeBummel = null; _activeBummelId = null;
   _kutterOpenId = id;
   setUrlState({ tab: 'events', kutter: id });
@@ -17099,6 +17182,7 @@ async function openReddungDetail(id) {
   _kutterOpenId = null;
   _activeBummel = null;
   _activeBummelId = null;
+  _streckeZu();
   _reddungOffenId = Number(id);
   // Eigene Adresse -- sonst oeffnete ein Neuladen, was vorher dort stand (#44, Punkt 9).
   setUrlState({ tab: 'events', reddung: Number(id) });
@@ -17293,6 +17377,585 @@ function copyReddungForumText(btn) {
 }
 
 // ==========================================================================
+//  DEICHKONTROLLE — eine Strecke gemeinsam abfliegen (Spec 2026-10-10, #22)
+// ==========================================================================
+// Im Code heisst der Eventtyp `strecke`: Der Name sagt nichts ueber den Inhalt (Grenze, Fluss,
+// Bergkamm …). Name und Zeichen stehen NUR hier -- wer sie aendert, aendert diese zwei Zeilen
+// (und das Handbuch).
+const _STRECKE_NAME = 'Deichkontrolle';
+const _STRECKE_ZEICHEN = '🌊';
+
+// ⚠ Alle Zustaende stehen HIER oben -- vor dem ersten Aufruf auf oberster Ebene
+// (`setInterval(_imTakt(_streckeTakt), …)` weiter unten). Ein `let` dahinter legte die Seite lahm.
+let _streckeListe = [];                 // letzte Antwort von /api/strecke/events
+let _streckeListeGeladen = false;
+let _streckeTaktNr = 0;                 // nur die juengste Antwort zaehlt
+const _streckeStandNr = new Map();      // id -> Nummer des juengsten Stand-Abrufs
+const _streckeStand = new Map();        // id -> letzter Stand samt Geometrie
+let _streckeOffenId = null;             // die gerade offene Ansicht unter Events
+let _streckeGruppe = null;              // L.layerGroup der Ebene auf der Live-Karte
+let _streckeEbeneDa = false;
+let _streckeAbgewaehlt = false;         // vom Nutzer abgewaehlt -- gilt bis zum Ende des Events
+let _streckeSelbst = false;             // eigenes addTo/removeLayer ist keine Wahl des Nutzers
+const _streckeZeichnung = new Map();    // 'live:<id>' | 'event' -> die Pfade einer Strecke
+let _streckeKarte = null;               // die Karte in der Eventansicht
+let _streckeKarteWird = null;           // ihr Aufbau laeuft (Promise) -- nie zwei Karten
+let _streckeKarteFuer = null;           // fuer welches Event der Ausschnitt schon gesetzt ist
+let _streckeFarbwahlJetzt = null;       // 'eine' | 'pilot'; null = noch nicht gelesen
+
+// Das Zeichen als Text, wie das Blaulicht der FriesenReddung. Liegt dafuer einmal eine eigene
+// Grafik unter /static/emoji/, genuegt hier emojiChar(_STRECKE_ZEICHEN).
+function _streckeZeichenHtml() {
+  return escHtml(_STRECKE_ZEICHEN);
+}
+
+// Die Wahl „eine Farbe / je Pilot“ merkt sich der Browser. Im Kniebrett haelt kein Speicher
+// ueber einen Sim-Neustart -- dort gilt immer die Vorgabe, und gemerkt wird nichts.
+const _STRECKE_FARBWAHL_KEY = 'friesenspy_strecke_farbe';
+const _STRECKE_FARBE_AB = '#D75F28';      // abgeflogen: Friesen-Orange
+const _STRECKE_FARBE_OFFEN = '#6b9ab8';   // offen, gestrichelt
+const _STRECKE_FARBE_BAND = '#f5c542';    // der Korridor, sehr blass
+// Fest und gut unterscheidbar, auch bei Farbfehlsichtigkeit (Okabe-Ito, um zwei ergaenzt).
+// Vergeben in der Reihenfolge des ersten Treffers -- wer einmal eine Farbe hat, behaelt sie.
+const _STRECKE_PALETTE = ['#E69F00', '#56B4E9', '#009E73', '#CC79A7', '#F0E442', '#D55E00',
+                          '#B48BFF', '#7FDBCA'];
+
+function _streckeFarbwahl() {
+  if (_streckeFarbwahlJetzt == null) {
+    _streckeFarbwahlJetzt = (!_PANEL_MODUS && _prefLies(_STRECKE_FARBWAHL_KEY) === 'pilot')
+      ? 'pilot' : 'eine';
+  }
+  return _streckeFarbwahlJetzt;
+}
+
+function streckeFarbwahlSetzen(wahl) {
+  _streckeFarbwahlJetzt = wahl === 'pilot' ? 'pilot' : 'eine';
+  if (!_PANEL_MODUS) _prefSchreib(_STRECKE_FARBWAHL_KEY, _streckeFarbwahlJetzt);
+  _streckeAllesNeuZeichnen();
+}
+
+// Deutsches Zahlenformat von Hand: Tausenderpunkt, Dezimalkomma. Nicht toLocaleString --
+// worauf sich die Engine des Kniebretts dabei versteht, ist nicht gemessen.
+function _streckeZahl(wert, stellen) {
+  const n = Number(wert);
+  if (!isFinite(n)) return '–';
+  const teile = Math.abs(n).toFixed(stellen || 0).split('.');
+  teile[0] = teile[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return (n < 0 ? '−' : '') + teile.join(',');
+}
+
+// Kilometer: kurze Strecken mit einer Nachkommastelle, lange ohne.
+function _streckeKm(km, gesamt) {
+  return _streckeZahl(km, Number(gesamt) < 100 ? 1 : 0);
+}
+
+// „12,5 von 61,0 km · 20 %“ -- derselbe Satz in Liste, Live-Block und Ansicht.
+function _streckeStandText(r) {
+  const pct = Math.round((r.anteil || 0) * 100);
+  return `${_streckeKm(r.km_abgedeckt || 0, r.km_gesamt)} von ${_streckeKm(r.km_gesamt || 0, r.km_gesamt)} km · ${pct} %`;
+}
+
+// Die Vorgabe als Satz, alles aus den Parametern des Events.
+function _streckeVorgabeText(g) {
+  if (!g) return '';
+  const n = x => _streckeZahl(Math.round(Number(x)), 0);
+  return `höchstens ${n(g.korridor_m)} m neben der Strecke und höchstens ${n(g.hoehe_max_ft)} ft darüber, `
+       + `${n(g.gs_min_kt)} bis ${n(g.gs_max_kt)} kt`;
+}
+
+// cid -> Farbe, in der Reihenfolge des ERSTEN Treffers (fruehester Zeitpunkt). Wer spaeter
+// dazukommt, schiebt niemanden um; bei Gleichstand entscheidet die kleinere CID.
+function _streckeFarben(strecke) {
+  const erster = new Map();
+  (strecke || []).forEach(a => {
+    if (a.cid == null) return;
+    const ts = a.ts || '';
+    if (!erster.has(a.cid) || ts < erster.get(a.cid)) erster.set(a.cid, ts);
+  });
+  const reihe = [...erster.keys()].sort((x, y) =>
+    erster.get(x) < erster.get(y) ? -1 : erster.get(x) > erster.get(y) ? 1 : x - y);
+  const farben = new Map();
+  reihe.forEach((cid, i) => farben.set(cid, _STRECKE_PALETTE[i % _STRECKE_PALETTE.length]));
+  return farben;
+}
+
+// Die Abschnitte zu WENIGEN Linienzuegen buendeln: aufeinanderfolgende Abschnitte derselben
+// Sorte werden ein Zug, alle Zuege einer Sorte EIN Pfad. Bei 2.000 Abschnitten bleiben es so
+// ein Pfad fuer das Offene und einer je Farbe statt 2.000 Elemente.
+function _streckeLaeufe(strecke, farben) {
+  const offen = [];
+  const farbig = new Map();       // Farbe -> Linienzuege
+  let zug = null, zugSorte = null;
+  (strecke || []).forEach(a => {
+    const linie = a.linie || [];
+    if (linie.length < 2) return;
+    const sorte = a.cid == null ? '' : ((farben && farben.get(a.cid)) || _STRECKE_FARBE_AB);
+    const letzter = zug && zug[zug.length - 1];
+    const schliesstAn = letzter && letzter[0] === linie[0][0] && letzter[1] === linie[0][1];
+    if (zug && sorte === zugSorte && schliesstAn) {
+      for (let i = 1; i < linie.length; i++) zug.push(linie[i]);
+      return;
+    }
+    zug = linie.slice();
+    zugSorte = sorte;
+    if (sorte === '') offen.push(zug);
+    else {
+      if (!farbig.has(sorte)) farbig.set(sorte, []);
+      farbig.get(sorte).push(zug);
+    }
+  });
+  return { offen, farbig };
+}
+
+// Breite des Korridors in Pixeln: zwei Mal der Korridor (nach jeder Seite), umgerechnet mit
+// dem Massstab der Web-Mercator-Karte auf dieser Breite und Zoomstufe.
+function _streckeBandBreite(korridorM, lat, zoom) {
+  const mJePx = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
+  return Math.max(2, 2 * korridorM / mJePx);
+}
+
+// Der Abschnitt, der einer Stelle am naechsten liegt. Die Pfade sind gebuendelt -- welcher
+// Abschnitt getroffen wurde, weiss die Karte nicht, also wird er aus der Stelle bestimmt.
+function _streckeNaechster(strecke, lat, lon) {
+  const kx = Math.cos(lat * Math.PI / 180);
+  let best = null, bestD = Infinity;
+  (strecke || []).forEach(a => {
+    const l = a.linie || [];
+    for (let i = 1; i < l.length; i++) {
+      const ax = (l[i - 1][1] - lon) * kx, ay = l[i - 1][0] - lat;
+      const bx = (l[i][1] - lon) * kx, by = l[i][0] - lat;
+      const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+      const t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+      const px = ax + dx * t, py = ay + dy * t, d = px * px + py * py;
+      if (d < bestD) { bestD = d; best = a; }
+    }
+  });
+  return best;
+}
+
+// Was ein Tipp auf die Strecke nennt: Abschnitt, Pilot und Uhrzeit.
+function _streckeTippHtml(d, a) {
+  const kopf = `Abschnitt ${Number(a.nr) + 1} von ${(d.strecke || []).length}`;
+  if (a.cid == null) {
+    return `<strong>${kopf}</strong><br>${d.vorbei_seit_s != null ? 'nicht abgeflogen' : 'noch offen'}`;
+  }
+  const p = (d.je_pilot || []).find(x => x.cid === a.cid);
+  const name = (p && p.name) || String(a.cid);
+  return `<strong>${kopf}</strong><br>abgeflogen von ${escHtml(name)} um ${escHtml((a.ts || '').slice(11, 16))} UTC`;
+}
+
+function _streckeMitte(strecke) {
+  let s = 0, n = 0;
+  (strecke || []).forEach(a => (a.linie || []).forEach(p => { s += p[0]; n++; }));
+  return n ? s / n : 0;
+}
+
+// ⚠ SVG, KEIN Canvas (liveMap laeuft mit leaflet-rotate, s. _reddungZeichnen), und WENIGE
+// Pfade: das Band, EIN Pfad fuer alles Offene, einer je Farbe und einer, der die Tipps faengt.
+// `ziel` ist die Ebenengruppe der Live-Karte oder die Karte der Eventansicht.
+function _streckeZeichnen(schluessel, ziel, karte, d) {
+  if (!ziel || !karte || !d || !d.strecke || !d.strecke.length) return;
+  const jePilot = _streckeFarbwahl() === 'pilot';
+  const laeufe = _streckeLaeufe(d.strecke, jePilot ? _streckeFarben(d.strecke) : null);
+  const ganze = _streckeLaeufe(d.strecke.map(a => ({ linie: a.linie, cid: null })), null).offen;
+  const korridor = Number((d.regeln || {}).korridor_m) || 0;
+  let z = _streckeZeichnung.get(schluessel);
+  if (!z) {
+    z = { ziel, karte, farbig: new Map() };
+    z.band = L.polyline(ganze, { color: _STRECKE_FARBE_BAND, opacity: 0.16, weight: 2,
+                                 lineCap: 'round', lineJoin: 'round', interactive: false });
+    z.offen = L.polyline(laeufe.offen, { color: _STRECKE_FARBE_OFFEN, weight: 4, opacity: 0.8,
+                                         dashArray: '2 9', lineCap: 'round', interactive: false });
+    // Unsichtbar und breit: Er faengt den Tipp, auch wo der Finger die schmale Linie verfehlt.
+    z.tipp = L.polyline(ganze, { color: '#000', opacity: 0, weight: 22, interactive: true });
+    z.tipp.on('click', e => {
+      const stand = z.stand;
+      const a = stand && _streckeNaechster(stand.strecke, e.latlng.lat, e.latlng.lng);
+      if (!a) return;
+      if (e.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
+      // Auf der Live-Karte nicht nachruecken: Dort fuehrt womoeglich die Moving Map.
+      L.popup({ className: 'strecke-tipp', autoPan: z.karte !== liveMap }).setLatLng(e.latlng)
+        .setContent(_streckeTippHtml(stand, a)).openOn(z.karte);
+    });
+    ziel.addLayer(z.band);
+    ziel.addLayer(z.offen);
+    ziel.addLayer(z.tipp);
+    // Die echte Breite haengt am Massstab -- bei jedem Zoomwechsel neu.
+    z.beiZoom = () => _streckeBandAnpassen(z);
+    karte.on('zoomend', z.beiZoom);
+    _streckeZeichnung.set(schluessel, z);
+  } else {
+    z.band.setLatLngs(ganze);
+    z.offen.setLatLngs(laeufe.offen);
+    z.tipp.setLatLngs(ganze);
+  }
+  z.stand = d;
+  z.korridor = korridor;
+  z.lat = _streckeMitte(d.strecke);
+  for (const [farbe, pfad] of z.farbig) {
+    if (!laeufe.farbig.has(farbe)) { ziel.removeLayer(pfad); z.farbig.delete(farbe); }
+  }
+  for (const [farbe, zuege] of laeufe.farbig) {
+    const da = z.farbig.get(farbe);
+    if (da) { da.setLatLngs(zuege); continue; }
+    const pfad = L.polyline(zuege, { color: farbe, weight: 6, opacity: 1, lineCap: 'butt',
+                                     interactive: false });
+    ziel.addLayer(pfad);
+    z.farbig.set(farbe, pfad);
+  }
+  _streckeBandAnpassen(z);
+}
+
+function _streckeBandAnpassen(z) {
+  if (!z || !z.band || !z.karte) return;
+  z.band.setStyle({ weight: _streckeBandBreite(z.korridor, z.lat, z.karte.getZoom()) });
+}
+
+function _streckeZeichnungWeg(schluessel) {
+  const z = _streckeZeichnung.get(schluessel);
+  if (!z) return;
+  [z.band, z.offen, z.tipp, ...z.farbig.values()].forEach(p => z.ziel.removeLayer(p));
+  z.karte.off('zoomend', z.beiZoom);
+  _streckeZeichnung.delete(schluessel);
+}
+
+// Nach dem Umschalten der Farbwahl: alles, was gerade steht, in der neuen Wahl.
+function _streckeAllesNeuZeichnen() {
+  for (const [schluessel, z] of _streckeZeichnung) {
+    if (z.stand) _streckeZeichnen(schluessel, z.ziel, z.karte, z.stand);
+  }
+  _streckeAnsichtZeigen();
+}
+
+// Ein Takt fuer alles: Eventliste, Live-Block, Karte und Ansicht lesen dieselbe Liste. Ein
+// Server-Ereignis fuer Aenderungen gibt es nicht -- gefragt wird, solange etwas laeuft.
+async function _streckeTakt() {
+  const nr = ++_streckeTaktNr;
+  let liste;
+  try {
+    const res = await fetch('/api/strecke/events');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    liste = (await res.json()) || [];
+  } catch (e) {
+    // Ein Aussetzer nimmt nichts weg: Block, Ebene und Ansicht bleiben, wie sie waren.
+    return;
+  }
+  if (nr !== _streckeTaktNr) return;
+  _streckeListe = liste;
+  _streckeListeGeladen = true;
+  _streckeBannerZeigen();
+  _streckeKarteAbgleichen();
+  _streckeAnsichtZeigen();
+  // Die offene Ansicht waechst mit, solange ihr Event laeuft. „Laeuft“ sagt der Server --
+  // im Kniebrett ist die Uhr des Geraets die des Sim-PCs.
+  const offen = _streckeListe.find(x => x.id === _streckeOffenId);
+  // Einmal noch nach dem Ende: Der gemerkte Stand sagt sonst weiter „laeuft“.
+  const gemerkt = offen && _streckeStand.get(offen.id);
+  if (offen && (offen.laeuft || !gemerkt || gemerkt.laeuft)) _streckeStandHolen(offen.id);
+}
+
+// Stand samt Geometrie EINES Events holen und ueberall einsetzen, wo es gerade gezeigt wird.
+async function _streckeStandHolen(id) {
+  const nr = (_streckeStandNr.get(id) || 0) + 1;
+  _streckeStandNr.set(id, nr);
+  let d;
+  try {
+    const res = await fetch('/api/strecke/events/' + id + '/stand');
+    if (!res.ok) return null;
+    d = await res.json();
+  } catch (e) {
+    return null;
+  }
+  if (_streckeStandNr.get(id) !== nr) return null;    // eine juengere Antwort ist schon da
+  _streckeStand.set(id, d);
+  if (_streckeGruppe && liveMap && _streckeZuZeigen(_streckeListe).includes(id)
+      && liveMap.hasLayer(_streckeGruppe)) {
+    _streckeZeichnen('live:' + id, _streckeGruppe, liveMap, d);
+  }
+  if (_streckeOffenId === id) {
+    _streckeAnsichtZeigen();
+    _streckeEventKarte(d);
+  }
+  return d;
+}
+
+function _streckeZeitfenster(r) {
+  return _reddungZeitfenster(r);
+}
+
+function _streckeBalken(r) {
+  const pct = Math.max(0, Math.min(100, (r.anteil || 0) * 100));
+  return `<div class="strecke-balken"><span style="width:${pct.toFixed(1)}%"></span></div>`;
+}
+
+// Die Bruegge-Pflicht: Gewertet wird mit ihren genauen Positionen. Im Kniebrett gibt es keine
+// Links -- dort steht die Adresse als Text (wie beim Reddung-Hinweis).
+function _streckeBrueggeHtml() {
+  return '<div class="bb-sub">Gewertet wird nur, wer mit der <strong>FriesenBrügge</strong> fliegt — '
+    + 'gebraucht werden ihre genauen Positionen. '
+    + (_PANEL_MODUS
+       ? 'radar.friesenflieger.de/download'
+       : '<a href="/download" target="_blank" rel="noopener">Zur Download-Seite</a>')
+    + '</div>';
+}
+
+// Vorgabe, Bruegge-Pflicht und der Hinweis, wenn gerade nicht gerechnet wird.
+function _streckeRegelnHtml(r) {
+  let html = '';
+  const vorgabe = _streckeVorgabeText(r.regeln);
+  if (vorgabe) html += `<div class="strecke-vorgabe">So zählt ein Abschnitt: ${escHtml(vorgabe)}.</div>`;
+  html += _streckeBrueggeHtml();
+  if (r.ohne_grund) {
+    html += '<div class="bb-sub strecke-warnung">⚠ Für diese Strecke fehlen noch die Geländehöhen. '
+          + 'Bis sie da sind, wird nichts gewertet.</div>';
+  }
+  return html;
+}
+
+function _streckeBannerZeigen() {
+  const banner = document.getElementById('strecke-banner');
+  if (!banner) return;
+  const laufend = _streckeListe.filter(r => r.laeuft);
+  if (!laufend.length) { banner.hidden = true; banner.innerHTML = ''; return; }
+  banner.innerHTML = laufend.map(_streckeBannerBlock).join('');
+  banner.hidden = false;
+}
+
+function _streckeBannerBlock(r) {
+  const ende = (r.dtend || '').slice(11, 16);
+  return `<div class="strecke-live-block"><div class="bb-title">${_streckeZeichenHtml()} ${escHtml(r.name || _STRECKE_NAME)} läuft gerade</div>`
+    + _streckeBalken(r)
+    + `<div class="bb-sub">${_streckeStandText(r)} · Ende ${escHtml(ende)} UTC</div>`
+    + _streckeRegelnHtml(r)
+    + `<div style="margin-top:8px;"><button class="btn-share" onclick="streckeAufKarte(${Number(r.id)})">${icon('map')} Zur Karte</button></div></div>`;
+}
+
+// Die Live-Karte zeigt nur LAUFENDE Events (wie bei der Reddung); danach steht die Strecke
+// auf der Karte in ihrer Eventansicht.
+function _streckeZuZeigen(liste) {
+  return (liste || []).filter(r => r.laeuft).map(r => r.id);
+}
+
+function _streckeKarteAbgleichen() {
+  if (typeof liveMap === 'undefined' || !liveMap || !_liveEbenenControl) return;
+  if (!_streckeGruppe) {
+    _streckeGruppe = L.layerGroup();
+    liveMap.on('overlayremove', e => {
+      if (e.layer === _streckeGruppe && !_streckeSelbst) _streckeAbgewaehlt = true;
+    });
+    liveMap.on('overlayadd', e => {
+      if (e.layer !== _streckeGruppe || _streckeSelbst) return;
+      _streckeAbgewaehlt = false;
+      _streckeKarteAbgleichen();
+    });
+  }
+  const ids = _streckeZuZeigen(_streckeListe);
+  for (const schluessel of [..._streckeZeichnung.keys()]) {
+    if (schluessel.indexOf('live:') !== 0) continue;
+    if (!ids.includes(Number(schluessel.slice(5)))) _streckeZeichnungWeg(schluessel);
+  }
+  if (!ids.length) {
+    if (_streckeEbeneDa) {
+      _streckeSelbst = true;
+      try {
+        liveMap.removeLayer(_streckeGruppe);
+        _liveEbenenControl.removeLayer(_streckeGruppe);
+      } finally {
+        _streckeSelbst = false;
+      }
+      _streckeEbeneDa = false;
+      _streckeAbgewaehlt = false;     // die Abwahl galt diesem Event
+    }
+    return;
+  }
+  if (!_streckeEbeneDa) {
+    _liveEbenenControl.addOverlay(_streckeGruppe, _STRECKE_NAME);
+    _ebeneVorEinsortieren(_liveEbenenControl._layers, _streckeGruppe, 'Verkehr');
+    _liveEbenenControl._update();
+    _streckeEbeneDa = true;
+  }
+  if (!_streckeAbgewaehlt && !liveMap.hasLayer(_streckeGruppe)) {
+    _streckeSelbst = true;
+    try { _streckeGruppe.addTo(liveMap); } finally { _streckeSelbst = false; }
+  }
+  // Geladen wird nur bei eingeschalteter Ebene und sichtbarer Karte -- sonst kostet sie nichts.
+  if (!liveMap.hasLayer(_streckeGruppe)) return;
+  const karte = document.getElementById('tab-karte');
+  if (!karte || !karte.classList.contains('active')) return;
+  ids.forEach(id => _streckeStandHolen(id));
+}
+
+async function streckeAufKarte(id) {
+  id = Number(id);
+  _streckeAbgewaehlt = false;
+  const tab = document.querySelector('.tab-btn[data-tab="karte"]');
+  if (tab) tab.click();
+  await new Promise(r => setTimeout(r, 250));
+  for (let versuch = 0; versuch < 20 && !liveMap; versuch++) {
+    await new Promise(r => setTimeout(r, 100));
+  }
+  if (!liveMap) return;
+  _streckeKarteAbgleichen();
+  const d = _streckeStand.get(id) || await _streckeStandHolen(id);
+  if (!d || !d.strecke || !d.strecke.length || !liveMap) return;
+  // Moving Map ausdruecklich abschalten -- sonst spraenge die Karte gleich zurueck zum eigenen
+  // Flugzeug (wie reddungAufKarte).
+  if (_movingMap) {
+    _movingMap = false;
+    _naviMerke(_NAVI_MOVING_KEY, false);
+    _naviKnopfAnstrich();
+  }
+  liveMap.fitBounds(_streckeGrenzen(d.strecke), { padding: [30, 30] });
+}
+
+function _streckeGrenzen(strecke) {
+  const punkte = [];
+  (strecke || []).forEach(a => (a.linie || []).forEach(p => punkte.push(p)));
+  return L.latLngBounds(punkte);
+}
+
+// Die Karte in der Eventansicht: die Strecke fuer JEDES Event, laufend wie abgeschlossen.
+async function _streckeEventKarte(d) {
+  const id = _streckeOffenId;
+  if (id == null || !d || !d.strecke || !d.strecke.length) return;
+  if (!_streckeKarte) {
+    if (!_streckeKarteWird) {
+      _streckeKarteWird = (async () => {
+        await _configPromise;
+        const karte = L.map('strecke-karte', { center: [54.5, 8.5], zoom: 8, minZoom: 6,
+          wheelPxPerZoomLevel: _RAD_PX_JE_ZOOMSTUFE, fadeAnimation: _KARTE_EINBLENDEN });
+        _fixLeafletZoomIcons(karte);
+        const ebenen = _makeTileLayers();
+        _getPreferredLayer(ebenen).addTo(karte);
+        L.control.layers(
+          { 'OpenFlightMap': ebenen.ofm, 'OpenTopo': ebenen.topo, 'Satellit': ebenen.sat,
+            'Light': ebenen.light, 'Dark': ebenen.dark },
+          {}, { position: 'topright', collapsed: true }).addTo(karte);
+        _setupOFMAutoSwitch(karte, ebenen);
+        _streckeKarte = karte;
+      })();
+    }
+    await _streckeKarteWird;
+  }
+  // Wer inzwischen ein anderes Event geoeffnet oder die Ansicht geschlossen hat, bekommt
+  // nicht diese Strecke.
+  if (_streckeOffenId !== id || !_streckeKarte) return;
+  _streckeKarte.invalidateSize();
+  _streckeZeichnen('event', _streckeKarte, _streckeKarte, d);
+  if (_streckeKarteFuer !== id) {
+    // Den Ausschnitt nur beim Oeffnen setzen -- nicht bei jedem Takt unter dem Finger weg.
+    _streckeKarteFuer = id;
+    _streckeKarte.fitBounds(_streckeGrenzen(d.strecke), { padding: [30, 30] });
+    if (_streckeKarte._applyOFMAuto) _streckeKarte._applyOFMAuto();
+  }
+}
+
+function _streckeZu() {
+  const w = document.getElementById('strecke-results');
+  if (w) w.classList.add('hidden');
+  _streckeOffenId = null;
+  _streckeKarteFuer = null;
+  if (_streckeKarte) _streckeKarte.closePopup();
+  _streckeZeichnungWeg('event');
+}
+
+async function openStreckeDetail(id) {
+  document.getElementById('bummel-results').classList.add('hidden');
+  document.getElementById('kutter-results').classList.add('hidden');
+  document.getElementById('events-results').classList.add('hidden');
+  _reddungZu();
+  clearInterval(_kutterPollTimer);
+  _kutterPollTimer = null;
+  _kutterOpenId = null;
+  _activeBummel = null;
+  _activeBummelId = null;
+  _streckeZu();
+  _streckeOffenId = Number(id);
+  // Eigene Adresse -- Neuladen oder ein geteilter Link oeffnet dieselbe Ansicht wieder.
+  setUrlState({ tab: 'events', strecke: Number(id) });
+  const wrap = document.getElementById('strecke-results');
+  wrap.classList.remove('hidden');
+  _streckeAnsichtZeigen();      // sofort aus dem, was schon da ist …
+  await _streckeTakt();         // … und frisch, sobald die Liste da ist
+  wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (_streckeOffenId === Number(id)) await _streckeStandHolen(Number(id));
+}
+
+// Im Takt aufgefrischt -- laeuft das Event noch, waechst die Ansicht mit. Die Karte bleibt
+// dabei stehen: Neu gebaut werden nur Kopf, Umschalter und Pilotenliste.
+function _streckeAnsichtZeigen() {
+  if (_streckeOffenId == null) return;
+  const titel = document.getElementById('strecke-title');
+  const kopf = document.getElementById('strecke-content');
+  const rest = document.getElementById('strecke-rest');
+  const piloten = document.getElementById('strecke-piloten');
+  if (!titel || !kopf || !rest || !piloten) return;
+  // Der Stand mit Geometrie ist frischer als die Liste, sobald er da ist.
+  const r = _streckeStand.get(_streckeOffenId) || _streckeListe.find(x => x.id === _streckeOffenId);
+  if (!r) {
+    titel.innerHTML = _streckeZeichenHtml() + ' ' + escHtml(_STRECKE_NAME);
+    kopf.innerHTML = _streckeListeGeladen
+      ? `<div class="bb-sub">Diese ${escHtml(_STRECKE_NAME)} gibt es nicht mehr.</div>`
+      : '<div class="loading"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div>Lade…</div>';
+    rest.hidden = true;
+    return;
+  }
+  rest.hidden = false;
+  titel.innerHTML = _streckeZeichenHtml() + ' ' + escHtml(r.name || _STRECKE_NAME);
+  kopf.innerHTML = `<div class="bb-sub">${_streckeZeitfenster(r)}</div>`
+    + _streckeBalken(r)
+    + `<div class="strecke-stand">${_streckeStandText(r)}</div>`
+    + _streckeRegelnHtml(r);
+  const wahl = _streckeFarbwahl();
+  document.querySelectorAll('#strecke-umschalter button').forEach(b => {
+    const an = b.dataset.wahl === wahl;
+    b.classList.toggle('aktiv', an);
+    b.setAttribute('aria-pressed', an ? 'true' : 'false');
+  });
+  piloten.innerHTML = _streckePilotenHtml(r, wahl);
+  const knoepfe = document.getElementById('strecke-knoepfe');
+  if (knoepfe) {
+    // „Zur Karte“ nur solange das Event laeuft: Danach zeigt die Live-Karte es nicht mehr.
+    knoepfe.innerHTML = r.laeuft
+      ? `<button class="btn-share" onclick="streckeAufKarte(${Number(r.id)})">${icon('map')} Zur Karte</button>`
+      : '';
+  }
+}
+
+// Die Pilotenliste mit ihren Kilometern -- ohne Rangfolge, niemand gewinnt. Der Punkt traegt
+// die Farbe, in der die Abschnitte des Piloten auf der Karte stehen.
+function _streckePilotenHtml(r, wahl) {
+  const piloten = r.je_pilot || [];
+  if (!piloten.length) return '<div class="bb-sub">Noch ist niemand dabei.</div>';
+  const farben = (wahl === 'pilot' && r.strecke) ? _streckeFarben(r.strecke) : null;
+  let html = '<div class="table-scroll"><table><thead><tr><th>Pilot</th><th>Abgeflogen</th><th>Anteil</th></tr></thead><tbody>';
+  piloten.forEach(p => {
+    const farbe = !(p.abschnitte > 0) ? ''
+      : (farben && farben.get(p.cid)) || _STRECKE_FARBE_AB;
+    const punkt = farbe
+      ? `<span class="strecke-punkt" style="background:${farbe};border-color:${farbe};"></span>`
+      : '<span class="strecke-punkt"></span>';
+    const anteil = r.abschnitte ? Math.round(100 * (p.abschnitte || 0) / r.abschnitte) : 0;
+    html += `<tr><td>${punkt}${pilotLinkHtml(p.name || String(p.cid), p.cid)}</td>`
+          + `<td class="mono">${_streckeKm(p.km || 0, r.km_gesamt)} km</td><td class="mono">${anteil} %</td></tr>`;
+  });
+  return html + '</tbody></table></div>';
+}
+
+// Teilen heisst wie bei Bummel, Kutter und Reddung: den Link auf die Ansicht kopieren.
+function copyStreckeShareHeader(btn) {
+  if (_streckeOffenId == null) return;
+  _copyText(`${_teilenUrsprung()}${location.pathname}#tab=events&strecke=${_streckeOffenId}`, btn);
+}
+
+// Der Name steht auch in festem Text der Seite (Legende, Erklaerung am Umschalter) -- dort
+// als Platzhalter, damit er wirklich nur an EINER Stelle steht.
+function _streckeNamenEinsetzen() {
+  document.querySelectorAll('[data-strecke-name]').forEach(e => { e.textContent = _STRECKE_NAME; });
+}
+_streckeNamenEinsetzen();
+
+// ==========================================================================
 //  TAB SWITCHING
 // ==========================================================================
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -17346,6 +18009,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
           _vollbildWiederherstellen();
           // Die FriesenReddung-Ebene sofort, nicht erst mit dem naechsten Takt.
           _reddungKarteAbgleichen();
+          _streckeKarteAbgleichen();
           refreshLiveData();
         });
       });
@@ -17375,6 +18039,7 @@ document.getElementById('events-search-btn').addEventListener('click', () => {
   document.getElementById('bummel-results').classList.add('hidden');
   document.getElementById('kutter-results').classList.add('hidden');
   _reddungZu();
+  _streckeZu();
   clearInterval(_kutterPollTimer);
   _kutterPollTimer = null;
   _kutterOpenId = null;
@@ -17498,6 +18163,11 @@ async function initFromUrl() {
     if (reddungId) {
       // Deep-Link auf eine FriesenReddung: Bilanz direkt öffnen (#44, Punkt 9).
       await openReddungDetail(Number(reddungId));
+    }
+    const streckeId = p.get('strecke');
+    if (streckeId) {
+      // Deep-Link auf eine Deichkontrolle: Ansicht direkt öffnen.
+      await openStreckeDetail(Number(streckeId));
     }
     const icao = p.get('icao');
     if (icao) {
@@ -17668,6 +18338,8 @@ fetchKutterActive();
 setInterval(_imTakt(fetchKutterActive), 25000);  // Kutter-Live-Block im Kutter-Detail-Takt (Live-Aktualität)
 _reddungTakt();
 setInterval(_imTakt(_reddungTakt), 30000);  // FriesenReddung: Live-Block, Karte und Bilanz im Takt des Pollers
+_streckeTakt();
+setInterval(_imTakt(_streckeTakt), 30000);  // Deichkontrolle: Live-Block, Karte und Ansicht; ein Server-Ereignis gibt es dafuer nicht
 // Delegierter Karten-Klick des Kutter-Blocks (überlebt die innerHTML-Refreshs).
 _on(document.getElementById('kutter-banner'), 'click', e => {
   const el = e.target.closest('[data-callsign]');
@@ -18759,6 +19431,7 @@ async function alleDatenNeuLaden() {
   fetchBummelActive();
   fetchKutterActive();
   _reddungTakt();
+  _streckeTakt();
   fetchAndRenderPrefiles();
   fetchAndRenderTeamspeak();
 }

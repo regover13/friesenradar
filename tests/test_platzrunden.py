@@ -356,8 +356,8 @@ def test_maus_macht_eine_zoomstufe_je_rastung():
     assert INDEX.count("_RAD_PX_JE_ZOOMSTUFE =") == 1
     px = int(re.search(r"_RAD_PX_JE_ZOOMSTUFE = (\d+)", INDEX).group(1))
     assert px >= 100
-    # alle drei Karten, nicht nur die Live-Karte
-    assert INDEX.count("wheelPxPerZoomLevel: _RAD_PX_JE_ZOOMSTUFE") == 3
+    # alle vier Karten, nicht nur die Live-Karte (die vierte: `strecke-karte`)
+    assert INDEX.count("wheelPxPerZoomLevel: _RAD_PX_JE_ZOOMSTUFE") == 4
 
 
 def test_geojson_wird_als_geojson_ausgeliefert():

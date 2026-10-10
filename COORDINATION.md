@@ -6,6 +6,20 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-10 — Zweig `deichkontrolle` (16.5.0): liegt auf `test`, NICHT in `main`
+
+Der neue Eventtyp Deichkontrolle (#22, im Code `strecke`) ist auf dem Zweig `deichkontrolle` gebaut
+und steht zum Ansehen auf der Teststufe (`test`). **Nach `main` geht er erst auf Wort des Nutzers.**
+Spec: `docs/superpowers/specs/2026-10-10-deichkontrolle-design.md`.
+
+Berührt: neu `app/strecke.py`, `scripts/strecke_probe.py`, Tests `test_strecke*.py`; geändert
+`app/abdeckung.py` (Höhengrenze je Ziel), `app/database.py` (Tabelle `strecken_events`, Abschnitt am
+Ende, Wache der Sekundenspur), `app/main.py` (Block vor den Kutter-Push-Endpunkten), `app/poller.py`
+(`_check_strecke`), `app/static/index.html`, `app/static/admin.html`, `README.md`, `CHANGELOG.json`.
+Wer bis dahin `index.html` oder `admin.html` anfasst, rechnet beim Zusammenführen mit Konflikten.
+**Die Versionsnummer 16.5.0 ist damit vergeben** — wer vorher etwas nach `main` bringt, nimmt
+16.4.x, sonst muss der Eintrag hier beim Zusammenführen umnummeriert werden.
+
 ## 2026-10-10 — Zweig `rueckbau-alter-bruegge-weg`: NICHT vor dem 24.10.2026 nach `main`
 
 Der Rückbau des alten MSFS-Brügge-Wegs (#46) liegt fertig auf dem Zweig

@@ -488,14 +488,16 @@ def test_die_spuren_ziehen_den_blick_nicht_von_der_bilanz_weg():
     assert m, "Scroll zu den Ergebnissen fehlt"
     bedingung = m.group(1)
 
-    def scrollt(bummel, kutter, reddung):
+    def scrollt(bummel, kutter, reddung, strecke="null"):
         return _node(f"let _activeBummel = {bummel}, _kutterOpenId = {kutter}, "
-                     f"_reddungOffenId = {reddung};", f"!!({bedingung})")
+                     f"_reddungOffenId = {reddung}, _streckeOffenId = {strecke};",
+                     f"!!({bedingung})")
 
     assert scrollt("null", "null", "null") is True       # freie Suche: zu den Ergebnissen
     assert scrollt("{}", "null", "null") is False        # Bummel
     assert scrollt("null", "3", "null") is False         # Kutter
     assert scrollt("null", "null", "7") is False         # Reddung
+    assert scrollt("null", "null", "null", "4") is False  # Deichkontrolle (Eventtyp `strecke`)
 
 
 # --- Das Eventende steht dabei (Nutzer, 25.09.2026: „event Ende steht niergens") ----------
