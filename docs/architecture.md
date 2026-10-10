@@ -785,6 +785,26 @@ als Banner bei allen Nutzern.
 
 Design: FriesenFlieger-Blau (`#04080f` Hintergrund, `#2d9cdb` Blau, `#D31141` Vereinsrot).
 
+## Datenfluss Deichkontrolle (Eventtyp `strecke`)
+
+```
+Verwaltung                         FastAPI                              SQLite
+   │── Strecke klicken, speichern ─►│── Höhenmodell (Open-Meteo) ─┐         │
+   │                                │◄─ Gelände je Abschnitt ─────┘         │
+   │                                │── create/update ───────────────────►│ strecken_events
+FriesenBrügge                       │                                       │
+   │── POST /api/bruegge/melden ───►│── bruegge_spur_schreiben ──────────►│ bruegge_spur (1 Hz,
+   │   (im Umkreis der Strecke)     │                                       │  nur im Umkreis)
+Poller, alle 30 s                   │── strecke_fortschreiben ───────────►│ progress_snapshot
+Karte / Eventansicht                │                                       │  (kind 'strecke')
+   │── GET /api/strecke/events/…  ─►│── compute_strecke_stand ───────────►│
+```
+
+`app/strecke.py` hält die Rechenwerte (Teilung, Geometrie, Höhengrenze je Abschnitt),
+`app/abdeckung.py` rechnet die Abdeckung, `app/database.py` schreibt den Stand fort. Kein
+Netzabruf liegt innerhalb einer Datenbank-Transaktion: Die Geländehöhen werden vor dem Schreiben
+geholt.
+
 ## Datenfluss SSE
 
 ```

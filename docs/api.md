@@ -1214,6 +1214,58 @@ In der Bilanz stehen „Badge" (Bild öffnen) und „Forum" (BBCode kopieren) ne
 
 ---
 
+## Deichkontrolle (Eventtyp `strecke`, #22)
+
+Eine frei geklickte Strecke, die die Gruppe gemeinsam abfliegt. „Deichkontrolle“ ist nur der Name;
+im Code heißt der Typ `strecke`. Spec: `docs/superpowers/specs/2026-10-10-deichkontrolle-design.md`.
+
+### GET /api/strecke/events
+
+Alle Deichkontrollen mit Kurzstand, für die Eventliste. Je Event:
+`id`, `name`, `dtstart`, `dtend`, `laeuft`, `vorbei_seit_s` (beides vom Server gerechnet),
+`anteil` (0..1), `abschnitte`, `abgedeckt`, `km_gesamt`, `km_abgedeckt`, `abschnitt_m`,
+`je_pilot` (`[{cid, name, abschnitte, km}]`, absteigend, auch Piloten mit 0),
+`regeln` (`korridor_m`, `hoehe_max_ft`, `gs_max_kt`, `gs_min_kt`) und `ohne_grund`.
+
+`ohne_grund: true` heißt: Die Geländehöhen fehlen, es wird nicht gerechnet. Der Stand rückt dann
+nicht vor und holt nach, sobald sie da sind.
+
+### GET /api/strecke/events/{id}/stand
+
+Dasselbe für ein Event, dazu `strecke`: je Abschnitt `{nr, linie, cid, ts}`. `linie` ist das Stück
+der Strecke als `[[lat, lon], …]` und folgt den geklickten Knicken; `cid` und `ts` nennen, wer den
+Abschnitt wann zuerst abgeflogen hat (`null`, solange er offen ist). Jeder Aufruf schreibt den
+Stand fort; ein Server-Ereignis für Änderungen gibt es nicht, die Karte fragt selbst.
+
+### Wie gerechnet wird
+
+- Die Strecke wird in gleich lange Abschnitte geteilt, jeder doppelt so lang wie der Korridor
+  breit ist (nach jeder Seite). Ein Abschnitt zählt, wenn eine Spur innerhalb des Korridors an
+  seinem Mittelpunkt vorbeiläuft.
+- Die Höhe zählt **über der Strecke**: je Abschnitt Geländehöhe aus dem Höhenmodell plus
+  `hoehe_max_ft`, verglichen mit der Höhe über Meer des Flugzeugs (`abdeckung(…, hoehe_je_ziel)`).
+- Quelle sind die Sekundenpunkte der FriesenBrügge (`bruegge_spur`); VATSIM füllt Lücken nur für
+  Piloten, deren Brügge seit Eventbeginn gemeldet hat. Die Sekundenpunkte werden im Umkreis
+  laufender Strecken mitgeschrieben (`bruegge_spur_schreiben`).
+- Der Stand liegt in `progress_snapshot` (`kind = 'strecke'`) und wird vom Poller alle 30 s
+  fortgeschrieben (`_check_strecke`), auch ohne Zuschauer.
+
+### Verwaltung
+
+| Weg | |
+|---|---|
+| `GET /api/admin/strecke/events` | Liste mit `punkte`, `laenge_km`, `grund_da`, `stand` |
+| `POST /api/admin/strecke/events` | anlegen: `name`, `dtstart`, `dtend`, `punkte`, `korridor_m`, `hoehe_max_ft`, `gs_max_kt`, `gs_min_kt`; Antwort `{id, grund_fehlt}` |
+| `POST /api/admin/strecke/events/{id}` | ändern; Antwort `{stand_verworfen, grund_fehlt}` |
+| `POST /api/admin/strecke/events/{id}/grund` | Geländehöhen neu holen; 502, wenn das Höhenmodell nicht antwortet |
+| `DELETE /api/admin/strecke/events/{id}` | löschen, verlangt das Passwort erneut |
+
+Grenzen: 2 bis 500 Punkte, Korridor 50 bis 10.000 m, höchstens 2.000 Abschnitte. Fehler kommen als
+400 mit einem Satz für die Verwaltung. **Der Stand wird beim Ändern nur verworfen, wenn sich ein
+Rechenwert ändert** (Strecke, Korridor, Höhe, Geschwindigkeit, Zeiten), nicht beim Umbenennen.
+Ändern sich Strecke oder Korridor, werden die Geländehöhen neu geholt: je Abschnitt eine Stelle,
+in Blöcken zu 100 Koordinaten (mehr nimmt Open-Meteo je Anfrage nicht, gemessen am 10.10.2026).
+
 ## Admin: FriesenReddung
 
 Alle sechs verlangen den Admin-Cookie (sonst `401`).

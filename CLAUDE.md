@@ -457,8 +457,8 @@ anderen Fläche weg, die nie jemand angesehen hat.
 | FriesenBummel | nein | VATSIM genügt — **nicht anfassen** |
 | FriesenKutter | nein | VATSIM genügt — **nicht anfassen** |
 | FriesenReddung | ja (Wrack, Rauchsäulen) | nur wer per FriesenBrügge gemeldet hat |
-| Kieker, Deichkontrolle, Baake | noch offen | dieselbe Frage entscheidet es |
-
+| Deichkontrolle (`strecke`) | nein | **trotzdem nur per FriesenBrügge**: Gewertet wird mit ihren genauen Positionen (Nutzer, 10.10.2026) |
+| Kieker, Baake | noch offen | dieselbe Frage entscheidet es |
 Nutzerentscheidung vom 20.09.2026: *„Die Brügge ist zwingend für dieses Event! Keine Teilnahme
 ohne Brügge! Wir stellen was in den Simulator! Das geht nur mit Brügge!"* — und dazu: *„Dann
 lassen wir Bummel und Kutter so wie sie sind."*
@@ -480,6 +480,24 @@ schickt immer alle Felder, und bis dahin verwarf jedes Speichern den Stand — a
 neuen Namen. `_reddung_rechnung_geaendert` verwirft ihn nur noch, wenn sich ein Rechenwert
 wirklich ändert (`_REDDUNG_OHNE_RECHNUNG`: Name, `lagetext`, Badge-Name …). Wer ein neues
 Feld ohne Einfluss auf den Stand anlegt, trägt es dort ein.
+
+## Deichkontrolle: eine Strecke abfliegen (stehende Regeln, Nutzer 10.10.2026)
+
+- **„Deichkontrolle“ ist nur der Name.** Abgeflogen wird, was in der Verwaltung auf der Karte
+  geklickt wird: eine Grenze, ein Fluss, ein Bergkamm. *„Also komm nicht wieder auf die Idee und
+  lass irgendwelche Deiche oder sonst was abfragen.“* Keine fremden Linienquellen vorschlagen,
+  nichts an Deiche oder Küste binden. Im Code heißt der Typ `strecke`.
+- **Nur Strecken, keine Flächen.** Flächen sucht die FriesenReddung ab.
+- **Die Höhe zählt über der Strecke, „wie bei Reddung“:** Geländehöhe je Abschnitt aus dem
+  Höhenmodell, verglichen mit der Höhe über Meer. Nicht die Höhe über Grund aus dem Simulator —
+  die misst am Bergkamm den Talboden.
+- **Ohne Geländehöhen wird nicht gerechnet** (`ohne_grund`), statt ohne Höhenprüfung zu werten.
+- **Der Stand überlebt die Sekundenpunkte nicht rückwirkend:** `bruegge_spur` ist nach zwölf
+  Stunden leer. Vor dem Erhöhen von `_STRECKE_STAND_FASSUNG` und vor jeder Änderung, die den
+  Stand verwirft, prüfen, ob die Punkte noch da sind. Das Speichern in der Verwaltung verwirft
+  ihn nur bei geänderten Rechenwerten (`_STRECKE_OHNE_RECHNUNG`).
+- Zum Ansehen ohne Simulator: `scripts/strecke_probe.py --db <Kopie>` legt ein Beispiel-Event mit
+  erfundenen Piloten an. Nie gegen die echte Datenbank; das Skript weigert sich dort.
 
 ## Wem eine FriesenBrügge gehört — ab Protokoll 3 (stehende Regeln, Beschluss 26.09.2026)
 
