@@ -217,3 +217,165 @@ def test_die_farbe_ist_eine_einstellung_im_formular():
     assert "farbe: _skFarbe" in _rumpf("skSpeichern")
     assert "skFarbeSetzen(ev.farbe)" in _rumpf("skEdit")
     assert "skFarbeSetzen('eine')" in _rumpf("_skFormSchliessen")
+
+
+# ------------------------------------------------------------------ Fundstellen
+
+def test_das_formular_hat_die_felder_der_fundstellen():
+    for feld in ("sk-fundradius", "sk-fundhoehe", "sk-badge-name", "sk-modus",
+                 "sk-fund-liste", "sk-fund-summe"):
+        assert HTML.count(f'id="{feld}"') == 1, feld
+    for feld, wert in (("sk-fundradius", st.VORGABE_FUND_RADIUS_M),
+                       ("sk-fundhoehe", st.VORGABE_FUND_HOEHE_FT)):
+        m = re.search(rf'<input[^>]*id="{feld}"[^>]*value="(\d+)"', HTML)
+        assert m and float(m.group(1)) == wert, feld
+        assert re.search(rf"'{feld}':\s*{int(wert)}\b", SKRIPT), f"{feld} fehlt in _SK_VORGABEN"
+
+
+def test_die_grenzen_der_fundstellen_sind_die_des_servers():
+    from app import database, gruppen
+    for name, wert in (("_SK_FUNDSTELLEN_MAX", database.STRECKE_FUNDSTELLEN_MAX),
+                       ("_SK_FUND_MENGE_MAX", gruppen.MENGE_MAX),
+                       ("_SK_FUND_ABSTAND_MIN_M", gruppen.ABSTAND_MIN_M),
+                       ("_SK_FUND_ABSTAND_MAX_M", gruppen.ABSTAND_MAX_M)):
+        m = re.search(rf"\b{name}\s*=\s*(\d+)\b", SKRIPT)
+        assert m and float(m.group(1)) == wert, name
+    # Der Platz in der FriesenBrügge steht in app/main.py; als Text gelesen, ohne die App zu laden.
+    main = (ADMIN_PFAD.parent.parent / "main.py").read_text(encoding="utf-8")
+    soll = re.search(r"(?m)^_BRUEGGE_SOLL_MAX\s*=\s*(\d+)", main)
+    hier = re.search(r"\b_SK_SOLL_MAX\s*=\s*(\d+)\b", SKRIPT)
+    assert soll and hier and soll.group(1) == hier.group(1)
+    pruefen = _rumpf("_skFundPruefen")
+    for name in ("_SK_FUND_MENGE_MAX", "_SK_FUND_ABSTAND_MIN_M", "_SK_FUND_ABSTAND_MAX_M"):
+        assert name in pruefen, name
+    assert re.search(r"f\.menge_max\s*<\s*f\.menge_min", pruefen)
+    assert re.search(r"f\.abstand_max_m\s*<\s*f\.abstand_min_m", pruefen)
+
+
+def test_der_klickmodus_schaltet_auf_derselben_karte_um():
+    assert "skModusSetzen('strecke')" in HTML and "skModusSetzen('fund')" in HTML
+    assert re.search(r"_skModus\s*=\s*wahl === 'fund' \? 'fund' : 'strecke'", _rumpf("skModusSetzen"))
+    karte = _rumpf("_skKarteAufbauen")
+    modus = karte.index("_skModus === 'fund'")
+    assert "skFundNeu(" in karte[modus:karte.index("_skPunkte.push(")], \
+        "im Fundstellen-Modus darf der Klick keinen Streckenpunkt anhängen"
+    assert "L.map(" in karte and karte.count("L.map(") == 1
+    assert "skModusSetzen('strecke')" in _rumpf("_skFormSchliessen")
+
+
+def test_eine_neue_fundstelle_bekommt_vorgaben_und_sofort_die_vorschau():
+    rumpf = _rumpf("skFundNeu")
+    assert "_SK_FUNDSTELLEN_MAX" in rumpf
+    for feld in ("menge_min", "menge_max", "abstand_min_m", "abstand_max_m"):
+        assert f"{feld}: _SK_FUND_VORGABE.{feld}" in rumpf, feld
+    assert re.search(r"richtung:\s*null", rumpf) and "_skLetzteArt" in rumpf
+    assert "_skFundVorschau(f, true)" in rumpf
+    m = re.search(r"_SK_FUND_VORGABE\s*=\s*\{([^}]*)\}", SKRIPT)
+    assert m and re.sub(r"\s", "", m.group(1)) == "menge_min:5,menge_max:15,abstand_min_m:10,abstand_max_m:40"
+
+
+def test_die_vorschau_kommt_vom_server_und_haelt_den_startwert():
+    rumpf = _rumpf("_skFundVorschau")
+    assert "api('POST', '/api/admin/strecke/streuen', koerper)" in rumpf
+    # Nur „neu würfeln“ lässt den Startwert weg -- sonst bleibt der bisherige.
+    assert re.search(r"if \(neuWuerfeln \|\| !koerper\.startwert\) delete koerper\.startwert;", rumpf)
+    assert "f.startwert = d.startwert" in rumpf and "f.menge = d.menge" in rumpf
+    assert "f.objekte" in rumpf and "lauf !== f.anfrage" in rumpf
+    # Geänderte Angaben holen sie entprellt und mit dem bisherigen Startwert neu.
+    eingabe = _rumpf("_skFundEingabe")
+    assert "setTimeout(" in eingabe and "_skFundVorschau(f, false)" in eingabe
+    assert "_skFundVorschau(f, true)" in _rumpf("_skFundKlick")      # der Knopf „Neu würfeln“
+    verdrahten = _rumpf("_skVerdrahten")
+    assert "addEventListener('input', _skFundEingabe)" in verdrahten
+    assert "addEventListener('click', _skFundKlick)" in verdrahten
+
+
+def test_fundstellen_gehen_ganz_und_mit_startwert_im_koerper_mit():
+    rumpf = _rumpf("skSpeichern")
+    assert "fundstellen: _skFundstellen.map(_skFundAngaben)" in rumpf
+    for feld, quelle in (("fund_radius_m", "sk-fundradius"), ("fund_hoehe_ft", "sk-fundhoehe")):
+        assert re.search(rf"{feld}:\s*_rdZahl\('{quelle}'", rumpf), feld
+    assert re.search(r"badge_name:\s*document\.getElementById\('sk-badge-name'\)", rumpf)
+    angaben = _rumpf("_skFundAngaben")
+    for feld in ("lat", "lon", "art", "menge_min", "menge_max", "abstand_min_m",
+                 "abstand_max_m", "richtung", "startwert"):
+        assert re.search(rf"\b{feld}:\s*f\.{feld}\b", angaben), f"{feld} wird nicht geschickt"
+    # Der Ort einer geladenen Fundstelle bleibt, wie er kam -- gerundet gälte sie als neu.
+    laden = _rumpf("_skFundAusServer")
+    assert "lat: Number(z.lat), lon: Number(z.lon)" in laden and "toFixed" not in laden
+    assert "startwert: z.startwert" in laden
+
+
+def test_bearbeiten_laedt_fundstellen_und_die_neuen_felder():
+    rumpf = _rumpf("skEdit")
+    assert "_skFundstellen = (ev.fundstellen || []).map(_skFundAusServer)" in rumpf
+    for feld, quelle in (("sk-fundradius", "ev.fund_radius_m"), ("sk-fundhoehe", "ev.fund_hoehe_ft"),
+                         ("sk-badge-name", "ev.badge_name")):
+        assert f"setz('{feld}', {quelle})" in rumpf, feld
+    zu = _rumpf("_skFormSchliessen")
+    assert "_skFundstellen = []" in zu and "'sk-badge-name'" in zu
+
+
+def test_die_arten_kommen_aus_der_bruegge_und_nur_anforderbare():
+    rumpf = _rumpf("_skArtenLaden")
+    assert "api('GET', '/api/admin/bruegge/arten')" in rumpf
+    assert "_bgArtenAlle" in rumpf, "die schon geladene Liste der Brügge-Verwaltung mitbenutzen"
+    assert re.search(r"filter\(function \(a\) \{ return a\.anforderbar; \}\)", rumpf)
+    liste = _rumpf("_skFundListe")
+    assert "escH(a.art)" in liste and "escH(a.bedeutung || a.art)" in liste
+    assert "_skArtenLaden()" in _rumpf("_skFormOeffnen")
+
+
+def test_die_liste_der_fundstellen_hat_felder_und_knoepfe():
+    liste = _rumpf("_skFundListe")
+    for feld in ("art", "menge_min", "menge_max", "abstand_min_m", "abstand_max_m", "richtung"):
+        assert f"'{feld}'" in liste or f'data-feld="{feld}"' in liste, feld
+    for tat in ("wuerfeln", "weg"):
+        assert f'data-tat="{tat}"' in liste, tat
+    stand = _rumpf("_skFundStand")
+    assert "f.gefunden_am" in stand and "escH(f.gefunden_name" in stand
+    assert "_skFundKern(f) !== f.ur" in stand          # Hinweis: der Fund geht verloren
+    assert "skFundEntfernen(f.schluessel)" in _rumpf("_skFundKlick")
+    assert "_skFundstellen.splice(i, 1)" in _rumpf("skFundEntfernen")
+
+
+def test_fundstellen_stehen_auf_der_karte_mit_objekten_und_fundradius():
+    rumpf = _rumpf("_skFundZeichnen")
+    assert "_rdZahl('sk-fundradius'" in rumpf and "L.circle(" in rumpf
+    assert "L.circleMarker([o.lat, o.lon]" in rumpf
+    assert re.search(r"draggable:\s*true", rumpf) and "_skFundMenue(f)" in rumpf
+    ziehen = rumpf[rumpf.index("marke.on('dragend'"):]
+    assert "_skFundVorschau(f, false)" in ziehen, "nach dem Ziehen: Vorschau mit gleichem Startwert"
+    assert "skFundEntfernen(f.schluessel)" in _rumpf("_skFundMenue")
+    assert "'sk-fund'" in _rumpf("_skFundIcon")
+    assert re.search(r"\.sk-fund i[^{]*\{[^}]*#D75F28", ADMIN, re.S), "Marke in Friesen-Orange"
+    assert re.search(r"radius\.addEventListener\('input',\s*_skFundZeichnen\)", _rumpf("_skVerdrahten"))
+
+
+def test_die_summe_rechnet_rauch_und_licht_ein():
+    rumpf = _rumpf("_skFundSumme")
+    assert re.search(r"objekte \+ _SK_FUND_BEIWERK \* n", rumpf) and "_SK_SOLL_MAX" in rumpf
+    assert re.search(r"\b_SK_FUND_BEIWERK\s*=\s*2\b", SKRIPT)
+    assert "f.menge" in rumpf and "'sk-fund-summe'" in rumpf
+    speichern = _rumpf("skSpeichern")
+    assert speichern.index("_skFundSumme() > _SK_SOLL_MAX") < speichern.index("api('POST'")
+
+
+def test_fundradius_und_fundhoehe_sind_rechenwerte_fundstellen_und_badge_nicht():
+    rumpf = _rumpf("_skRechenwerteGeaendert")
+    assert "'fund_radius_m'" in rumpf and "'fund_hoehe_ft'" in rumpf
+    assert "fundstellen" not in rumpf and "badge" not in rumpf
+    # Ein Fund, der durch eine geänderte oder entfernte Fundstelle verloren geht, wird eigens gemeldet.
+    speichern = _rumpf("skSpeichern")
+    assert speichern.index("_skFundeVerloren(altEv)") < speichern.index("api('POST'")
+    assert "_skFundKern(f) === f.ur" in _rumpf("_skFundeVerloren")
+
+
+def test_die_liste_der_events_nennt_die_fundstellen():
+    rumpf = _rumpf("loadStrecke")
+    assert "<tr><td>Fundstellen</td><td>' + fundZeile" in rumpf
+    for feld in ("st.fundstellen", "fs.gefunden", "x.funde", "ev.fund_radius_m", "ev.fund_hoehe_ft"):
+        assert feld in rumpf, feld
+    assert "' von ' + _skZahl(fundAnzahl) + ' gefunden'" in rumpf and "'keine'" in rumpf
+    # Fundradius und Fundhöhe stehen in der Vorgabe nur, wenn es Fundstellen gibt.
+    assert re.search(r"\(fundAnzahl\s*\?[^:]*ev\.fund_radius_m", rumpf, re.S)

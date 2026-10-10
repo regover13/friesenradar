@@ -1010,6 +1010,36 @@
     .sk-warnung { color: #e0a33e; font-size: 0.82rem; line-height: 1.4; margin: 0 0 0.6rem; }
     .sk-menue { font-size: 0.82rem; color: #1a2530; }
     .sk-menue button { margin-top: 0.4rem; }
+    /* Fundstellen: eine Marke mit Nummer, eckig und gefüllt -- die Streckenpunkte sind runde
+       Ringe. Die Fläche zum Greifen ist größer als das Bild, wie bei den Punkten. */
+    .sk-modus { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+    .sk-karte .sk-fund { cursor: grab; }
+    .sk-fund { display: flex; align-items: center; justify-content: center; }
+    .sk-fund i, .sk-fund-nr {
+      display: flex; align-items: center; justify-content: center;
+      min-width: 1.45rem; height: 1.45rem; padding: 0 0.25rem; border-radius: 0.35rem;
+      background: #D75F28; color: #fff; border: 0.12rem solid #fff;
+      font: 700 0.78rem/1 var(--text-mono); font-style: normal;
+      box-shadow: 0 0 0 1px rgba(4,8,15,0.7);
+    }
+    .sk-fund.sk-gefunden i, .sk-fund-nr.sk-gefunden { background: #fff; color: #D75F28; border-color: #D75F28; }
+    .sk-fund-liste { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.6rem; }
+    .sk-fund-zeile { border: 1px solid #1e2b3a; border-radius: 6px; padding: 0.6rem; min-width: 0; }
+    .sk-fund-kopf { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .sk-fund-kopf .sk-fund-ort { color: var(--text-label); font-size: 0.78rem; font-family: var(--text-mono); }
+    .sk-fund-kopf .sk-fund-knoepfe { margin-left: auto; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    /* Zwei Spalten passen auch auf 390 px; die Art nimmt immer die ganze Breite. */
+    .sk-fund-felder {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+      gap: 0.5rem 0.6rem; align-items: end;
+    }
+    .sk-fund-felder .form-group { margin: 0; min-width: 0; }
+    .sk-fund-felder .sk-fund-art { grid-column: 1 / -1; }
+    .sk-fund-felder input, .sk-fund-felder select { width: 100%; min-width: 0; box-sizing: border-box; }
+    .sk-fund-stand { font-size: 0.82rem; line-height: 1.4; color: var(--text-bright); margin: 0.5rem 0 0; }
+    .sk-fund-stand .sk-fund-fehler, .sk-fund-stand .sk-fund-achtung { color: #e0a33e; }
+    .sk-fund-summe { font-family: var(--text-mono); font-size: 0.85rem; color: var(--text-bright); margin: 0 0 0.9rem; }
+    .sk-fund-summe.sk-zuviel { color: #e0a33e; }
     #sk-tabelle { font-size: 0.8rem; border-collapse: collapse; }
     #sk-tabelle th { text-align: left; font-weight: 500; color: var(--text-label); padding: 0.3rem 0.9rem 0.3rem 0; }
     #sk-tabelle td { padding: 0.45rem 0.9rem 0.3rem 0; white-space: nowrap; }
@@ -1626,6 +1656,13 @@
             klickst du selbst auf der Karte. Teilnehmen kann nur, wer mit der FriesenBrügge
             fliegt.
           </p>
+          <p style="color:#8aa0b8;font-size:0.82rem;margin:-6px 0 12px;">
+            Dazu kannst du <b>Fundstellen</b> setzen: Orte, an denen im Simulator eine gestreute
+            Gruppe steht, zum Beispiel eine Seehundkolonie. Die Objekte erscheinen bei einem
+            Piloten erst aus der Nähe; gefunden ist eine Fundstelle, wenn jemand tief und nah
+            darüber fliegt. Danach steht dort hellblauer Rauch, und alle sehen sie. Gezählt wird
+            die Fundstelle, nicht das einzelne Objekt. Die FriesenBrügge fasst 200 Objekte.
+          </p>
           <div id="sk-form" class="hidden">
             <div class="new-race-form-inner">
               <div class="form-section-title" id="sk-form-title">Neues Event anlegen</div>
@@ -1652,7 +1689,12 @@
               <p class="form-hint" style="margin:0 0 8px;">
                 <b>Jeder Klick auf die Karte hängt einen Punkt an.</b> Punkte lassen sich
                 ziehen; ein Klick auf einen Punkt öffnet ein kleines Menü zum Entfernen.
+                Mit „Fundstellen setzen“ legt ein Klick stattdessen eine Fundstelle an.
               </p>
+              <div id="sk-modus" class="sk-modus" role="group" aria-label="Was ein Klick auf die Karte tut">
+                <button type="button" class="btn btn-sm" data-modus="strecke" onclick="skModusSetzen('strecke')">Strecke zeichnen</button>
+                <button type="button" class="btn btn-sm" data-modus="fund" onclick="skModusSetzen('fund')">Fundstellen setzen</button>
+              </div>
               <div id="sk-karte" class="sk-karte"></div>
               <div class="sk-knoepfe">
                 <button type="button" class="btn btn-sm" id="sk-zurueck-btn">Letzten Punkt zurück</button>
@@ -1661,6 +1703,17 @@
               </div>
               <p class="sk-vorschau" id="sk-vorschau"></p>
               <p class="sk-warnung hidden" id="sk-warnung"></p>
+
+              <div class="form-section-title">Fundstellen</div>
+              <p class="form-hint" style="margin:0 0 8px;">
+                Über der Karte auf <b>„Fundstellen setzen“</b> schalten, dann legt jeder Klick
+                eine Fundstelle an. Du gibst Art, Menge und Abstand vor; wie viele Objekte es
+                werden, wo sie liegen und wohin sie schauen, würfelt der Server. Die kleinen
+                Punkte auf der Karte zeigen das Ergebnis, der Kreis den Fundradius. Marken
+                lassen sich ziehen, ein Klick darauf öffnet das Menü zum Entfernen.
+              </p>
+              <div id="sk-fund-liste" class="sk-fund-liste"></div>
+              <p class="sk-fund-summe" id="sk-fund-summe"></p>
 
               <div class="form-section-title">Was als abgeflogen zählt</div>
               <div class="form-grid" style="margin-bottom:14px;">
@@ -1697,6 +1750,34 @@
                 <p class="form-hint" style="grid-column:1/-1;margin:0;">
                   <b>Mindestgeschwindigkeit:</b> Wer langsamer ist, zählt nicht. Das verhindert,
                   dass ein abgestelltes Flugzeug neben der Strecke etwas holt.
+                </p>
+              </div>
+
+              <div class="form-section-title">Wann eine Fundstelle als gefunden zählt</div>
+              <div class="form-grid" style="margin-bottom:14px;">
+                <div class="form-group">
+                  <label for="sk-fundradius">Fundradius (m)</label>
+                  <input type="number" id="sk-fundradius" min="20" max="2000" step="10" value="150" />
+                </div>
+                <div class="form-group">
+                  <label for="sk-fundhoehe">Fundhöhe über der Fundstelle (ft)</label>
+                  <input type="number" id="sk-fundhoehe" min="100" max="20000" step="100" value="1000" />
+                </div>
+                <div class="form-group">
+                  <label for="sk-badge-name">Kurzname fürs Badge (optional)</label>
+                  <input type="text" id="sk-badge-name" maxlength="60" placeholder="leer = Name des Events" />
+                </div>
+                <p class="form-hint" style="grid-column:1/-1;margin:0;">
+                  <b>Fundradius:</b> So nah an der Mitte der Fundstelle muss jemand vorbeifliegen.
+                  Der dünne Kreis auf der Karte zeigt ihn.
+                </p>
+                <p class="form-hint" style="grid-column:1/-1;margin:0;">
+                  <b>Fundhöhe:</b> So hoch über dem Gelände an der Fundstelle darf dabei höchstens
+                  geflogen werden. Eine Mindestgeschwindigkeit gibt es hier nicht.
+                </p>
+                <p class="form-hint" style="grid-column:1/-1;margin:0;">
+                  <b>Kurzname fürs Badge:</b> Steht auf dem Badge der Teilnehmer statt des
+                  Event-Namens, wenn der zu lang ist.
                 </p>
               </div>
 
@@ -7765,7 +7846,18 @@
     const _SK_ABSCHNITTE_MAX = 2000;
     const _SK_PUNKTE_MAX = 500;
     const _SK_KORRIDOR_MIN_M = 50, _SK_KORRIDOR_MAX_M = 10000;
-    const _SK_VORGABEN = { 'sk-korridor': 500, 'sk-hoehe': 1000, 'sk-gsmax': 140, 'sk-gsmin': 30 };
+    const _SK_VORGABEN = { 'sk-korridor': 500, 'sk-hoehe': 1000, 'sk-gsmax': 140, 'sk-gsmin': 30,
+                           'sk-fundradius': 150, 'sk-fundhoehe': 1000 };
+    // Fundstellen: Grenzen wie `STRECKE_FUNDSTELLEN_MAX` (app/database.py), `MENGE_MAX` und
+    // `ABSTAND_*` (app/gruppen.py) und der Platz in der FriesenBruegge (`_BRUEGGE_SOLL_MAX`).
+    const _SK_FUNDSTELLEN_MAX = 40;
+    const _SK_FUND_MENGE_MAX = 60;
+    const _SK_FUND_ABSTAND_MIN_M = 1, _SK_FUND_ABSTAND_MAX_M = 2000;
+    const _SK_SOLL_MAX = 200;
+    // Je Fundstelle kommen nach dem Fund Rauch und Licht dazu.
+    const _SK_FUND_BEIWERK = 2;
+    const _SK_FUND_VORGABE = { menge_min: 5, menge_max: 15, abstand_min_m: 10, abstand_max_m: 40 };
+    const _SK_FUND_ENTPRELLT_MS = 400;
     const _SK_KM_JE_GRAD_LAT = 111.32;
     const _SK_FARBE_LINIE = '#D75F28', _SK_FARBE_BAND = '#f5c542';
 
@@ -7775,6 +7867,16 @@
     let _skPunkte = [];
     let _skKarte = null, _skLinie = null, _skBand = null, _skMarken = null;
     let _skMenueZuAm = 0;
+    /** Die Fundstellen im Formular, in der Reihenfolge der Liste. Je Eintrag Ort, Art, Angaben,
+     *  `startwert`, die gewuerfelte `menge` samt `objekte` (Vorschau) und der Fundstand. */
+    let _skFundstellen = [];
+    /** Was ein Klick auf die Karte tut: 'strecke' haengt einen Punkt an, 'fund' legt eine
+     *  Fundstelle an. */
+    let _skModus = 'strecke';
+    let _skFundEbene = null, _skFundZieht = false;
+    let _skArten = [];
+    let _skLetzteArt = '';
+    let _skFundLfd = 0;
 
     function _skZahl(n, stellen) {
       return Number(n || 0).toLocaleString('de-DE',
@@ -7934,10 +8036,12 @@
 
     function _skEinpassen() {
       if (!_skKarte) return;
-      if (_skPunkte.length >= 2) {
-        _skKarte.fitBounds(L.latLngBounds(_skPunkte).pad(0.15));
-      } else if (_skPunkte.length === 1) {
-        _skKarte.setView(_skPunkte[0], Math.max(_skKarte.getZoom(), 11));
+      // Eine Fundstelle darf abseits der Strecke liegen -- sie gehoert mit in den Ausschnitt.
+      const alle = _skPunkte.concat(_skFundstellen.map(function (f) { return [f.lat, f.lon]; }));
+      if (alle.length >= 2) {
+        _skKarte.fitBounds(L.latLngBounds(alle).pad(0.15));
+      } else if (alle.length === 1) {
+        _skKarte.setView(alle[0], Math.max(_skKarte.getZoom(), 11));
       }
     }
 
@@ -7958,11 +8062,16 @@
       _skLinie = L.polyline([], { color: _SK_FARBE_LINIE, weight: 3, opacity: 1,
                                   lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(_skKarte);
       _skMarken = L.layerGroup().addTo(_skKarte);
+      _skFundEbene = L.layerGroup().addTo(_skKarte);
       // Ein Klick neben das offene Punktmenue schliesst nur das Menue -- er haengt keinen
       // Punkt an. Leaflet meldet erst `popupclose`, dann `click`.
       _skKarte.on('popupclose', function () { _skMenueZuAm = Date.now(); });
       _skKarte.on('click', function (e) {
         if (Date.now() - _skMenueZuAm < 80) return;
+        if (_skModus === 'fund') {
+          skFundNeu(Number(e.latlng.lat.toFixed(5)), Number(e.latlng.lng.toFixed(5)));
+          return;
+        }
         if (_skPunkte.length >= _SK_PUNKTE_MAX) {
           toast('Höchstens ' + _SK_PUNKTE_MAX + ' Punkte je Strecke.', true);
           return;
@@ -7977,6 +8086,382 @@
       _rdIcaoSuche(_skKarte, 'sk-icao-vorschlaege');
       // Erst nach dem Einblenden hat der Kasten eine Groesse -- ohne das bleibt die Karte grau.
       setTimeout(function () { _skKarte.invalidateSize(); _skEinpassen(); }, 60);
+    }
+
+    // --- Fundstellen --------------------------------------------------------------------
+    //
+    // Eine Fundstelle ist ein Ort mit einer gestreuten Gruppe einer Art. Die Verwaltung gibt
+    // Ort, Art, Mengen und Abstaende vor; Menge, Lage und Richtung wuerfelt der SERVER
+    // (`/api/admin/strecke/streuen`). Hier steht nur die Vorschau davon. Beim Speichern geht
+    // der Startwert mit, und der Server rechnet die Lage daraus erneut.
+
+    function skModusSetzen(wahl) {
+      _skModus = wahl === 'fund' ? 'fund' : 'strecke';
+      document.querySelectorAll('#sk-modus button').forEach(function (b) {
+        b.classList.toggle('btn-primary', b.dataset.modus === _skModus);
+        b.setAttribute('aria-pressed', b.dataset.modus === _skModus ? 'true' : 'false');
+      });
+    }
+
+    /** Die Arten fuer die Auswahl. Hat die Bruegge-Verwaltung die Liste in dieser Sitzung
+     *  schon geholt (`_bgArtenAlle`), wird sie mitbenutzt -- sonst ein eigener Abruf. Nur
+     *  Anforderbares: Alles andere lehnte der Server beim Speichern ab. */
+    async function _skArtenLaden() {
+      let alle = _bgArtenAlle;
+      if (!alle.length) {
+        if (_skArten.length) return;
+        const res = await api('GET', '/api/admin/bruegge/arten');
+        if (!res || !res.ok) return;
+        const daten = await res.json();
+        alle = daten.arten || [];
+      }
+      _skArten = alle.filter(function (a) { return a.anforderbar; });
+      _skFundListe();
+    }
+
+    function _skArtName(art) {
+      const a = _skArten.find(function (x) { return x.art === art; });
+      return a ? (a.bedeutung || a.art) : art;
+    }
+
+    /** Was an den Server geht -- fuer die Vorschau wie fuers Speichern. Ort und Startwert
+     *  UNVERAENDERT: Daran erkennt der Server eine Fundstelle wieder und laesst ihr den Fund. */
+    function _skFundAngaben(f) {
+      return {
+        lat: f.lat, lon: f.lon, art: f.art,
+        menge_min: f.menge_min, menge_max: f.menge_max,
+        abstand_min_m: f.abstand_min_m, abstand_max_m: f.abstand_max_m,
+        richtung: f.richtung, startwert: f.startwert,
+      };
+    }
+
+    /** Woran der Server eine Fundstelle wiedererkennt (`_fundstelle_kern`). Weicht das vom
+     *  geladenen Stand ab, ist ein Fund beim Speichern fort. */
+    function _skFundKern(f) {
+      return [f.lat, f.lon, f.art, f.menge_min, f.menge_max, f.abstand_min_m, f.abstand_max_m,
+              f.richtung === null ? '' : f.richtung, f.startwert || ''].join('|');
+    }
+
+    function _skFundAusServer(z) {
+      const f = {
+        schluessel: ++_skFundLfd,
+        // Nicht runden: Ein gerundeter Ort gaelte als neue Fundstelle, und der Fund waere weg.
+        lat: Number(z.lat), lon: Number(z.lon), art: String(z.art || ''),
+        menge_min: Number(z.menge_min), menge_max: Number(z.menge_max),
+        abstand_min_m: Number(z.abstand_min_m), abstand_max_m: Number(z.abstand_max_m),
+        richtung: (z.richtung === null || z.richtung === undefined) ? null : Number(z.richtung),
+        startwert: z.startwert || null,
+        menge: (z.menge === null || z.menge === undefined) ? null : Number(z.menge),
+        objekte: Array.isArray(z.objekte) ? z.objekte : [],
+        gefunden_am: z.gefunden_am || null, gefunden_von: z.gefunden_von,
+        gefunden_name: z.gefunden_name || null,
+        fehler: '', anfrage: 0, takt: null, ur: null,
+      };
+      f.ur = _skFundKern(f);
+      return f;
+    }
+
+    /** Dieselben Grenzen wie `gruppen.pruefen` -- als Satz, oder '' wenn alles passt. */
+    function _skFundPruefen(f) {
+      const ganz = function (v) { return isFinite(v) && Math.floor(v) === v; };
+      if (!f.art) return 'Es fehlt, was dort stehen soll.';
+      if (!ganz(f.menge_min) || !ganz(f.menge_max)) return 'Die Menge muss eine ganze Zahl sein.';
+      if (f.menge_min < 1) return 'Eine Gruppe braucht mindestens ein Objekt.';
+      if (f.menge_max < f.menge_min) return 'Die Höchstmenge darf nicht unter der Mindestmenge liegen.';
+      if (f.menge_max > _SK_FUND_MENGE_MAX) return 'Höchstens ' + _SK_FUND_MENGE_MAX + ' Objekte je Gruppe.';
+      if (!isFinite(f.abstand_min_m) || !isFinite(f.abstand_max_m)) return 'Der Abstand muss eine Zahl sein.';
+      if (f.abstand_min_m < _SK_FUND_ABSTAND_MIN_M || f.abstand_min_m > _SK_FUND_ABSTAND_MAX_M) {
+        return 'Der Mindestabstand muss zwischen ' + _SK_FUND_ABSTAND_MIN_M + ' m und '
+          + _skZahl(_SK_FUND_ABSTAND_MAX_M) + ' m liegen.';
+      }
+      if (f.abstand_max_m < f.abstand_min_m) return 'Der Höchstabstand darf nicht unter dem Mindestabstand liegen.';
+      if (f.abstand_max_m > _SK_FUND_ABSTAND_MAX_M) {
+        return 'Der Höchstabstand darf höchstens ' + _skZahl(_SK_FUND_ABSTAND_MAX_M) + ' m sein.';
+      }
+      if (f.richtung !== null && !(f.richtung >= 0 && f.richtung < 360)) {
+        return 'Die Richtung ist eine Gradzahl von 0 bis unter 360. Leer heißt gewürfelt.';
+      }
+      return '';
+    }
+
+    /** Die Vorschau holen. Mit `neuWuerfeln` ohne Startwert -- der Server vergibt dann einen
+     *  neuen; sonst bleibt der bisherige, und nur die geaenderten Angaben wirken. */
+    async function _skFundVorschau(f, neuWuerfeln) {
+      clearTimeout(f.takt);
+      f.takt = null;
+      f.fehler = _skFundPruefen(f);
+      if (f.fehler) { _skFundStand(f); return; }
+      const koerper = _skFundAngaben(f);
+      if (neuWuerfeln || !koerper.startwert) delete koerper.startwert;
+      const lauf = ++f.anfrage;
+      const res = await api('POST', '/api/admin/strecke/streuen', koerper);
+      // Ueberholt von einer juengeren Anfrage, oder die Fundstelle ist inzwischen entfernt.
+      if (lauf !== f.anfrage || _skFundstellen.indexOf(f) < 0) return;
+      if (!res) return;                       // Verbindungsfehler hat `api()` schon gemeldet
+      if (!res.ok) {
+        let detail = 'Die Vorschau ließ sich nicht holen.';
+        try { detail = ((await res.json()) || {}).detail || detail; } catch (e) { /* kein JSON */ }
+        f.fehler = String(detail);
+        _skFundStand(f);
+        return;
+      }
+      const d = await res.json();
+      f.startwert = d.startwert;
+      f.menge = d.menge;
+      f.objekte = Array.isArray(d.objekte) ? d.objekte : [];
+      _skFundStand(f);
+      _skFundZeichnen();
+    }
+
+    /** Die laufende Summe unter der Liste. Gibt den Bedarf im Simulator zurueck. */
+    function _skFundSumme() {
+      const n = _skFundstellen.length;
+      const objekte = _skFundstellen.reduce(function (s, f) { return s + (f.menge || 0); }, 0);
+      const bedarf = objekte + _SK_FUND_BEIWERK * n;
+      const el = document.getElementById('sk-fund-summe');
+      if (!el) return bedarf;
+      el.textContent = !n ? '' : _skZahl(n) + (n === 1 ? ' Fundstelle, ' : ' Fundstellen, ')
+        + _skZahl(objekte) + (objekte === 1 ? ' Objekt' : ' Objekte')
+        + ' im Simulator (Rauch und Licht eingerechnet: ' + _skZahl(bedarf) + ' von '
+        + _skZahl(_SK_SOLL_MAX) + ')'
+        + (bedarf > _SK_SOLL_MAX ? '. Das sind zu viele: Mengen oder Fundstellen verringern.' : '');
+      el.classList.toggle('sk-zuviel', bedarf > _SK_SOLL_MAX);
+      return bedarf;
+    }
+
+    /** Die Standzeile EINER Fundstelle neu schreiben, ohne die Liste umzubauen -- sonst
+     *  verloere das Feld, in dem gerade getippt wird, den Cursor. */
+    function _skFundStand(f) {
+      _skFundSumme();
+      const el = document.getElementById('sk-fund-stand-' + f.schluessel);
+      if (!el) return;
+      let html;
+      if (f.fehler) {
+        html = '<span class="sk-fund-fehler">⚠ ' + escH(f.fehler) + '</span>';
+      } else if (f.menge === null) {
+        html = 'Die Vorschau wird geholt…';
+      } else {
+        html = 'gewürfelt: ' + _skZahl(f.menge) + (f.menge === 1 ? ' Objekt' : ' Objekte');
+      }
+      if (f.gefunden_am) {
+        html += '<br>gefunden von '
+          + escH(f.gefunden_name || (f.gefunden_von ? 'CID ' + f.gefunden_von : 'unbekannt'))
+          + ', ' + escH(fmtDt(f.gefunden_am)) + '<br>'
+          + (_skFundKern(f) !== f.ur
+             ? '<span class="sk-fund-achtung">Du hast diese Fundstelle geändert: Der Fund wird beim Speichern verworfen.</span>'
+             : 'Eine Änderung an dieser Fundstelle verwirft den Fund, auch Ziehen und neu Würfeln.');
+      }
+      el.innerHTML = html;
+    }
+
+    /** Die Liste unter der Karte ganz neu bauen: nach Anlegen, Entfernen, Ziehen, Laden. */
+    function _skFundListe() {
+      const c = document.getElementById('sk-fund-liste');
+      if (!c) return;
+      if (!_skFundstellen.length) {
+        c.innerHTML = '<div class="empty-hint">Noch keine Fundstellen.</div>';
+        _skFundSumme();
+        return;
+      }
+      const zahlFeld = function (f, feld, titel, wert, mehr) {
+        const id = 'sk-fund-' + feld + '-' + f.schluessel;
+        return '<div class="form-group"><label for="' + id + '">' + titel + '</label>'
+          + '<input type="number" id="' + id + '" data-feld="' + feld + '" value="'
+          + escH((wert === null || wert === undefined || !isFinite(wert)) ? '' : wert) + '" '
+          + mehr + ' /></div>';
+      };
+      c.innerHTML = _skFundstellen.map(function (f, i) {
+        // Eine Art, die inzwischen nicht mehr anforderbar ist, bleibt sichtbar gewaehlt --
+        // sonst zeigte die Auswahl stillschweigend die erste andere.
+        const bekannt = _skArten.some(function (a) { return a.art === f.art; });
+        const wahl = (bekannt ? '' : '<option value="' + escH(f.art) + '" selected>' + escH(f.art)
+                      + ' (kann die FriesenBrügge nicht setzen)</option>')
+          + _skArten.map(function (a) {
+              return '<option value="' + escH(a.art) + '"' + (a.art === f.art ? ' selected' : '') + '>'
+                + escH(a.bedeutung || a.art)
+                + (a.ueberall ? '' : ' · nicht in jedem Simulator')
+                + (a.addon ? ' · braucht ein Zusatzpaket' : '') + '</option>';
+            }).join('');
+        const artId = 'sk-fund-art-' + f.schluessel;
+        return '<div class="sk-fund-zeile" data-fund="' + f.schluessel + '">'
+          + '<div class="sk-fund-kopf">'
+          + '<span class="sk-fund-nr' + (f.gefunden_am ? ' sk-gefunden' : '') + '">' + (i + 1) + '</span>'
+          + '<span class="sk-fund-ort">' + escH(f.lat.toFixed(4)) + ' / ' + escH(f.lon.toFixed(4)) + '</span>'
+          + '<span class="sk-fund-knoepfe">'
+          + '<button type="button" class="btn btn-sm" data-tat="zeigen">Auf der Karte zeigen</button>'
+          + '<button type="button" class="btn btn-sm" data-tat="wuerfeln">Neu würfeln</button>'
+          + '<button type="button" class="btn btn-sm btn-danger" data-tat="weg">Entfernen</button>'
+          + '</span></div>'
+          + '<div class="sk-fund-felder">'
+          + '<div class="form-group sk-fund-art"><label for="' + artId + '">Art</label>'
+          + '<select id="' + artId + '" data-feld="art">' + wahl + '</select></div>'
+          + zahlFeld(f, 'menge_min', 'Mindestmenge', f.menge_min, 'min="1" max="' + _SK_FUND_MENGE_MAX + '" step="1"')
+          + zahlFeld(f, 'menge_max', 'Höchstmenge', f.menge_max, 'min="1" max="' + _SK_FUND_MENGE_MAX + '" step="1"')
+          + zahlFeld(f, 'abstand_min_m', 'Mindestabstand (m)', f.abstand_min_m,
+                     'min="' + _SK_FUND_ABSTAND_MIN_M + '" max="' + _SK_FUND_ABSTAND_MAX_M + '" step="1"')
+          + zahlFeld(f, 'abstand_max_m', 'Höchstabstand (m)', f.abstand_max_m,
+                     'min="' + _SK_FUND_ABSTAND_MIN_M + '" max="' + _SK_FUND_ABSTAND_MAX_M + '" step="1"')
+          + zahlFeld(f, 'richtung', 'Richtung (°)', f.richtung, 'min="0" max="359" step="1" placeholder="gewürfelt"')
+          + '</div>'
+          + '<p class="sk-fund-stand" id="sk-fund-stand-' + f.schluessel + '"></p>'
+          + '</div>';
+      }).join('');
+      _skFundstellen.forEach(_skFundStand);
+    }
+
+    function _skFundZu(el) {
+      const zeile = el && el.closest ? el.closest('[data-fund]') : null;
+      if (!zeile) return null;
+      const k = Number(zeile.dataset.fund);
+      return _skFundstellen.find(function (f) { return f.schluessel === k; }) || null;
+    }
+
+    /** Eine Angabe wurde geaendert: uebernehmen und die Vorschau ENTPRELLT neu holen, mit dem
+     *  bisherigen Startwert. */
+    function _skFundEingabe(e) {
+      const feld = e.target && e.target.dataset ? e.target.dataset.feld : '';
+      const f = _skFundZu(e.target);
+      if (!f || !feld) return;
+      const roh = String(e.target.value);
+      if (feld === 'art') {
+        f.art = roh;
+        _skLetzteArt = roh;
+      } else if (feld === 'richtung') {
+        f.richtung = roh.trim() === '' ? null : parseFloat(roh);
+      } else {
+        f[feld] = parseFloat(roh);
+      }
+      f.fehler = _skFundPruefen(f);
+      _skFundStand(f);
+      clearTimeout(f.takt);
+      f.takt = setTimeout(function () { _skFundVorschau(f, false); }, _SK_FUND_ENTPRELLT_MS);
+    }
+
+    function _skFundKlick(e) {
+      const knopf = e.target && e.target.closest ? e.target.closest('button[data-tat]') : null;
+      const f = _skFundZu(knopf);
+      if (!f) return;
+      const tat = knopf.dataset.tat;
+      if (tat === 'wuerfeln') {
+        _skFundVorschau(f, true);
+      } else if (tat === 'weg') {
+        skFundEntfernen(f.schluessel);
+      } else if (tat === 'zeigen' && _skKarte) {
+        _skKarte.setView([f.lat, f.lon], Math.max(_skKarte.getZoom(), 14));
+        document.getElementById('sk-karte').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    /** Ein Klick im Fundstellen-Modus: neue Fundstelle mit Vorgaben, Vorschau sofort. */
+    function skFundNeu(lat, lon) {
+      if (_skFundstellen.length >= _SK_FUNDSTELLEN_MAX) {
+        toast('Höchstens ' + _SK_FUNDSTELLEN_MAX + ' Fundstellen je Event.', true);
+        return;
+      }
+      if (!_skArten.length) {
+        toast('Die Arten der FriesenBrügge sind noch nicht geladen. Bitte gleich noch einmal klicken.', true);
+        _skArtenLaden();
+        return;
+      }
+      const letzte = _skArten.some(function (a) { return a.art === _skLetzteArt; });
+      const f = {
+        schluessel: ++_skFundLfd, lat: lat, lon: lon,
+        art: letzte ? _skLetzteArt : _skArten[0].art,
+        menge_min: _SK_FUND_VORGABE.menge_min, menge_max: _SK_FUND_VORGABE.menge_max,
+        abstand_min_m: _SK_FUND_VORGABE.abstand_min_m, abstand_max_m: _SK_FUND_VORGABE.abstand_max_m,
+        richtung: null, startwert: null, menge: null, objekte: [],
+        gefunden_am: null, gefunden_von: null, gefunden_name: null,
+        fehler: '', anfrage: 0, takt: null, ur: null,
+      };
+      _skFundstellen.push(f);
+      _skFundListe();
+      _skFundZeichnen();
+      _skFundVorschau(f, true);
+    }
+
+    function skFundEntfernen(schluessel) {
+      if (_skKarte) _skKarte.closePopup();
+      const i = _skFundstellen.findIndex(function (f) { return f.schluessel === schluessel; });
+      if (i < 0) return;
+      clearTimeout(_skFundstellen[i].takt);
+      _skFundstellen.splice(i, 1);
+      _skFundListe();
+      _skFundZeichnen();
+    }
+
+    function _skFundIcon(i, f) {
+      return L.divIcon({
+        className: 'sk-fund' + (f.gefunden_am ? ' sk-gefunden' : ''),
+        html: '<i>' + (i + 1) + '</i>', iconSize: [32, 32], iconAnchor: [16, 16],
+      });
+    }
+
+    /** Das Menue an der Marke, gebaut wie `_skPunktMenue`. */
+    function _skFundMenue(f) {
+      const kasten = document.createElement('div');
+      kasten.className = 'sk-menue';
+      const titel = document.createElement('div');
+      titel.textContent = 'Fundstelle ' + (_skFundstellen.indexOf(f) + 1) + ' · ' + _skArtName(f.art)
+        + (f.menge === null ? '' : ' · ' + f.menge + (f.menge === 1 ? ' Objekt' : ' Objekte'));
+      const knopf = document.createElement('button');
+      knopf.type = 'button';
+      knopf.className = 'btn btn-sm btn-danger sk-fund-weg';
+      knopf.textContent = 'Fundstelle entfernen';
+      knopf.addEventListener('click', function () { skFundEntfernen(f.schluessel); });
+      kasten.appendChild(titel);
+      kasten.appendChild(knopf);
+      return kasten;
+    }
+
+    /** Fundstellen auf der Karte: nummerierte Marke, die gewuerfelten Objekte als kleine
+     *  Punkte, der Fundradius als duenner Kreis. */
+    function _skFundZeichnen() {
+      _skFundSumme();
+      // Waehrend des Ziehens darf die gegriffene Marke nicht ersetzt werden.
+      if (!_skKarte || !_skFundEbene || _skFundZieht) return;
+      _skFundEbene.clearLayers();
+      const radius = _rdZahl('sk-fundradius', NaN);
+      _skFundstellen.forEach(function (f, i) {
+        const mitte = [f.lat, f.lon];
+        const kreis = (isFinite(radius) && radius > 0)
+          ? L.circle(mitte, { radius: radius, color: _SK_FARBE_LINIE, weight: 1, opacity: 0.9,
+                              fill: false, interactive: false }).addTo(_skFundEbene)
+          : null;
+        (f.objekte || []).forEach(function (o) {
+          L.circleMarker([o.lat, o.lon], { radius: 2.5, color: '#04080f', weight: 1,
+                                           fillColor: '#fff', fillOpacity: 1,
+                                           interactive: false }).addTo(_skFundEbene);
+        });
+        const marke = L.marker(mitte, { icon: _skFundIcon(i, f), draggable: true, keyboard: false,
+                                        zIndexOffset: 500,
+                                        title: 'Fundstelle ' + (i + 1) + ' — ziehen oder anklicken' });
+        marke.on('dragstart', function () { _skFundZieht = true; });
+        marke.on('drag', function (e) { if (kreis) kreis.setLatLng(e.target.getLatLng()); });
+        marke.on('dragend', function (e) {
+          _skFundZieht = false;
+          const ll = e.target.getLatLng();
+          const lat = Number(ll.lat.toFixed(5)), lon = Number(ll.lng.toFixed(5));
+          // Die Objekte ziehen sofort mit; die gerechnete Lage kommt gleich mit der Vorschau.
+          (f.objekte || []).forEach(function (o) { o.lat += lat - f.lat; o.lon += lon - f.lon; });
+          f.lat = lat;
+          f.lon = lon;
+          _skFundListe();
+          _skFundZeichnen();
+          _skFundVorschau(f, false);
+        });
+        marke.bindPopup(function () { return _skFundMenue(f); }, { closeButton: false, offset: [0, -8] });
+        marke.addTo(_skFundEbene);
+      });
+    }
+
+    /** Wie viele schon gemachte Funde dieses Speichern kostet: Fundstellen des gespeicherten
+     *  Events, die gefunden sind und im Formular fehlen oder veraendert wurden. */
+    function _skFundeVerloren(ev) {
+      const vorher = (ev.fundstellen || []).filter(function (z) { return z.gefunden_am; }).length;
+      const bleiben = _skFundstellen.filter(function (f) {
+        return f.gefunden_am && _skFundKern(f) === f.ur;
+      }).length;
+      return Math.max(0, vorher - bleiben);
     }
 
     /** Die Fehlermeldung des Servers zeigen -- er schickt einen fertigen deutschen Satz. */
@@ -8025,6 +8510,14 @@
         const anteil = Math.round((st.anteil || 0) * 100);
         const beitraege = (st.je_pilot || []).filter(function (x) { return x.abschnitte > 0; })
           .map(function (x) { return escH(x.name) + ' ' + _skZahl(x.km, 1) + ' km'; }).join(', ') || '—';
+        const fs = st.fundstellen || {};
+        const fundAnzahl = fs.anzahl || (ev.fundstellen || []).length;
+        const finder = (st.je_pilot || []).filter(function (x) { return x.funde > 0; })
+          .map(function (x) { return escH(x.name) + ' ' + _skZahl(x.funde); }).join(', ');
+        const fundZeile = fundAnzahl
+          ? _skZahl(fs.gefunden || 0) + ' von ' + _skZahl(fundAnzahl) + ' gefunden'
+            + (finder ? ' · ' + finder : '')
+          : 'keine';
         const grundFehlt = !ev.grund_da;
         const gelaende = grundFehlt
           ? '<span class="sk-grund-fehlt" style="color:#e0a33e">⚠ Geländehöhen fehlen – es wird nicht gerechnet</span>'
@@ -8048,9 +8541,15 @@
           + '<tr><td>Strecke</td><td>' + _skZahl(ev.laenge_km, 1) + ' km · '
           + _skZahl((ev.punkte || []).length) + ' Punkte · Abschnitte zu je '
           + _skZahl(st.abschnitt_m) + ' m</td></tr>'
+          + '<tr><td>Fundstellen</td><td>' + fundZeile + '</td></tr>'
           + '<tr><td>Vorgabe</td><td>höchstens ' + _skZahl(ev.hoehe_max_ft) + ' ft über der Strecke · '
           + _skZahl(ev.gs_min_kt) + ' bis ' + _skZahl(ev.gs_max_kt) + ' kt · '
-          + (ev.farbe === 'pilot' ? 'je Pilot eine Farbe' : 'eine Farbe für alle') + '</td></tr>'
+          + (ev.farbe === 'pilot' ? 'je Pilot eine Farbe' : 'eine Farbe für alle')
+          + (fundAnzahl
+             ? ' · Fund im Umkreis von ' + _skZahl(ev.fund_radius_m) + ' m, höchstens '
+               + _skZahl(ev.fund_hoehe_ft) + ' ft über der Fundstelle'
+             : '')
+          + '</td></tr>'
           + '<tr><td>Gelände</td><td>' + gelaende + '</td></tr>'
           + '<tr><td>Ende</td><td>' + escH((ev.dtend || '').replace('T', ' ').slice(0, 16)) + ' UTC</td></tr>'
           + '</tbody></table>'
@@ -8120,13 +8619,16 @@
         .toISOString().slice(0, 19) + 'Z';
     }
 
-    /** Aendert dieses Speichern einen RECHENWERT -- Strecke, Korridor, Hoehe, Geschwindigkeit
-     *  oder Zeiten? Dann verwirft der Server den bisherigen Stand. Der Name zaehlt nicht. */
+    /** Aendert dieses Speichern einen RECHENWERT -- Strecke, Korridor, Hoehe, Geschwindigkeit,
+     *  Fundradius, Fundhoehe oder Zeiten? Dann verwirft der Server den bisherigen Stand samt
+     *  Funden. Bezeichnungen und die Fundstellen selbst zaehlen nicht: Eine unveraenderte
+     *  Fundstelle behaelt ihren Fund (`_skFundeVerloren`). */
     function _skRechenwerteGeaendert(ev, koerper) {
       const zahlAnders = function (feld) {
         return Math.abs(Number(koerper[feld]) - Number(ev[feld])) > 1e-9;
       };
-      if (['korridor_m', 'hoehe_max_ft', 'gs_max_kt', 'gs_min_kt'].some(zahlAnders)) return true;
+      if (['korridor_m', 'hoehe_max_ft', 'gs_max_kt', 'gs_min_kt',
+           'fund_radius_m', 'fund_hoehe_ft'].some(zahlAnders)) return true;
       if (koerper.dtstart !== ev.dtstart) return true;
       if ((koerper.dtend || _skEndeVorgabe(koerper.dtstart)) !== ev.dtend) return true;
       const alt = ev.punkte || [];
@@ -8153,6 +8655,16 @@
         toast('Zu viele Abschnitte — den Korridor vergrößern oder die Strecke kürzen.', true);
         return;
       }
+      const kaputt = _skFundstellen.findIndex(function (f) { return !!_skFundPruefen(f); });
+      if (kaputt >= 0) {
+        toast('Fundstelle ' + (kaputt + 1) + ': ' + _skFundPruefen(_skFundstellen[kaputt]), true);
+        return;
+      }
+      if (_skFundSumme() > _SK_SOLL_MAX) {
+        toast('Die Fundstellen brauchen mehr als ' + _SK_SOLL_MAX + ' Objekte im Simulator. '
+          + 'Bitte Mengen oder Fundstellen verringern.', true);
+        return;
+      }
       const koerper = {
         name: document.getElementById('sk-name').value.trim() || 'Deichkontrolle',
         dtstart: localToIso(dtstart),
@@ -8163,10 +8675,19 @@
         gs_max_kt: _rdZahl('sk-gsmax', NaN),
         gs_min_kt: _rdZahl('sk-gsmin', NaN),
         farbe: _skFarbe,
+        fund_radius_m: _rdZahl('sk-fundradius', NaN),
+        fund_hoehe_ft: _rdZahl('sk-fundhoehe', NaN),
+        badge_name: document.getElementById('sk-badge-name').value.trim(),
+        // IMMER die ganze Liste, mit Startwert: Was fehlt, loescht der Server.
+        fundstellen: _skFundstellen.map(_skFundAngaben),
       };
-      const leer = ['korridor_m', 'hoehe_max_ft', 'gs_max_kt', 'gs_min_kt']
+      const leer = ['korridor_m', 'hoehe_max_ft', 'gs_max_kt', 'gs_min_kt',
+                    'fund_radius_m', 'fund_hoehe_ft']
         .some(function (f) { return !isFinite(koerper[f]); });
-      if (leer) { toast('Korridor, Höhe und beide Geschwindigkeiten brauchen eine Zahl.', true); return; }
+      if (leer) {
+        toast('Korridor, Höhe, beide Geschwindigkeiten, Fundradius und Fundhöhe brauchen eine Zahl.', true);
+        return;
+      }
 
       // VOR dem Speichern warnen: Laeuft das Event schon oder ist es vorbei, kostet eine
       // Aenderung an einem Rechenwert den bisherigen Stand -- und die Sekundenpunkte der
@@ -8176,10 +8697,17 @@
         || (altEv.vorbei_seit_s !== null && altEv.vorbei_seit_s !== undefined));
       if (hatStand && _skRechenwerteGeaendert(altEv, koerper)) {
         const ok = await showModal('Der bisherige Stand wird verworfen',
-          'Du hast Strecke, Korridor, Höhe, Geschwindigkeit oder Zeiten geändert. Das Event '
-          + (altEv.laeuft ? 'läuft schon' : 'ist schon vorbei')
-          + ': Was bisher abgeflogen wurde, geht dabei verloren und wird nur aus dem neu '
-          + 'gerechnet, was an Positionen noch da ist. Ein neuer Name allein ändert nichts.',
+          'Du hast Strecke, Korridor, Höhe, Geschwindigkeit, Fundradius, Fundhöhe oder Zeiten '
+          + 'geändert. Das Event ' + (altEv.laeuft ? 'läuft schon' : 'ist schon vorbei')
+          + ': Was bisher abgeflogen und gefunden wurde, geht dabei verloren und wird nur aus '
+          + 'dem neu gerechnet, was an Positionen noch da ist. Ein neuer Name allein ändert nichts.',
+          'Trotzdem speichern', true);
+        if (!ok) return;
+      } else if (altEv && _skFundeVerloren(altEv) > 0) {
+        const n = _skFundeVerloren(altEv);
+        const ok = await showModal(n === 1 ? 'Ein Fund wird verworfen' : n + ' Funde werden verworfen',
+          'Du hast Fundstellen geändert oder entfernt, die schon gefunden sind. Ihr Fund geht '
+          + 'beim Speichern verloren. Was abgeflogen wurde und die übrigen Funde bleiben.',
           'Trotzdem speichern', true);
         if (!ok) return;
       }
@@ -8211,7 +8739,10 @@
       document.getElementById('sk-form').classList.add('hidden');
       _skEditingId = null;
       _skPunkte = [];
-      ['sk-name', 'sk-dtstart', 'sk-dtend'].forEach(function (id) {
+      _skFundstellen.forEach(function (f) { clearTimeout(f.takt); });
+      _skFundstellen = [];
+      _skFundZieht = false;
+      ['sk-name', 'sk-dtstart', 'sk-dtend', 'sk-badge-name'].forEach(function (id) {
         const el = document.getElementById(id);
         if (el) el.value = '';
       });
@@ -8220,16 +8751,22 @@
         if (el) el.value = _SK_VORGABEN[id];
       });
       skFarbeSetzen('eine');
+      skModusSetzen('strecke');
       const t = document.getElementById('sk-form-title');
       if (t) t.textContent = 'Neues Event anlegen';
       if (_skKarte) _skKarte.closePopup();
       _skZeichnen();
+      _skFundListe();
+      _skFundZeichnen();
     }
 
     function _skFormOeffnen() {
       document.getElementById('sk-form').classList.remove('hidden');
       _skKarteAufbauen();
       _skZeichnen();
+      _skFundListe();
+      _skFundZeichnen();
+      _skArtenLaden();
       // Die Karte misst sich erst nach dem Einblenden richtig -- danach einpassen.
       setTimeout(function () { if (_skKarte) { _skKarte.invalidateSize(); _skEinpassen(); } }, 80);
     }
@@ -8253,6 +8790,10 @@
       setz('sk-hoehe', ev.hoehe_max_ft);
       setz('sk-gsmax', ev.gs_max_kt);
       setz('sk-gsmin', ev.gs_min_kt);
+      setz('sk-fundradius', ev.fund_radius_m);
+      setz('sk-fundhoehe', ev.fund_hoehe_ft);
+      setz('sk-badge-name', ev.badge_name);
+      _skFundstellen = (ev.fundstellen || []).map(_skFundAusServer);
       skFarbeSetzen(ev.farbe);
       const t = document.getElementById('sk-form-title');
       if (t) t.textContent = 'Event bearbeiten: ' + (ev.name || '');
@@ -8280,6 +8821,21 @@
       // sehen, BEVOR man speichert.
       const korr = document.getElementById('sk-korridor');
       if (korr) korr.addEventListener('input', _skLinieNachziehen);
+      // Der Fundradius ist der Kreis um jede Fundstelle.
+      const radius = document.getElementById('sk-fundradius');
+      if (radius) radius.addEventListener('input', _skFundZeichnen);
+      // EIN Lauscher fuer die ganze Liste: Ihre Zeilen werden neu gebaut, er bleibt.
+      const liste = document.getElementById('sk-fund-liste');
+      if (liste) {
+        liste.addEventListener('input', _skFundEingabe);
+        // Eine Auswahl meldet nicht in jedem Browser `input`; Zahlenfelder meldeten mit
+        // `change` beim Verlassen ein zweites Mal.
+        liste.addEventListener('change', function (e) {
+          if (e.target && e.target.tagName === 'SELECT') _skFundEingabe(e);
+        });
+        liste.addEventListener('click', _skFundKlick);
+      }
+      skModusSetzen('strecke');
     }
 
     function _typLader(typ) {

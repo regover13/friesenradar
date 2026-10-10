@@ -20,6 +20,17 @@ Wer bis dahin `index.html` oder `admin.html` anfasst, rechnet beim Zusammenführ
 **Die Versionsnummer 16.5.0 ist damit vergeben** — wer vorher etwas nach `main` bringt, nimmt
 16.4.x, sonst muss der Eintrag hier beim Zusammenführen umnummeriert werden.
 
+**Auf dem Zweig sind Funktionen umbenannt, die auch die Reddung benutzt** (Verhalten unverändert):
+`_reddung_punkte_mischen` → `_spur_punkte_mischen`, `_reddung_punkte_neu` → `_spur_punkte_neu`,
+`_reddung_sektoren` → `_spur_sektoren_holen`, `_reddung_grenzen` → `_spur_grenzen`,
+`_REDDUNG_RAND_KM` → `_SPUR_RAND_KM`, `_reddung_soll_setzen` → `_soll_setzen_je_simulator`,
+`_REDDUNG_SIMULATOREN` → `_SOLL_SIMULATOREN`; `reddung.analyse_platz` liegt in `app/geo.py`
+(in `reddung.py` bleibt der Name als Verweis). Wer in `main` an der Reddung arbeitet und einen der
+alten Namen neu verwendet, bekommt beim Zusammenführen keinen Konflikt, sondern einen `NameError`
+zur Laufzeit — nach dem Zusammenführen `grep -rn "_reddung_punkte\|_REDDUNG_RAND\|_reddung_soll_setzen" app tests`.
+Dazu neu: `app/gruppen.py` (Objektgruppen streuen, eventunabhängig), Tabelle
+`strecken_fundstellen`, `render_strecke_badge` in `app/badge.py`.
+
 ## 2026-10-10 — Zweig `rueckbau-alter-bruegge-weg`: NICHT vor dem 24.10.2026 nach `main`
 
 Der Rückbau des alten MSFS-Brügge-Wegs (#46) liegt fertig auf dem Zweig

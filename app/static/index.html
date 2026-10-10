@@ -1155,6 +1155,7 @@
     html.vr-panel [onclick*="copyReddungForumText"],
     html.vr-panel [onclick*="copyReddungBadgeCode"],
     html.vr-panel [onclick*="copyStreckeShareHeader"],
+    html.vr-panel [onclick*="copyStreckeBadgeCode"],
     html.vr-panel #changelog-banner,
     html.vr-panel #app-version {
       display: none !important;
@@ -1583,6 +1584,25 @@
       border: 1px solid var(--text-label); margin-right: 0.45rem; vertical-align: -0.05rem;
     }
     #strecke-knoepfe { margin-top: 0.5rem; }
+    /* Fundstellen: hellblau wie der Rauch im Simulator (Friesen-Hellblau), dunkler Rand. Reine
+       Anzeige, kein Klick-Blau. Nach dem Ende stehen die nicht gefundenen grau daneben. */
+    .strecke-funde { font-family: var(--text-mono); font-size: 1.05rem; color: var(--text-bright); margin-bottom: 0.4rem; }
+    .strecke-fundmarke {
+      display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+      width: 1.25rem; height: 1.25rem; border-radius: 50%;
+      background: #8FBFF1; border: 0.125rem solid #191D53; color: #191D53;
+      font-family: var(--text-mono); font-size: 0.62rem; font-weight: 700; line-height: 1;
+    }
+    .leaflet-marker-icon > .strecke-fundmarke { width: 100%; height: 100%; box-shadow: 0 0 0.2rem rgba(0,0,0,0.6); }
+    .strecke-fundmarke-offen { background: #a7afb6; border-color: #50585f; color: #2b3035; opacity: 0.8; }
+    .strecke-fund-nr { display: inline-flex; vertical-align: middle; }
+    .strecke-nicht { color: var(--text-label); }
+    #strecke-funde-liste { margin-top: 0.8rem; }
+    .strecke-legende .sl-fund, .strecke-legende .sl-fund-offen {
+      width: 0.8rem; height: 0.8rem; box-sizing: border-box; border-radius: 50%;
+      border: 0.125rem solid #191D53; background: #8FBFF1;
+    }
+    .strecke-legende .sl-fund-offen { background: #a7afb6; border-color: #50585f; }
     .bummel-rank-1 { color: #ffd24a; font-weight: 700; }
     .bummel-avg-row {
       font-family: var(--text-mono);
@@ -4065,6 +4085,7 @@
     .orden-band-kutter { background: linear-gradient(90deg, #8FBFF1 0 30%, #191D53 30% 42%, #8FBFF1 42% 58%, #191D53 58% 70%, #8FBFF1 70%); }
     .orden-band-sieger { background: linear-gradient(90deg, #8A1B1B 0 38%, #D75F28 38% 62%, #8A1B1B 62%); }
     .orden-band-reddung { background: repeating-linear-gradient(135deg, #D75F28 0 3px, #EEF4FD 3px 6px); }
+    .orden-band-strecke { background: linear-gradient(90deg, #191D53 0 28%, #8FBFF1 28% 43%, #D75F28 43% 57%, #8FBFF1 57% 72%, #191D53 72%); }
     .orden:hover img { transform: scale(1.08); }
     .flights-panel-count {
       font-family: var(--text-display);
@@ -5237,7 +5258,7 @@
               <li><strong>Meldepunkte</strong> — VFR-Meldepunkte weltweit; gefüllt heißt meldepflichtig, hohl heißt auf Anforderung</li>
               <li><strong>FSE-Plätze</strong> und <strong>FSE-Landeflächen</strong> — zwei eigene Haken: Plätze aus FSEconomy mit Bahnlänge, Belag und dem Namen, unter dem der Platz im Simulator zu finden ist</li>
               <li><strong>FriesenReddung</strong> — der Suchsektor als rot gestrichelter Rahmen, darin blau, was schon abgesucht ist; erscheint nur, solange eine FriesenReddung läuft, und verschwindet mit ihrem Ende. Danach stehen Sektor und Zellen auf der Karte unter ihrer Bilanz. Wo der Havarist liegt, zeigt sie nie</li>
-              <li><strong data-strecke-name></strong> — die Strecke, die gemeinsam abgeflogen wird: blass gestrichelt, was noch offen ist, kräftig, was schon abgeflogen ist, darunter als blasses Band, wie nah man dran sein muss. Ein Tipp auf die Strecke nennt Abschnitt, Pilot und Uhrzeit. Die Ebene erscheint nur, solange ein solches Event läuft; danach steht die Strecke auf der Karte in seiner Ansicht unter Events</li>
+              <li><strong data-strecke-name></strong> — die Strecke, die gemeinsam abgeflogen wird: blass gestrichelt, was noch offen ist, kräftig, was schon abgeflogen ist, darunter als blasses Band, wie nah man dran sein muss. Ein Tipp auf die Strecke nennt Abschnitt, Pilot und Uhrzeit. Manche Strecken haben Fundstellen: Orte, an denen im Simulator etwas steht. Sie bleiben verborgen, bis jemand tief und nah darüber fliegt. Danach steigt dort hellblauer Rauch auf, und die Fundstelle erscheint als hellblaue Marke mit ihrer Nummer; ein Tipp darauf nennt, was dort steht und wer sie wann entdeckt hat. Die Ebene erscheint nur, solange ein solches Event läuft; danach steht die Strecke auf der Karte in seiner Ansicht unter Events</li>
               <li><strong>Verkehr</strong> — der fremde VATSIM-Verkehr (grau, siehe oben); aus Platzgründen erst ab Zoomstufe 7</li>
               <li><strong>Radar Label</strong> — blendet die Beschriftungen am Fremdverkehr aus, wenn das Bild ruhiger sein soll; der Haken erscheint erst mit eingeschaltetem „Verkehr"</li>
             </ul>
@@ -5345,9 +5366,12 @@
             <span><i class="sl-offen"></i>offen</span>
             <span><i class="sl-ab"></i>abgeflogen</span>
             <span><i class="sl-band"></i>so nah muss man dran sein</span>
+            <span id="strecke-legende-fund" hidden><i class="sl-fund"></i>Fundstelle, entdeckt</span>
+            <span id="strecke-legende-nicht" hidden><i class="sl-fund-offen"></i>Fundstelle, nicht gefunden</span>
             <span>Tipp auf die Strecke: wer den Abschnitt wann abgeflogen hat</span>
           </div>
           <div id="strecke-piloten"></div>
+          <div id="strecke-funde-liste"></div>
           <div id="strecke-knoepfe"></div>
         </div>
       </div>
@@ -11425,7 +11449,7 @@ async function fetchFriesenEvents() {
           location: '',
           is_strecke: 1,
           _streckeId: r.id,
-          _streckeKurz: _streckeStandText(r),
+          _streckeKurz: _streckeKurzText(r),
         })));
     } catch (_) { /* ignorieren */ }
     const combined = [...calEvents, ...objectEvents]
@@ -17433,6 +17457,56 @@ function _streckeStandText(r) {
   return `${_streckeKm(r.km_abgedeckt || 0, r.km_gesamt)} von ${_streckeKm(r.km_gesamt || 0, r.km_gesamt)} km · ${pct} %`;
 }
 
+// Fundstellen (Spec Abschnitt 15): Orte, an denen im Simulator eine Gruppe von Objekten steht.
+// Gezaehlt wird die Fundstelle, nicht das einzelne Objekt. Ohne Fundstellen: null.
+function _streckeFundstellen(r) {
+  const f = r && r.fundstellen;
+  return (f && Number(f.anzahl) > 0) ? f : null;
+}
+
+// „6 von 10 Fundstellen gefunden“ -- leer, wenn das Event keine hat.
+function _streckeFundText(r) {
+  const f = _streckeFundstellen(r);
+  if (!f) return '';
+  const n = Number(f.anzahl);
+  return `${Number(f.gefunden) || 0} von ${n} ${n === 1 ? 'Fundstelle' : 'Fundstellen'} gefunden`;
+}
+
+// Der Kurzstand fuer Eventliste und Live-Block: Kilometer, und die Funde, wenn es welche gibt.
+function _streckeKurzText(r) {
+  const fund = _streckeFundText(r);
+  return _streckeStandText(r) + (fund ? ' · ' + fund : '');
+}
+
+// Was an einer Fundstelle steht. Die Arten heissen „Eine Seehund-Kuh, 1,60 m“ -- bei mehreren
+// faellt der Artikel weg: „11 × Seehund-Kuh, 1,60 m“.
+function _streckeFundWas(f) {
+  const name = String(f.art_name || f.art || '');
+  const menge = Number(f.menge) || 0;
+  if (menge > 1) return `${menge} × ${name.replace(/^Ein(e|en|em|er|es)?\s+/, '')}`;
+  return name;
+}
+
+function _streckeFundZeit(ts) {
+  return (ts || '').slice(11, 16) + ' UTC';
+}
+
+// Was ein Tipp auf die Marke einer Fundstelle nennt: was dort steht, wer sie entdeckt hat, wann.
+function _streckeFundTippHtml(f) {
+  const kopf = `<strong>Fundstelle ${Number(f.nr)}</strong><br>${escHtml(_streckeFundWas(f))}<br>`;
+  if (!f.gefunden) return kopf + 'nicht gefunden';
+  return kopf + `entdeckt von ${escHtml(f.name || String(f.cid))} um ${escHtml(_streckeFundZeit(f.ts))}`;
+}
+
+// Wie man eine Fundstelle findet, aus den Parametern des Events.
+function _streckeFundRegelText(g) {
+  if (!g || g.fund_hoehe_ft == null || g.fund_radius_m == null) return '';
+  const n = x => _streckeZahl(Math.round(Number(x)), 0);
+  return `Eine Fundstelle entdeckst du, wenn du höchstens ${n(g.fund_hoehe_ft)} ft über ihr und näher als `
+       + `${n(g.fund_radius_m)} m an ihr vorbeifliegst. Was dort steht, erscheint im Simulator erst aus der Nähe. `
+       + 'Nach dem Fund steigt an der Stelle hellblauer Rauch auf. Das geht nur mit der FriesenBrügge.';
+}
+
 // Die Vorgabe als Satz, alles aus den Parametern des Events.
 function _streckeVorgabeText(g) {
   if (!g) return '';
@@ -17539,7 +17613,7 @@ function _streckeZeichnen(schluessel, ziel, karte, d) {
   const korridor = Number((d.regeln || {}).korridor_m) || 0;
   let z = _streckeZeichnung.get(schluessel);
   if (!z) {
-    z = { ziel, karte, farbig: new Map() };
+    z = { ziel, karte, farbig: new Map(), marken: new Map() };
     z.band = L.polyline(ganze, { color: _STRECKE_FARBE_BAND, opacity: 0.16, weight: 2,
                                  lineCap: 'round', lineJoin: 'round', interactive: false });
     z.offen = L.polyline(laeufe.offen, { color: _STRECKE_FARBE_OFFEN, weight: 4, opacity: 0.8,
@@ -17582,6 +17656,41 @@ function _streckeZeichnen(schluessel, ziel, karte, d) {
     z.farbig.set(farbe, pfad);
   }
   _streckeBandAnpassen(z);
+  _streckeFundeZeichnen(z, d);
+}
+
+// Die Marke einer Fundstelle: klein, damit sie die Strecke nicht verdeckt, mit ihrer Nummer.
+// Ein gewoehnlicher Marker OHNE rotateWithView -- leaflet-rotate haelt ihn bei Track-up
+// aufrecht, die Nummer steht nie auf dem Kopf (anders als die Flugzeuge, die mitdrehen sollen).
+function _streckeFundIcon(f) {
+  return L.divIcon({ className: '', iconSize: [20, 20], iconAnchor: [10, 10],
+    html: `<div class="strecke-fundmarke${f.gefunden ? '' : ' strecke-fundmarke-offen'}">${Number(f.nr)}</div>` });
+}
+
+// Die Fundstellen einer gezeichneten Strecke nachfuehren. Der Server nennt waehrend des Events
+// nur gefundene, nach dem Ende auch die uebrigen. Neu gebaut wird eine Marke nur, wenn sich an
+// ihr etwas geaendert hat -- ein offenes Popup bleibt ueber den Takt stehen.
+function _streckeFundeZeichnen(z, d) {
+  const liste = ((d.fundstellen || {}).liste) || [];
+  const da = new Set();
+  liste.forEach(f => {
+    if (f.lat == null || f.lon == null) return;
+    const nr = Number(f.nr);
+    da.add(nr);
+    const sig = [f.gefunden ? 1 : 0, f.lat, f.lon, f.cid, f.name, f.ts, f.menge, f.art_name].join('|');
+    const alt = z.marken.get(nr);
+    if (alt && alt.sig === sig) return;
+    if (alt) z.ziel.removeLayer(alt.marke);
+    // Auf der Live-Karte nicht nachruecken: Dort fuehrt womoeglich die Moving Map.
+    const marke = L.marker([f.lat, f.lon], { icon: _streckeFundIcon(f), keyboard: false,
+                                             zIndexOffset: f.gefunden ? 600 : 500 })
+      .bindPopup(_streckeFundTippHtml(f), { className: 'strecke-tipp', autoPan: z.karte !== liveMap });
+    z.ziel.addLayer(marke);
+    z.marken.set(nr, { marke, sig });
+  });
+  for (const [nr, m] of [...z.marken]) {
+    if (!da.has(nr)) { z.ziel.removeLayer(m.marke); z.marken.delete(nr); }
+  }
 }
 
 function _streckeBandAnpassen(z) {
@@ -17593,6 +17702,7 @@ function _streckeZeichnungWeg(schluessel) {
   const z = _streckeZeichnung.get(schluessel);
   if (!z) return;
   [z.band, z.offen, z.tipp, ...z.farbig.values()].forEach(p => z.ziel.removeLayer(p));
+  z.marken.forEach(m => z.ziel.removeLayer(m.marke));
   z.karte.off('zoomend', z.beiZoom);
   _streckeZeichnung.delete(schluessel);
 }
@@ -17676,6 +17786,8 @@ function _streckeRegelnHtml(r) {
   let html = '';
   const vorgabe = _streckeVorgabeText(r.regeln);
   if (vorgabe) html += `<div class="strecke-vorgabe">So zählt ein Abschnitt: ${escHtml(vorgabe)}.</div>`;
+  const fundRegel = _streckeFundstellen(r) ? _streckeFundRegelText(r.regeln) : '';
+  if (fundRegel) html += `<div class="strecke-vorgabe">${escHtml(fundRegel)}</div>`;
   html += _streckeBrueggeHtml();
   if (r.ohne_grund) {
     html += '<div class="bb-sub strecke-warnung">⚠ Für diese Strecke fehlen noch die Geländehöhen. '
@@ -17697,7 +17809,7 @@ function _streckeBannerBlock(r) {
   const ende = (r.dtend || '').slice(11, 16);
   return `<div class="strecke-live-block"><div class="bb-title">${_streckeZeichenHtml()} ${escHtml(r.name || _STRECKE_NAME)} läuft gerade</div>`
     + _streckeBalken(r)
-    + `<div class="bb-sub">${_streckeStandText(r)} · Ende ${escHtml(ende)} UTC</div>`
+    + `<div class="bb-sub">${_streckeKurzText(r)} · Ende ${escHtml(ende)} UTC</div>`
     + _streckeRegelnHtml(r)
     + `<div style="margin-top:8px;"><button class="btn-share" onclick="streckeAufKarte(${Number(r.id)})">${icon('map')} Zur Karte</button></div></div>`;
 }
@@ -17817,7 +17929,11 @@ async function _streckeEventKarte(d) {
   if (_streckeKarteFuer !== id) {
     // Den Ausschnitt nur beim Oeffnen setzen -- nicht bei jedem Takt unter dem Finger weg.
     _streckeKarteFuer = id;
-    _streckeKarte.fitBounds(_streckeGrenzen(d.strecke), { padding: [30, 30] });
+    const grenzen = _streckeGrenzen(d.strecke);
+    (((d.fundstellen || {}).liste) || []).forEach(f => {
+      if (f.lat != null && f.lon != null) grenzen.extend([f.lat, f.lon]);
+    });
+    _streckeKarte.fitBounds(grenzen, { padding: [30, 30] });
     if (_streckeKarte._applyOFMAuto) _streckeKarte._applyOFMAuto();
   }
 }
@@ -17888,8 +18004,16 @@ function _streckeAnsichtZeigen() {
   kopf.innerHTML = `<div class="bb-sub">${_streckeZeitfenster(r)}</div>`
     + _streckeBalken(r)
     + `<div class="strecke-stand">${_streckeStandText(r)}</div>`
+    + (_streckeFundstellen(r) ? `<div class="strecke-funde">${escHtml(_streckeFundText(r))}</div>` : '')
     + _streckeRegelnHtml(r);
   piloten.innerHTML = _streckePilotenHtml(r, _streckeFarbwahl(r));
+  const fundListe = document.getElementById('strecke-funde-liste');
+  if (fundListe) fundListe.innerHTML = _streckeFundeListeHtml(r);
+  const marken = ((r.fundstellen || {}).liste) || [];
+  const legFund = document.getElementById('strecke-legende-fund');
+  if (legFund) legFund.hidden = !marken.some(f => f.gefunden);
+  const legNicht = document.getElementById('strecke-legende-nicht');
+  if (legNicht) legNicht.hidden = !marken.some(f => !f.gefunden);
   const knoepfe = document.getElementById('strecke-knoepfe');
   if (knoepfe) {
     // „Zur Karte“ nur solange das Event laeuft: Danach zeigt die Live-Karte es nicht mehr.
@@ -17905,7 +18029,11 @@ function _streckePilotenHtml(r, wahl) {
   const piloten = r.je_pilot || [];
   if (!piloten.length) return '<div class="bb-sub">Noch ist niemand dabei.</div>';
   const farben = (wahl === 'pilot' && r.strecke) ? _streckeFarben(r.strecke) : null;
-  let html = '<div class="table-scroll"><table><thead><tr><th>Pilot</th><th>Abgeflogen</th><th>Anteil</th></tr></thead><tbody>';
+  const mitFunden = !!_streckeFundstellen(r);
+  // Das Badge gibt es erst nach dem Ende -- vorher waere es ein Zwischenstand.
+  const vorbei = r.vorbei_seit_s != null;
+  let html = '<div class="table-scroll"><table><thead><tr><th>Pilot</th><th>Abgeflogen</th><th>Anteil</th>'
+           + (mitFunden ? '<th>Fundstellen</th>' : '') + (vorbei ? '<th>Badge</th>' : '') + '</tr></thead><tbody>';
   piloten.forEach(p => {
     const farbe = !(p.abschnitte > 0) ? ''
       : (farben && farben.get(p.cid)) || _STRECKE_FARBE_AB;
@@ -17914,9 +18042,44 @@ function _streckePilotenHtml(r, wahl) {
       : '<span class="strecke-punkt"></span>';
     const anteil = r.abschnitte ? Math.round(100 * (p.abschnitte || 0) / r.abschnitte) : 0;
     html += `<tr><td>${punkt}${pilotLinkHtml(p.name || String(p.cid), p.cid)}</td>`
-          + `<td class="mono">${_streckeKm(p.km || 0, r.km_gesamt)} km</td><td class="mono">${anteil} %</td></tr>`;
+          + `<td class="mono">${_streckeKm(p.km || 0, r.km_gesamt)} km</td><td class="mono">${anteil} %</td>`
+          + (mitFunden ? `<td class="mono">${p.funde > 0 ? Number(p.funde) + ' entdeckt' : '–'}</td>` : '')
+          + (vorbei ? `<td>${_streckeHatBadge(p) ? _streckeBadgeLinks(r.id, p.cid) : ''}</td>` : '') + '</tr>';
   });
   return html + '</tbody></table></div>';
+}
+
+// Die Fundstellen als Liste: Nummer, was dort steht, wer sie entdeckt hat und wann. Waehrend
+// des Events kennt die Seite nur die gefundenen; nach dem Ende stehen auch die uebrigen da.
+function _streckeFundeListeHtml(r) {
+  const f = _streckeFundstellen(r);
+  const liste = (f && f.liste) || [];
+  if (!liste.length) return '';
+  let html = '<div class="table-scroll"><table><thead><tr><th>Fundstelle</th><th>Was dort steht</th>'
+           + '<th>Entdeckt von</th><th>Um</th></tr></thead><tbody>';
+  liste.forEach(x => {
+    const marke = `<span class="strecke-fundmarke strecke-fund-nr${x.gefunden ? '' : ' strecke-fundmarke-offen'}">${Number(x.nr)}</span>`;
+    html += `<tr><td>${marke}</td><td>${escHtml(_streckeFundWas(x))}</td>`
+          + (x.gefunden
+             ? `<td>${pilotLinkHtml(x.name || String(x.cid), x.cid)}</td><td class="mono">${escHtml(_streckeFundZeit(x.ts))}</td>`
+             : '<td colspan="2" class="strecke-nicht">nicht gefunden</td>')
+          + '</tr>';
+  });
+  return html + '</tbody></table></div>';
+}
+
+// Dieselbe Regel wie auf dem Server: ein abgeflogener Abschnitt oder ein Fund.
+function _streckeHatBadge(p) {
+  return p.abschnitte > 0 || p.funde > 0;
+}
+// Badge-Links je Teilnehmer (Forum-PNG oeffnen + BBCode kopieren), wie bei der Reddung.
+function _streckeBadgeLinks(eventId, cid) {
+  const url = `/api/strecke/events/${Number(eventId)}/badge/${Number(cid)}.png`;
+  return `<a class="btn-share" href="${url}" target="_blank" rel="noopener" title="Badge als Bild öffnen">${icon('medal')} Badge</a>`
+       + ` · <button class="btn-share" onclick="copyStreckeBadgeCode(${Number(eventId)}, ${Number(cid)}, this)" title="Forum-Code (BBCode) kopieren">${icon('clipboard')} Forum</button>`;
+}
+function copyStreckeBadgeCode(eventId, cid, btn) {
+  _copyText(`[img]${_teilenUrsprung()}/api/strecke/events/${eventId}/badge/${cid}.png[/img]`, btn, 'kopiert', 1500, false);
 }
 
 // Teilen heisst wie bei Bummel, Kutter und Reddung: den Link auf die Ansicht kopieren.

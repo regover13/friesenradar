@@ -457,7 +457,7 @@ anderen Fläche weg, die nie jemand angesehen hat.
 | FriesenBummel | nein | VATSIM genügt — **nicht anfassen** |
 | FriesenKutter | nein | VATSIM genügt — **nicht anfassen** |
 | FriesenReddung | ja (Wrack, Rauchsäulen) | nur wer per FriesenBrügge gemeldet hat |
-| Deichkontrolle (`strecke`) | noch nicht (Fundstellen geplant) | **nur wer per FriesenBrügge gemeldet hat**; die Position darf auch vom Kniebrett kommen (Nutzer, 10.10.2026) |
+| Deichkontrolle (`strecke`) | ja (Fundstellen: Objektgruppen, hellblauer Rauch) | **nur wer per FriesenBrügge gemeldet hat**; die Position darf auch vom Kniebrett kommen (Nutzer, 10.10.2026) |
 | Kieker, Baake | noch offen | dieselbe Frage entscheidet es |
 Nutzerentscheidung vom 20.09.2026: *„Die Brügge ist zwingend für dieses Event! Keine Teilnahme
 ohne Brügge! Wir stellen was in den Simulator! Das geht nur mit Brügge!"* — und dazu: *„Dann
@@ -543,7 +543,33 @@ ausgehandelt wird:
   Stand verwirft, prüfen, ob die Punkte noch da sind. Das Speichern in der Verwaltung verwirft
   ihn nur bei geänderten Rechenwerten (`_STRECKE_OHNE_RECHNUNG`).
 - Zum Ansehen ohne Simulator: `scripts/strecke_probe.py --db <Kopie>` legt ein Beispiel-Event mit
-  erfundenen Piloten an. Nie gegen die echte Datenbank; das Skript weigert sich dort.
+  erfundenen Piloten, Fundstellen und VATSIM-Flügen an. Nie gegen die echte Datenbank; das Skript
+  weigert sich dort.
+
+### Fundstellen und Objektgruppen (Nutzer, 10.10.2026)
+
+- **Die Fundstelle zählt, nicht das einzelne Objekt.** Eine Kolonie mit 14 Robben ist ein Fund,
+  das Ergebnis lautet „6 von 10 gefunden“. Einzelne Tiere zu zählen ist der Kieker (#20).
+- **Finden wie bei der Reddung, aber ohne Aufnehmen und Einliefern.** Nach dem Fund steht
+  hellblauer Rauch, die Objekte bleiben stehen, die Suche geht weiter.
+- **Eine nicht gefundene Fundstelle verlässt den Server nicht, solange das Event läuft**: nicht
+  in der Liste, nicht „versteckt“ im Datensatz, und an die FriesenBrügge erst aus der Nähe
+  (`nur_nah_m`, derselbe Grund wie beim Wrack: LittleNavMap). Nach `dtend` dürfen alle erscheinen.
+  Wer die Schnittstelle für Mitglieder erweitert, prüft das mit
+  `test_eine_nicht_gefundene_fundstelle_verraet_waehrend_des_events_nichts`.
+- **Die Lage der Objekte rechnet immer der Server** aus dem Startwert (`app/gruppen.py`), nie
+  kommt sie aus dem Körper der Verwaltung. Sie steht ausgerechnet in `objekte_json`: Ändert sich
+  die Streurechnung einmal, bleiben gespeicherte Fundstellen, wie sie waren.
+- **`app/gruppen.py` bleibt eventunabhängig.** Kieker und Baake sollen es ohne Umbau nutzen:
+  die gewürfelte Zahl wird gespeichert, derselbe Startwert ergibt dieselbe Lage, eine Gruppe darf
+  aus einem Objekt bestehen, die Richtung ist gewürfelt oder fest, und WANN ein Objekt an den
+  Simulator geht, entscheidet der Aufrufer. Wer dort etwas ändert, das die Lage zu einem
+  Startwert verschiebt, sieht es an `test_die_lage_haengt_nicht_an_der_python_fassung`.
+- **Eine unveränderte Fundstelle behält ihren Fund**, wenn das Event neu gespeichert wird
+  (`_fundstelle_kern`). Das Formular schickt immer alle; deshalb Ort und Startwert unverändert
+  zurückschicken.
+- **`bruegge_soll` fasst 200 Objekte.** Die Verwaltung lehnt ab, was mit Rauch und Licht nicht
+  hineinpasst (`_strecke_fundstellen_speichern`).
 
 ## Wem eine FriesenBrügge gehört — ab Protokoll 3 (stehende Regeln, Beschluss 26.09.2026)
 

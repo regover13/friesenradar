@@ -124,7 +124,7 @@ def test_eine_spaete_antwort_ueberschreibt_keine_juengere():
 def test_die_eventliste_fuehrt_den_typ_mit_kurzstand_und_oeffnet_seine_ansicht():
     holen = _ohne_kommentare(_funktion("fetchFriesenEvents"))
     assert "is_strecke: 1" in holen and "_streckeId: r.id" in holen
-    assert "_streckeKurz: _streckeStandText(r)" in holen
+    assert "_streckeKurz: _streckeKurzText(r)" in holen
     liste = _ohne_kommentare(_funktion("renderFriesenEvents"))
     assert "ev.is_strecke" in liste and "_STRECKE_NAME" in liste and "ev._streckeKurz" in liste
     assert "openStreckeDetail(ev._streckeId)" in liste
@@ -329,3 +329,161 @@ def test_die_friesenbruegge_ist_voraussetzung():
     auch vom Kniebrett kommen darf, regelt der Server; in der Ansicht steht nur die Voraussetzung."""
     rumpf = _ohne_kommentare(_funktion("_streckeBrueggeHtml"))
     assert "FriesenBrügge" in rumpf and "Kniebrett</strong>" not in rumpf
+
+
+# --- Fundstellen, Funde je Pilot und Badge (Spec Abschnitt 15) ------------------------------
+
+_FUND_JS = "function escHtml(t) { return String(t); }" + "".join(_funktion(n) for n in (
+    "_streckeZahl", "_streckeKm", "_streckeStandText", "_streckeFundstellen", "_streckeFundText",
+    "_streckeKurzText", "_streckeFundWas", "_streckeFundZeit", "_streckeFundTippHtml",
+    "_streckeFundRegelText"))
+
+
+@pytest.mark.skipif(not _NODE, reason="node fehlt")
+def test_gezaehlt_wird_die_fundstelle_mit_einzahl_und_nur_wenn_es_welche_gibt():
+    assert _node(_FUND_JS, "_streckeFundText({fundstellen: {anzahl: 10, gefunden: 6}})") == (
+        "6 von 10 Fundstellen gefunden")
+    assert _node(_FUND_JS, "_streckeFundText({fundstellen: {anzahl: 1, gefunden: 1}})") == (
+        "1 von 1 Fundstelle gefunden")
+    assert _node(_FUND_JS, "[_streckeFundText({fundstellen: {anzahl: 0, gefunden: 0}}), "
+                           "_streckeFundText({}), _streckeFundstellen(null)]") == ["", "", None]
+
+
+@pytest.mark.skipif(not _NODE, reason="node fehlt")
+def test_der_kurzstand_nennt_die_funde_nur_bei_fundstellen():
+    stand = '"anteil": 0.42, "km_abgedeckt": 21.0, "km_gesamt": 50.0'
+    assert _node(_FUND_JS, "_streckeKurzText({%s})" % stand) == "21,0 von 50,0 km · 42 %"
+    assert _node(_FUND_JS, "_streckeKurzText({%s, fundstellen: {anzahl: 10, gefunden: 3}})" % stand) == (
+        "21,0 von 50,0 km · 42 % · 3 von 10 Fundstellen gefunden")
+    assert "_streckeKurzText(r)" in _ohne_kommentare(_funktion("_streckeBannerBlock"))
+
+
+@pytest.mark.skipif(not _NODE, reason="node fehlt")
+def test_was_dort_steht_wer_es_entdeckt_hat_und_wann():
+    kolonie = ('{"nr": 3, "gefunden": true, "art": "seehund_kuh", "art_name": "Eine Seehund-Kuh, 1,60 m", '
+               '"menge": 11, "cid": 7, "name": "Anton", "ts": "2026-10-10T18:42:10Z"}')
+    assert _node(_FUND_JS, f"_streckeFundWas({kolonie})") == "11 × Seehund-Kuh, 1,60 m"
+    assert _node(_FUND_JS, '_streckeFundWas({"art_name": "Ein Seehund-Bulle, 1,80 m", "menge": 1})') == (
+        "Ein Seehund-Bulle, 1,80 m")
+    assert _node(_FUND_JS, '_streckeFundWas({"art": "einhorn", "menge": 2})') == "2 × einhorn"
+    tipp = _node(_FUND_JS, f"_streckeFundTippHtml({kolonie})")
+    assert "Fundstelle 3" in tipp and "11 × Seehund-Kuh" in tipp
+    assert "entdeckt von Anton um 18:42 UTC" in tipp
+    offen = _node(_FUND_JS, '_streckeFundTippHtml({"nr": 4, "gefunden": false, "art_name": "Ein Boot", "menge": 1})')
+    assert "Fundstelle 4" in offen and "nicht gefunden" in offen and "entdeckt" not in offen
+
+
+@pytest.mark.skipif(not _NODE, reason="node fehlt")
+def test_der_regeltext_nennt_fundhoehe_und_fundradius_aus_dem_event():
+    satz = _node(_FUND_JS, '_streckeFundRegelText({"fund_radius_m": 150.0, "fund_hoehe_ft": 1000.0})')
+    assert "höchstens 1.000 ft" in satz and "näher als 150 m" in satz
+    assert "hellblauer Rauch" in satz and "FriesenBrügge" in satz
+    assert _node(_FUND_JS, "[_streckeFundRegelText(null), _streckeFundRegelText({})]") == ["", ""]
+    regeln = _ohne_kommentare(_funktion("_streckeRegelnHtml"))
+    assert "_streckeFundstellen(r) ? _streckeFundRegelText(r.regeln)" in regeln
+    assert "escHtml(fundRegel)" in regeln
+
+
+def test_die_ansicht_zeigt_fundzeile_fundliste_und_funde_je_pilot():
+    zeigen = _ohne_kommentare(_funktion("_streckeAnsichtZeigen"))
+    assert "_streckeFundstellen(r) ?" in zeigen and "escHtml(_streckeFundText(r))" in zeigen
+    assert "getElementById('strecke-funde-liste')" in zeigen and "_streckeFundeListeHtml(r)" in zeigen
+    block = INDEX[INDEX.index('<div id="strecke-results"'):INDEX.index('<div class="panel-title">Event-Analyse')]
+    assert block.index('id="strecke-piloten"') < block.index('id="strecke-funde-liste"')
+    assert 'id="strecke-legende-fund"' in block and 'id="strecke-legende-nicht"' in block
+    liste = _funktion("_streckeFundeListeHtml")
+    assert '<div class="table-scroll"><table>' in liste
+    assert "escHtml(_streckeFundWas(x))" in liste and "escHtml(_streckeFundZeit(x.ts))" in liste
+    assert "pilotLinkHtml(x.name || String(x.cid), x.cid)" in liste and "x.gefunden" in liste
+    piloten = _funktion("_streckePilotenHtml")
+    assert "_streckeFundstellen(r)" in piloten and "p.funde > 0" in piloten
+
+
+@pytest.mark.skipif(not _NODE, reason="node fehlt")
+def test_die_fundliste_nennt_nach_dem_ende_auch_die_nicht_gefundenen():
+    js = (_FUND_JS + "function pilotLinkHtml(n, c) { return '[' + n + '#' + c + ']'; }"
+          + _funktion("_streckeFundeListeHtml"))
+    r = ('{"fundstellen": {"anzahl": 2, "gefunden": 1, "liste": ['
+         '{"nr": 1, "gefunden": true, "art_name": "Ein Boot", "menge": 1, "cid": 7, "name": "Anton", '
+         '"ts": "2026-10-10T18:42:10Z", "lat": 54, "lon": 9},'
+         '{"nr": 2, "gefunden": false, "art_name": "Eine Seehund-Kuh, 1,60 m", "menge": 4, "lat": 54, "lon": 9}]}}')
+    html = _node(js, f"_streckeFundeListeHtml({r})")
+    assert "[Anton#7]" in html and "18:42 UTC" in html
+    assert "4 × Seehund-Kuh, 1,60 m" in html and "nicht gefunden" in html
+    assert html.count("<tr>") == 3
+    assert _node(js, '[_streckeFundeListeHtml({fundstellen: {anzahl: 3, gefunden: 0}}), '
+                     '_streckeFundeListeHtml({fundstellen: {anzahl: 0, gefunden: 0, liste: []}})]') == ["", ""]
+
+
+def test_fundstellen_stehen_als_marken_auf_beiden_karten():
+    """Beide Karten zeichnen ueber `_streckeZeichnen`; die Marken haengen an derselben Zeichnung
+    und gehen mit ihr wieder weg. Ohne `rotateWithView`: Die Nummer bleibt bei Track-up aufrecht."""
+    zeichnen = _ohne_kommentare(_funktion("_streckeZeichnen"))
+    assert "marken: new Map()" in zeichnen and "_streckeFundeZeichnen(z, d)" in zeichnen
+    marken = _ohne_kommentare(_funktion("_streckeFundeZeichnen"))
+    assert "d.fundstellen" in marken and "L.marker(" in marken and "_streckeFundIcon(f)" in marken
+    assert "_streckeFundTippHtml(f)" in marken and "autoPan: z.karte !== liveMap" in marken
+    assert "rotateWithView" not in marken and "L.canvas" not in marken
+    assert "z.ziel.removeLayer(" in marken and "z.marken.delete(nr)" in marken
+    icon = _ohne_kommentare(_funktion("_streckeFundIcon"))
+    assert "L.divIcon(" in icon and "strecke-fundmarke-offen" in icon and "Number(f.nr)" in icon
+    assert "z.marken.forEach(" in _funktion("_streckeZeichnungWeg")
+    assert re.search(r"\.strecke-fundmarke \{[^}]*background: #8FBFF1;[^}]*#191D53", INDEX)
+    assert "grenzen.extend([f.lat, f.lon])" in _funktion("_streckeEventKarte")
+
+
+@pytest.mark.skipif(not _NODE, reason="node fehlt")
+def test_das_badge_gibt_es_nach_dem_ende_fuer_jeden_mit_beitrag():
+    js = ("function escHtml(t) { return String(t); } function icon(n) { return '<' + n + '>'; }"
+          "function pilotLinkHtml(n, c) { return n; } const _STRECKE_FARBE_AB = '#D75F28';"
+          + "".join(_funktion(n) for n in ("_streckeZahl", "_streckeKm", "_streckeFundstellen",
+                                           "_streckeHatBadge", "_streckeBadgeLinks",
+                                           "_streckePilotenHtml")))
+    assert _node(js, "[_streckeHatBadge({abschnitte: 3, funde: 0}), _streckeHatBadge({abschnitte: 0, funde: 1}), "
+                     "_streckeHatBadge({abschnitte: 0, funde: 0})]") == [True, True, False]
+    r = ('{"id": 5, "abschnitte": 10, "km_gesamt": 50, "vorbei_seit_s": %s, '
+         '"fundstellen": {"anzahl": 2, "gefunden": 1}, "je_pilot": ['
+         '{"cid": 11, "name": "Anton", "abschnitte": 4, "km": 20, "funde": 0},'
+         '{"cid": 12, "name": "Berta", "abschnitte": 0, "km": 0, "funde": 1},'
+         '{"cid": 13, "name": "Carl", "abschnitte": 0, "km": 0, "funde": 0}]}')
+    laeuft = _node(js, "_streckePilotenHtml(%s, 'eine')" % (r % "null"))
+    assert "<th>Fundstellen</th>" in laeuft and "1 entdeckt" in laeuft
+    assert "Badge" not in laeuft and "/badge/" not in laeuft
+    vorbei = _node(js, "_streckePilotenHtml(%s, 'eine')" % (r % "120"))
+    assert "<th>Badge</th>" in vorbei
+    assert 'href="/api/strecke/events/5/badge/11.png"' in vorbei
+    assert "copyStreckeBadgeCode(5, 12, this)" in vorbei and "/badge/13.png" not in vorbei
+    ohne = _node(js, "_streckePilotenHtml(%s, 'eine')" % (r % "null").replace('"anzahl": 2', '"anzahl": 0'))
+    assert "Fundstellen" not in ohne and "entdeckt" not in ohne
+
+
+def test_der_forumscode_des_badges_nimmt_den_teilen_ursprung():
+    rumpf = _funktion("copyStreckeBadgeCode")
+    assert "[img]${_teilenUrsprung()}/api/strecke/events/${eventId}/badge/${cid}.png[/img]" in rumpf
+    assert 'html.vr-panel [onclick*="copyStreckeBadgeCode"]' in INDEX      # im Kniebrett kein Kopieren
+
+
+def test_der_orden_der_statistik_hat_ein_eigenes_band():
+    """Die Ordensleiste baut die Klasse aus `o.art` und verlinkt `o.bild` -- Arten zaehlt das
+    Skript nicht auf, es braucht nur das Band."""
+    assert "orden-band-${escHtml(o.art)}" in _funktion("_ordenHtml")
+    m = re.search(r"\.orden-band-strecke \{([^}]*)\}", INDEX)
+    assert m
+    for farbe in ("#191D53", "#8FBFF1", "#D75F28"):
+        assert farbe in m.group(1), farbe
+    andere = [re.search(r"\.orden-band-%s \{([^}]*)\}" % a, INDEX).group(1)
+              for a in ("bummel", "kutter", "reddung", "sieger")]
+    assert m.group(1) not in andere
+
+
+def test_die_neuen_helfer_brauchen_keinen_zustand_hinter_dem_ersten_aufruf():
+    """Fundstellen bringen keine neuen `let`/`const` auf oberster Ebene mit -- alles haengt an
+    der Zeichnung (`z.marken`) und am Stand."""
+    block = _ohne_kommentare(INDEX[INDEX.index("const _STRECKE_NAME"):INDEX.index("\n_streckeNamenEinsetzen();")])
+    oben = re.findall(r"^(?:let|const) (\w+)", block, flags=re.M)
+    assert set(oben) == {
+        "_STRECKE_NAME", "_STRECKE_ZEICHEN", "_streckeListe", "_streckeListeGeladen", "_streckeTaktNr",
+        "_streckeStandNr", "_streckeStand", "_streckeOffenId", "_streckeGruppe", "_streckeEbeneDa",
+        "_streckeAbgewaehlt", "_streckeSelbst", "_streckeZeichnung", "_streckeKarte",
+        "_streckeKarteWird", "_streckeKarteFuer", "_STRECKE_FARBE_AB", "_STRECKE_FARBE_OFFEN",
+        "_STRECKE_FARBE_BAND", "_STRECKE_PALETTE"}

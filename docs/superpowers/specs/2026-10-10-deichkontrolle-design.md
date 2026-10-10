@@ -179,7 +179,7 @@ README-Absatz und Hilfetext hinter dem „?“ im selben Commit wie die Ansicht;
 `docs/architecture.md`, `CLAUDE.md` (Tabelle „Stellt etwas in den Simulator?“ bekommt die Zeile:
 nein, aber Brügge Pflicht wegen der Positionen) und `docs/offene-aufgaben.md`.
 
-## 15. Fundstellen und Objektgruppen (entschieden am 10.10.2026, Bau begonnen)
+## 15. Fundstellen und Objektgruppen (entschieden und gebaut am 10.10.2026)
 
 **Anlass (Nutzer):** Eine Strecke nur abzufliegen ist langweilig, wenn man nichts sieht. In der
 Deichkontrolle sollen Objekte an mehreren Orten stehen können, auch als ganze Gruppe einer Art,
@@ -243,21 +243,38 @@ der FriesenKieker (#20) für seine Kolonien und, mit einem Objekt je Station, di
 - **Probeskript:** Fundstellen anlegen und für die erfundenen Piloten auch VATSIM-Flüge schreiben,
   damit im Testsystem Flugspuren zu sehen sind.
 
-## 16. Stand des Baus (10.10.2026, vormittags)
+## 16. Stand des Baus (10.10.2026, mittags)
 
 **Fertig, getestet, auf der Teststufe (`test`, 16.5.0), nicht in `main`:** alles aus den
-Abschnitten 5 bis 14, dazu Push (Erinnerung und Beginn), Farbe als Einstellung des Events, Liste
-der Verwaltung nach dem Muster der Reddung, Flugspuren unter der Eventansicht, Kniebrett-Position
-für Brügge-Teilnehmer. Suite: 4401 Tests grün.
+Abschnitten 5 bis 15: die Strecke, Push (Erinnerung und Beginn), Farbe als Einstellung des Events,
+Liste der Verwaltung nach dem Muster der Reddung, Flugspuren unter der Eventansicht,
+Kniebrett-Position für Brügge-Teilnehmer, Fundstellen mit gestreuten Objektgruppen, Badge und
+Orden, die neutral benannten geteilten Funktionen und das Probeskript mit Fundstellen und
+VATSIM-Flügen.
 
-**Noch nicht gebaut:** alles aus Abschnitt 15. Begonnen ist nichts davon im Code.
+**So ist Abschnitt 15 gebaut** (wo es vom Plan abweicht oder ihn festlegt):
 
-**Offene Fragen an den Nutzer** (keine hält den Bau auf):
+- Objekte stehen nur im Soll, solange das Event läuft (`dtstart` bis `dtend`); der Poller-Takt
+  räumt danach ab. Der Naheriegel vor dem Fund ist 1.000 m, wie beim Wrack der Reddung.
+- Der Fund braucht die Geländehöhe an der Fundstelle. Fehlt sie einer einzigen, wird für das
+  ganze Event nicht gerechnet (`ohne_grund`), bis der Knopf „Geländehöhen holen“ sie nachträgt.
+- Fundradius und Fundhöhe sind Rechenwerte: Ihre Änderung verwirft den Stand samt den Funden.
+- Eine Fundstelle, die während des Events dazukommt, kann erst ab dann gefunden werden.
+- Die Verwaltung prüft den Platz im Simulator mit der gewürfelten Menge, plus Rauch und Licht je
+  Fundstelle, gegen 200 abzüglich dessen, was andere Events dort stehen haben.
+- Der Kurzname fürs Badge (`badge_name`) ist dazugekommen, wie bei den anderen Eventtypen.
+- Das Badge benutzt die Medaille der FriesenFlieger; die Kopfzeile lautet „ABGEFLOGEN!“.
+
+**Nicht gebaut, bewusst:** FriesenKieker (#20) und FriesenBaake (#24), auch ihre Specs. Sie warten
+auf einen echten Abend mit der Deichkontrolle (Nutzer, 10.10.2026).
+
+**Offene Fragen an den Nutzer** (keine hält den Bau auf; einzeln stellen):
 
 - Offene Abschnitte sind auf der Fliegerkarte schwach zu sehen (blasses gestricheltes Blau auf
   hellem Grund): kräftiger, mit dunklem Saum, oder so lassen?
-- Wortlaute der Ansicht einmal lesen („So zählt ein Abschnitt: …“, „Für diese Strecke fehlen noch
-  die Geländehöhen. …“, Legende „so nah muss man dran sein“).
+- Wortlaute der Ansicht einmal lesen („So zählt ein Abschnitt: …“, der Satz zum Finden, „Für diese
+  Strecke fehlen noch die Geländehöhen. …“, Legende „so nah muss man dran sein“) und die Kopfzeile
+  des Badges („ABGEFLOGEN!“).
 - Verwaltung: Luftbild als Startkarte wie bei der Reddung? Neue Punkte nur am Ende der Strecke,
   kein Einfügen in der Mitte: reicht das?
 - Mehr als acht Piloten mit Treffern teilen sich bei „je Pilot eine Farbe“ Farben.

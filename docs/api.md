@@ -1225,8 +1225,10 @@ Alle Deichkontrollen mit Kurzstand, für die Eventliste. Je Event:
 `id`, `name`, `dtstart`, `dtend`, `laeuft`, `vorbei_seit_s` (beides vom Server gerechnet),
 `anteil` (0..1), `abschnitte`, `abgedeckt`, `km_gesamt`, `km_abgedeckt`, `abschnitt_m`,
 `je_pilot` (`[{cid, name, abschnitte, km}]`, absteigend, auch Piloten mit 0),
-`regeln` (`korridor_m`, `hoehe_max_ft`, `gs_max_kt`, `gs_min_kt`), `ohne_grund` und `farbe`
-(`eine` oder `pilot`: wie das Abgeflogene gefärbt wird, vom Veranstalter je Event eingestellt).
+`regeln` (`korridor_m`, `hoehe_max_ft`, `gs_max_kt`, `gs_min_kt`, `fund_radius_m`,
+`fund_hoehe_ft`), `ohne_grund`, `farbe` (`eine` oder `pilot`: wie das Abgeflogene gefärbt wird,
+vom Veranstalter je Event eingestellt) und `fundstellen` (`{anzahl, gefunden}`). `je_pilot` trägt
+je Pilot auch `funde`.
 
 `ohne_grund: true` heißt: Die Geländehöhen fehlen, es wird nicht gerechnet. Der Stand rückt dann
 nicht vor und holt nach, sobald sie da sind.
@@ -1237,6 +1239,18 @@ Dasselbe für ein Event, dazu `strecke`: je Abschnitt `{nr, linie, cid, ts}`. `l
 der Strecke als `[[lat, lon], …]` und folgt den geklickten Knicken; `cid` und `ts` nennen, wer den
 Abschnitt wann zuerst abgeflogen hat (`null`, solange er offen ist). Jeder Aufruf schreibt den
 Stand fort; ein Server-Ereignis für Änderungen gibt es nicht, die Karte fragt selbst.
+
+Gibt es Fundstellen, trägt `fundstellen` hier zusätzlich `liste`: je Eintrag `nr`, `gefunden`,
+`lat`, `lon`, `art`, `art_name`, `menge` und bei einem Fund `cid`, `name`, `ts`. **Eine noch nicht
+gefundene Fundstelle steht nicht in der Liste, solange das Event läuft**; ihre Lage verlässt den
+Server dann auf keinem Weg für Mitglieder. Nach `dtend` stehen alle darin.
+
+### GET /api/strecke/events/{id}/badge/{cid}.png
+
+Das Badge eines Teilnehmers als PNG (256 × 256, rund): Rufzeichen, Flugzeug, Kilometer, Funde,
+Name und Datum des Events. Erst nach `dtend` (vorher 404) und nur für Piloten mit einem
+abgeflogenen Abschnitt oder einem Fund. Öffentlich wie die anderen Badges (sie stehen in
+Forumsbeiträgen), mit `ETag`. `GET /api/pilots/{cid}/orden` nennt es als `art: "strecke"`.
 
 ### Wie gerechnet wird
 
@@ -1251,6 +1265,17 @@ Stand fort; ein Server-Ereignis für Änderungen gibt es nicht, die Karte fragt 
   Strecken. **Teilnehmer ist nur, wessen FriesenBrügge seit Eventbeginn gemeldet hat**; für ihn
   zählen dann auch die Punkte des Kniebretts, und VATSIM füllt Lücken. Die Reddung wertet die
   Punkte des Kniebretts nicht.
+- **Fundstellen** werden im selben Zug aus denselben Punkten gefunden: Abstand zur Mitte der
+  Fundstelle höchstens `fund_radius_m`, Höhe höchstens Gelände dort plus `fund_hoehe_ft`,
+  Höchstgeschwindigkeit wie beim Abfliegen, keine Mindestgeschwindigkeit. Der erste Fund bleibt
+  (`strecken_fundstellen.gefunden_am`, `gefunden_von`). Fehlt einer Fundstelle die Geländehöhe,
+  gilt `ohne_grund` für das ganze Event.
+- **Objekte im Simulator** (`strecke_objekte_abgleichen`, im Poller-Takt und beim Speichern):
+  Solange das Event läuft, steht jedes Objekt einer Fundstelle in `bruegge_soll`
+  (`strecke-<event>-f<fundstelle>-<nr>`), vor dem Fund mit `nur_nah_m = 1000`, danach ohne
+  und mit `rauch_hellblau` und `licht` an der Stelle. Nach `dtend` und beim Löschen fällt alles weg.
+- Die Lage der Objekte würfelt `app/gruppen.py` aus dem `startwert` der Fundstelle
+  (`streuen(...)`, eventunabhängig); sie steht ausgerechnet in `objekte_json`.
 - `analyse` in der Liste nennt Platz und Radius für die Flugspuren unter der Eventansicht.
 - Der Stand liegt in `progress_snapshot` (`kind = 'strecke'`) und wird vom Poller alle 30 s
   fortgeschrieben (`_check_strecke`), auch ohne Zuschauer.
@@ -1259,12 +1284,22 @@ Stand fort; ein Server-Ereignis für Änderungen gibt es nicht, die Karte fragt 
 
 | Weg | |
 |---|---|
-| `GET /api/admin/strecke/events` | Liste mit `punkte`, `laenge_km`, `grund_da`, `stand` |
-| `POST /api/admin/strecke/events` | anlegen: `name`, `dtstart`, `dtend`, `punkte`, `korridor_m`, `hoehe_max_ft`, `gs_max_kt`, `gs_min_kt`; Antwort `{id, grund_fehlt}` |
-| `POST /api/admin/strecke/events/{id}` | ändern; Antwort `{stand_verworfen, grund_fehlt}` |
-| `POST /api/admin/strecke/events/{id}/grund` | Geländehöhen neu holen; 502, wenn das Höhenmodell nicht antwortet |
+| `GET /api/admin/strecke/events` | Liste mit `punkte`, `laenge_km`, `grund_da`, `stand`, `fund_radius_m`, `fund_hoehe_ft`, `badge_name` und `fundstellen` (alles: Lage, Angaben, `startwert`, gewürfelte `menge`, `objekte`, Fund) |
+| `POST /api/admin/strecke/events` | anlegen: `name`, `dtstart`, `dtend`, `punkte`, `korridor_m`, `hoehe_max_ft`, `gs_max_kt`, `gs_min_kt`, `farbe`, `fund_radius_m`, `fund_hoehe_ft`, `badge_name`, `fundstellen`; Antwort `{id, grund_fehlt}` |
+| `POST /api/admin/strecke/events/{id}` | ändern; Antwort `{stand_verworfen, grund_fehlt}`. Ohne `fundstellen` im Körper bleiben die gespeicherten |
+| `POST /api/admin/strecke/streuen` | Vorschau einer Fundstelle: `lat`, `lon`, `menge_min`, `menge_max`, `abstand_min_m`, `abstand_max_m`, wahlweise `richtung` und `startwert`; Antwort `{startwert, menge, objekte}`. Ohne `startwert` wird neu gewürfelt |
+| `POST /api/admin/strecke/events/{id}/grund` | Geländehöhen neu holen, für Abschnitte und Fundstellen; 502, wenn das Höhenmodell nicht antwortet |
 | `POST /api/admin/strecke/events/{id}/push` | `{enabled}`: Erinnerung und Meldung zum Beginn ein- oder ausschalten |
 | `DELETE /api/admin/strecke/events/{id}` | löschen, verlangt das Passwort erneut |
+
+**Fundstellen im Körper:** eine Liste aus `{lat, lon, art, menge_min, menge_max, abstand_min_m,
+abstand_max_m, richtung, startwert}`; `art` ist eine anforderbare Art der FriesenBrügge
+(`GET /api/admin/bruegge/arten`), `richtung` leer heißt je Objekt gewürfelt. Die Lage rechnet
+immer der Server aus dem Startwert. Eine Fundstelle mit unverändertem Ort, unveränderten Angaben
+und unverändertem Startwert behält Zeile und Fund; alles andere ist eine neue. Höchstens 40
+Fundstellen, 1 bis 60 Objekte je Gruppe, Abstände 1 bis 2.000 m. Gespeichert wird nur, was in den
+Simulator passt: Objekte plus Rauch und Licht je Fundstelle, zusammen mit allem, was sonst in
+`bruegge_soll` steht, höchstens 200.
 
 Grenzen: 2 bis 500 Punkte, Korridor 50 bis 10.000 m, höchstens 2.000 Abschnitte. Fehler kommen als
 400 mit einem Satz für die Verwaltung. **Der Stand wird beim Ändern nur verworfen, wenn sich ein

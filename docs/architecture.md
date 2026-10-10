@@ -800,6 +800,23 @@ Karte / Eventansicht                │                                       �
    │── GET /api/strecke/events/…  ─►│── compute_strecke_stand ───────────►│
 ```
 
+Mit Fundstellen kommt ein zweiter Weg dazu, vom Server in den Simulator:
+
+```
+Verwaltung ── Fundstellen ─► gruppen.streuen(Startwert) ─► strecken_fundstellen (Lage der Objekte)
+Poller, alle 30 s ─► strecke_fortschreiben ─► Fund (gefunden_am, gefunden_von)
+                  ─► strecke_objekte_abgleichen ─► bruegge_soll ─► FriesenBrügge ─► Simulator
+                       vor dem Fund: nur aus der Nähe   ·   nach dem Fund: für alle, mit Rauch
+```
+
+`app/gruppen.py` streut eine Gruppe von Objekten um einen Ort (reine Rechnung, eventunabhängig,
+aus dem Startwert wiederholbar); gedacht ist es auch für die Kolonien des Kiekers (#20) und, mit
+einem Objekt je Gruppe, für die Stationen der Baake (#24). Was Reddung und Deichkontrolle teilen,
+trägt keinen Eventnamen mehr: `_spur_punkte_neu` und `_spur_punkte_mischen` (Sekundenpunkte,
+VATSIM als Lückenfüller für Teilnehmer), `_spur_sektoren_holen` und `_SPUR_RAND_KM` (wo
+mitgeschrieben wird), `_soll_setzen_je_simulator` (ein Objekt anfordern, je Simulator nur bei
+lückenhafter Art) und `geo.analyse_platz` (Platz und Radius für die Flugspuren).
+
 `app/strecke.py` hält die Rechenwerte (Teilung, Geometrie, Höhengrenze je Abschnitt),
 `app/abdeckung.py` rechnet die Abdeckung, `app/database.py` schreibt den Stand fort. Kein
 Netzabruf liegt innerhalb einer Datenbank-Transaktion: Die Geländehöhen werden vor dem Schreiben

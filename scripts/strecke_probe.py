@@ -10,7 +10,13 @@ für vier erfundene Piloten nach ``bruegge_spur``:
 * einer fliegt außerhalb des Korridors,
 * einer fliegt zu hoch.
 
-So sieht man in der Ansicht abgeflogene und offene Abschnitte und Piloten mit 0 km.
+Dazu kommen vier Fundstellen: zwei liegen auf dem Weg der ersten beiden und werden gefunden, eine
+liegt im nicht abgeflogenen Teil, eine unter dem Piloten, der zu hoch fliegt. Und jeder Pilot
+bekommt einen VATSIM-Flug mit Positionen alle 15 Sekunden, damit unter der Eventansicht auch
+Flugspuren zu sehen sind.
+
+So sieht man in der Ansicht abgeflogene und offene Abschnitte, Piloten mit 0 km, gefundene
+Fundstellen und (nach dem Ende) die nicht gefundenen.
 
     python scripts/strecke_probe.py --db /daten/radar.db
 
@@ -31,7 +37,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import strecke as st                                              # noqa: E402
 from app.database import (                                                 # noqa: E402
-    create_strecken_event, get_connection, get_strecken_event, update_strecken_event,
+    bruegge_arten_uebersicht, create_strecken_event, get_connection, get_strecken_event,
+    strecke_fundstellen_setzen, update_strecken_event,
 )
 
 # Eine Beispielstrecke, grob von Hand geklickt. Der Name sagt nichts über den Inhalt.
@@ -39,12 +46,21 @@ BEISPIEL = [[53.888, 9.146], [53.930, 9.200], [54.000, 9.270], [54.035, 9.290], 
             [54.125, 9.335], [54.155, 9.420], [54.210, 9.530], [54.260, 9.620], [54.295, 9.665],
             [54.310, 9.720], [54.365, 9.820], [54.372, 9.950], [54.365, 10.030], [54.368, 10.140]]
 
-#: (CID, Name, von/bis als Anteil der Strecke, Versatz in m, Höhe über der Strecke in ft)
+#: (CID, Name, Rufzeichen, von/bis als Anteil der Strecke, Versatz in m, Höhe über der Strecke in ft)
 PILOTEN = [
-    (9000001, "Probe Anton", 0.00, 0.34, 120, 600),
-    (9000002, "Probe Berta", 0.30, 0.55, -350, 800),
-    (9000003, "Probe Cäsar", 0.62, 0.78, 1400, 700),       # außerhalb des Korridors
-    (9000004, "Probe Dora", 0.82, 0.97, 100, 2600),        # zu hoch
+    (9000001, "Probe Anton", "FRS901", 0.00, 0.34, 120, 600),
+    (9000002, "Probe Berta", "FRS902", 0.30, 0.55, -350, 800),
+    (9000003, "Probe Cäsar", "FRS903", 0.62, 0.78, 1400, 700),       # außerhalb des Korridors
+    (9000004, "Probe Dora", "FRS904", 0.82, 0.97, 100, 2600),        # zu hoch
+]
+
+#: Fundstellen: (Anteil der Strecke, Versatz in m, Wunsch-Arten, Mindest-/Höchstmenge,
+#: Mindest-/Höchstabstand in m). Die ersten beiden liegen genau unter Anton und Berta.
+FUNDSTELLEN = [
+    (0.15, 120, ("seehund_kuh", "seehund_heuler"), 6, 14, 8, 30),
+    (0.45, -350, ("seecontainer",), 1, 3, 15, 40),
+    (0.58, 0, ("seehund_heuler", "seehund_kuh"), 4, 9, 8, 25),          # niemand fliegt hier
+    (0.90, 100, ("seehund_bulle", "seehund_kuh"), 1, 1, 10, 10),        # Dora ist zu hoch
 ]
 
 
@@ -101,7 +117,6 @@ def main() -> int:
         conn.close()
 
     ziele = st.ziele(ev)
-    grund = _hoehen([(z[1], z[2]) for z in ziele])
 
     # Die Strecke in 50-m-Schritten, mit seitlichem Versatz -- ein Punkt je Sekunde bei ~100 kt.
     pts = st.punkte(ev)
@@ -126,27 +141,55 @@ def main() -> int:
         return y / km_lat, x / km_lon
 
     anzahl, schritt = st.teilung(ev)
+    orte = [bei(anteil * gesamt, versatz / 1000.0) for anteil, versatz, *_rest in FUNDSTELLEN]
+    # Ein Abruf beim Höhenmodell für Abschnitte und Fundstellen -- vor dem Schreiben.
+    hoehen = _hoehen([(z[1], z[2]) for z in ziele] + orte)
+    grund, grund_orte = hoehen[:len(ziele)], hoehen[len(ziele):]
+
     conn = get_connection(pfad)
     try:
         update_strecken_event(conn, eid, grund_json=json.dumps(grund), grund_geholt_am=_iso(jetzt))
-        for cid, name, von, bis, versatz_m, ueber_ft in PILOTEN:
+        setzbar = {a["art"] for a in bruegge_arten_uebersicht(conn) if a.get("anforderbar")}
+        fundstellen = []
+        for (anteil, _versatz, wunsch, m_min, m_max, a_min, a_max), ort, hoch in zip(
+                FUNDSTELLEN, orte, grund_orte):
+            art = next((a for a in wunsch if a in setzbar), None) or next(iter(sorted(setzbar)), None)
+            if art is None:
+                continue
+            fundstellen.append({"lat": ort[0], "lon": ort[1], "art": art, "menge_min": m_min,
+                                "menge_max": m_max, "abstand_min_m": a_min,
+                                "abstand_max_m": a_max, "grund_ft": hoch})
+        strecke_fundstellen_setzen(conn, eid, fundstellen)
+        for cid, name, rufzeichen, von, bis, versatz_m, ueber_ft in PILOTEN:
             conn.execute("INSERT OR IGNORE INTO pilots (cid, name, added_at) VALUES (?, ?, ?)",
                          (cid, name, _iso(jetzt)))
             km, t = von * gesamt, start + timedelta(seconds=30)
+            # Der VATSIM-Flug dazu, damit die Flugspuren unter der Eventansicht etwas zeigen.
+            conn.execute("DELETE FROM flights WHERE cid = ? AND logoff_time IS NULL", (cid,))
+            conn.execute(
+                "INSERT INTO flights (cid, callsign, aircraft_short, logon_time, duration_min) "
+                "VALUES (?, ?, 'C172', ?, 20)", (cid, rufzeichen, _iso(t)))
+            sekunde = 0
             while km <= bis * gesamt:
                 lat, lon = bei(km, versatz_m / 1000.0)
                 nr = min(int(km / schritt), anzahl - 1)
+                hoehe = grund[nr] + ueber_ft
                 conn.execute(
                     "INSERT OR REPLACE INTO bruegge_spur (cid, ts, lat, lon, alt_msl_ft, gs_kt) "
-                    "VALUES (?, ?, ?, ?, ?, 100)",
-                    (cid, _iso(t), lat, lon, grund[nr] + ueber_ft))
+                    "VALUES (?, ?, ?, ?, ?, 100)", (cid, _iso(t), lat, lon, hoehe))
+                if sekunde % 15 == 0:
+                    conn.execute(
+                        "INSERT INTO position_history (cid, callsign, latitude, longitude, "
+                        "altitude, groundspeed, heading, ts) VALUES (?, ?, ?, ?, ?, 100, 0, ?)",
+                        (cid, rufzeichen, lat, lon, int(hoehe), _iso(t)))
                 km += 0.05
                 t += timedelta(seconds=1)
+                sekunde += 1
         conn.commit()
     finally:
         conn.close()
     print(f"Event {eid} „{args.name}“ angelegt: {gesamt:.1f} km, {anzahl} Abschnitte, "
-          f"vier erfundene Piloten.")
+          f"{len(fundstellen)} Fundstellen, vier erfundene Piloten.")
     return 0
 
 
