@@ -3346,9 +3346,14 @@ class VatsimPoller:
                         # Der Beginn: einmal je Event, solange es laeuft. Gelatcht wird auch bei
                         # abgeschaltetem Push -- sonst kaeme die Meldung mitten im Abend, sobald
                         # jemand den Push wieder einschaltet.
-                        if (now < (ev.get("dtend") or "")
-                                and strecke_start_melden(conn, ev["id"], now)
-                                and ev.get("push_enabled")):
+                        # ⚠ Der Latch wird SOFORT festgeschrieben, vor dem Fortschreiben: Scheitert
+                        # das danach, nimmt das `rollback` sonst auch den Latch zurueck -- die
+                        # Meldung waere aber schon vorgemerkt und kaeme bei einem kaputten Event
+                        # alle 30 Sekunden neu (Befund der Sicherheitspruefung, 10.10.2026).
+                        erster = (now < (ev.get("dtend") or "")
+                                  and strecke_start_melden(conn, ev["id"], now))
+                        conn.commit()
+                        if erster and ev.get("push_enabled"):
                             pushes.append({
                                 "title": ev.get("name") or "Deichkontrolle",
                                 "body": ("Die Deichkontrolle läuft — fliegt die Strecke "

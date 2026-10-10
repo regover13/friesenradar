@@ -198,3 +198,18 @@ def test_die_erinnerung_kennt_die_deichkontrolle(db):
     asyncio.run(p._check_event_reminders())
     assert [x[1]["title"] for x in p.gesendet] == ["Deichkontrolle"]
     assert "bald" in p.gesendet[0][1]["body"]
+
+
+def test_ein_kaputtes_event_meldet_seinen_beginn_nicht_in_jedem_takt_neu(db):
+    """Scheitert das Fortschreiben, darf das Zurückrollen den Latch des Beginns nicht mitnehmen --
+    sonst käme die Meldung alle 30 Sekunden (Befund der Sicherheitsprüfung, 10.10.2026)."""
+    eid = _event(db, start_vor_min=1, ende_in_min=60)
+    c = get_connection(db)
+    c.execute("UPDATE strecken_events SET gs_max_kt = 'viel' WHERE id = ?", (eid,))
+    c.commit()
+    c.close()
+    _flug(db, 7, vor_min=0.5, km=0.5)          # Punkte, damit die Rechnung wirklich anläuft
+    p = _Mitschnitt(db)
+    for _ in range(3):
+        asyncio.run(p._check_strecke())
+    assert len(p.gesendet) == 1
