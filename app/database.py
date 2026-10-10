@@ -840,6 +840,10 @@ CREATE TABLE IF NOT EXISTS bruegge_spur (
     lon         REAL NOT NULL,
     alt_msl_ft  REAL,
     gs_kt       REAL,
+    -- Woher der Punkt kommt: NULL = FriesenBruegge, 'kniebrett' = vom Kniebrett des Piloten
+    -- gemeldet (10.10.2026). Die Reddung wertet nur Punkte der Bruegge -- sie stellt etwas in
+    -- den Simulator, und das kann nur die Bruegge. Die Deichkontrolle wertet beide.
+    quelle      TEXT,
     PRIMARY KEY (cid, ts)
 );
 CREATE INDEX IF NOT EXISTS idx_bruegge_spur_ts ON bruegge_spur(ts);
@@ -1218,6 +1222,8 @@ _PANEL_DIAG_MIGRATIONS = [
 # Die Bruegge-Tabellen sind am 11.09.2026 entstanden und wachsen noch -- eine Aenderung am
 # CREATE TABLE erreicht eine bestehende Datenbank NICHT (IF NOT EXISTS legt nichts nach).
 _BRUEGGE_MIGRATIONS = [
+    # Quelle eines Sekundenpunkts (s. DDL von bruegge_spur), 10.10.2026.
+    "ALTER TABLE bruegge_spur ADD COLUMN quelle TEXT",
     # Die groesste Steigrate der letzten Sekunden. Die Hoehenschranke muss der VATSIM-Hoehe
     # nachlaufen: Die ist 16-29 s alt, also zaehlt die Rate von damals. Beim Abfangen ist die
     # jetzige null und die Schranke schrumpft auf 300 ft -- genau dann, wenn die Differenz am
@@ -3488,17 +3494,8 @@ def _reddung_sektoren(conn: sqlite3.Connection) -> list[tuple]:
         rand_lon = _REDDUNG_RAND_KM / max(_km_je_grad_lon((sued + nord) / 2.0), 1.0)
         sektoren.append((sued - rand_lat, west - rand_lon, nord + rand_lat, ost + rand_lon))
     # ... und der Umkreis laufender Strecken (Deichkontrolle): Auch dort rechnet die Abdeckung
-    # aus den Sekundenpunkten, und die Bruegge ist Teilnahmevoraussetzung.
-    from app import strecke as _st
-    for r in conn.execute(
-            "SELECT punkte_json FROM strecken_events WHERE dtstart <= ? AND dtend >= ?",
-            (now, now)).fetchall():
-        box = _st.box({"punkte_json": r[0]})
-        if box is None:
-            continue
-        sued, west, nord, ost = box
-        rand_lon = _REDDUNG_RAND_KM / max(_km_je_grad_lon((sued + nord) / 2.0), 1.0)
-        sektoren.append((sued - rand_lat, west - rand_lon, nord + rand_lat, ost + rand_lon))
+    # aus den Sekundenpunkten.
+    sektoren.extend(_strecken_boxen_lesen(conn, now))
     _spur_sektoren = (jetzt, sektoren)
     return sektoren
 
@@ -3552,6 +3549,65 @@ def bruegge_position_loeschen(conn: sqlite3.Connection, cid: int) -> None:
 #: hat und mit welcher Fassung -- nach einem Tag war sie weg. Genau die braucht der
 #: Fassungshinweis (s. `bruegge_fassungen_fuer`).
 BRUEGGE_ZUORDNUNG_HALTEN_STUNDEN = 400 * 24
+
+
+#: Die Rechtecke laufender Strecken (mit Rand), hoechstens alle 30 s frisch -- fuer das Kniebrett.
+_strecken_boxen_stand: tuple[float, list] = (0.0, [])
+
+
+def strecken_boxen(conn: sqlite3.Connection) -> list[tuple]:
+    """Umkreis der gerade laufenden Deichkontrollen als ``(sued, west, nord, ost)``.
+
+    Nur Strecken, keine Reddung-Sektoren: Dort zaehlt das Kniebrett nicht (s. ``bruegge_spur``).
+    """
+    global _strecken_boxen_stand
+    import time as _t
+    jetzt = _t.monotonic()
+    if jetzt - _strecken_boxen_stand[0] < 30.0:
+        return _strecken_boxen_stand[1]
+    boxen = _strecken_boxen_lesen(conn, _now_utc())
+    _strecken_boxen_stand = (jetzt, boxen)
+    return boxen
+
+
+def _strecken_boxen_lesen(conn: sqlite3.Connection, now: str) -> list[tuple]:
+    """Die umschliessenden Rechtecke der zu ``now`` laufenden Strecken, mit Rand -- ungepuffert.
+    Die eine Stelle, die das liest; ``strecken_boxen`` und ``_reddung_sektoren`` puffern je fuer sich."""
+    from app import strecke as _st
+    rand_lat = _REDDUNG_RAND_KM / 111.32
+    boxen = []
+    for r in conn.execute(
+            "SELECT punkte_json FROM strecken_events WHERE dtstart <= ? AND dtend >= ?",
+            (now, now)).fetchall():
+        box = _st.box({"punkte_json": r[0]})
+        if box is None:
+            continue
+        sued, west, nord, ost = box
+        rand_lon = _REDDUNG_RAND_KM / max(_km_je_grad_lon((sued + nord) / 2.0), 1.0)
+        boxen.append((sued - rand_lat, west - rand_lon, nord + rand_lat, ost + rand_lon))
+    return boxen
+
+
+def kniebrett_spur_schreiben(conn: sqlite3.Connection, cid: int, lat: float, lon: float,
+                             alt_msl_ft: float, gs_kt: float, *, ts: str | None = None) -> bool:
+    """Die vom KNIEBRETT gemeldete Position des eigenen Flugzeugs als Sekundenpunkt ablegen --
+    nur im Umkreis einer laufenden Deichkontrolle (kein commit).
+
+    Wer mit dem Kniebrett fliegt, soll an der Deichkontrolle teilnehmen koennen (Nutzer,
+    10.10.2026). Das Kniebrett meldet aus dem Simulator, also genauso genau wie die Bruegge, und
+    der Meldeweg hat die Position schon gegen VATSIM geprueft.
+
+    ``INSERT OR IGNORE``: Meldet in derselben Sekunde auch die Bruegge dieses Piloten, gilt ihr
+    Punkt (sie schreibt mit ``OR REPLACE``).
+    """
+    if not any(s <= lat <= n and w <= lon <= o for s, w, n, o in strecken_boxen(conn)):
+        return False
+    conn.execute(
+        "INSERT OR IGNORE INTO bruegge_spur (cid, ts, lat, lon, alt_msl_ft, gs_kt, quelle) "
+        "VALUES (?, ?, ?, ?, ?, ?, 'kniebrett')",
+        (int(cid), ts or _now_utc(), float(lat), float(lon), float(alt_msl_ft), float(gs_kt)))
+    return True
+
 
 
 def bruegge_spur_aufraeumen(conn: sqlite3.Connection,
@@ -10182,7 +10238,8 @@ def _knapp_davor(ts: str) -> str:
 
 def _reddung_punkte_mischen(conn: sqlite3.Connection, von: str, bis: str,
                             grenzen: tuple, *,
-                            gemeldet_seit: str | None = None) -> dict[int, list]:
+                            gemeldet_seit: str | None = None,
+                            mit_kniebrett: bool = False) -> dict[int, list]:
     """Die Punkte je Pilot -- **FriesenBrügge bevorzugt, VATSIM nur als Lückenfüller.**
 
     Die Brügge ist die bessere Quelle, wo es sie gibt: 1 Hz statt 15 s (rund 50 m statt 950 m
@@ -10207,18 +10264,25 @@ def _reddung_punkte_mischen(conn: sqlite3.Connection, von: str, bis: str,
     Lückenfüllung, sobald sie einmal 30 Sekunden schweigt -- und genau dafür ist VATSIM hier
     noch da. Gilt nur, wo der Aufrufer es setzt; ``reddung_spuren`` tut es, andere Eventtypen
     (FriesenBummel, FriesenKutter) stellen nichts in den Simulator und bleiben unberührt.
+
+    ``mit_kniebrett`` nimmt auch die Sekundenpunkte, die das KNIEBRETT eines Piloten gemeldet
+    hat (``quelle = 'kniebrett'``). Für die Reddung bleibt es aus -- ein Kniebrett stellt kein
+    Wrack in den Simulator. Die Deichkontrolle schaltet es ein: Dort zählt nur die Genauigkeit
+    der Position, und die hat das Kniebrett auch (Nutzer, 10.10.2026).
     """
+    nur = "" if mit_kniebrett else " AND quelle IS NULL"
     sued, nord, west, ost = grenzen
     je_cid: dict[int, list] = {}
     spanne: dict[int, tuple[str, str]] = {}
     mit_bruegge: set[int] | None = None
     if gemeldet_seit is not None:
         mit_bruegge = {int(r[0]) for r in conn.execute(
-            "SELECT DISTINCT cid FROM bruegge_spur WHERE ts > ?", (gemeldet_seit,)).fetchall()}
+            "SELECT DISTINCT cid FROM bruegge_spur WHERE ts > ?" + nur,
+            (gemeldet_seit,)).fetchall()}
     for cid, lat, lon, alt, gs, ts in conn.execute(
             "SELECT cid, lat, lon, alt_msl_ft, gs_kt, ts FROM bruegge_spur "
-            "WHERE ts > ? AND ts <= ? AND lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? "
-            "ORDER BY cid, ts", (von, bis, sued, nord, west, ost)).fetchall():
+            "WHERE ts > ? AND ts <= ? AND lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?" + nur
+            + " ORDER BY cid, ts", (von, bis, sued, nord, west, ost)).fetchall():
         cid = int(cid)
         je_cid.setdefault(cid, []).append(
             (lat, lon, float(alt) if alt is not None else None,
@@ -10304,7 +10368,7 @@ _REDDUNG_LUECKE_MAX_S = 300.0
 
 
 def _reddung_punkte_neu(conn: sqlite3.Connection, ev: dict, von: str, bis: str,
-                        box: tuple) -> list[tuple[int, list]]:
+                        box: tuple, *, mit_kniebrett: bool = False) -> list[tuple[int, list]]:
     """Die Punkte seit ``von`` -- plus je Pilot den LETZTEN Punkt davor.
 
     ⚠ Der Punkt davor ist der ganze Trick. Ein Segment besteht aus zwei Punkten; ohne den
@@ -10318,7 +10382,8 @@ def _reddung_punkte_neu(conn: sqlite3.Connection, ev: dict, von: str, bis: str,
     # mit jedem Takt wieder anfiele.
     frueher = _shift_iso(von, hours=-1.0 / 30.0)
     je_cid = _reddung_punkte_mischen(conn, frueher, bis, grenzen,
-                                     gemeldet_seit=_knapp_davor(ev["dtstart"]))
+                                     gemeldet_seit=_knapp_davor(ev["dtstart"]),
+                                     mit_kniebrett=mit_kniebrett)
     raus: list[tuple[int, list]] = []
     for cid, punkte in je_cid.items():
         neu = [pkt for pkt in punkte if pkt[4] > von]
@@ -10390,8 +10455,9 @@ def reddung_landung_aus_bruegge(conn: sqlite3.Connection, cid: int,
     return (icao.upper(), gemeldet)
 
 
-def _reddung_snapshot_schreiben(conn: sqlite3.Connection, event_id: int, payload: dict) -> None:
-    """Den Reddung-Snapshot schreiben -- aber nie ein späteres ``bis`` mit einem früheren.
+def _stand_snapshot_schreiben(conn: sqlite3.Connection, kind: str, event_id: int,
+                              payload: dict) -> None:
+    """Einen fortgeschriebenen Stand schreiben -- aber nie ein späteres ``bis`` mit einem früheren.
 
     Poller, Eventliste und Raster-Endpunkt schreiben denselben Snapshot. Mit ``INSERT OR
     REPLACE`` gewann der letzte Schreiber, und ein langsamer Aufruf konnte den Stand
@@ -10400,10 +10466,13 @@ def _reddung_snapshot_schreiben(conn: sqlite3.Connection, event_id: int, payload
 
     Ersetzt wird immer, wenn der gespeicherte Snapshot aus einer anderen Code- oder
     Rechenfassung stammt -- der gilt beim Lesen ohnehin als leer.
+
+    Ein Schreiber für alle Eventtypen mit fortgeschriebenem Stand (``kind``: 'reddung',
+    'strecke').
     """
     conn.execute(
         "INSERT INTO progress_snapshot (kind, ref_id, code_version, computed_at, payload_json) "
-        "VALUES ('reddung', ?, ?, ?, ?) "
+        "VALUES (?, ?, ?, ?, ?) "
         "ON CONFLICT(kind, ref_id) DO UPDATE SET code_version = excluded.code_version, "
         "computed_at = excluded.computed_at, payload_json = excluded.payload_json "
         "WHERE progress_snapshot.code_version IS NOT excluded.code_version "
@@ -10411,8 +10480,12 @@ def _reddung_snapshot_schreiben(conn: sqlite3.Connection, event_id: int, payload
         "   IS NOT json_extract(excluded.payload_json, '$.v') "
         "OR json_extract(progress_snapshot.payload_json, '$.bis') "
         "   < json_extract(excluded.payload_json, '$.bis')",
-        (int(event_id), _PROGRESS_SNAPSHOT_VERSION, _now_utc(), json.dumps(payload)),
+        (kind, int(event_id), _PROGRESS_SNAPSHOT_VERSION, _now_utc(), json.dumps(payload)),
     )
+
+
+def _reddung_snapshot_schreiben(conn: sqlite3.Connection, event_id: int, payload: dict) -> None:
+    _stand_snapshot_schreiben(conn, "reddung", event_id, payload)
 
 
 def reddung_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> dict:
@@ -12764,23 +12837,6 @@ def strecke_stand_verwerfen(conn: sqlite3.Connection, event_id: int) -> None:
                  (int(event_id),))
 
 
-def _strecke_snapshot_schreiben(conn: sqlite3.Connection, event_id: int, payload: dict) -> None:
-    """Wie ``_reddung_snapshot_schreiben``: nie ein spaeteres ``bis`` mit einem frueheren
-    ueberschreiben -- Poller und Lesewege schreiben denselben Stand."""
-    conn.execute(
-        "INSERT INTO progress_snapshot (kind, ref_id, code_version, computed_at, payload_json) "
-        "VALUES ('strecke', ?, ?, ?, ?) "
-        "ON CONFLICT(kind, ref_id) DO UPDATE SET code_version = excluded.code_version, "
-        "computed_at = excluded.computed_at, payload_json = excluded.payload_json "
-        "WHERE progress_snapshot.code_version IS NOT excluded.code_version "
-        "OR json_extract(progress_snapshot.payload_json, '$.v') "
-        "   IS NOT json_extract(excluded.payload_json, '$.v') "
-        "OR json_extract(progress_snapshot.payload_json, '$.bis') "
-        "   < json_extract(excluded.payload_json, '$.bis')",
-        (int(event_id), _PROGRESS_SNAPSHOT_VERSION, _now_utc(), json.dumps(payload)),
-    )
-
-
 def strecke_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> dict:
     """Die Abdeckung der Strecke fortschreiben -- nur neue Punkte, nur noch offene Abschnitte.
 
@@ -12810,7 +12866,8 @@ def strecke_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> di
     box = st.box(ev)
 
     if grenzen is not None and box is not None and bis > von:
-        spuren = _reddung_punkte_neu(conn, ev, von, bis, box)
+        # Mit den Punkten des Kniebretts: Hier zaehlt nur, wie genau die Position ist.
+        spuren = _reddung_punkte_neu(conn, ev, von, bis, box, mit_kniebrett=True)
         if spuren:
             offen = [z for z in st.ziele(ev) if z[0] not in treffer]
             if offen:
@@ -12820,7 +12877,7 @@ def strecke_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> di
                     je_pilot[t.cid] = je_pilot.get(t.cid, 0) + 1
             for cid, _punkte in spuren:
                 je_pilot.setdefault(cid, 0)
-        _strecke_snapshot_schreiben(conn, ev["id"], {
+        _stand_snapshot_schreiben(conn, "strecke", ev["id"], {
             "v": _STRECKE_STAND_FASSUNG, "bis": bis, "treffer": treffer,
             "je_pilot": {str(k): v for k, v in je_pilot.items()},
         })

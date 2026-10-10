@@ -457,7 +457,7 @@ anderen Fläche weg, die nie jemand angesehen hat.
 | FriesenBummel | nein | VATSIM genügt — **nicht anfassen** |
 | FriesenKutter | nein | VATSIM genügt — **nicht anfassen** |
 | FriesenReddung | ja (Wrack, Rauchsäulen) | nur wer per FriesenBrügge gemeldet hat |
-| Deichkontrolle (`strecke`) | nein | **trotzdem nur per FriesenBrügge**: Gewertet wird mit ihren genauen Positionen (Nutzer, 10.10.2026) |
+| Deichkontrolle (`strecke`) | nein | **nur mit Kniebrett oder FriesenBrügge**: Gewertet wird mit den genauen Positionen aus dem Simulator (Nutzer, 10.10.2026) |
 | Kieker, Baake | noch offen | dieselbe Frage entscheidet es |
 Nutzerentscheidung vom 20.09.2026: *„Die Brügge ist zwingend für dieses Event! Keine Teilnahme
 ohne Brügge! Wir stellen was in den Simulator! Das geht nur mit Brügge!"* — und dazu: *„Dann
@@ -488,6 +488,11 @@ Feld ohne Einfluss auf den Stand anlegt, trägt es dort ein.
   lass irgendwelche Deiche oder sonst was abfragen.“* Keine fremden Linienquellen vorschlagen,
   nichts an Deiche oder Küste binden. Im Code heißt der Typ `strecke`.
 - **Nur Strecken, keine Flächen.** Flächen sucht die FriesenReddung ab.
+- **Kniebrett ODER FriesenBrügge.** *„Was ist mit Menschen, die mit dem Kniebrett fliegen? Das
+  muss auch funktionieren.“* Der Meldeweg des Kniebretts schreibt die Position des EIGENEN
+  Flugzeugs im Umkreis einer laufenden Strecke als Sekundenpunkt mit (`bruegge_spur`,
+  `quelle = 'kniebrett'`). **Bei der Reddung zählen diese Punkte nicht** — dort stellt die Brügge
+  etwas in den Simulator (`mit_kniebrett` in `_reddung_punkte_mischen` bleibt dort aus).
 - **Die Höhe zählt über der Strecke, „wie bei Reddung“:** Geländehöhe je Abschnitt aus dem
   Höhenmodell, verglichen mit der Höhe über Meer. Nicht die Höhe über Grund aus dem Simulator —
   die misst am Bergkamm den Talboden.

@@ -98,6 +98,7 @@ from app.database import (
     bruegge_belegte_cids,
     bruegge_kennung_fuer,
     bruegge_zuordnung_holen, forum_cids, bruegge_zuordnung_vergessen,
+    kniebrett_spur_schreiben, strecken_boxen,
     bruegge_zuordnung_setzen,
     bruegge_zuordnung_bestaetigen,
     bruegge_vs_spitze_merken,
@@ -1197,6 +1198,37 @@ def _kniebrett_fremde(request) -> dict:
     return out
 
 
+#: Umkreise laufender Strecken fuer den Meldeweg des Kniebretts, hoechstens alle 30 s frisch.
+#: Im Prozessspeicher, damit der Meldeweg die Datenbank nur anfasst, wenn es etwas zu schreiben
+#: gibt: Fuenf Kniebretter im Sekundentakt waeren sonst fuenf Verbindungen je Sekunde fuer eine
+#: Frage, deren Antwort fast immer „nein" ist.
+_kniebrett_boxen_stand: tuple[float, list] = (0.0, [])
+
+
+def _kniebrett_spur(settings, cid: int, lat: float, lon: float, alt_ft: float, gs_kt: float) -> None:
+    """Die eigene Position eines Kniebretts mitschreiben, wenn sie im Umkreis einer laufenden
+    Deichkontrolle liegt. Ein Fehler hier darf die Meldung nicht umwerfen."""
+    global _kniebrett_boxen_stand
+    try:
+        jetzt = time.monotonic()
+        if jetzt - _kniebrett_boxen_stand[0] >= 30.0:
+            conn = get_connection(settings.DB_PATH)
+            try:
+                _kniebrett_boxen_stand = (jetzt, list(strecken_boxen(conn)))
+            finally:
+                conn.close()
+        if not any(s <= lat <= n and w <= lon <= o for s, w, n, o in _kniebrett_boxen_stand[1]):
+            return
+        conn = get_connection(settings.DB_PATH)
+        try:
+            if kniebrett_spur_schreiben(conn, cid, lat, lon, alt_ft, gs_kt):
+                conn.commit()
+        finally:
+            conn.close()
+    except Exception:  # noqa: BLE001
+        _logger.exception("Kniebrett-Sekundenpunkt für %s nicht geschrieben", cid)
+
+
 @app.post("/api/kniebrett/melden", include_in_schema=False)
 async def kniebrett_melden(request: Request):
     """Das Kniebrett meldet, welche Flugzeuge es erkannt hat.
@@ -1308,6 +1340,13 @@ async def kniebrett_melden(request: Request):
         if not bruegge.bleibt_plausibel(lat, lon, alt, gs_schranke, kand, vs_schranke):
             verworfen += 1
             continue
+        # ⭐ DIE EIGENE POSITION ALS SEKUNDENPUNKT -- nur im Umkreis einer laufenden
+        # Deichkontrolle (Nutzer, 10.10.2026: „Was ist mit Menschen, die mit dem Kniebrett
+        # fliegen? Das muss auch funktionieren."). Nur das EIGENE Flugzeug, nur mit Hoehe, und
+        # erst NACH der Pruefung gegen VATSIM. Ausserhalb einer Strecke bleibt es dabei: keine
+        # Datenbank im Meldeweg (s. `_kniebrett_spur`).
+        if hat_alt and int(kand.cid) == int(melder):
+            _kniebrett_spur(settings, int(kand.cid), lat, lon, alt, gs)
         if poller is None:
             # Ohne Poller ist die Meldung gespeichert-nirgends, aber nicht kaputt -- dieselbe
             # Rangfolge wie bei der Bruegge: lieber nicht live als ein Fehler.
@@ -7884,6 +7923,14 @@ def _strecke_zeit(ev: dict, now: str) -> dict:
     return {"laeuft": (ev.get("dtstart") or "") <= now <= dtend, "vorbei_seit_s": vorbei}
 
 
+def _strecke_analyse(ev: dict) -> dict:
+    box = _st.box(ev)
+    if box is None:
+        return {"icao": "global", "radius_km": None}
+    sued, west, nord, ost = box
+    return reddung_analyse_platz({"sued": sued, "west": west, "nord": nord, "ost": ost})
+
+
 @app.get("/api/strecke/events")
 def strecke_events():
     """Alle Deichkontrollen mit ihrem Kurzstand -- fuer die Eventliste."""
@@ -7892,7 +7939,10 @@ def strecke_events():
     try:
         raus = []
         for ev in list_strecken_events(conn, since=_retention_since(now)):
-            raus.append({**compute_strecke_stand(conn, ev), **_strecke_zeit(ev, now)})
+            raus.append({**compute_strecke_stand(conn, ev), **_strecke_zeit(ev, now),
+                         # Platz und Radius fuer die Flugspuren unter der Eventansicht -- wie
+                         # bei der Reddung, hier aus dem Rechteck um die Strecke.
+                         "analyse": _strecke_analyse(ev)})
         conn.commit()          # das Fortschreiben hat den Snapshot ergaenzt
         return raus
     finally:

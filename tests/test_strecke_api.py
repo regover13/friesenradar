@@ -66,6 +66,7 @@ def db(tmp_path, monkeypatch):
         lambda: SimpleNamespace(DB_PATH=p, CALLSIGN_PREFIX="FRS", SECRET_KEY=SECRET,
                                 ADMIN_PASSWORD=PW))
     monkeypatch.setattr(dbm, "_spur_sektoren", (0.0, []))
+    monkeypatch.setattr(dbm, "_strecken_boxen_stand", (0.0, []))
     return p
 
 

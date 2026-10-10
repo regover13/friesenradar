@@ -37,6 +37,7 @@ def db(tmp_path, monkeypatch):
     p = str(tmp_path / "t.db")
     init_db(p)
     monkeypatch.setattr(dbm, "_spur_sektoren", (0.0, []))
+    monkeypatch.setattr(dbm, "_strecken_boxen_stand", (0.0, []))
     return p
 
 

@@ -325,3 +325,16 @@ def test_zahlen_stehen_im_deutschen_format_und_die_vorgabe_kommt_aus_den_regeln(
     assert _node(js, f"_streckeStandText({stand})") == "50,6 von 92,3 km · 55 %"
     lang = '{"anteil": 0.1, "km_abgedeckt": 123.4, "km_gesamt": 1234.0}'
     assert _node(js, f"_streckeStandText({lang})") == "123 von 1.234 km · 10 %"
+
+
+def test_unter_der_ansicht_stehen_die_flugspuren_des_abends():
+    """Wie bei Kutter und Reddung: Die Event-Analyse wird mit Platz und Radius aus `analyse`
+    gefüllt und gestartet (Nutzer, 10.10.2026)."""
+    rumpf = _ohne_kommentare(_funktion("openStreckeDetail"))
+    assert "r.analyse.icao" in rumpf and "r.analyse.radius_km" in rumpf
+    assert "searchEvents()" in rumpf
+
+
+def test_gewertet_wird_mit_kniebrett_oder_friesenbruegge():
+    rumpf = _ohne_kommentare(_funktion("_streckeBrueggeHtml"))
+    assert "Kniebrett" in rumpf and "FriesenBrügge" in rumpf

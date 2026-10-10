@@ -17688,11 +17688,14 @@ function _streckeBalken(r) {
   return `<div class="strecke-balken"><span style="width:${pct.toFixed(1)}%"></span></div>`;
 }
 
-// Die Bruegge-Pflicht: Gewertet wird mit ihren genauen Positionen. Im Kniebrett gibt es keine
-// Links -- dort steht die Adresse als Text (wie beim Reddung-Hinweis).
+// Wer gewertet wird: Gebraucht werden die genauen Positionen aus dem Simulator, und die liefern
+// das Kniebrett und die FriesenBruegge (Nutzer, 10.10.2026: „Was ist mit Menschen, die mit dem
+// Kniebrett fliegen? Das muss auch funktionieren."). Im Kniebrett gibt es keine Links -- dort
+// steht die Adresse als Text (wie beim Reddung-Hinweis).
 function _streckeBrueggeHtml() {
-  return '<div class="bb-sub">Gewertet wird nur, wer mit der <strong>FriesenBrügge</strong> fliegt — '
-    + 'gebraucht werden ihre genauen Positionen. '
+  return '<div class="bb-sub">Gewertet wird nur, wer mit dem <strong>Kniebrett</strong> oder der '
+    + '<strong>FriesenBrügge</strong> fliegt — gebraucht werden die genauen Positionen aus dem '
+    + 'Simulator. '
     + (_PANEL_MODUS
        ? 'radar.friesenflieger.de/download'
        : '<a href="/download" target="_blank" rel="noopener">Zur Download-Seite</a>')
@@ -17879,6 +17882,17 @@ async function openStreckeDetail(id) {
   await _streckeTakt();         // … und frisch, sobald die Liste da ist
   wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
   if (_streckeOffenId === Number(id)) await _streckeStandHolen(Number(id));
+  // Wie bei Kutter und Reddung: darunter die Event-Analyse mit den Flugspuren des Abends. Der
+  // Server nennt den naechsten Platz zur Mitte der Strecke und einen Radius, der sie ganz
+  // erfasst. Die Scrollregel in renderEventsResults() haelt den Blick bei der Ansicht.
+  const r = _streckeListe.find(x => x.id === _streckeOffenId);
+  if (_streckeOffenId === Number(id) && r && r.analyse && r.dtstart && r.dtend) {
+    document.getElementById('ev-icao').value = r.analyse.icao;
+    if (r.analyse.radius_km) document.getElementById('ev-radius').value = r.analyse.radius_km;
+    document.getElementById('ev-start').value = r.dtstart.slice(0, 16);
+    document.getElementById('ev-end').value = r.dtend.slice(0, 16);
+    searchEvents();
+  }
 }
 
 // Im Takt aufgefrischt -- laeuft das Event noch, waechst die Ansicht mit. Die Karte bleibt

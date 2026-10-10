@@ -40,6 +40,7 @@ def conn(tmp_path, monkeypatch):
     init_db(p)
     c = get_connection(p)
     monkeypatch.setattr(db, "_spur_sektoren", (0.0, []))
+    monkeypatch.setattr(db, "_strecken_boxen_stand", (0.0, []))
     yield c
     c.close()
 
@@ -263,3 +264,76 @@ def test_vor_dem_beginn_schreibt_die_wache_nichts(conn, monkeypatch):
     monkeypatch.setattr(db, "_now_utc", lambda: "2026-10-10T17:00:00Z")
     lage = {"lat": LAT, "lon": _ost(5.0), "alt_msl_ft": 700.0, "gs_kt": 95.0}
     assert bruegge_spur_schreiben(conn, 7, lage) is False
+
+
+# --- Wer mit dem Kniebrett fliegt, nimmt teil (Nutzer, 10.10.2026) --------------------------------
+#
+# „Was ist mit Menschen, die mit dem Kniebrett fliegen? Das muss auch funktionieren." Das
+# Kniebrett meldet die Position des eigenen Flugzeugs im Sekundentakt aus dem Simulator; im
+# Umkreis einer laufenden Strecke wird sie mitgeschrieben wie ein Punkt der FriesenBrügge.
+
+def _kniebrett(conn, cid, von_km, bis_km, *, ab_s=10, alt=800.0, gs=100.0):
+    from app.database import kniebrett_spur_schreiben
+    n = int(round((bis_km - von_km) / 0.05))
+    for i in range(n + 1):
+        ok = kniebrett_spur_schreiben(conn, cid, LAT, _ost(von_km + i * 0.05), alt, gs,
+                                      ts=_zeit(ab_s + i))
+        assert ok is True
+    conn.commit()
+    return ab_s + n
+
+
+def test_das_kniebrett_deckt_ab_wie_die_bruegge(conn, monkeypatch):
+    ev = get_strecken_event(conn, _ev(conn))
+    monkeypatch.setattr(db, "_now_utc", lambda: _zeit(120))
+    _kniebrett(conn, 7, 0.0, 3.8)
+    stand = strecke_fortschreiben(conn, ev, bis=_zeit(300))
+    assert sorted(stand["treffer"]) == ["a0", "a1", "a2", "a3"] and stand["je_pilot"] == {7: 4}
+
+
+def test_vatsim_fuellt_auch_die_luecke_eines_kniebrett_piloten(conn, monkeypatch):
+    ev = get_strecken_event(conn, _ev(conn))
+    monkeypatch.setattr(db, "_now_utc", lambda: _zeit(120))
+    ende = _kniebrett(conn, 5, 0.0, 1.8)
+    _vatsim(conn, 5, 3.0, 6.0, ab_s=ende + 20)
+    stand = strecke_fortschreiben(conn, ev, bis=_zeit(400))
+    assert {"a0", "a1", "a3", "a4", "a5"} <= set(stand["treffer"])
+
+
+def test_das_kniebrett_schreibt_nur_im_umkreis_einer_laufenden_strecke(conn, monkeypatch):
+    from app.database import kniebrett_spur_schreiben
+    _ev(conn)
+    monkeypatch.setattr(db, "_now_utc", lambda: _zeit(120))
+    assert kniebrett_spur_schreiben(conn, 7, 48.0, 11.0, 800.0, 100.0) is False
+    monkeypatch.setattr(db, "_strecken_boxen_stand", (0.0, []))
+    monkeypatch.setattr(db, "_now_utc", lambda: "2026-10-10T17:00:00Z")      # vor dem Beginn
+    assert kniebrett_spur_schreiben(conn, 7, LAT, _ost(5.0), 800.0, 100.0) is False
+    assert conn.execute("SELECT count(*) FROM bruegge_spur").fetchone()[0] == 0
+
+
+def test_ein_punkt_der_bruegge_geht_dem_des_kniebretts_vor(conn, monkeypatch):
+    """Beide melden in derselben Sekunde: Die Brügge schreibt, das Kniebrett überschreibt nicht."""
+    from app.database import bruegge_spur_schreiben, kniebrett_spur_schreiben
+    _ev(conn)
+    monkeypatch.setattr(db, "_now_utc", lambda: _zeit(120))
+    bruegge_spur_schreiben(conn, 7, {"lat": LAT, "lon": _ost(5.0), "alt_msl_ft": 700.0,
+                                     "gs_kt": 95.0})
+    kniebrett_spur_schreiben(conn, 7, LAT, _ost(5.0), 9999.0, 95.0)
+    zeile = conn.execute("SELECT alt_msl_ft, quelle FROM bruegge_spur").fetchall()
+    assert [tuple(z) for z in zeile] == [(700.0, None)]
+
+
+def test_bei_der_reddung_zaehlt_das_kniebrett_nicht(conn, monkeypatch):
+    """Die Reddung stellt Wrack und Rauch in den Simulator -- das kann nur die FriesenBrügge.
+    Ein Punkt des Kniebretts macht dort niemanden zum Teilnehmer."""
+    from app.database import _reddung_punkte_mischen, kniebrett_spur_schreiben
+    _ev(conn)
+    monkeypatch.setattr(db, "_now_utc", lambda: _zeit(120))
+    kniebrett_spur_schreiben(conn, 5, LAT, _ost(5.0), 800.0, 100.0, ts=_zeit(60))
+    _vatsim(conn, 5, 3.0, 6.0, ab_s=100)
+    grenzen = (LAT - 1, LAT + 1, LON - 1, LON + 2)
+    nur_bruegge = _reddung_punkte_mischen(conn, START, _zeit(900), grenzen, gemeldet_seit=START)
+    assert nur_bruegge == {}
+    beide = _reddung_punkte_mischen(conn, START, _zeit(900), grenzen, gemeldet_seit=START,
+                                    mit_kniebrett=True)
+    assert 5 in beide and len(beide[5]) > 1

@@ -1244,9 +1244,12 @@ Stand fort; ein Server-Ereignis für Änderungen gibt es nicht, die Karte fragt 
   seinem Mittelpunkt vorbeiläuft.
 - Die Höhe zählt **über der Strecke**: je Abschnitt Geländehöhe aus dem Höhenmodell plus
   `hoehe_max_ft`, verglichen mit der Höhe über Meer des Flugzeugs (`abdeckung(…, hoehe_je_ziel)`).
-- Quelle sind die Sekundenpunkte der FriesenBrügge (`bruegge_spur`); VATSIM füllt Lücken nur für
-  Piloten, deren Brügge seit Eventbeginn gemeldet hat. Die Sekundenpunkte werden im Umkreis
-  laufender Strecken mitgeschrieben (`bruegge_spur_schreiben`).
+- Quelle sind die Sekundenpunkte aus dem Simulator (`bruegge_spur`): von der FriesenBrügge
+  (`bruegge_spur_schreiben`) und vom Kniebrett, das die Position des eigenen Flugzeugs meldet
+  (`kniebrett_spur_schreiben`, `quelle = 'kniebrett'`). Geschrieben wird nur im Umkreis laufender
+  Strecken. VATSIM füllt Lücken nur für Piloten, die seit Eventbeginn auf einem der beiden Wege
+  gemeldet haben. Die Reddung wertet die Punkte des Kniebretts nicht.
+- `analyse` in der Liste nennt Platz und Radius für die Flugspuren unter der Eventansicht.
 - Der Stand liegt in `progress_snapshot` (`kind = 'strecke'`) und wird vom Poller alle 30 s
   fortgeschrieben (`_check_strecke`), auch ohne Zuschauer.
 

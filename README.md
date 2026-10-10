@@ -493,11 +493,12 @@ des Events, zum Beispiel „höchstens 500 m neben der Strecke und höchstens 1.
 gehört dem, der ihn zuerst abfliegt; wer später dieselbe Stelle überfliegt, ändert daran nichts.
 Lohnender ist es also, sich aufzuteilen.
 
-**Die FriesenBrügge ist Voraussetzung.** Für die Wertung braucht es die genauen Positionen aus
-deinem Simulator, VATSIM allein ist dafür zu grob. Wer ohne FriesenBrügge fliegt, wird nicht
-gewertet. Du bekommst sie auf der Download-Seite (`radar.friesenflieger.de/download`); der Hinweis
-darauf steht auch in der Ansicht des Events. Setzt deine FriesenBrügge unterwegs kurz aus, füllt
-VATSIM die Lücke.
+**Kniebrett oder FriesenBrügge sind Voraussetzung.** Für die Wertung braucht es die genauen
+Positionen aus deinem Simulator, VATSIM allein ist dafür zu grob. Beide liefern sie: das Kniebrett
+in MSFS 2024, die FriesenBrügge in MSFS 2020, MSFS 2024 und X-Plane. Wer ohne eins von beiden
+fliegt, wird nicht gewertet. Du bekommst sie auf der Download-Seite
+(`radar.friesenflieger.de/download`); der Hinweis darauf steht auch in der Ansicht des Events.
+Setzt die Meldung unterwegs kurz aus, füllt VATSIM die Lücke.
 
 **Was du davon siehst:**
 
@@ -514,7 +515,8 @@ VATSIM die Lücke.
   du sie ab, gilt das für dieses Event.
 - **Events:** In der Eventliste steht die Deichkontrolle mit ihrem Stand („50,6 von 92,3 km ·
   55 %"). Ein Klick öffnet ihre Ansicht: Balken und Stand, die Vorgabe, die Karte mit der Strecke
-  und darunter die Piloten mit ihren Kilometern — ohne Rangfolge. Solange das Event läuft, wächst
+  und darunter die Piloten mit ihren Kilometern — ohne Rangfolge. Darunter stehen wie bei Kutter
+  und FriesenReddung die Flugspuren des Abends. Solange das Event läuft, wächst
   die Ansicht von selbst mit; danach bleibt der Endstand stehen. **Teilen** oben rechts kopiert
   den Link auf die Ansicht.
 - **Eine Farbe oder je Pilot eine:** Über der Karte in der Ansicht des Events wählst du, ob alles

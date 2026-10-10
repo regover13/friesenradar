@@ -19,7 +19,7 @@ neutral `strecke`.
 |---|---|---|
 | E1 | **Nur eine Strecke**, keine Fläche. Flächen sucht die FriesenReddung ab. | 10.10. |
 | E2 | **Die Strecke wird in der Verwaltung auf der Karte geklickt.** Keine fremde Datenquelle. | 10.10. |
-| E3 | **Die FriesenBrügge ist Pflicht**, weil die genauen Positionen gebraucht werden. | 10.10. |
+| E3 | **Kniebrett oder FriesenBrügge sind Pflicht**, weil die genauen Positionen aus dem Simulator gebraucht werden. Zuerst hieß es nur „FriesenBrügge“; nach dem Bau ergänzt: „Was ist mit Menschen, die mit dem Kniebrett fliegen? Das muss auch funktionieren.“ Das Kniebrett schreibt die Position des eigenen Flugzeugs im Umkreis einer laufenden Strecke als Sekundenpunkt mit. | 10.10. |
 | E4 | **Höhe wie bei der Reddung:** Geländehöhe aus dem Höhenmodell, hier **je Abschnitt**. Geprüft wird die Höhe über Meer gegen „Gelände am Abschnitt + eingestellte Höhe“. | 10.10. |
 | E5 | **Korridor und Höhe sind je Event einstellbar.** | 10.10. |
 | E6 | **Geschwindigkeit wie bei der Reddung:** Höchst- und Mindestwert je Event. | 10.10. |
@@ -40,6 +40,7 @@ neutral `strecke`.
 ## 4. Nicht im ersten Bau
 
 - Objekte im Simulator, Badge, Push-Meldungen, Forum-Text.
+- (Nachgezogen am 10.10.: die Flugspuren des Abends unter der Eventansicht, wie bei der Reddung.)
 - Die Anzeige, warum ein Pilot gerade nichts holt („zu hoch“, „zu weit weg“).
 - Erkennung aus dem Kalender.
 - Freie Flächen (E1).
