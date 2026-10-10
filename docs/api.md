@@ -1214,6 +1214,14 @@ In der Bilanz stehen „Badge" (Bild öffnen) und „Forum" (BBCode kopieren) ne
 
 ---
 
+## Herkunftsprüfung der Verwaltung
+
+Jeder ändernde Aufruf unter `/api/admin` (POST, PUT, PATCH, DELETE) muss von der eigenen Seite
+kommen: Der Kopf `Origin` muss zum `Host` des Aufrufs passen, sonst antwortet der Server mit 403
+(„Aufruf von einer fremden Seite abgelehnt“). Fehlt `Origin`, entscheidet `Sec-Fetch-Site`
+(`same-origin` oder `none`), danach `Referer`. Aufrufe ohne diese Köpfe (Skripte, `curl`) gehen
+durch; lesende Aufrufe werden nicht geprüft. An- und Abmeldung sind ausgenommen.
+
 ## Deichkontrolle (Eventtyp `strecke`, #22)
 
 Eine frei geklickte Strecke, die die Gruppe gemeinsam abfliegt. „Deichkontrolle“ ist nur der Name;

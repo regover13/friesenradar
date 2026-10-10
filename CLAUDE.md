@@ -481,6 +481,27 @@ neuen Namen. `_reddung_rechnung_geaendert` verwirft ihn nur noch, wenn sich ein 
 wirklich ändert (`_REDDUNG_OHNE_RECHNUNG`: Name, `lagetext`, Badge-Name …). Wer ein neues
 Feld ohne Einfluss auf den Stand anlegt, trägt es dort ein.
 
+## Die Verwaltung nimmt Änderungen nur von der eigenen Seite an (10.10.2026)
+
+`require_admin` prüft bei jedem ändernden Aufruf (POST, PUT, PATCH, DELETE) die Herkunft
+(`_herkunft_pruefen`): `Origin` muss zum `Host` des Aufrufs passen, sonst 403. Grund ist die
+Forum-Anmeldung: `fs_user` trägt `SameSite=None`, weil sie aus dem eingebetteten Kniebrett
+funktionieren muss, und wird deshalb auch bei Aufrufen fremder Seiten mitgeschickt. Das
+Passwort-Cookie (`SameSite=Lax`) war nie betroffen.
+
+- **Jeder neue ändernde Endpunkt unter `/api/admin` ruft `require_admin(request)`.** Der Test
+  `test_jeder_aendernde_verwaltungs_endpunkt_laeuft_durch_die_pruefung` zählt nach; Ausnahmen
+  sind nur An- und Abmeldung.
+- **Keine feste Liste von Adressen.** Verglichen wird mit dem `Host` des Aufrufs, deshalb gilt
+  es für alle drei Adressen, die Testinstanz und lokal. nginx muss `Host $host` durchreichen
+  (tut es in allen `location`-Blöcken); wer einen neuen Block ohne das anlegt, sperrt damit die
+  Verwaltung aus.
+- **Ohne `Origin`, `Sec-Fetch-Site` und `Referer` wird durchgelassen**: Das ist kein Browser.
+- **Nicht erfasst** sind die ändernden Endpunkte für Mitglieder außerhalb der Verwaltung
+  (`/api/prefs`, `/api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/claim`,
+  `/api/me/visibility`). Dort ließe sich einem angemeldeten Mitglied höchstens eine eigene
+  Einstellung unterschieben. Offen, nicht entschieden.
+
 ## Standards für jeden neuen Eventtyp (stehende Regeln, Nutzer 10.10.2026)
 
 *„Merke dir diese Standards auch für weitere Eventtypen. Also zum Beispiel die Buttons unter

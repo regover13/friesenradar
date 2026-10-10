@@ -4834,6 +4834,7 @@ def require_admin(request: Request) -> None:
     2. Passwort-Admin-Cookie (``fs_admin``) — Fallback/Break-glass, wenn keine Events-Gruppe
        erkannt wird (Board-Login aus, Forum-Ausfall, Nicht-Events-Admin).
     """
+    _herkunft_pruefen(request)
     settings = get_settings()
     claims = verify_user_token(request.cookies.get(USER_COOKIE, ""), settings.SECRET_KEY)
     if claims and claims.get("is_admin"):
@@ -4841,6 +4842,54 @@ def require_admin(request: Request) -> None:
     if verify_admin_token(request.cookies.get(ADMIN_COOKIE, ""), settings.SECRET_KEY, settings.ADMIN_PASSWORD):
         return
     raise HTTPException(status_code=401, detail="Admin-Login erforderlich")
+
+
+#: Aufrufe, die etwas aendern. Lesen ist fuer eine fremde Seite wertlos: Sie bekommt die Antwort
+#: nicht zu sehen (keine CORS-Freigabe).
+_HERKUNFT_METHODEN = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def _herkunft_pruefen(request: Request) -> None:
+    """Ein aendernder Aufruf der Verwaltung muss von der EIGENEN Seite kommen -- sonst 403.
+
+    Warum: Die Forum-Anmeldung (``fs_user``) traegt ``SameSite=None``, weil sie auch aus dem
+    eingebetteten Kniebrett funktionieren muss. Der Browser schickt sie deshalb auch mit, wenn
+    eine FREMDE Seite einen Aufruf an die Verwaltung absetzt -- wer als Mitglied der Gruppe
+    „Events“ angemeldet ist und eine praeparierte Seite oeffnet, haette so ungewollt etwas
+    geaendert. Das Passwort-Cookie (``fs_admin``, ``SameSite=Lax``) war davon nie betroffen.
+    Befund der Sicherheitspruefung beim Bau der Deichkontrolle, Nutzerentscheidung 10.10.2026.
+
+    Wie: Der Browser nennt bei jedem aendernden Aufruf seine Herkunft (``Origin``). Sie muss
+    zur Adresse passen, unter der die App GERADE aufgerufen wird (``Host``; nginx reicht ihn
+    durch) -- keine feste Liste, also gilt es fuer alle drei Adressen, die Testinstanz und
+    lokal gleich. Fehlt ``Origin``, entscheidet ``Sec-Fetch-Site``, dann ``Referer``.
+
+    **Ohne jede dieser Angaben wird durchgelassen:** Das ist kein Browser (Skript, curl,
+    Test), und ohne Browser gibt es niemanden, dem man einen Aufruf unterschieben koennte.
+    """
+    if str(getattr(request, "method", "GET")).upper() not in _HERKUNFT_METHODEN:
+        return
+    kopf = request.headers
+    host = (kopf.get("host") or "").strip().lower()
+
+    def fremd(adresse: str) -> bool:
+        return urlsplit(adresse).netloc.strip().lower() != host
+
+    origin = (kopf.get("origin") or "").strip()
+    if origin:
+        # "null" schickt der Browser aus einer abgeschotteten Umgebung (sandbox, data:) -- nie
+        # die eigene Seite.
+        if origin.lower() == "null" or not host or fremd(origin):
+            raise HTTPException(status_code=403, detail="Aufruf von einer fremden Seite abgelehnt")
+        return
+    art = (kopf.get("sec-fetch-site") or "").strip().lower()
+    if art:
+        if art not in ("same-origin", "none"):
+            raise HTTPException(status_code=403, detail="Aufruf von einer fremden Seite abgelehnt")
+        return
+    referer = (kopf.get("referer") or "").strip()
+    if referer and (not host or fremd(referer)):
+        raise HTTPException(status_code=403, detail="Aufruf von einer fremden Seite abgelehnt")
 
 
 def require_admin_page(request: Request) -> None:
