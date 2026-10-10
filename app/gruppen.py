@@ -46,9 +46,16 @@ def pruefen(menge_min, menge_max, abstand_min_m, abstand_max_m,
             richtung=None) -> tuple[int, int, float, float, float | None]:
     """Die Angaben einer Gruppe prüfen. Gibt sie bereinigt zurück oder wirft ``ValueError`` mit
     einem Satz, der so in der Verwaltung stehen kann."""
+    # ⚠ Jede Zahl auf Endlichkeit pruefen: Mit NaN ist jeder Vergleich falsch, die Grenzen
+    # griffen nicht, und ``streuen`` faende nie einen freien Platz -- eine Endlosschleife in der
+    # Event-Loop (Befund der Pruefung vom 10.10.2026).
     try:
-        m_min, m_max = int(menge_min), int(menge_max)
-    except (TypeError, ValueError):
+        f_min, f_max = float(menge_min), float(menge_max)
+        if not (math.isfinite(f_min) and math.isfinite(f_max)
+                and f_min.is_integer() and f_max.is_integer()):
+            raise ValueError
+        m_min, m_max = int(f_min), int(f_max)
+    except (TypeError, ValueError, OverflowError):
         raise ValueError("Die Menge muss eine ganze Zahl sein.")
     if m_min < 1:
         raise ValueError("Eine Gruppe braucht mindestens ein Objekt.")
@@ -58,6 +65,8 @@ def pruefen(menge_min, menge_max, abstand_min_m, abstand_max_m,
         raise ValueError(f"Höchstens {MENGE_MAX} Objekte je Gruppe.")
     try:
         a_min, a_max = float(abstand_min_m), float(abstand_max_m)
+        if not (math.isfinite(a_min) and math.isfinite(a_max)):
+            raise ValueError
     except (TypeError, ValueError):
         raise ValueError("Der Abstand muss eine Zahl sein.")
     if not (ABSTAND_MIN_M <= a_min <= ABSTAND_MAX_M):
@@ -70,7 +79,10 @@ def pruefen(menge_min, menge_max, abstand_min_m, abstand_max_m,
     kurs = None
     if richtung is not None and richtung != "":
         try:
-            kurs = float(richtung) % 360.0
+            kurs = float(richtung)
+            if not math.isfinite(kurs):
+                raise ValueError
+            kurs %= 360.0
         except (TypeError, ValueError):
             raise ValueError("Die Richtung muss eine Zahl in Grad sein.")
     return m_min, m_max, a_min, a_max, kurs
@@ -86,6 +98,12 @@ def streuen(lat: float, lon: float, menge_min: int, menge_max: int,
     """
     m_min, m_max, a_min, a_max, kurs_fest = pruefen(
         menge_min, menge_max, abstand_min_m, abstand_max_m, richtung)
+    try:
+        lat, lon = float(lat), float(lon)
+        if not (math.isfinite(lat) and math.isfinite(lon)):
+            raise ValueError
+    except (TypeError, ValueError):
+        raise ValueError("Der Ort ist nicht lesbar.")
     wuerfel = random.Random(str(seed))
     menge = wuerfel.randint(m_min, m_max)
 

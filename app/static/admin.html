@@ -1757,11 +1757,11 @@
               <div class="form-grid" style="margin-bottom:14px;">
                 <div class="form-group">
                   <label for="sk-fundradius">Fundradius (m)</label>
-                  <input type="number" id="sk-fundradius" min="20" max="2000" step="10" value="150" />
+                  <input type="number" id="sk-fundradius" min="20" max="1000" step="10" value="150" />
                 </div>
                 <div class="form-group">
                   <label for="sk-fundhoehe">Fundhöhe über der Fundstelle (ft)</label>
-                  <input type="number" id="sk-fundhoehe" min="100" max="20000" step="100" value="1000" />
+                  <input type="number" id="sk-fundhoehe" min="100" max="3000" step="100" value="1000" />
                 </div>
                 <div class="form-group">
                   <label for="sk-badge-name">Kurzname fürs Badge (optional)</label>
@@ -1769,11 +1769,14 @@
                 </div>
                 <p class="form-hint" style="grid-column:1/-1;margin:0;">
                   <b>Fundradius:</b> So nah an der Mitte der Fundstelle muss jemand vorbeifliegen.
-                  Der dünne Kreis auf der Karte zeigt ihn.
+                  Der dünne Kreis auf der Karte zeigt ihn. Höchstens 1.000 m, weiter weg zeigt der
+                  Simulator die Objekte noch nicht.
                 </p>
                 <p class="form-hint" style="grid-column:1/-1;margin:0;">
                   <b>Fundhöhe:</b> So hoch über dem Gelände an der Fundstelle darf dabei höchstens
-                  geflogen werden. Eine Mindestgeschwindigkeit gibt es hier nicht.
+                  geflogen werden. Die Höchstgeschwindigkeit gilt auch beim Finden, eine
+                  Mindestgeschwindigkeit nicht. Änderst du Fundradius oder Fundhöhe später, gilt
+                  das ab dann für alles, was noch nicht gefunden ist.
                 </p>
                 <p class="form-hint" style="grid-column:1/-1;margin:0;">
                   <b>Kurzname fürs Badge:</b> Steht auf dem Badge der Teilnehmer statt des
@@ -7856,7 +7859,12 @@
     const _SK_SOLL_MAX = 200;
     // Je Fundstelle kommen nach dem Fund Rauch und Licht dazu.
     const _SK_FUND_BEIWERK = 2;
-    const _SK_FUND_VORGABE = { menge_min: 5, menge_max: 15, abstand_min_m: 10, abstand_max_m: 40 };
+    const _SK_FUND_VORGABE = { menge_min: 5, menge_max: 10, abstand_min_m: 8, abstand_max_m: 20 };
+    /** Hoechstmenge mal Hoechstabstand (m) -- wie `STRECKE_FUND_MENGE_MAL_ABSTAND_MAX` auf dem
+     *  Server. Haelt die Kolonie beim Fundkreis. */
+    const _SK_FUND_MENGE_MAL_ABSTAND_MAX = 200;
+    /** Womit eine neue Fundstelle beginnt, wenn noch keine Art gewaehlt wurde. */
+    const _SK_FUND_ART_VORGABE = 'seehund_kuh';
     const _SK_FUND_ENTPRELLT_MS = 400;
     const _SK_KM_JE_GRAD_LAT = 111.32;
     const _SK_FARBE_LINIE = '#D75F28', _SK_FARBE_BAND = '#f5c542';
@@ -8178,6 +8186,11 @@
       if (f.abstand_max_m > _SK_FUND_ABSTAND_MAX_M) {
         return 'Der Höchstabstand darf höchstens ' + _skZahl(_SK_FUND_ABSTAND_MAX_M) + ' m sein.';
       }
+      if (f.menge_max * f.abstand_max_m > _SK_FUND_MENGE_MAL_ABSTAND_MAX) {
+        return 'Höchstmenge mal Höchstabstand darf höchstens ' + _SK_FUND_MENGE_MAL_ABSTAND_MAX
+          + ' sein (jetzt ' + _skZahl(f.menge_max * f.abstand_max_m)
+          + '). Weniger Objekte oder enger zusammen, damit die Gruppe beim Fundkreis bleibt.';
+      }
       if (f.richtung !== null && !(f.richtung >= 0 && f.richtung < 360)) {
         return 'Die Richtung ist eine Gradzahl von 0 bis unter 360. Leer heißt gewürfelt.';
       }
@@ -8366,7 +8379,9 @@
       const letzte = _skArten.some(function (a) { return a.art === _skLetzteArt; });
       const f = {
         schluessel: ++_skFundLfd, lat: lat, lon: lon,
-        art: letzte ? _skLetzteArt : _skArten[0].art,
+        art: letzte ? _skLetzteArt
+          : (_skArten.some(function (a) { return a.art === _SK_FUND_ART_VORGABE; })
+             ? _SK_FUND_ART_VORGABE : _skArten[0].art),
         menge_min: _SK_FUND_VORGABE.menge_min, menge_max: _SK_FUND_VORGABE.menge_max,
         abstand_min_m: _SK_FUND_VORGABE.abstand_min_m, abstand_max_m: _SK_FUND_VORGABE.abstand_max_m,
         richtung: null, startwert: null, menge: null, objekte: [],
@@ -8619,16 +8634,16 @@
         .toISOString().slice(0, 19) + 'Z';
     }
 
-    /** Aendert dieses Speichern einen RECHENWERT -- Strecke, Korridor, Hoehe, Geschwindigkeit,
-     *  Fundradius, Fundhoehe oder Zeiten? Dann verwirft der Server den bisherigen Stand samt
-     *  Funden. Bezeichnungen und die Fundstellen selbst zaehlen nicht: Eine unveraenderte
-     *  Fundstelle behaelt ihren Fund (`_skFundeVerloren`). */
+    /** Aendert dieses Speichern einen RECHENWERT -- Strecke, Korridor, Hoehe, Geschwindigkeit
+     *  oder Zeiten? Dann verwirft der Server den bisherigen Stand samt Funden. Bezeichnungen,
+     *  Fundradius, Fundhoehe und die Fundstellen selbst zaehlen nicht: Fundradius und Fundhoehe
+     *  gelten ab dem Speichern fuer das, was noch offen ist, und eine unveraenderte Fundstelle
+     *  behaelt ihren Fund (`_skFundeVerloren`). */
     function _skRechenwerteGeaendert(ev, koerper) {
       const zahlAnders = function (feld) {
         return Math.abs(Number(koerper[feld]) - Number(ev[feld])) > 1e-9;
       };
-      if (['korridor_m', 'hoehe_max_ft', 'gs_max_kt', 'gs_min_kt',
-           'fund_radius_m', 'fund_hoehe_ft'].some(zahlAnders)) return true;
+      if (['korridor_m', 'hoehe_max_ft', 'gs_max_kt', 'gs_min_kt'].some(zahlAnders)) return true;
       if (koerper.dtstart !== ev.dtstart) return true;
       if ((koerper.dtend || _skEndeVorgabe(koerper.dtstart)) !== ev.dtend) return true;
       const alt = ev.punkte || [];
@@ -8697,7 +8712,7 @@
         || (altEv.vorbei_seit_s !== null && altEv.vorbei_seit_s !== undefined));
       if (hatStand && _skRechenwerteGeaendert(altEv, koerper)) {
         const ok = await showModal('Der bisherige Stand wird verworfen',
-          'Du hast Strecke, Korridor, Höhe, Geschwindigkeit, Fundradius, Fundhöhe oder Zeiten '
+          'Du hast Strecke, Korridor, Höhe, Geschwindigkeit oder Zeiten '
           + 'geändert. Das Event ' + (altEv.laeuft ? 'läuft schon' : 'ist schon vorbei')
           + ': Was bisher abgeflogen und gefunden wurde, geht dabei verloren und wird nur aus '
           + 'dem neu gerechnet, was an Positionen noch da ist. Ein neuer Name allein ändert nichts.',

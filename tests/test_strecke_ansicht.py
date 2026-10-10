@@ -450,7 +450,7 @@ def test_das_badge_gibt_es_nach_dem_ende_fuer_jeden_mit_beitrag():
     assert "<th>Fundstellen</th>" in laeuft and "1 entdeckt" in laeuft
     assert "Badge" not in laeuft and "/badge/" not in laeuft
     vorbei = _node(js, "_streckePilotenHtml(%s, 'eine')" % (r % "120"))
-    assert "<th>Badge</th>" in vorbei
+    assert ">Badge</th>" in vorbei
     assert 'href="/api/strecke/events/5/badge/11.png"' in vorbei
     assert "copyStreckeBadgeCode(5, 12, this)" in vorbei and "/badge/13.png" not in vorbei
     ohne = _node(js, "_streckePilotenHtml(%s, 'eine')" % (r % "null").replace('"anzahl": 2', '"anzahl": 0'))

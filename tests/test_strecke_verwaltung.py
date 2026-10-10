@@ -271,7 +271,7 @@ def test_eine_neue_fundstelle_bekommt_vorgaben_und_sofort_die_vorschau():
     assert re.search(r"richtung:\s*null", rumpf) and "_skLetzteArt" in rumpf
     assert "_skFundVorschau(f, true)" in rumpf
     m = re.search(r"_SK_FUND_VORGABE\s*=\s*\{([^}]*)\}", SKRIPT)
-    assert m and re.sub(r"\s", "", m.group(1)) == "menge_min:5,menge_max:15,abstand_min_m:10,abstand_max_m:40"
+    assert m and re.sub(r"\s", "", m.group(1)) == "menge_min:5,menge_max:10,abstand_min_m:8,abstand_max_m:20"
 
 
 def test_die_vorschau_kommt_vom_server_und_haelt_den_startwert():
@@ -361,10 +361,30 @@ def test_die_summe_rechnet_rauch_und_licht_ein():
     assert speichern.index("_skFundSumme() > _SK_SOLL_MAX") < speichern.index("api('POST'")
 
 
-def test_fundradius_und_fundhoehe_sind_rechenwerte_fundstellen_und_badge_nicht():
+def test_fundradius_fundhoehe_fundstellen_und_badge_sind_keine_rechenwerte():
+    """Fundradius und Fundhöhe gelten ab dem Speichern für das, was noch offen ist; der Server
+    verwirft dafür nichts (`_STRECKE_OHNE_RECHNUNG`), also darf die Verwaltung auch nicht warnen."""
+    from app.database import _STRECKE_OHNE_RECHNUNG
     rumpf = _rumpf("_skRechenwerteGeaendert")
-    assert "'fund_radius_m'" in rumpf and "'fund_hoehe_ft'" in rumpf
+    assert {"fund_radius_m", "fund_hoehe_ft"} <= _STRECKE_OHNE_RECHNUNG
+    assert "'fund_radius_m'" not in rumpf and "'fund_hoehe_ft'" not in rumpf
     assert "fundstellen" not in rumpf and "badge" not in rumpf
+
+
+def test_hoechstmenge_mal_hoechstabstand_ist_begrenzt_wie_auf_dem_server():
+    from app.database import STRECKE_FUND_MENGE_MAL_ABSTAND_MAX
+    assert f"const _SK_FUND_MENGE_MAL_ABSTAND_MAX = {STRECKE_FUND_MENGE_MAL_ABSTAND_MAX:g};" in SKRIPT
+    assert "f.menge_max * f.abstand_max_m > _SK_FUND_MENGE_MAL_ABSTAND_MAX" in _rumpf("_skFundPruefen")
+    vorgabe = re.search(r"const _SK_FUND_VORGABE = \{[^}]*menge_max: (\d+)[^}]*abstand_max_m: (\d+)", SKRIPT)
+    assert int(vorgabe.group(1)) * int(vorgabe.group(2)) <= STRECKE_FUND_MENGE_MAL_ABSTAND_MAX
+
+
+def test_eine_neue_fundstelle_beginnt_nicht_mit_der_ersten_art_des_alphabets():
+    assert "const _SK_FUND_ART_VORGABE = 'seehund_kuh';" in SKRIPT
+    assert "_SK_FUND_ART_VORGABE" in _rumpf("skFundNeu")
+
+
+def test_ein_fund_der_verloren_geht_wird_eigens_gemeldet():
     # Ein Fund, der durch eine geänderte oder entfernte Fundstelle verloren geht, wird eigens gemeldet.
     speichern = _rumpf("skSpeichern")
     assert speichern.index("_skFundeVerloren(altEv)") < speichern.index("api('POST'")

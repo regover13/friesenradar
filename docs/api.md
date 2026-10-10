@@ -1241,7 +1241,9 @@ Abschnitt wann zuerst abgeflogen hat (`null`, solange er offen ist). Jeder Aufru
 Stand fort; ein Server-Ereignis für Änderungen gibt es nicht, die Karte fragt selbst.
 
 Gibt es Fundstellen, trägt `fundstellen` hier zusätzlich `liste`: je Eintrag `nr`, `gefunden`,
-`lat`, `lon`, `art`, `art_name`, `menge` und bei einem Fund `cid`, `name`, `ts`. **Eine noch nicht
+`lat`, `lon`, `art`, `art_name`, `menge` und bei einem Fund `cid`, `name`, `ts`. `nr` zählt in
+der Reihenfolge der Funde, nicht in der der Verwaltung (deren Reihenfolge verriete, wo noch etwas
+liegt). **Eine noch nicht
 gefundene Fundstelle steht nicht in der Liste, solange das Event läuft**; ihre Lage verlässt den
 Server dann auf keinem Weg für Mitglieder. Nach `dtend` stehen alle darin.
 
@@ -1268,7 +1270,10 @@ Forumsbeiträgen), mit `ETag`. `GET /api/pilots/{cid}/orden` nennt es als `art: 
 - **Fundstellen** werden im selben Zug aus denselben Punkten gefunden: Abstand zur Mitte der
   Fundstelle höchstens `fund_radius_m`, Höhe höchstens Gelände dort plus `fund_hoehe_ft`,
   Höchstgeschwindigkeit wie beim Abfliegen, keine Mindestgeschwindigkeit. Der erste Fund bleibt
-  (`strecken_fundstellen.gefunden_am`, `gefunden_von`). Fehlt einer Fundstelle die Geländehöhe,
+  (`strecken_fundstellen.gefunden_am`, `gefunden_von`). Eine Fundstelle mit `gilt_ab` (während
+  des Events dazugekommen) sieht nur Punkte danach, auch beim Neurechnen. `fund_radius_m` und
+  `fund_hoehe_ft` verwerfen den Stand nicht; sie gelten ab dem Speichern für das, was offen ist.
+  Der Poller rechnet alle 10 s, wie bei der Reddung. Fehlt einer Fundstelle die Geländehöhe,
   gilt `ohne_grund` für das ganze Event.
 - **Objekte im Simulator** (`strecke_objekte_abgleichen`, im Poller-Takt und beim Speichern):
   Solange das Event läuft, steht jedes Objekt einer Fundstelle in `bruegge_soll`
@@ -1297,9 +1302,13 @@ abstand_max_m, richtung, startwert}`; `art` ist eine anforderbare Art der Friese
 (`GET /api/admin/bruegge/arten`), `richtung` leer heißt je Objekt gewürfelt. Die Lage rechnet
 immer der Server aus dem Startwert. Eine Fundstelle mit unverändertem Ort, unveränderten Angaben
 und unverändertem Startwert behält Zeile und Fund; alles andere ist eine neue. Höchstens 40
-Fundstellen, 1 bis 60 Objekte je Gruppe, Abstände 1 bis 2.000 m. Gespeichert wird nur, was in den
-Simulator passt: Objekte plus Rauch und Licht je Fundstelle, zusammen mit allem, was sonst in
-`bruegge_soll` steht, höchstens 200.
+Fundstellen, 1 bis 60 Objekte je Gruppe, Abstände 1 bis 2.000 m, und Höchstmenge mal
+Höchstabstand höchstens 200 (hält die Gruppe beim Fundkreis). Zahlen müssen endlich sein; NaN und
+Unendlich werden abgelehnt. Gespeichert wird nur, was in den Simulator passt: Objekte plus Rauch
+und Licht je Fundstelle, zusammen mit dem Bedarf anderer Deichkontrollen im selben Zeitraum (aus
+ihrer Tabelle, auch wenn sie noch nicht laufen) und allem Übrigen in `bruegge_soll`, höchstens 200.
+`fund_radius_m` höchstens 1.000, `fund_hoehe_ft` höchstens 3.000: nie weiter und nie höher, als
+der Simulator die Objekte zeigt.
 
 Grenzen: 2 bis 500 Punkte, Korridor 50 bis 10.000 m, höchstens 2.000 Abschnitte. Fehler kommen als
 400 mit einem Satz für die Verwaltung. **Der Stand wird beim Ändern nur verworfen, wenn sich ein

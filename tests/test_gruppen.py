@@ -106,3 +106,32 @@ def test_unsinnige_angaben_werden_mit_einem_satz_abgelehnt(angaben, wort):
 
 def test_startwerte_sind_frisch():
     assert gruppen.startwert() != gruppen.startwert()
+
+
+@pytest.mark.parametrize("angaben", [
+    (3, 3, 10, float("nan")), (3, 3, float("nan"), 40), (3, 3, 10, float("inf")),
+    (float("nan"), 3, 10, 40), (3, float("inf"), 10, 40), (3, 3, 10, "nan"),
+])
+def test_nan_und_unendlich_kommen_nicht_durch(angaben):
+    """Mit NaN ist jeder Vergleich falsch -- die Grenzen griffen nicht, und ``streuen`` liefe in
+    eine Endlosschleife (Befund vom 10.10.2026)."""
+    with pytest.raises(ValueError):
+        gruppen.pruefen(*angaben)
+
+
+@pytest.mark.parametrize("richtung", [float("nan"), float("inf"), "nan"])
+def test_eine_richtung_muss_endlich_sein(richtung):
+    with pytest.raises(ValueError, match="Richtung"):
+        gruppen.pruefen(3, 3, 10, 40, richtung)
+
+
+def test_ein_unlesbarer_ort_wird_abgelehnt():
+    for lat in (float("nan"), None, "abc"):
+        with pytest.raises(ValueError, match="Ort"):
+            gruppen.streuen(lat, 9.0, 3, 3, 10, 40, "x")
+
+
+def test_eine_halbe_menge_wird_nicht_still_abgerundet():
+    with pytest.raises(ValueError, match="ganze Zahl"):
+        gruppen.pruefen(5.9, 9, 10, 40)
+    assert gruppen.pruefen(5.0, "9", 10, 40)[:2] == (5, 9)

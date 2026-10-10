@@ -7369,6 +7369,12 @@ def _validate_reddung_sektor(body: dict) -> str | None:
         nord, ost = float(body["nord"]), float(body["ost"])
     except (KeyError, TypeError, ValueError):
         return "Sektor unvollständig (sued/west/nord/ost)"
+    # ⚠ Erst der Wertebereich: Mit NaN ist jeder Vergleich darunter falsch, der Sektor ginge
+    # ungeprueft durch, und mit Unendlich wirft `haversine` (Befund vom 10.10.2026, zuerst an
+    # der Deichkontrolle gefunden). `not (a <= x <= b)` faengt beides.
+    if not (-90.0 <= sued <= 90.0 and -90.0 <= nord <= 90.0
+            and -180.0 <= west <= 180.0 and -180.0 <= ost <= 180.0):
+        return "Sektor außerhalb der Karte (sued/west/nord/ost)"
     if nord <= sued or ost <= west:
         return "Sektor verdreht: nord muss über sued und ost über west liegen"
     hoch = haversine(sued, west, nord, west)
@@ -7883,9 +7889,9 @@ from app import strecke as _st                                            # noqa
 from app.database import (                                                # noqa: E402
     compute_strecke_stand, create_strecken_event, delete_strecken_event, get_strecken_event,
     list_strecken_events, strecke_fundstellen, strecke_fundstellen_grund_setzen,
-    strecke_fundstellen_setzen, strecke_objekte_abgleichen, strecke_stand_verwerfen,
-    update_strecken_event,
-    _STRECKE_OHNE_RECHNUNG, _effective_dtend, STRECKE_FARBEN,
+    strecke_fundstellen_setzen, strecke_objekte_abgleichen, strecke_soll_bedarf_andere,
+    strecke_stand_verwerfen, update_strecken_event,
+    _STRECKE_OHNE_RECHNUNG, _effective_dtend, STRECKE_FARBEN, STRECKE_FUNDSTELLEN_MAX,
 )
 from app import gruppen as _gruppen                                       # noqa: E402
 
@@ -8072,7 +8078,9 @@ _STRECKE_KOERPER = ("name", "dtstart", "dtend", "korridor_m", "hoehe_max_ft",
 _STRECKE_ZAHLEN = {"korridor_m": (_st.KORRIDOR_MIN_M, _st.KORRIDOR_MAX_M),
                    "hoehe_max_ft": (100.0, 20000.0),
                    "gs_max_kt": (20.0, 1000.0), "gs_min_kt": (0.0, 500.0),
-                   "fund_radius_m": (20.0, 2000.0), "fund_hoehe_ft": (100.0, 20000.0)}
+                   # Nie weiter und nie hoeher, als der Naeheriegel die Objekte zeigt (1.000 m
+                   # seitlich, ebenso viel ueber Grund): sonst faende man, ohne etwas zu sehen.
+                   "fund_radius_m": (20.0, 1000.0), "fund_hoehe_ft": (100.0, 3000.0)}
 _STRECKE_NAMEN = {"korridor_m": "Der Korridor", "hoehe_max_ft": "Die Höhe",
                   "gs_max_kt": "Die Höchstgeschwindigkeit",
                   "gs_min_kt": "Die Mindestgeschwindigkeit",
@@ -8115,6 +8123,14 @@ def _strecke_koerper_pruefen(body: dict, alt: dict | None = None) -> tuple[dict,
     if gs_min >= gs_max:
         raise HTTPException(status_code=400, detail="Die Mindestgeschwindigkeit muss unter der "
                                                     "Höchstgeschwindigkeit liegen.")
+    for k in ("dtstart", "dtend"):
+        # Die Form pruefen: Ein „2026-10-02“ liesse spaeter die Liste fuer alle scheitern.
+        if felder.get(k):
+            try:
+                datetime.strptime(str(felder[k]), "%Y-%m-%dT%H:%M:%SZ")
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Beginn und Ende brauchen die Form "
+                                                            "JJJJ-MM-TTThh:mm:ssZ.")
     if "dtstart" in felder or "dtend" in felder:
         terr = _validate_event_times(zusammen.get("dtstart"), zusammen.get("dtend") or None)
         if terr:
@@ -8170,13 +8186,30 @@ def _strecke_fundstellen_koerper(body: dict) -> list[dict] | None:
     roh = body["fundstellen"]
     if not isinstance(roh, list) or any(not isinstance(f, dict) for f in roh):
         raise HTTPException(status_code=400, detail="Die Fundstellen sind nicht lesbar.")
+    # Zahl und Ort VOR dem Abruf beim Hoehenmodell pruefen -- sonst loeste ein Koerper mit
+    # zehntausenden Eintraegen ebenso viele Abrufe aus, bevor die Ablage ihn ablehnt.
+    if len(roh) > STRECKE_FUNDSTELLEN_MAX:
+        raise HTTPException(status_code=400,
+                            detail=f"Höchstens {STRECKE_FUNDSTELLEN_MAX} Fundstellen je Event.")
     erlaubt = ("lat", "lon", "art", "menge_min", "menge_max", "abstand_min_m", "abstand_max_m",
                "richtung", "startwert")
-    return [{k: f.get(k) for k in erlaubt} for f in roh]
+    raus = []
+    for nr, f in enumerate(roh, 1):
+        try:
+            lat, lon = float(f.get("lat")), float(f.get("lon"))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400,
+                                detail=f"Fundstelle {nr}: Der Ort ist nicht lesbar.")
+        if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+            raise HTTPException(status_code=400,
+                                detail=f"Fundstelle {nr} liegt außerhalb der Karte.")
+        raus.append({k: f.get(k) for k in erlaubt})
+    return raus
 
 
 def _strecke_fundstellen_speichern(conn, event_id: int, fundstellen: list[dict],
-                                   hoehen: list[float] | None) -> dict:
+                                   hoehen: list[float] | None, *,
+                                   gilt_ab: str | None = None) -> dict:
     """Fundstellen ablegen und pruefen, ob sie in den Simulator passen (kein commit).
 
     Wirft 400 mit einem Satz fuer die Verwaltung; der Aufrufer rollt dann zurueck. ``hoehen``
@@ -8192,15 +8225,21 @@ def _strecke_fundstellen_speichern(conn, event_id: int, fundstellen: list[dict],
                        "nicht setzen.")
         f["grund_ft"] = hoehen[nr - 1] if hoehen is not None else None
     try:
-        erg = strecke_fundstellen_setzen(conn, event_id, fundstellen)
+        erg = strecke_fundstellen_setzen(conn, event_id, fundstellen, gilt_ab=gilt_ab)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     # Je Fundstelle kommen nach dem Fund Rauch und Licht dazu. Gezaehlt wird, was EIN Pilot
     # hoechstens gleichzeitig bekommt -- die Bruegge fasst 200 Objekte je Meldung.
-    eigene = {r["id"] for r in bruegge_soll_alle(conn)
-              if r["id"].startswith(f"strecke-{int(event_id)}-")}
+    #
+    # Gegengerechnet wird, was im ZEITRAUM dieses Events sonst dort steht: andere
+    # Deichkontrollen aus ihrer Tabelle (auch wenn sie noch nicht laufen) und alles Uebrige
+    # (Reddung, von Hand Gesetztes) aus dem Soll, wie es jetzt ist. Zeilen irgendeiner
+    # Deichkontrolle im Soll zaehlen dabei nicht noch einmal.
+    ev = get_strecken_event(conn, event_id)
+    andere = strecke_soll_bedarf_andere(conn, event_id, ev["dtstart"], ev["dtend"])
+    uebrige = sum(1 for r in bruegge_soll_alle(conn) if not r["id"].startswith("strecke-"))
     bedarf = erg["objekte"] + 2 * erg["fundstellen"]
-    frei = _BRUEGGE_SOLL_MAX - bruegge_soll_anzahl(conn, eigene)
+    frei = max(_BRUEGGE_SOLL_MAX - andere - uebrige, 0)
     if bedarf > frei:
         raise HTTPException(
             status_code=400,
@@ -8344,7 +8383,12 @@ async def admin_update_strecken_event(request: Request, event_id: int):
         update_strecken_event(conn, event_id, **felder)
         if fundstellen is not None:
             try:
-                _strecke_fundstellen_speichern(conn, event_id, fundstellen, hoehen)
+                # Was waehrend des Events dazukommt, zaehlt erst ab jetzt -- auch wenn spaeter
+                # von vorn neu gerechnet wird.
+                jetzt = _now_iso()
+                _strecke_fundstellen_speichern(
+                    conn, event_id, fundstellen, hoehen,
+                    gilt_ab=jetzt if (alt.get("dtstart") or "") <= jetzt else None)
             except HTTPException:
                 conn.rollback()
                 raise

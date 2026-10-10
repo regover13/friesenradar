@@ -569,7 +569,23 @@ ausgehandelt wird:
   (`_fundstelle_kern`). Das Formular schickt immer alle; deshalb Ort und Startwert unverändert
   zurückschicken.
 - **`bruegge_soll` fasst 200 Objekte.** Die Verwaltung lehnt ab, was mit Rauch und Licht nicht
-  hineinpasst (`_strecke_fundstellen_speichern`).
+  hineinpasst (`_strecke_fundstellen_speichern`), und rechnet dabei andere Deichkontrollen im
+  selben Zeitraum aus ihrer Tabelle mit, nicht aus dem Soll: Ein Event, das noch nicht läuft,
+  steht dort nicht.
+- **Höchstmenge mal Höchstabstand höchstens 200** je Fundstelle (Nutzer, 10.10.2026;
+  `STRECKE_FUND_MENGE_MAL_ABSTAND_MAX`). Gefunden wird gegen die Mitte; die Grenze hält die
+  Gruppe beim Fundkreis. Das ist eine Regel der Deichkontrolle, `app/gruppen.py` kennt sie nicht.
+- **„Wer den Fund markieren will, muss dort hinfliegen.“** Dass ein Abschnitt schon bei 500 m
+  zählt und ein Fund erst bei 150 m, ist so gewollt und kein Fehler. Nicht „reparieren“.
+- **Rauch und Licht sind als Art einer Fundstelle wählbar**, auch in den anderen Farben.
+- **Fundradius und Fundhöhe verwerfen den Stand nicht** (`_STRECKE_OHNE_RECHNUNG`); sie gelten
+  ab dem Speichern für das, was offen ist. Eine Fundstelle, die während des Events dazukommt,
+  trägt `gilt_ab` und wird auch beim Neurechnen nicht rückwirkend gefunden.
+- **Der Takt ist 10 s wie bei der Reddung** (`_STRECKE_TAKT_S`): Der Rauch nach dem Fund kommt
+  mit ihm. Wer einen der beiden Takte ändert, ändert beide (Nutzer, 10.10.2026).
+- **Jede Zahl aus einem Körper auf Endlichkeit prüfen.** `float("nan")` kommt durch `json.loads`
+  und macht jeden Vergleich falsch: In `gruppen.streuen` war das eine Endlosschleife in der
+  Event-Loop, im Sektor der Reddung ging es ungeprüft durch. `not (a <= x <= b)` fängt es.
 
 ## Wem eine FriesenBrügge gehört — ab Protokoll 3 (stehende Regeln, Beschluss 26.09.2026)
 

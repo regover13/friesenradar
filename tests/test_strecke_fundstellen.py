@@ -52,9 +52,14 @@ def conn(tmp_path, monkeypatch):
 
 
 def _fs(km=3.0, nord_km=0.0, **extra):
-    return {"lat": _nord(nord_km), "lon": _ost(km), "art": ART, "menge_min": 5, "menge_max": 9,
-            "abstand_min_m": 10, "abstand_max_m": 30, "startwert": f"s{km}", "grund_ft": 0.0,
-            **extra}
+    # Hoechstmenge mal Hoechstabstand darf hoechstens 200 sein -- die Abstaende richten sich
+    # deshalb nach der Menge, wenn der Test sie nicht selbst vorgibt.
+    menge = int(extra.get("menge_max", 9)) if isinstance(extra.get("menge_max", 9), int) else 9
+    weit = max(min(20, 200 // max(menge, 1)), 1)
+    f = {"lat": _nord(nord_km), "lon": _ost(km), "art": ART,"menge_min": 5, "menge_max": 9,
+         "abstand_min_m": min(10, weit), "abstand_max_m": weit, "startwert": f"s{km}", "grund_ft": 0.0, }
+    f.update(extra)
+    return f
 
 
 def _ev(conn, fundstellen=(), **extra):
@@ -127,8 +132,27 @@ def test_ein_neuer_startwert_ist_eine_neue_fundstelle(conn):
 def test_zwei_gleiche_eintraege_ergeben_zwei_fundstellen(conn):
     eid = _ev(conn, [_fs(3.0), _fs(3.0)])
     assert len(strecke_fundstellen(conn, eid)) == 2
+    conn.execute("UPDATE strecken_fundstellen SET gefunden_am = ?, gefunden_von = 7", (MITTEN,))
     erg = strecke_fundstellen_setzen(conn, eid, [_fs(3.0), _fs(3.0)])
-    assert (erg["geblieben"], erg["neu"], erg["weg"]) == (1, 1, 1)
+    assert (erg["geblieben"], erg["neu"], erg["weg"]) == (2, 0, 0)
+    assert all(f["gefunden_von"] == 7 for f in strecke_fundstellen(conn, eid)), \
+        "keine der beiden verliert beim Speichern ihren Fund"
+
+
+def test_der_startwert_null_ist_ein_startwert(conn):
+    eid = _ev(conn, [_fs(3.0, startwert=0)])
+    (vor,) = strecke_fundstellen(conn, eid)
+    assert vor["startwert"] == "0"
+    erg = strecke_fundstellen_setzen(conn, eid, [_fs(3.0, startwert=0)])
+    assert erg["geblieben"] == 1, "sonst wuerde bei jedem Speichern neu gewuerfelt"
+
+
+def test_richtung_leer_und_richtung_null_sind_verschieden(conn):
+    eid = _ev(conn, [_fs(3.0)])
+    erg = strecke_fundstellen_setzen(conn, eid, [_fs(3.0, richtung=0)])
+    assert (erg["geblieben"], erg["neu"]) == (0, 1)
+    erg = strecke_fundstellen_setzen(conn, eid, [_fs(3.0, richtung=360)])
+    assert erg["geblieben"] == 1, "0 und 360 sind dieselbe Richtung"
 
 
 @pytest.mark.parametrize("aenderung, wort", [
@@ -364,3 +388,56 @@ def test_loeschen_nimmt_fundstellen_und_objekte_mit(conn):
     strecke_objekte_abgleichen(conn, get_strecken_event(conn, eid), now=MITTEN)
     delete_strecken_event(conn, eid)
     assert not _soll(conn, eid) and not strecke_fundstellen(conn, eid)
+
+
+# --- Befunde der Pruefung vom 10.10.2026 -----------------------------------------------------
+
+def test_eine_nachtraegliche_fundstelle_wird_auch_beim_neurechnen_nicht_rueckwirkend_gefunden(conn):
+    """Pilot 7 fliegt ueber km 3, DANACH kommt dort eine Fundstelle dazu. Wird spaeter von vorn
+    neu gerechnet (etwa weil das Ende verlaengert wird), darf er sie nicht gefunden haben --
+    als er dort war, stand nichts da."""
+    eid = _ev(conn)
+    ev = get_strecken_event(conn, eid)
+    ende = _flug(conn, 7, 0.0, 4.0)
+    strecke_fortschreiben(conn, ev, bis=_zeit(ende + 5))
+    strecke_fundstellen_setzen(conn, eid, [_fs(3.0)], gilt_ab=_zeit(ende + 10))
+    strecke_stand_verwerfen(conn, eid)
+    stand = strecke_fortschreiben(conn, ev, bis=_zeit(ende + 60))
+    assert stand["abgedeckt"] == 4 and stand["fundstellen"][0]["gefunden_am"] is None
+    # Wer danach darueber fliegt, findet sie.
+    _flug(conn, 8, 2.0, 4.0, ab_s=ende + 100)
+    stand = strecke_fortschreiben(conn, ev, bis=_zeit(ende + 300))
+    assert stand["fundstellen"][0]["gefunden_von"] == 8
+
+
+def test_die_nummer_fuer_mitglieder_folgt_den_funden_nicht_der_verwaltung(conn, monkeypatch):
+    """Sonst verrieten die Luecken zwischen den Nummern, wo noch etwas liegt."""
+    eid = _ev(conn, [_fs(2.0), _fs(5.0), _fs(8.3)])
+    _flug(conn, 7, 7.5, 9.0)                         # findet zuerst die DRITTE der Verwaltung
+    s = _stand(conn, eid, monkeypatch, MITTEN, mit_geometrie=True)
+    (einzige,) = s["fundstellen"]["liste"]
+    assert einzige["nr"] == 1 and einzige["lon"] == pytest.approx(_ost(8.3))
+    s = _stand(conn, eid, monkeypatch, "2026-10-10T21:00:01Z", mit_geometrie=True)
+    assert [(f["nr"], f["gefunden"]) for f in s["fundstellen"]["liste"]] == [
+        (1, True), (2, False), (3, False)]
+
+
+def test_im_umkreis_einer_fundstelle_abseits_der_strecke_wird_mitgeschrieben(conn, monkeypatch):
+    """Die Wache der Sekundenpunkte muss die Fundstellen kennen -- sonst gaebe es dort keine
+    Punkte, aus denen ein Fund entstehen koennte."""
+    _ev(conn, [_fs(3.0, nord_km=40.0)])
+    monkeypatch.setattr(db, "_now_utc", lambda: MITTEN)
+    lage = {"lat": _nord(40.0), "lon": _ost(3.0), "alt_msl_ft": 800.0, "gs_kt": 100.0}
+    assert db.bruegge_spur_schreiben(conn, 7, lage) is True
+    assert db.bruegge_spur_schreiben(conn, 7, {**lage, "lat": _nord(80.0)}) is False
+
+
+def test_zwei_events_am_selben_abend_zaehlen_zusammen(conn):
+    a = _ev(conn, [_fs(3.0, menge_min=10, menge_max=10)])
+    b = _ev(conn, [_fs(4.0, menge_min=20, menge_max=20), _fs(5.0, menge_min=1, menge_max=1)])
+    spaeter = create_strecken_event(conn, name="naechste Woche", punkte=GERADE,
+                                    dtstart="2026-10-17T18:00:00Z", dtend="2026-10-17T21:00:00Z")
+    assert db.strecke_soll_bedarf_andere(conn, a, START, ENDE) == 25      # 20 + 1 + je 2
+    assert db.strecke_soll_bedarf_andere(conn, b, START, ENDE) == 12
+    assert db.strecke_soll_bedarf_andere(conn, spaeter, "2026-10-17T18:00:00Z",
+                                         "2026-10-17T21:00:00Z") == 0

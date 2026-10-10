@@ -57,9 +57,9 @@ PILOTEN = [
 #: Fundstellen: (Anteil der Strecke, Versatz in m, Wunsch-Arten, Mindest-/Höchstmenge,
 #: Mindest-/Höchstabstand in m). Die ersten beiden liegen genau unter Anton und Berta.
 FUNDSTELLEN = [
-    (0.15, 120, ("seehund_kuh", "seehund_heuler"), 6, 14, 8, 30),
+    (0.15, 120, ("seehund_kuh", "seehund_heuler"), 6, 10, 8, 20),
     (0.45, -350, ("seecontainer",), 1, 3, 15, 40),
-    (0.58, 0, ("seehund_heuler", "seehund_kuh"), 4, 9, 8, 25),          # niemand fliegt hier
+    (0.58, 0, ("seehund_heuler", "seehund_kuh"), 4, 8, 8, 25),          # niemand fliegt hier
     (0.90, 100, ("seehund_bulle", "seehund_kuh"), 1, 1, 10, 10),        # Dora ist zu hoch
 ]
 

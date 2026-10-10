@@ -94,8 +94,14 @@ def modell(monkeypatch):
 
 
 def _fs(km=3.0, **extra):
-    return {"lat": LAT, "lon": _ost(km), "art": ART, "menge_min": 5, "menge_max": 9,
-            "abstand_min_m": 10, "abstand_max_m": 30, "startwert": f"s{km}", **extra}
+    # Hoechstmenge mal Hoechstabstand darf hoechstens 200 sein -- die Abstaende richten sich
+    # deshalb nach der Menge, wenn der Test sie nicht selbst vorgibt.
+    menge = int(extra.get("menge_max", 9)) if isinstance(extra.get("menge_max", 9), int) else 9
+    weit = max(min(20, 200 // max(menge, 1)), 1)
+    f = {"lat": LAT, "lon": _ost(km), "art": ART,"menge_min": 5, "menge_max": 9,
+         "abstand_min_m": min(10, weit), "abstand_max_m": weit, "startwert": f"s{km}", }
+    f.update(extra)
+    return f
 
 
 def _anlegen(**extra):
@@ -264,6 +270,110 @@ def test_scheitert_das_hoehenmodell_wartet_die_neue_fundstelle_auf_den_knopf(db,
     monkeypatch.setattr(main, "_gelaende_ft_viele", viele)
     asyncio.run(main.admin_strecke_grund(FakeReq(), eid))
     assert [f["grund_ft"] for f in _fundstellen(db, eid)] == [50.0, 50.0]
+
+
+def test_fundradius_und_fundhoehe_aendern_verwirft_nichts(db, modell):
+    """Sie gelten ab dem Speichern fuer das, was noch offen ist. Verwuerfen sie den Stand,
+    naehmen sie die abgeflogenen Abschnitte mit -- bei einem alten Abend fuer immer."""
+    eid = _anlegen(fundstellen=[_fs(3.0)])
+    _flug(db, 7, 0.0, 4.0, _laufend()["dtstart"])
+    main.strecke_stand(eid)
+    antwort = _aendern(eid, fund_radius_m=300, fund_hoehe_ft=1500, fundstellen=[_fs(3.0)])
+    assert antwort["stand_verworfen"] is False
+    stand = main.strecke_stand(eid)
+    assert stand["abgedeckt"] == 4 and stand["fundstellen"]["gefunden"] == 1
+    assert stand["regeln"]["fund_radius_m"] == 300
+
+
+def test_gefunden_wird_nie_weiter_oder_hoeher_als_die_objekte_zu_sehen_sind(db, modell):
+    assert "Fundradius" in _fehler(lambda: _anlegen(fund_radius_m=1500)).detail
+    assert "Fundhöhe" in _fehler(lambda: _anlegen(fund_hoehe_ft=5000)).detail
+
+
+def test_rauch_und_licht_sind_als_fundstelle_waehlbar(db, modell):
+    """Auch in den anderen Farben (Nutzer, 10.10.2026)."""
+    eid = _anlegen(fundstellen=[_fs(3.0, art="rauch_signalrot", menge_min=1, menge_max=1),
+                                _fs(5.0, art="licht", menge_min=1, menge_max=1)])
+    assert [f["art"] for f in _fundstellen(db, eid)] == ["rauch_signalrot", "licht"]
+
+
+def test_hoechstmenge_mal_hoechstabstand_ist_begrenzt(db, modell):
+    """Gefunden wird gegen die Mitte -- die Grenze haelt die Gruppe beim Fundkreis."""
+    e = _fehler(lambda: _anlegen(fundstellen=[_fs(3.0, menge_max=15, abstand_max_m=40)]))
+    assert e.status_code == 400 and "Fundstelle 1" in e.detail and "200" in e.detail
+    _anlegen(fundstellen=[_fs(3.0, menge_max=10, abstand_max_m=20)])
+
+
+def test_zu_viele_oder_unlesbare_fundstellen_scheitern_vor_dem_hoehenmodell(db, modell):
+    viele = [_fs(i * 0.1) for i in range(41)]
+    assert "Höchstens 40" in _fehler(lambda: _anlegen(fundstellen=viele)).detail
+    for ort in ({"lat": None}, {"lat": "abc"}, {"lon": float("nan")}, {"lat": 95.0}):
+        e = _fehler(lambda: _anlegen(fundstellen=[_fs(3.0, **ort)]))
+        assert e.status_code == 400 and "Fundstelle 1" in e.detail
+    assert modell == [], "kein einziger Abruf"
+
+
+def test_nan_im_koerper_haengt_nichts_auf(db, modell):
+    for feld in ("abstand_max_m", "abstand_min_m", "menge_max", "richtung"):
+        e = _fehler(lambda: asyncio.run(main.admin_strecke_streuen(
+            FakeReq(body=_fs(3.0, **{feld: float("nan")})))))
+        assert e.status_code == 400
+        e = _fehler(lambda: _anlegen(fundstellen=[_fs(3.0, **{feld: float("nan")})]))
+        assert e.status_code == 400
+    assert main.admin_list_strecken_events(FakeReq()) == []
+
+
+def test_die_hoehen_gehoeren_stelle_fuer_stelle_zu_den_fundstellen(db, monkeypatch):
+    """Ein Modell, das je Ort eine andere Hoehe nennt: Verrutscht die Zuordnung um eine Stelle,
+    faellt es hier auf."""
+    async def viele(punkte):
+        return [round(p[1] * 1000.0, 1) for p in punkte]
+    monkeypatch.setattr(main, "_gelaende_ft_viele", viele)
+    eid = _anlegen(fundstellen=[_fs(3.0), _fs(8.0)])
+    assert [f["grund_ft"] for f in _fundstellen(db, eid)] == [
+        round(_ost(3.0) * 1000.0, 1), round(_ost(8.0) * 1000.0, 1)]
+    _aendern(eid, fundstellen=[_fs(8.0), _fs(5.0), _fs(3.0)])
+    assert [f["grund_ft"] for f in _fundstellen(db, eid)] == [
+        round(_ost(k) * 1000.0, 1) for k in (8.0, 5.0, 3.0)]
+
+
+def test_zwei_events_am_selben_abend_passen_nur_zusammen_in_den_simulator(db, modell):
+    """Keines steht beim Speichern schon im Soll -- gezaehlt wird trotzdem beides."""
+    dicht = [_fs(k, menge_min=60, menge_max=60) for k in (2.0, 5.0)]          # 124
+    _anlegen(fundstellen=dicht)
+    e = _fehler(lambda: _anlegen(fundstellen=dicht))
+    assert "frei sind 76" in e.detail
+    # Naechste Woche ist Platz: Was heute laeuft, steht dann nicht mehr.
+    spaeter = {"dtstart": _iso(JETZT + timedelta(days=7)),
+               "dtend": _iso(JETZT + timedelta(days=7, hours=2))}
+    _anlegen(fundstellen=dicht, **spaeter)
+
+
+def test_eine_fundstelle_die_waehrend_des_events_dazukommt_zaehlt_erst_ab_dann(db, modell):
+    eid = _anlegen()
+    _flug(db, 7, 0.0, 4.0, _laufend()["dtstart"])
+    main.strecke_stand(eid)
+    _aendern(eid, fundstellen=[_fs(3.0)])
+    assert _fundstellen(db, eid)[0]["gilt_ab"] is not None
+    _aendern(eid, korridor_m=600, fundstellen=[_fs(3.0)])           # verwirft und rechnet neu
+    stand = main.strecke_stand(eid)
+    assert stand["abgedeckt"] > 0 and stand["fundstellen"]["gefunden"] == 0
+
+
+def test_beim_anlegen_gelten_fundstellen_von_beginn_an(db, modell):
+    eid = _anlegen(fundstellen=[_fs(3.0)])
+    assert _fundstellen(db, eid)[0]["gilt_ab"] is None
+
+
+def test_beginn_und_ende_brauchen_die_volle_form(db, modell):
+    e = _fehler(lambda: _anlegen(dtend="2026-10-02"))
+    assert e.status_code == 400 and "Form" in e.detail
+
+
+def test_vor_dem_ende_gibt_es_keinen_orden(db, modell):
+    _anlegen(fundstellen=[_fs(3.0)])
+    _flug(db, 7, 0.0, 4.0, _laufend()["dtstart"])
+    assert main.pilot_orden(7, days=30) == []
 
 
 def test_fundradius_und_fundhoehe_haben_grenzen(db, modell):

@@ -900,3 +900,18 @@ def test_der_status_nennt_die_vatsim_verbindung(db, als_pilot):
     assert asyncio.run(main.meine_reddung(FakeReq()))["vatsim"] is False
     _auf_vatsim()
     assert asyncio.run(main.meine_reddung(FakeReq()))["vatsim"] is True
+
+
+@pytest.mark.parametrize("feld", ["sued", "west", "nord", "ost"])
+@pytest.mark.parametrize("wert", [float("nan"), float("inf"), -float("inf"), 999.0])
+def test_ein_sektor_mit_nan_oder_unendlich_wird_abgelehnt(feld, wert):
+    """Mit NaN ist jeder Vergleich falsch -- der Sektor ging ungeprüft durch, und mit Unendlich
+    warf die Entfernungsrechnung (500 statt 400). Gefunden am 10.10.2026 an der Deichkontrolle."""
+    sektor = {"sued": 53.54, "west": 6.95, "nord": 53.90, "ost": 7.55, feld: wert}
+    assert "außerhalb der Karte" in main._validate_reddung_sektor(sektor)
+
+
+def test_die_zahlenfelder_der_reddung_lassen_nan_und_unendlich_nicht_durch():
+    for feld in main._REDDUNG_BEREICHE:
+        for wert in (float("nan"), float("inf")):
+            assert main._validate_reddung_felder({feld: wert}), feld

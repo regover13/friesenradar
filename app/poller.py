@@ -433,9 +433,12 @@ _REDDUNG_SCHONFRIST_MIN = 10
 #: der Zeit. Wer kuerzer geht, misst vorher die Laufzeit mit vielen Teilnehmern.
 _REDDUNG_TAKT_S = 10
 
-#: Takt der Deichkontrolle. Hier wartet niemand auf einen Fund; die Karte fragt den Stand ohnehin
-#: selbst ab und schreibt dabei fort. Der Takt ist das Netz fuer den Abend ohne Zuschauer.
-_STRECKE_TAKT_S = 30
+#: Takt der Deichkontrolle. Anfangs 30 s, als es nur die Strecke gab und niemand auf etwas
+#: wartete. **10 s wie bei der Reddung, seit es Fundstellen gibt** (Nutzer, 10.10.2026): Der
+#: Rauch nach einem Fund kommt mit diesem Takt, und bei 30 s war der Pilot schon anderthalb
+#: Kilometer weiter. Dieselbe Warnung wie oben: Der Job laeuft im Event-Loop; gemessen sind
+#: rund 20 ms fuer den Abgleich von 190 Objekten.
+_STRECKE_TAKT_S = 10
 #: So lange nach ``dtend`` laeuft ein Event noch durch den Takt.
 _STRECKE_NACHLAUF_S = 600
 

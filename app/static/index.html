@@ -1156,6 +1156,7 @@
     html.vr-panel [onclick*="copyReddungBadgeCode"],
     html.vr-panel [onclick*="copyStreckeShareHeader"],
     html.vr-panel [onclick*="copyStreckeBadgeCode"],
+    html.vr-panel .strecke-badge-zelle,
     html.vr-panel #changelog-banner,
     html.vr-panel #app-version {
       display: none !important;
@@ -17502,8 +17503,9 @@ function _streckeFundTippHtml(f) {
 function _streckeFundRegelText(g) {
   if (!g || g.fund_hoehe_ft == null || g.fund_radius_m == null) return '';
   const n = x => _streckeZahl(Math.round(Number(x)), 0);
+  const tempo = g.gs_max_kt != null ? `, nicht schneller als ${n(g.gs_max_kt)} kt` : '';
   return `Eine Fundstelle entdeckst du, wenn du höchstens ${n(g.fund_hoehe_ft)} ft über ihr und näher als `
-       + `${n(g.fund_radius_m)} m an ihr vorbeifliegst. Was dort steht, erscheint im Simulator erst aus der Nähe. `
+       + `${n(g.fund_radius_m)} m an ihr vorbeifliegst${tempo}. Was dort steht, erscheint im Simulator erst aus der Nähe. `
        + 'Nach dem Fund steigt an der Stelle hellblauer Rauch auf. Das geht nur mit der FriesenBrügge.';
 }
 
@@ -18033,7 +18035,7 @@ function _streckePilotenHtml(r, wahl) {
   // Das Badge gibt es erst nach dem Ende -- vorher waere es ein Zwischenstand.
   const vorbei = r.vorbei_seit_s != null;
   let html = '<div class="table-scroll"><table><thead><tr><th>Pilot</th><th>Abgeflogen</th><th>Anteil</th>'
-           + (mitFunden ? '<th>Fundstellen</th>' : '') + (vorbei ? '<th>Badge</th>' : '') + '</tr></thead><tbody>';
+           + (mitFunden ? '<th>Fundstellen</th>' : '') + (vorbei ? '<th class="strecke-badge-zelle">Badge</th>' : '') + '</tr></thead><tbody>';
   piloten.forEach(p => {
     const farbe = !(p.abschnitte > 0) ? ''
       : (farben && farben.get(p.cid)) || _STRECKE_FARBE_AB;
@@ -18044,7 +18046,7 @@ function _streckePilotenHtml(r, wahl) {
     html += `<tr><td>${punkt}${pilotLinkHtml(p.name || String(p.cid), p.cid)}</td>`
           + `<td class="mono">${_streckeKm(p.km || 0, r.km_gesamt)} km</td><td class="mono">${anteil} %</td>`
           + (mitFunden ? `<td class="mono">${p.funde > 0 ? Number(p.funde) + ' entdeckt' : '–'}</td>` : '')
-          + (vorbei ? `<td>${_streckeHatBadge(p) ? _streckeBadgeLinks(r.id, p.cid) : ''}</td>` : '') + '</tr>';
+          + (vorbei ? `<td class="strecke-badge-zelle">${_streckeHatBadge(p) ? _streckeBadgeLinks(r.id, p.cid) : ''}</td>` : '') + '</tr>';
   });
   return html + '</tbody></table></div>';
 }
