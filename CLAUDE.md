@@ -481,6 +481,36 @@ neuen Namen. `_reddung_rechnung_geaendert` verwirft ihn nur noch, wenn sich ein 
 wirklich ändert (`_REDDUNG_OHNE_RECHNUNG`: Name, `lagetext`, Badge-Name …). Wer ein neues
 Feld ohne Einfluss auf den Stand anlegt, trägt es dort ein.
 
+## Standards für jeden neuen Eventtyp (stehende Regeln, Nutzer 10.10.2026)
+
+*„Merke dir diese Standards auch für weitere Eventtypen. Also zum Beispiel die Buttons unter
+Admin. Oder Badge. Und so weiter.“* Vorbild ist die FriesenReddung; die Deichkontrolle ist der
+erste Typ, der danach gebaut wurde. Kieker und Baake folgen demselben Muster, ohne dass es neu
+ausgehandelt wird:
+
+- **Liste in der Verwaltung wie bei der Reddung:** je Event eine Karte (`list-row`) mit Name,
+  Beginn, Abzeichen (Zustand, Herkunft „manuell/Kalender“, Push an/aus), dem Stand als Satz,
+  Einzelheiten als kleine Tabelle und darunter der Knopfreihe **Bearbeiten · 🔗 Link · Push
+  ein/aus · Löschen** (dazu, was der Typ selbst braucht). Keine eigene Tabellenform.
+- **Löschen mit erneutem Passwort** (`require_confirm`, in der Seite `confirmCritical`).
+- **Push je Event schaltbar:** Erinnerung eine Stunde vorher (`…_events_due_for_reminder`) und
+  Meldung zum Beginn (Latch in `event_reminders_sent`, sofort festschreiben).
+- **Link:** Direktlink `#tab=events&<typ>=ID`, in der Verwaltung als Knopf, in der Ansicht „Teilen“.
+- **Badge** für jeden Teilnehmer nach dem Muster der Reddung, samt Text fürs Forum.
+- **Einstellungen, die alle betreffen, gehören in die Verwaltung des Events**, nicht als
+  Schalter in die Mitgliederansicht (Beispiel: die Farbwahl der Deichkontrolle).
+- **Mitglieder:** Zeile in der Eventliste mit Kurzstand, Block im Live-Tab, solange das Event
+  läuft, eigene Eventansicht (`_<typ>OffenId` in der Scrollregel von `renderEventsResults()`),
+  darunter die Flugspuren des Abends (`analyse` mit Platz und Radius), Ebene auf der Live-Karte.
+- **Die FriesenBrügge ist Voraussetzung**, sobald genaue Positionen oder Objekte gebraucht
+  werden; die Position selbst darf auch vom Kniebrett kommen.
+- **Geteilte Funktionen eventunabhängig bauen und benennen** (Vorbild `app/abdeckung.py`,
+  `app/gruppen.py`), nicht im Namensraum eines Eventtyps.
+- **README-Abschnitt für Mitglieder und für die Verwaltung im selben Commit**, Changelog ohne
+  Hauptnummer und ohne Highlight, solange der Nutzer nichts anderes sagt.
+- **Erst aufs Testsystem** (Zweig `test`), nach `main` nur auf Wort des Nutzers.
+- **Entscheidungsfragen einzeln stellen**, eine je Nachricht, mit Empfehlung.
+
 ## Deichkontrolle: eine Strecke abfliegen (stehende Regeln, Nutzer 10.10.2026)
 
 - **„Deichkontrolle“ ist nur der Name.** Abgeflogen wird, was in der Verwaltung auf der Karte

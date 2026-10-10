@@ -179,9 +179,95 @@ README-Absatz und Hilfetext hinter dem „?“ im selben Commit wie die Ansicht;
 `docs/architecture.md`, `CLAUDE.md` (Tabelle „Stellt etwas in den Simulator?“ bekommt die Zeile:
 nein, aber Brügge Pflicht wegen der Positionen) und `docs/offene-aufgaben.md`.
 
-## 15. Vor der Freigabe zu klären
+## 15. Fundstellen und Objektgruppen (entschieden am 10.10.2026, Bau begonnen)
 
-1. **Name und Zeichen** des Eventtyps für Mitglieder. Arbeitsname ist „Deichkontrolle“ mit 🌊.
-2. **Versionsnummer.** Die Ansicht ist eine sichtbare Neuerung außerhalb der Verwaltung; nach der
-   stehenden Regel wird der Schritt zur Hauptnummer vorher abgesprochen.
-3. **Zeitpunkt des Ausrollens**, nicht zu Flugzeiten.
+**Anlass (Nutzer):** Eine Strecke nur abzufliegen ist langweilig, wenn man nichts sieht. In der
+Deichkontrolle sollen Objekte an mehreren Orten stehen können, auch als ganze Gruppe einer Art,
+gestreut „wie eben eine Seehundkolonie“ und nicht in Reih und Glied. Dieselbe Streufunktion braucht
+der FriesenKieker (#20) für seine Kolonien und, mit einem Objekt je Station, die FriesenBaake (#24).
+
+### Entschieden
+
+| | Entscheidung |
+|---|---|
+| F1 | **Die Fundstelle zählt, nicht das einzelne Objekt.** Eine Kolonie mit 14 Robben ist ein Fund; das Ergebnis lautet „6 von 10 gefunden“. Einzelne Tiere zu zählen ist der Kieker. |
+| F2 | **Funde nur mit FriesenBrügge** (sie ist ohnehin Teilnahmevoraussetzung, s. E3). |
+| F3 | **Objekte erst aus der Nähe:** Die Brügge bekommt sie erst, wenn der Pilot nah dran ist (wie das Wrack der Reddung, `nur_nah_m`). Auf unserer Karte erscheint eine Fundstelle erst nach dem Fund. |
+| F4 | **Finden wie bei der Reddung** (tief und nah darüber), danach **hellblauer Rauch** an der Stelle. **Kein Aufnehmen, kein Einliefern.** Die Suche geht nach einem Fund weiter. |
+| F5 | **Gutschrift:** Wer entdeckt, bekommt den Fund. Je Pilot wird gezählt, wie viele er entdeckt hat. |
+| F6 | **Badge gleich mitbauen**, nach dem Muster der Reddung: Name des Events, Kilometer und Funde („22,8 km abgeflogen · 2 entdeckt“), dazu der Text fürs Forum. |
+| F7 | **Je Gruppe einstellbar:** Ort, Art, Mindest- und Höchstmenge, Mindest- und Höchstabstand; Menge, Abstand und Richtung werden gewürfelt. |
+
+### Anforderungen an die Streufunktion (damit Kieker und Baake sie ohne Umbau nutzen)
+
+1. **Eventunabhängig:** eigenes Modul `app/gruppen.py`, reine Rechnung. Bekommt Ort, Art und
+   Parameter, liefert die Lage der Objekte.
+2. **Die gewürfelte Zahl bleibt gespeichert** (der Kieker wertet später die Schätzung dagegen).
+3. **Wiederholbar:** derselbe Startwert ergibt dieselbe Lage; ein anderer Startwert je Pilot ergäbe
+   je Pilot eine eigene Lage (für den Kieker entschieden: umschaltbar).
+4. **Eine Gruppe darf aus einem Objekt bestehen** (Baake: eine Station, ein Objekt).
+5. **Richtung gewürfelt oder fest** (Robben kreuz und quer, ein Pfeil zeigt in eine Richtung).
+6. **Auslieferung an eine Bedingung knüpfbar:** heute „erst aus der Nähe“, bei der Baake später
+   „erst wenn die vorige Station gefunden ist“.
+
+### Geplanter Aufbau
+
+- **`app/gruppen.py`:** `streuen(lat, lon, menge_min, menge_max, abstand_min_m, abstand_max_m,
+  seed, richtung=None)` liefert `[{lat, lon, kurs}]`. Erstes Objekt in der Mitte, jedes weitere im
+  gewürfelten Abstand zu einem schon gesetzten, nie näher als der Mindestabstand an einem anderen.
+- **Tabelle `strecken_fundstellen`:** je Fundstelle Ort, Art, die Parameter, Startwert, gewürfelte
+  Menge und Lage (`objekte_json`), Geländehöhe an der Stelle, `gefunden_am`, `gefunden_von`.
+  Fundradius und Fundhöhe je Event (`fund_radius_m` 150, `fund_hoehe_ft` 1000, wie bei der Reddung).
+- **Finden:** in `strecke_fortschreiben`, mit der Abdeckungsrechnung gegen die Mitte der Fundstelle
+  (Radius = Fundradius, Höhe = Gelände dort + Fundhöhe, keine Mindestgeschwindigkeit). Der Fund
+  wird in der Tabelle gelatcht (`… WHERE gefunden_am IS NULL`).
+- **Objekte im Simulator:** `strecke_objekte_abgleichen` im Poller-Takt, über `bruegge_soll` wie
+  `reddung_objekte_abgleichen`: vor dem Fund die Objekte mit `nur_nah_m`, nach dem Fund für alle
+  sichtbar plus `rauch_hellblau` (und `licht`) an der Stelle, nach `dtend` alles weg, beim Löschen
+  des Events ebenfalls. **Grenze:** `bruegge_soll` fasst höchstens 200 Objekte, Rauch eingerechnet;
+  die Verwaltung muss das beim Speichern prüfen.
+- **Schnittstellen:** Der Stand für Mitglieder nennt Anzahl und Zahl der gefundenen Fundstellen,
+  die gefundenen mit Ort, Finder und Zeit, und je Pilot seine Funde; **nicht gefundene nie mit
+  Koordinate**, solange das Event läuft (nach `dtend` dürfen sie erscheinen, wie der Fundort der
+  Reddung). Die Verwaltung sieht alles. Fundstellen kommen im Körper von Anlegen/Ändern als Liste
+  mit; unveränderte behalten ihren Fundstand, „neu würfeln“ vergibt einen neuen Startwert.
+- **Verwaltung:** Fundstellen auf derselben Karte wie die Strecke klicken (eigener Modus), je
+  Fundstelle Art (Auswahl aus den Arten der FriesenBrügge), Mengen und Abstände; Vorschau der
+  gewürfelten Lage; in der Karte der Liste die Zeile „Fundstellen: 6 von 10 gefunden“.
+- **Mitglieder:** gefundene Fundstellen als Marke auf Karte und Eventkarte, Zeile „6 von 10
+  gefunden“ in der Ansicht, Funde je Pilot in der Liste, Badge.
+- **Aufräumen:** die von Reddung und Deichkontrolle geteilten Funktionen neutral benennen und an
+  eine gemeinsame Stelle legen (`_reddung_punkte_mischen`, `_reddung_punkte_neu`,
+  `_reddung_sektoren`, `_REDDUNG_RAND_KM`, `_reddung_soll_setzen`, `reddung.analyse_platz`), ohne
+  Verhalten zu ändern.
+- **Probeskript:** Fundstellen anlegen und für die erfundenen Piloten auch VATSIM-Flüge schreiben,
+  damit im Testsystem Flugspuren zu sehen sind.
+
+## 16. Stand des Baus (10.10.2026, vormittags)
+
+**Fertig, getestet, auf der Teststufe (`test`, 16.5.0), nicht in `main`:** alles aus den
+Abschnitten 5 bis 14, dazu Push (Erinnerung und Beginn), Farbe als Einstellung des Events, Liste
+der Verwaltung nach dem Muster der Reddung, Flugspuren unter der Eventansicht, Kniebrett-Position
+für Brügge-Teilnehmer. Suite: 4401 Tests grün.
+
+**Noch nicht gebaut:** alles aus Abschnitt 15. Begonnen ist nichts davon im Code.
+
+**Offene Fragen an den Nutzer** (keine hält den Bau auf):
+
+- Offene Abschnitte sind auf der Fliegerkarte schwach zu sehen (blasses gestricheltes Blau auf
+  hellem Grund): kräftiger, mit dunklem Saum, oder so lassen?
+- Wortlaute der Ansicht einmal lesen („So zählt ein Abschnitt: …“, „Für diese Strecke fehlen noch
+  die Geländehöhen. …“, Legende „so nah muss man dran sein“).
+- Verwaltung: Luftbild als Startkarte wie bei der Reddung? Neue Punkte nur am Ende der Strecke,
+  kein Einfügen in der Mitte: reicht das?
+- Mehr als acht Piloten mit Treffern teilen sich bei „je Pilot eine Farbe“ Farben.
+- Die Verwaltungs-Endpunkte prüfen (wie alle übrigen) nicht, von welcher Seite ein Aufruf kommt;
+  soll das für die ganze Verwaltung angesehen werden?
+- Entwurfsseite `files.devprops.de/deichkontrolle-karte.html` löschen?
+
+## 17. Vor der Freigabe zu klären
+
+1. ✅ **Name und Zeichen:** „Deichkontrolle“ mit 🌊, bestätigt am 10.10.2026.
+2. ✅ **Versionsnummer:** keine Hauptnummer, 16.5.0.
+3. **Ausrollen nach `main`:** nur auf Wort des Nutzers, nicht zu Flugzeiten. Bis dahin liegt der
+   Stand auf der Teststufe.
