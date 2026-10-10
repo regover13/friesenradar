@@ -12170,6 +12170,8 @@ def lotsen_namen_aufraeumen(conn: sqlite3.Connection, ts: str) -> int:
     beim nächsten Lotsen wird er neu gelernt."""
     bedingung = (
         "cid NOT IN (SELECT cid FROM forum_callsign) "
+        # dieselbe Schranke wie in lotsen_bekannte: Abgeschaltete tauchen nicht auf
+        "OR cid IN (SELECT cid FROM pilots WHERE active = 0) "
         "OR cid IN (SELECT cid FROM pilots WHERE TRIM(COALESCE(name, '')) != '' "
         "           AND TRIM(name) GLOB '*[^0-9]*') "
         "OR gesehen_am < date(?, '-365 days')"

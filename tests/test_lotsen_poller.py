@@ -380,3 +380,68 @@ def test_aufraeumen_vergisst_namen_die_ein_jahr_nicht_bestaetigt_wurden(pfad):
 def test_aufraeumen_laeuft_mit_dem_abruf_der_buchungen():
     import inspect
     assert "lotsen_namen_aufraeumen(" in inspect.getsource(VatsimPoller._lotsen_buchungen_holen)
+
+
+# --- Zweite Sicherheitsprüfung 10.10.2026: gelöschte Namen dürfen nirgends weiterleben -----
+
+def test_abgeschaltete_piloten_werden_beim_aufraeumen_vergessen(pfad):
+    """Dieselbe Schranke wie bei der Anzeige: Wer abgeschaltet ist, taucht nicht auf --
+    dann wird auch sein gemerkter Name nicht behalten."""
+    c = get_connection(pfad)
+    try:
+        c.execute("INSERT INTO forum_callsign (callsign, cid, updated_at) VALUES ('FRS88', 1000003, '2026-01-01')")
+        c.execute("UPDATE pilots SET name = '' WHERE cid = 1000003")
+        db.lotsen_name_merken(c, 1000003, "Aus Geschaltet", "2026-10-10T08:00:00Z")
+        db.lotsen_namen_aufraeumen(c, "2026-10-10T09:00:00Z")
+        c.commit()
+    finally:
+        c.close()
+    assert _gemerkt(pfad) == {}
+
+
+def test_schnittstelle_nimmt_namen_frisch_aus_der_datenbank(pfad, monkeypatch):
+    """Im Speicher des Pollers steht eine Schicht bis zu zehn Minuten, bei gestörtem Abruf
+    länger. Ein dort mitgeführter Name überlebte seine Löschung."""
+    import app.main as main
+    p = _poller(pfad)
+    alt = {"id": 21, "cid": 1000004, "name": "Frieda Forum EDDW", "callsign": "EDDS_TWR", "station": "Stuttgart Tower",
+           "icao": "EDDS", "lat": 48.7, "lon": 9.2, "von": "2026-10-11T18:00:00Z", "bis": "2026-10-11T20:00:00Z"}
+    p.lotsen_buchungen = [alt]
+    p.lotsen_online = [{"cid": 1000004, "name": "Frieda Forum EDDW", "callsign": "EDDP_GND", "station": "Leipzig Ground",
+                        "frequenz": "121.805", "icao": "EDDP", "lat": 51.4, "lon": 12.2,
+                        "online_seit": "2026-10-09T13:33:10Z", "bis": None}]
+    _App.state.poller = p
+    monkeypatch.setattr(main, "_lotsen_jetzt", lambda: datetime(2026, 10, 9, 15, 0, tzinfo=UTC))
+    erg = asyncio.run(main.get_lotsen(_Anfrage()))
+    assert erg["geplant"][0]["name"] == "FRS77" and erg["online"][0]["name"] == "FRS77", \
+        "in der Datenbank steht kein Name mehr, also auch hier nicht"
+    assert p.lotsen_buchungen[0]["name"] == "Frieda Forum EDDW", "der Speicher selbst bleibt unangetastet"
+
+
+def test_schnittstelle_laesst_weg_wer_nicht_mehr_dazugehoert(pfad, monkeypatch):
+    import app.main as main
+    p = _poller(pfad)
+    p.lotsen_buchungen = [dict(B_HEUTE, id=31, cid=1000003), dict(B_HEUTE, id=32, cid=4444444), B_HEUTE]
+    _App.state.poller = p
+    monkeypatch.setattr(main, "_lotsen_jetzt", lambda: datetime(2026, 10, 9, 15, 0, tzinfo=UTC))
+    erg = asyncio.run(main.get_lotsen(_Anfrage()))
+    assert [b["id"] for b in erg["geplant"]] == [11], "abgeschaltet und unbekannt fallen weg"
+
+
+def test_meldungen_nehmen_den_namen_frisch(pfad):
+    p = _poller(pfad)
+    p._lotsen_buchungen_da = True
+    _melden(p, datetime(2026, 10, 8, 12, 0, tzinfo=UTC))
+    _melden(p, datetime(2026, 10, 9, 5, 1, tzinfo=UTC))
+    p.lotsen_buchungen = [dict(B_HEUTE, cid=1000004, name="Frieda Forum EDDW")]
+    _melden(p, datetime(2026, 10, 9, 10, 0, tzinfo=UTC))
+    assert p.push[0][2]["title"] == "FRS77 lotst heute Stuttgart Tower 🎧"
+
+
+def test_nach_einem_fehler_steht_niemand_mehr_als_lotse_da(pfad):
+    """Fehlt der neue Stand, wird der alte nicht weiter ausgeliefert."""
+    p = _poller(pfad)
+    p._lotsen_aus_feed(_feed((1000001, "EDDP_GND")), set())
+    assert len(p.lotsen_online) == 1
+    p._lotsen_aus_feed({"controllers": "kaputt"}, set())
+    assert p.lotsen_online == []

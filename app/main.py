@@ -4331,10 +4331,12 @@ async def get_lotsen(request: Request):
     Pilot, der vom Flugplan in die Live-Liste wandert."""
     poller: VatsimPoller = request.app.state.poller
     jetzt = _lotsen_jetzt().strftime("%Y-%m-%dT%H:%M:%SZ")
-    online = [dict(l) for l in poller.lotsen_online]
+    # Namen frisch aus der Datenbank, nicht aus dem Speicher des Pollers (s. lotsen_mit_namen).
+    online = poller.lotsen_mit_namen(poller.lotsen_online)
     lotst = {(l["cid"], l["callsign"]) for l in online}
-    geplant = [dict(b) for b in poller.lotsen_buchungen
-               if b["bis"] > jetzt and (b["cid"], b["callsign"]) not in lotst]
+    geplant = poller.lotsen_mit_namen(
+        [b for b in poller.lotsen_buchungen
+         if b["bis"] > jetzt and (b["cid"], b["callsign"]) not in lotst])
     return {"online": online, "geplant": geplant}
 
 

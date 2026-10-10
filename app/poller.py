@@ -1833,7 +1833,26 @@ class VatsimPoller:
                 if self.vapid_private_key:
                     asyncio.create_task(self._lotse_push_online(l, payload))
         except Exception:
+            # Ohne neuen Stand den alten nicht weiter ausliefern: Er könnte jemanden zeigen,
+            # der längst nicht mehr lotst oder dessen Name inzwischen gelöscht ist.
+            self.lotsen_online = []
             logger.exception("Fehler beim Auslesen der Lotsen")
+
+    def lotsen_mit_namen(self, eintraege: list[dict]) -> list[dict]:
+        """Kopien der Einträge mit dem Namen, wie er JETZT in der Datenbank steht.
+
+        Die Listen im Speicher führen einen Namen nur als Momentaufnahme mit (die Schichten
+        bis zu zehn Minuten, bei gestörtem Abruf länger). Alles, was ausgeliefert oder
+        gemeldet wird, geht deshalb hier durch: Ein gelöschter Name lebt so nirgends weiter,
+        und wer nicht mehr dazugehört oder abgeschaltet ist, fällt weg."""
+        conn = get_connection(self.db_path)
+        try:
+            bekannte = lotsen_bekannte(conn)
+            for cid in get_inactive_cids(conn):
+                bekannte.pop(cid, None)
+        finally:
+            conn.close()
+        return [dict(e, name=bekannte[e["cid"]]) for e in eintraege if e.get("cid") in bekannte]
 
     async def _lotsen_buchungen_holen(self) -> None:
         """Buchungsliste von VATSIM holen. Scheitert der Abruf, bleibt die alte Liste stehen.
@@ -1890,6 +1909,8 @@ class VatsimPoller:
                 conn.commit()
             finally:
                 conn.close()
+            plan["morgen"] = self.lotsen_mit_namen(plan["morgen"])
+            plan["spaet"] = self.lotsen_mit_namen(plan["spaet"])
             # Im Kniebrett je Schicht eine Meldung: Der Kanal dort kennt genau eine Person
             # je Meldung (Sichtbarkeit), eine Sammelmeldung ließe sich nicht filtern.
             for b in plan["morgen"] + plan["spaet"]:

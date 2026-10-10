@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.4.5",
+    "date": "2026-10-10",
+    "highlight": false,
+    "title": "Gelöschte Lotsennamen bleiben gelöscht",
+    "items": [
+      "🔒 Listen und Meldungen nehmen den Namen eines Lotsen jetzt immer frisch aus der Datenbank. Ein gelöschter Name konnte vorher noch bis zum nächsten Abruf der Buchungsliste stehen bleiben.",
+      "🔒 Wer in der Pilotenliste abgeschaltet ist, dessen gemerkter Name wird ebenfalls gelöscht."
+    ]
+  },
+  {
     "version": "16.4.4",
     "date": "2026-10-10",
     "highlight": false,
