@@ -443,9 +443,11 @@ _REDDUNG_TAKT_S = _OBJEKT_TAKT_S
 #: Takt der Deichkontrolle. Anfangs 30 s, als es nur die Strecke gab und niemand auf etwas
 #: wartete. **10 s wie bei der Reddung, seit es Fundstellen gibt** (Nutzer, 10.10.2026): Der
 #: Rauch nach einem Fund kommt mit diesem Takt, und bei 30 s war der Pilot schon anderthalb
-#: Kilometer weiter. Dieselbe Warnung wie oben: Der Job laeuft im Event-Loop; gemessen sind
-#: rund 10 bis 20 ms fuer den Abgleich von 170 bis 190 verborgenen Objekten, mit allen
-#: Fundstellen gefunden (Rauch und Licht dazu) waren es vor dem Zwischenspeichern der Arten 80 ms.
+#: Kilometer weiter. Dieselbe Warnung wie oben: Der Job laeuft im Event-Loop. ⚠ Mit einer
+#: frischen Datenbank misst man hier zu wenig: In der Testinstanz mit dem ECHTEN Katalog der
+#: Bruegge dauerte ein Lauf 150 bis 180 ms, fast alles davon das Nachschlagen der Arten je
+#: Simulator. Seit der Katalog je Lauf nur einmal gelesen wird, sind es rund 30 ms
+#: (``strecke_objekte_abgleichen``). Laufzeiten deshalb in der Testinstanz messen.
 _STRECKE_TAKT_S = _OBJEKT_TAKT_S
 #: So lange nach ``dtend`` laeuft ein Event noch durch den Takt.
 _STRECKE_NACHLAUF_S = 600

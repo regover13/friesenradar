@@ -444,3 +444,25 @@ def test_zwei_events_am_selben_abend_zaehlen_zusammen(conn):
     assert db.strecke_soll_bedarf_andere(conn, b, START, ENDE) == 12
     assert db.strecke_soll_bedarf_andere(conn, spaeter, "2026-10-17T18:00:00Z",
                                          "2026-10-17T21:00:00Z") == 0
+
+
+def test_der_abgleich_liest_den_katalog_je_simulator_nur_einmal(conn, monkeypatch):
+    """Der Job haelt alle zehn Sekunden die Event-Loop. Mit dem echten Katalog kostet jedes
+    Nachschlagen rund 9 ms -- je Art und Simulator eines waren 155 ms (gemessen in der
+    Testinstanz, 10.10.2026)."""
+    eid = _ev(conn, [_fs(3.0), _fs(5.0, art="seecontainer"), _fs(8.0, art="seehund_heuler")])
+    conn.execute("UPDATE strecken_fundstellen SET gefunden_am = ?, gefunden_von = 7", (MITTEN,))
+    rufe = []
+    echt = db.bruegge_titel_fuer
+    monkeypatch.setattr(db, "bruegge_titel_fuer", lambda c, sim: rufe.append(sim) or echt(c, sim))
+    strecke_objekte_abgleichen(conn, get_strecken_event(conn, eid), now=MITTEN)
+    assert sorted(rufe) == sorted(db._SOLL_SIMULATOREN)
+    assert any("rauch" in i for i in _soll(conn, eid))
+
+
+def test_ohne_fundstellen_liest_der_abgleich_den_katalog_gar_nicht(conn, monkeypatch):
+    eid = _ev(conn)
+    rufe = []
+    monkeypatch.setattr(db, "bruegge_titel_fuer", lambda c, sim: rufe.append(sim) or {})
+    strecke_objekte_abgleichen(conn, get_strecken_event(conn, eid), now=MITTEN)
+    assert rufe == []

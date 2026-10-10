@@ -10886,11 +10886,14 @@ def reddung_letzte_naehe(conn: sqlite3.Connection, ev: dict, ab: str, bis: str) 
     return max(nah) if nah else None
 
 
-def _art_je_simulator(conn: sqlite3.Connection, art: str) -> dict[str, str | None]:
+def _art_je_simulator(conn: sqlite3.Connection, art: str,
+                      titel: dict | None = None) -> dict[str, str | None]:
     """Welche Art ist in welchem Simulator setzbar? ``None`` = dort gibt es keine."""
     ergebnis: dict[str, str | None] = {}
     for sim in _SOLL_SIMULATOREN:
-        vorhanden = bruegge_titel_fuer(conn, sim)
+        # `titel` erspart die Abfrage je Simulator, wenn der Aufrufer viele Arten nachschlaegt:
+        # Mit dem echten Katalog kostet sie rund 9 ms, also 27 ms je Art.
+        vorhanden = titel[sim] if titel is not None else bruegge_titel_fuer(conn, sim)
         if art in vorhanden:
             ergebnis[sim] = art
             continue
@@ -13167,22 +13170,32 @@ def strecke_objekte_abgleichen(conn: sqlite3.Connection, ev: dict, weg: bool = F
     now = now or _now_utc()
     if not weg and (ev.get("dtstart") or "") <= now <= (ev.get("dtend") or ""):
         gilt_bis = ev["dtend"]
-        je_art: dict[str, dict] = {was: _art_je_simulator(conn, was)
-                                   for was in ("rauch_hellblau", "licht")}
-        for f in strecke_fundstellen(conn, ev["id"]):
-            art = f["art"]
+        # Den Katalog je Simulator EINMAL je Aufruf lesen, und nur, wenn es Fundstellen gibt:
+        # In der Testinstanz mit dem echten Katalog kostete das Nachschlagen je Art 27 ms --
+        # sechs Arten waren 155 ms in einem Job, der alle zehn Sekunden die Event-Loop haelt.
+        fundstellen = strecke_fundstellen(conn, ev["id"])
+        titel = ({sim: bruegge_titel_fuer(conn, sim) for sim in _SOLL_SIMULATOREN}
+                 if fundstellen else {})
+        je_art: dict[str, dict] = {}
+
+        def art_je_sim(art: str) -> dict:
             if art not in je_art:
-                je_art[art] = _art_je_simulator(conn, art)
+                je_art[art] = _art_je_simulator(conn, art, titel)
+            return je_art[art]
+
+        for f in fundstellen:
+            art = f["art"]
             nah = None if f.get("gefunden_am") else _FUNDSTELLE_NAH_M
             for i, o in enumerate(f["objekte"]):
                 gewollt += _soll_setzen_je_simulator(
                     conn, f"{vorsatz}f{f['id']}-{i}", art, o["lat"], o["lon"], gilt_bis,
-                    nur_nah_m=nah, kurs=o.get("kurs"), je_sim=je_art[art])
+                    nur_nah_m=nah, kurs=o.get("kurs"), je_sim=art_je_sim(art))
             if f.get("gefunden_am"):
                 for teil, was in (("rauch", "rauch_hellblau"), ("licht", "licht")):
                     gewollt += _soll_setzen_je_simulator(
                         conn, f"{vorsatz}f{f['id']}-{teil}", was,
-                        f["lat"] + _FACKEL_VERSATZ_GRAD, f["lon"], gilt_bis, je_sim=je_art[was])
+                        f["lat"] + _FACKEL_VERSATZ_GRAD, f["lon"], gilt_bis,
+                        je_sim=art_je_sim(was))
     behalten = set(gewollt)
     # Der Vorsatz endet auf "-": `strecke-1-` trifft `strecke-12-…` nicht. GLOB statt LIKE,
     # weil LIKE den Unterstrich als Platzhalter liest.
