@@ -265,7 +265,10 @@ def test_wenige_pfade_ein_zug_je_zusammenhaengendem_stueck():
 def test_gezeichnet_wird_als_svg_in_gebuendelten_pfaden():
     rumpf = _ohne_kommentare(_funktion("_streckeZeichnen"))
     assert "L.canvas" not in rumpf and "renderer:" not in rumpf
-    assert rumpf.count("L.polyline(") == 4          # Band, Offenes, Tipp-Faenger, je Farbe einer
+    # Band, Saum und Linie des Offenen, Tipp-Faenger, je Farbe einer
+    assert rumpf.count("L.polyline(") == 5
+    assert "z.saum.setLatLngs(laeufe.offen)" in rumpf and "ziel.addLayer(z.saum)" in rumpf
+    assert "z.saum" in _funktion("_streckeZeichnungWeg") or "z.saum, z.offen" in INDEX
     assert "_streckeLaeufe(" in rumpf and "dashArray" in rumpf
     assert "karte.on('zoomend'" in rumpf            # die echte Breite haengt am Massstab
     assert "_streckeBandBreite(" in _funktion("_streckeBandAnpassen")
@@ -486,4 +489,5 @@ def test_die_neuen_helfer_brauchen_keinen_zustand_hinter_dem_ersten_aufruf():
         "_streckeStandNr", "_streckeStand", "_streckeOffenId", "_streckeGruppe", "_streckeEbeneDa",
         "_streckeAbgewaehlt", "_streckeSelbst", "_streckeZeichnung", "_streckeKarte",
         "_streckeKarteWird", "_streckeKarteFuer", "_STRECKE_FARBE_AB", "_STRECKE_FARBE_OFFEN",
-        "_STRECKE_FARBE_BAND", "_STRECKE_PALETTE"}
+        "_STRECKE_FARBE_BAND", "_STRECKE_PALETTE",
+        "_STRECKE_FARBE_SAUM", "_STRECKE_STRICH_OFFEN"}

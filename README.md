@@ -522,8 +522,8 @@ Orden an deinem Namen.
   Kilometer schon abgeflogen sind, der Vorgabe und dem Ende des Events. **Zur Karte** springt
   direkt auf die Strecke und schaltet dabei die mitlaufende Karte ab, sonst zöge sie dich gleich
   wieder zum eigenen Flugzeug.
-- **Karte:** Die Ebene **Deichkontrolle** zeigt die Strecke: blass gestrichelt, was noch offen
-  ist, kräftig orange, was schon abgeflogen ist. Darunter liegt ein blasses gelbes Band, so breit,
+- **Karte:** Die Ebene **Deichkontrolle** zeigt die Strecke: hellblau gestrichelt mit dunklem
+  Saum, was noch offen ist, durchgezogen orange, was schon abgeflogen ist. Darunter liegt ein blasses gelbes Band, so breit,
   wie man neben der Strecke fliegen darf — weit herausgezoomt ist es nur ein feiner Saum, beim
   Hineinzoomen wird es breiter. So seht ihr in der Luft, wo noch niemand war. Ein Tipp auf die
   Strecke nennt den Abschnitt und wer ihn wann abgeflogen hat. Die Ebene frischt sich alle 30

@@ -1577,7 +1577,7 @@
     #strecke-karte { width: 100%; height: 62vh; min-height: 18rem; max-height: 36rem; }
     .strecke-legende { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.75rem; color: var(--text-label); margin: 0.4rem 0 0.8rem; }
     .strecke-legende i { display: inline-block; width: 1.6rem; height: 0; vertical-align: middle; margin-right: 0.35rem; border-top: 0.25rem solid; }
-    .strecke-legende .sl-offen { border-top-style: dashed; border-top-color: #6b9ab8; }
+    .strecke-legende .sl-offen { border-top-style: dashed; border-top-color: #8FBFF1; filter: drop-shadow(0 0 1px #191D53) drop-shadow(0 0 1px #191D53); }
     .strecke-legende .sl-ab { border-top-color: #D75F28; }
     .strecke-legende .sl-band { border-top-width: 0.6rem; border-top-color: rgba(245,197,66,0.5); }
     .strecke-punkt {
@@ -5259,7 +5259,7 @@
               <li><strong>Meldepunkte</strong> — VFR-Meldepunkte weltweit; gefüllt heißt meldepflichtig, hohl heißt auf Anforderung</li>
               <li><strong>FSE-Plätze</strong> und <strong>FSE-Landeflächen</strong> — zwei eigene Haken: Plätze aus FSEconomy mit Bahnlänge, Belag und dem Namen, unter dem der Platz im Simulator zu finden ist</li>
               <li><strong>FriesenReddung</strong> — der Suchsektor als rot gestrichelter Rahmen, darin blau, was schon abgesucht ist; erscheint nur, solange eine FriesenReddung läuft, und verschwindet mit ihrem Ende. Danach stehen Sektor und Zellen auf der Karte unter ihrer Bilanz. Wo der Havarist liegt, zeigt sie nie</li>
-              <li><strong data-strecke-name></strong> — die Strecke, die gemeinsam abgeflogen wird: blass gestrichelt, was noch offen ist, kräftig, was schon abgeflogen ist, darunter als blasses Band, wie nah man dran sein muss. Ein Tipp auf die Strecke nennt Abschnitt, Pilot und Uhrzeit. Manche Strecken haben Fundstellen: Orte, an denen im Simulator etwas steht. Sie bleiben verborgen, bis jemand tief und nah darüber fliegt. Danach steigt dort hellblauer Rauch auf, und die Fundstelle erscheint als hellblaue Marke mit ihrer Nummer; ein Tipp darauf nennt, was dort steht und wer sie wann entdeckt hat. Die Ebene erscheint nur, solange ein solches Event läuft; danach steht die Strecke auf der Karte in seiner Ansicht unter Events</li>
+              <li><strong data-strecke-name></strong> — die Strecke, die gemeinsam abgeflogen wird: hellblau gestrichelt, was noch offen ist, durchgezogen, was schon abgeflogen ist, darunter als blasses Band, wie nah man dran sein muss. Ein Tipp auf die Strecke nennt Abschnitt, Pilot und Uhrzeit. Manche Strecken haben Fundstellen: Orte, an denen im Simulator etwas steht. Sie bleiben verborgen, bis jemand tief und nah darüber fliegt. Danach steigt dort hellblauer Rauch auf, und die Fundstelle erscheint als hellblaue Marke mit ihrer Nummer; ein Tipp darauf nennt, was dort steht und wer sie wann entdeckt hat. Die Ebene erscheint nur, solange ein solches Event läuft; danach steht die Strecke auf der Karte in seiner Ansicht unter Events</li>
               <li><strong>Verkehr</strong> — der fremde VATSIM-Verkehr (grau, siehe oben); aus Platzgründen erst ab Zoomstufe 7</li>
               <li><strong>Radar Label</strong> — blendet die Beschriftungen am Fremdverkehr aus, wenn das Bild ruhiger sein soll; der Haken erscheint erst mit eingeschaltetem „Verkehr"</li>
             </ul>
@@ -17426,7 +17426,12 @@ function _streckeZeichenHtml() {
 // kommt als `farbe` mit Liste und Stand. Mitglieder haben keinen Umschalter (Nutzer,
 // 10.10.2026: „unter admin als button in den Einstellung des events!").
 const _STRECKE_FARBE_AB = '#D75F28';      // abgeflogen: Friesen-Orange
-const _STRECKE_FARBE_OFFEN = '#6b9ab8';   // offen, gestrichelt
+// Offen: helles Friesenblau, gestrichelt, auf einem dunklen Saum. Bis 10.10.2026 ein blasses
+// Graublau ohne Saum -- auf der hellen Fliegerkarte ging es zwischen Luftraeumen und Schrift
+// unter, und gerade das Offene muss man am Abend sehen (Nutzerentscheidung).
+const _STRECKE_FARBE_OFFEN = '#8FBFF1';
+const _STRECKE_FARBE_SAUM = '#191D53';
+const _STRECKE_STRICH_OFFEN = '7 9';
 const _STRECKE_FARBE_BAND = '#f5c542';    // der Korridor, sehr blass
 // Fest und gut unterscheidbar, auch bei Farbfehlsichtigkeit (Okabe-Ito, um zwei ergaenzt).
 // Vergeben in der Reihenfolge des ersten Treffers -- wer einmal eine Farbe hat, behaelt sie.
@@ -17618,8 +17623,11 @@ function _streckeZeichnen(schluessel, ziel, karte, d) {
     z = { ziel, karte, farbig: new Map(), marken: new Map() };
     z.band = L.polyline(ganze, { color: _STRECKE_FARBE_BAND, opacity: 0.16, weight: 2,
                                  lineCap: 'round', lineJoin: 'round', interactive: false });
-    z.offen = L.polyline(laeufe.offen, { color: _STRECKE_FARBE_OFFEN, weight: 4, opacity: 0.8,
-                                         dashArray: '2 9', lineCap: 'round', interactive: false });
+    // Der Saum liegt unter der Linie und hat denselben Strich, nur breiter.
+    z.saum = L.polyline(laeufe.offen, { color: _STRECKE_FARBE_SAUM, weight: 8, opacity: 0.85,
+                                        dashArray: _STRECKE_STRICH_OFFEN, lineCap: 'round', interactive: false });
+    z.offen = L.polyline(laeufe.offen, { color: _STRECKE_FARBE_OFFEN, weight: 4, opacity: 1,
+                                         dashArray: _STRECKE_STRICH_OFFEN, lineCap: 'round', interactive: false });
     // Unsichtbar und breit: Er faengt den Tipp, auch wo der Finger die schmale Linie verfehlt.
     z.tipp = L.polyline(ganze, { color: '#000', opacity: 0, weight: 22, interactive: true });
     z.tipp.on('click', e => {
@@ -17632,6 +17640,7 @@ function _streckeZeichnen(schluessel, ziel, karte, d) {
         .setContent(_streckeTippHtml(stand, a)).openOn(z.karte);
     });
     ziel.addLayer(z.band);
+    ziel.addLayer(z.saum);
     ziel.addLayer(z.offen);
     ziel.addLayer(z.tipp);
     // Die echte Breite haengt am Massstab -- bei jedem Zoomwechsel neu.
@@ -17640,6 +17649,7 @@ function _streckeZeichnen(schluessel, ziel, karte, d) {
     _streckeZeichnung.set(schluessel, z);
   } else {
     z.band.setLatLngs(ganze);
+    z.saum.setLatLngs(laeufe.offen);
     z.offen.setLatLngs(laeufe.offen);
     z.tipp.setLatLngs(ganze);
   }
@@ -17703,7 +17713,7 @@ function _streckeBandAnpassen(z) {
 function _streckeZeichnungWeg(schluessel) {
   const z = _streckeZeichnung.get(schluessel);
   if (!z) return;
-  [z.band, z.offen, z.tipp, ...z.farbig.values()].forEach(p => z.ziel.removeLayer(p));
+  [z.band, z.saum, z.offen, z.tipp, ...z.farbig.values()].forEach(p => z.ziel.removeLayer(p));
   z.marken.forEach(m => z.ziel.removeLayer(m.marke));
   z.karte.off('zoomend', z.beiZoom);
   _streckeZeichnung.delete(schluessel);
