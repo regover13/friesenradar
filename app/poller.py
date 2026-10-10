@@ -437,7 +437,8 @@ _REDDUNG_TAKT_S = 10
 #: wartete. **10 s wie bei der Reddung, seit es Fundstellen gibt** (Nutzer, 10.10.2026): Der
 #: Rauch nach einem Fund kommt mit diesem Takt, und bei 30 s war der Pilot schon anderthalb
 #: Kilometer weiter. Dieselbe Warnung wie oben: Der Job laeuft im Event-Loop; gemessen sind
-#: rund 20 ms fuer den Abgleich von 190 Objekten.
+#: rund 10 bis 20 ms fuer den Abgleich von 170 bis 190 verborgenen Objekten, mit allen
+#: Fundstellen gefunden (Rauch und Licht dazu) waren es vor dem Zwischenspeichern der Arten 80 ms.
 _STRECKE_TAKT_S = 10
 #: So lange nach ``dtend`` laeuft ein Event noch durch den Takt.
 _STRECKE_NACHLAUF_S = 600
@@ -3372,6 +3373,11 @@ class VatsimPoller:
                         conn.rollback()
                         logger.exception("Deichkontrolle %s: Fortschreiben gescheitert",
                                          ev.get("id"))
+                # Reste: Endet ein Event, waehrend der Server laenger als der Nachlauf steht,
+                # sieht es dieser Takt nie wieder -- seine Objekte blieben im Soll liegen.
+                conn.execute("DELETE FROM bruegge_soll WHERE id GLOB 'strecke-*' "
+                             "AND gilt_bis IS NOT NULL AND gilt_bis < ?", (seit,))
+                conn.commit()
                 if pushes:
                     subscriptions = get_push_subscriptions_for_events(conn)
             finally:

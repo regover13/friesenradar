@@ -265,3 +265,21 @@ def test_nach_dem_ende_raeumt_der_takt_den_simulator(db):
     c.close()
     _takt(db)
     assert _soll(db, eid) == {}
+
+
+def test_reste_eines_events_das_waehrend_eines_ausfalls_endete_werden_abgeraeumt(db):
+    """Stand der Server ueber das Ende hinaus laenger als der Nachlauf, sieht der Takt das Event
+    nie wieder -- seine Objekte duerfen trotzdem nicht im Soll liegen bleiben."""
+    alt = _iso(JETZT - timedelta(hours=3))
+    c = get_connection(db)
+    dbm.bruegge_soll_setzen(c, "strecke-77-f1-0", "licht", LAT, LON, gilt_bis=alt)
+    dbm.bruegge_soll_setzen(c, "strecke-78-f1-0", "licht", LAT, LON,
+                            gilt_bis=_iso(JETZT + timedelta(hours=1)))
+    dbm.bruegge_soll_setzen(c, "reddung-1-havarist", "licht", LAT, LON, gilt_bis=alt)
+    c.commit()
+    c.close()
+    _takt(db)
+    c = get_connection(db)
+    da = {r["id"] for r in dbm.bruegge_soll_alle(c)}
+    c.close()
+    assert da == {"strecke-78-f1-0", "reddung-1-havarist"}

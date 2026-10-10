@@ -104,13 +104,31 @@ def _fs(km=3.0, **extra):
     return f
 
 
-def _anlegen(**extra):
+def _anlegen(*, wie_angelegt=False, **extra):
+    """Ein Event anlegen. Die Tests legen laufende Events an und schreiben danach Flüge in die
+    Vergangenheit; der Server ließe Fundstellen eines schon laufenden Events erst ab JETZT
+    finden (`gilt_ab`). Deshalb wird das hier zurückgesetzt -- außer mit ``wie_angelegt``."""
     body = {"name": "Probe", **_laufend(), "punkte": GERADE, **extra}
-    return asyncio.run(main.admin_create_strecken_event(FakeReq(body=body)))["id"]
+    eid = asyncio.run(main.admin_create_strecken_event(FakeReq(body=body)))["id"]
+    if not wie_angelegt:
+        c = get_connection(main.get_settings().DB_PATH)
+        c.execute("UPDATE strecken_fundstellen SET gilt_ab = NULL WHERE event_id = ?", (eid,))
+        c.commit()
+        c.close()
+    return eid
 
 
 def _aendern(eid, **body):
     return asyncio.run(main.admin_update_strecken_event(FakeReq(body=body), eid))
+
+
+def _ev_zeiten(db, eid):
+    c = get_connection(db)
+    try:
+        ev = dbm.get_strecken_event(c, eid)
+        return ev["dtstart"], ev["dtend"]
+    finally:
+        c.close()
 
 
 def _fundstellen(db, eid):
@@ -263,7 +281,8 @@ def test_scheitert_das_hoehenmodell_wartet_die_neue_fundstelle_auf_den_knopf(db,
     antwort = _aendern(eid, fundstellen=[_fs(3.0), _fs(8.0)])
     assert antwort["grund_fehlt"] is True
     assert [f["grund_ft"] for f in _fundstellen(db, eid)] == [0.0, None]
-    assert main.strecke_stand(eid)["ohne_grund"] is True
+    assert main.strecke_stand(eid)["ohne_grund"] is False, "die Strecke läuft weiter"
+    assert main.admin_list_strecken_events(FakeReq())[0]["grund_da"] is False
 
     async def viele(punkte):
         return [50.0] * len(punkte)
@@ -360,9 +379,60 @@ def test_eine_fundstelle_die_waehrend_des_events_dazukommt_zaehlt_erst_ab_dann(d
     assert stand["abgedeckt"] > 0 and stand["fundstellen"]["gefunden"] == 0
 
 
-def test_beim_anlegen_gelten_fundstellen_von_beginn_an(db, modell):
-    eid = _anlegen(fundstellen=[_fs(3.0)])
+def test_beim_anlegen_vor_dem_beginn_gelten_fundstellen_von_beginn_an(db, modell):
+    bald = {"dtstart": _iso(JETZT + timedelta(hours=1)), "dtend": _iso(JETZT + timedelta(hours=3))}
+    eid = _anlegen(wie_angelegt=True, fundstellen=[_fs(3.0)], **bald)
     assert _fundstellen(db, eid)[0]["gilt_ab"] is None
+
+
+def test_ein_event_mit_beginn_in_der_vergangenheit_findet_erst_ab_jetzt(db, modell):
+    """Bis eben stand nichts im Simulator -- ein Überflug von vorhin ist kein Fund."""
+    eid = _anlegen(wie_angelegt=True, fundstellen=[_fs(3.0)])
+    assert _fundstellen(db, eid)[0]["gilt_ab"] >= _iso(JETZT)
+    _flug(db, 7, 0.0, 4.0, _laufend()["dtstart"])
+    stand = main.strecke_stand(eid)
+    assert stand["abgedeckt"] == 4 and stand["fundstellen"]["gefunden"] == 0
+
+
+def test_den_beginn_vorverlegen_schenkt_keine_funde(db, modell):
+    """Event beginnt in einer Stunde; jemand fliegt jetzt schon über die Stelle (im Simulator
+    steht nichts). Wird der Beginn danach vorverlegt, zählt die Strecke, der Fund nicht."""
+    frueh = _iso(JETZT - timedelta(hours=1))
+    bald = {"dtstart": _iso(JETZT + timedelta(hours=1)), "dtend": _iso(JETZT + timedelta(hours=3))}
+    eid = _anlegen(wie_angelegt=True, fundstellen=[_fs(3.0)], **bald)
+    _flug(db, 7, 0.0, 4.0, frueh)
+    _aendern(eid, dtstart=frueh, fundstellen=[_fs(3.0)])
+    stand = main.strecke_stand(eid)
+    assert stand["abgedeckt"] == 4 and stand["fundstellen"]["gefunden"] == 0
+    assert _fundstellen(db, eid)[0]["gilt_ab"] is not None
+
+
+def test_auch_eine_blosse_verschiebung_prueft_den_platz_im_simulator(db, modell):
+    """Ohne `fundstellen` im Körper -- das Formular schickt sie immer, ein anderer Aufrufer nicht."""
+    dicht = [_fs(k, menge_min=60, menge_max=60) for k in (2.0, 5.0)]          # 124
+    spaeter = {"dtstart": _iso(JETZT + timedelta(days=7)),
+               "dtend": _iso(JETZT + timedelta(days=7, hours=2))}
+    _anlegen(fundstellen=dicht)
+    zweites = _anlegen(fundstellen=dicht, **spaeter)
+    e = _fehler(lambda: _aendern(zweites, **_laufend()))
+    assert e.status_code == 400 and "frei sind 76" in e.detail
+    assert _ev_zeiten(db, zweites) == (spaeter["dtstart"], spaeter["dtend"]), "nichts gespeichert"
+
+
+def test_abgelaufenes_und_spaeter_endendes_im_soll_zaehlt_nach_zeit(db, modell):
+    """Was zum Beginn des Events nicht mehr gilt, nimmt ihm keinen Platz -- die Brügge liefert
+    es auch nicht mehr aus."""
+    c = get_connection(db)
+    for i in range(150):
+        bruegge_soll_setzen(c, f"alt-{i}", "licht", LAT, LON, gilt_bis="2020-01-01T00:00:00Z")
+    c.commit()
+    _anlegen(fundstellen=[_fs(3.0, menge_min=60, menge_max=60)])
+    for i in range(150):
+        bruegge_soll_setzen(c, f"neu-{i}", "licht", LAT, LON)          # ohne Ende: gilt immer
+    c.commit()
+    c.close()
+    e = _fehler(lambda: _anlegen(fundstellen=[_fs(3.0, menge_min=60, menge_max=60)]))
+    assert "frei sind 0" in e.detail
 
 
 def test_beginn_und_ende_brauchen_die_volle_form(db, modell):

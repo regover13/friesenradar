@@ -135,3 +135,23 @@ def test_eine_halbe_menge_wird_nicht_still_abgerundet():
     with pytest.raises(ValueError, match="ganze Zahl"):
         gruppen.pruefen(5.9, 9, 10, 40)
     assert gruppen.pruefen(5.0, "9", 10, 40)[:2] == (5, 9)
+
+
+def test_auch_im_ausweichpfad_haengt_jedes_objekt_an_einem_anderen():
+    """Dicht gepackt (Mindest- gleich Hoechstabstand) findet der Wuerfel oft keinen Platz; das
+    Objekt haengt sich dann an den Rand. Vorher ging es von der Mitte nach aussen und landete bis
+    zum Anderthalbfachen des Hoechstabstands vom naechsten Nachbarn (Befund vom 10.10.2026)."""
+    for menge, abstand in ((60, 1), (10, 10), (40, 5)):
+        for i in range(120):
+            objekte = gruppen.streuen(54.1, 8.9, menge, menge, abstand, abstand, f"s{i}")
+            assert len(objekte) == menge
+            for k, a in enumerate(objekte):
+                naechster = min(haversine(a["lat"], a["lon"], b["lat"], b["lon"]) * 1000.0
+                                for j, b in enumerate(objekte) if j != k)
+                assert abstand * 0.97 <= naechster <= abstand * 1.03, (menge, abstand, i)
+
+
+def test_die_objekte_bleiben_auf_der_karte():
+    for lat, lon in ((90.0, 10.0), (-90.0, 10.0), (10.0, 179.9999), (10.0, -179.9999)):
+        for o in gruppen.streuen(lat, lon, 30, 30, 5, 6, "rand"):
+            assert -90.0 <= o["lat"] <= 90.0 and -180.0 <= o["lon"] <= 180.0

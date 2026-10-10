@@ -126,18 +126,23 @@ def streuen(lat: float, lon: float, menge_min: int, menge_max: int,
                 gesetzt = True
                 break
         if not gesetzt:
-            # Dicht gepackt: von der Mitte nach außen gehen, bis Platz ist. Endet immer.
+            # Dicht gepackt: an den Rand der Gruppe hängen. In einer gewürfelten Richtung das
+            # ÄUSSERSTE Objekt nehmen und von ihm aus weiter in dieselbe Richtung gehen -- alle
+            # anderen liegen dann dahinter, also mindestens so weit weg wie der Schritt selbst.
+            # So bleibt beides gewahrt: nie näher als der Mindestabstand, und nie weiter als
+            # der Höchstabstand vom nächsten Objekt.
             winkel = wuerfel.uniform(0.0, 2.0 * math.pi)
-            weit = a_max
-            while not frei(weit * math.sin(winkel), weit * math.cos(winkel)):
-                weit += a_min
-            orte.append((weit * math.sin(winkel), weit * math.cos(winkel)))
+            ux, uy = math.sin(winkel), math.cos(winkel)
+            ax, ay = max(orte, key=lambda o: o[0] * ux + o[1] * uy)
+            weit = wuerfel.uniform(a_min, a_max)
+            orte.append((ax + weit * ux, ay + weit * uy))
 
     m_je_grad_lon = _M_JE_GRAD * max(math.cos(math.radians(float(lat))), 0.01)
     raus = []
     for x, y in orte:
         kurs = kurs_fest if kurs_fest is not None else wuerfel.uniform(0.0, 360.0)
-        raus.append({"lat": round(float(lat) + y / _M_JE_GRAD, 7),
-                     "lon": round(float(lon) + x / m_je_grad_lon, 7),
-                     "kurs": round(kurs, 1)})
+        # Auf der Karte bleiben: am Pol kappen, an der Datumsgrenze umlaufen.
+        o_lat = min(max(float(lat) + y / _M_JE_GRAD, -90.0), 90.0)
+        o_lon = (float(lon) + x / m_je_grad_lon + 180.0) % 360.0 - 180.0
+        raus.append({"lat": round(o_lat, 7), "lon": round(o_lon, 7), "kurs": round(kurs, 1)})
     return raus

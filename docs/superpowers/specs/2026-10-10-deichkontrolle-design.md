@@ -256,9 +256,18 @@ VATSIM-Flügen.
 
 - Objekte stehen nur im Soll, solange das Event läuft (`dtstart` bis `dtend`); der Poller-Takt
   räumt danach ab. Der Naheriegel vor dem Fund ist 1.000 m, wie beim Wrack der Reddung.
-- Der Fund braucht die Geländehöhe an der Fundstelle. Fehlt sie einer einzigen, wird für das
-  ganze Event nicht gerechnet (`ohne_grund`), bis der Knopf „Geländehöhen holen“ sie nachträgt.
-- Fundradius und Fundhöhe sind Rechenwerte: Ihre Änderung verwirft den Stand samt den Funden.
+- Der Fund braucht die Geländehöhe an der Fundstelle. Fehlt sie, ist nur diese Fundstelle nicht
+  zu finden, bis der Knopf „Geländehöhen holen“ sie nachträgt; alles andere läuft weiter.
+- Fundradius und Fundhöhe verwerfen den Stand nicht; sie gelten ab dem Speichern für das, was
+  noch offen ist (höchstens 1.000 m und 3.000 ft).
+- Höchstmenge mal Höchstabstand je Fundstelle höchstens 200 (Nutzer): hält die Gruppe beim
+  Fundkreis, gefunden wird gegen die Mitte.
+- Eine Fundstelle trägt `gilt_ab`, wenn sie während des Events dazukam, das Event mit Beginn in
+  der Vergangenheit angelegt oder der Beginn vorverlegt wurde: kein Fund aus einer Zeit, in der
+  nichts im Simulator stand.
+- Nummern für Mitglieder in der Reihenfolge der Funde; Takt 10 s wie bei der Reddung.
+- Sechs Reviews (drei Perspektiven, je Fable und Opus) am 10.10.2026; ihre Befunde sind
+  eingearbeitet, die Entscheidungen dazu stehen in der `CLAUDE.md` des Repos.
 - Eine Fundstelle, die während des Events dazukommt, kann erst ab dann gefunden werden.
 - Die Verwaltung prüft den Platz im Simulator mit der gewürfelten Menge, plus Rauch und Licht je
   Fundstelle, gegen 200 abzüglich dessen, was andere Events dort stehen haben.

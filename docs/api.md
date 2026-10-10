@@ -1274,7 +1274,7 @@ Forumsbeiträgen), mit `ETag`. `GET /api/pilots/{cid}/orden` nennt es als `art: 
   des Events dazugekommen) sieht nur Punkte danach, auch beim Neurechnen. `fund_radius_m` und
   `fund_hoehe_ft` verwerfen den Stand nicht; sie gelten ab dem Speichern für das, was offen ist.
   Der Poller rechnet alle 10 s, wie bei der Reddung. Fehlt einer Fundstelle die Geländehöhe,
-  gilt `ohne_grund` für das ganze Event.
+  ist nur sie nicht zu finden; `ohne_grund` meint allein die Abschnitte der Strecke.
 - **Objekte im Simulator** (`strecke_objekte_abgleichen`, im Poller-Takt und beim Speichern):
   Solange das Event läuft, steht jedes Objekt einer Fundstelle in `bruegge_soll`
   (`strecke-<event>-f<fundstelle>-<nr>`), vor dem Fund mit `nur_nah_m = 1000`, danach ohne

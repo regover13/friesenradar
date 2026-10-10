@@ -239,17 +239,20 @@ def test_eine_fundstelle_abseits_der_strecke_wird_gefunden(conn):
     assert stand["fundstellen"][0]["gefunden_von"] == 7
 
 
-def test_fehlt_einer_fundstelle_die_hoehe_wird_nicht_gerechnet(conn):
-    eid = _ev(conn, [_fs(3.0, grund_ft=None)])
+def test_fehlt_einer_fundstelle_die_hoehe_laeuft_die_strecke_weiter(conn):
+    """Eine Fundstelle ohne Gelaendehoehe ist bloss selbst nicht zu finden -- sie haelt nicht
+    den ganzen Abend an. Die andere Fundstelle wird gefunden, die Strecke gezaehlt."""
+    eid = _ev(conn, [_fs(3.0, grund_ft=None), _fs(2.0)])
     ev = get_strecken_event(conn, eid)
-    _flug(conn, 7, 0.0, 4.0)
-    stand = strecke_fortschreiben(conn, ev, bis=_zeit(300))
-    assert stand["ohne_grund"] and stand["abgedeckt"] == 0 and stand["bis"] == START
-    # Sobald sie da ist, holt der naechste Aufruf alles nach.
-    db.strecke_fundstellen_grund_setzen(conn, {stand["fundstellen"][0]["id"]: 0.0})
-    stand = strecke_fortschreiben(conn, ev, bis=_zeit(300))
+    ende = _flug(conn, 7, 0.0, 4.0)
+    stand = strecke_fortschreiben(conn, ev, bis=_zeit(ende + 5))
     assert not stand["ohne_grund"] and stand["abgedeckt"] == 4
-    assert stand["fundstellen"][0]["gefunden_von"] == 7
+    assert [f["gefunden_von"] for f in stand["fundstellen"]] == [None, 7]
+    # Mit der Hoehe ist sie ab dann zu finden.
+    db.strecke_fundstellen_grund_setzen(conn, {stand["fundstellen"][0]["id"]: 0.0})
+    _flug(conn, 8, 2.5, 3.5, ab_s=ende + 20)
+    stand = strecke_fortschreiben(conn, ev, bis=_zeit(ende + 200))
+    assert stand["fundstellen"][0]["gefunden_von"] == 8
 
 
 def test_wer_nur_mit_dem_kniebrett_fliegt_findet_nichts(conn):

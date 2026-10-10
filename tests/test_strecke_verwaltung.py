@@ -271,7 +271,7 @@ def test_eine_neue_fundstelle_bekommt_vorgaben_und_sofort_die_vorschau():
     assert re.search(r"richtung:\s*null", rumpf) and "_skLetzteArt" in rumpf
     assert "_skFundVorschau(f, true)" in rumpf
     m = re.search(r"_SK_FUND_VORGABE\s*=\s*\{([^}]*)\}", SKRIPT)
-    assert m and re.sub(r"\s", "", m.group(1)) == "menge_min:5,menge_max:10,abstand_min_m:8,abstand_max_m:20"
+    assert m and re.sub(r"\s", "", m.group(1)) == "menge_min:5,menge_max:8,abstand_min_m:8,abstand_max_m:20"
 
 
 def test_die_vorschau_kommt_vom_server_und_haelt_den_startwert():

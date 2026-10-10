@@ -7889,7 +7889,8 @@ from app import strecke as _st                                            # noqa
 from app.database import (                                                # noqa: E402
     compute_strecke_stand, create_strecken_event, delete_strecken_event, get_strecken_event,
     list_strecken_events, strecke_fundstellen, strecke_fundstellen_grund_setzen,
-    strecke_fundstellen_setzen, strecke_objekte_abgleichen, strecke_soll_bedarf_andere,
+    strecke_fundstellen_nicht_vor, strecke_fundstellen_setzen, strecke_objekte_abgleichen,
+    strecke_soll_bedarf, strecke_soll_bedarf_andere, strecke_soll_bedarf_uebrige,
     strecke_stand_verwerfen, update_strecken_event,
     _STRECKE_OHNE_RECHNUNG, _effective_dtend, STRECKE_FARBEN, STRECKE_FUNDSTELLEN_MAX,
 )
@@ -8228,24 +8229,34 @@ def _strecke_fundstellen_speichern(conn, event_id: int, fundstellen: list[dict],
         erg = strecke_fundstellen_setzen(conn, event_id, fundstellen, gilt_ab=gilt_ab)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    # Je Fundstelle kommen nach dem Fund Rauch und Licht dazu. Gezaehlt wird, was EIN Pilot
-    # hoechstens gleichzeitig bekommt -- die Bruegge fasst 200 Objekte je Meldung.
-    #
-    # Gegengerechnet wird, was im ZEITRAUM dieses Events sonst dort steht: andere
-    # Deichkontrollen aus ihrer Tabelle (auch wenn sie noch nicht laufen) und alles Uebrige
-    # (Reddung, von Hand Gesetztes) aus dem Soll, wie es jetzt ist. Zeilen irgendeiner
-    # Deichkontrolle im Soll zaehlen dabei nicht noch einmal.
+    _strecke_platz_pruefen(conn, event_id)
+    return erg
+
+
+def _strecke_platz_pruefen(conn, event_id: int) -> None:
+    """Passt, was dieses Event in den Simulator stellt, in dessen Zeitraum hinein? Wirft 400.
+
+    Je Fundstelle kommen nach dem Fund Rauch und Licht dazu. Gezaehlt wird, was EIN Pilot
+    hoechstens gleichzeitig bekommt -- die Bruegge fasst 200 Objekte je Meldung.
+
+    Gegengerechnet wird, was im ZEITRAUM dieses Events sonst dort steht: andere Deichkontrollen
+    aus ihrer Tabelle (auch wenn sie noch nicht laufen) und alles Uebrige (Reddung, von Hand
+    Gesetztes) aus dem Soll, soweit es zum Beginn noch gilt.
+
+    ⚠ Auch rufen, wenn sich nur die ZEITEN aendern: Ein Event, das auf den Abend eines anderen
+    geschoben wird, braucht denselben Platz wie ein neu angelegtes.
+    """
     ev = get_strecken_event(conn, event_id)
+    bedarf = strecke_soll_bedarf(conn, event_id)
+    if not bedarf:
+        return
     andere = strecke_soll_bedarf_andere(conn, event_id, ev["dtstart"], ev["dtend"])
-    uebrige = sum(1 for r in bruegge_soll_alle(conn) if not r["id"].startswith("strecke-"))
-    bedarf = erg["objekte"] + 2 * erg["fundstellen"]
-    frei = max(_BRUEGGE_SOLL_MAX - andere - uebrige, 0)
+    frei = max(_BRUEGGE_SOLL_MAX - andere - strecke_soll_bedarf_uebrige(conn, ev["dtstart"]), 0)
     if bedarf > frei:
         raise HTTPException(
             status_code=400,
             detail=f"Die Fundstellen brauchen {bedarf} Objekte im Simulator (Rauch und Licht "
                    f"eingerechnet), frei sind {frei}. Bitte Mengen oder Fundstellen verringern.")
-    return erg
 
 
 @app.post("/api/admin/strecke/streuen")
@@ -8311,7 +8322,11 @@ async def admin_create_strecken_event(request: Request):
         eid = create_strecken_event(conn, name=name, dtstart=dtstart, dtend=dtend,
                                     punkte=punkte, **felder)
         try:
-            _strecke_fundstellen_speichern(conn, eid, fundstellen, hoehen)
+            # Liegt der Beginn schon zurueck, stand bis jetzt nichts im Simulator -- gefunden
+            # werden kann erst ab jetzt.
+            jetzt = _now_iso()
+            _strecke_fundstellen_speichern(conn, eid, fundstellen, hoehen,
+                                           gilt_ab=jetzt if dtstart <= jetzt else None)
         except HTTPException:
             conn.rollback()
             raise
@@ -8388,10 +8403,19 @@ async def admin_update_strecken_event(request: Request, event_id: int):
                 jetzt = _now_iso()
                 _strecke_fundstellen_speichern(
                     conn, event_id, fundstellen, hoehen,
-                    gilt_ab=jetzt if (alt.get("dtstart") or "") <= jetzt else None)
+                    gilt_ab=jetzt if (felder.get("dtstart") or alt["dtstart"]) <= jetzt else None)
             except HTTPException:
                 conn.rollback()
                 raise
+        try:
+            if fundstellen is None and geaendert & {"dtstart", "dtend"}:
+                _strecke_platz_pruefen(conn, event_id)
+        except HTTPException:
+            conn.rollback()
+            raise
+        if "dtstart" in geaendert and felder["dtstart"] < alt["dtstart"]:
+            # Beginn vorverlegt: In der dazugewonnenen Zeit stand nichts im Simulator.
+            strecke_fundstellen_nicht_vor(conn, event_id, min(alt["dtstart"], _now_iso()))
         if rechnung:
             strecke_stand_verwerfen(conn, event_id)
         # Sofort in den Simulator, nicht erst im naechsten Takt: Wer waehrend des Events eine

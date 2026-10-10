@@ -13105,6 +13105,32 @@ def strecke_soll_bedarf_andere(conn: sqlite3.Connection, event_id: int,
     return int(zeile[0] or 0)
 
 
+def strecke_soll_bedarf_uebrige(conn: sqlite3.Connection, dtstart: str) -> int:
+    """Was sonst im Soll steht und zum Beginn dieses Events noch gilt: Reddung, von Hand
+    Gesetztes. Ohne die Zeilen der Deichkontrollen (die rechnet ``strecke_soll_bedarf_andere``
+    aus der Tabelle) und ohne Abgelaufenes -- die Bruegge liefert es auch nicht mehr aus."""
+    zeile = conn.execute(
+        "SELECT COUNT(*) FROM bruegge_soll WHERE id NOT GLOB 'strecke-*' "
+        "AND (gilt_bis IS NULL OR gilt_bis > ?)", (dtstart,)).fetchone()
+    return int(zeile[0] or 0)
+
+
+def strecke_soll_bedarf(conn: sqlite3.Connection, event_id: int) -> int:
+    """Was DIESES Event in den Simulator stellt: gewuerfelte Mengen plus Rauch und Licht."""
+    zeile = conn.execute("SELECT COALESCE(SUM(menge + 2), 0) FROM strecken_fundstellen "
+                         "WHERE event_id = ?", (int(event_id),)).fetchone()
+    return int(zeile[0] or 0)
+
+
+def strecke_fundstellen_nicht_vor(conn: sqlite3.Connection, event_id: int, ab: str) -> None:
+    """Keine Fundstelle dieses Events ist vor ``ab`` zu finden (kein commit). Fuer den Fall,
+    dass der Beginn nachtraeglich vorverlegt wird: In der dazugewonnenen Zeit stand nichts im
+    Simulator, ein Ueberflug von damals darf kein Fund werden. Ein spaeteres ``gilt_ab`` bleibt."""
+    conn.execute("UPDATE strecken_fundstellen SET gilt_ab = ? "
+                 "WHERE event_id = ? AND (gilt_ab IS NULL OR gilt_ab < ?)",
+                 (ab, int(event_id), ab))
+
+
 def _strecke_box(ev: dict, fundstellen: list[dict]) -> tuple | None:
     """Das Rechteck um Strecke UND Fundstellen als ``(sued, west, nord, ost)`` -- eine
     Fundstelle darf abseits der Strecke liegen, und auch dort muessen die Punkte mitkommen."""
@@ -13141,7 +13167,8 @@ def strecke_objekte_abgleichen(conn: sqlite3.Connection, ev: dict, weg: bool = F
     now = now or _now_utc()
     if not weg and (ev.get("dtstart") or "") <= now <= (ev.get("dtend") or ""):
         gilt_bis = ev["dtend"]
-        je_art: dict[str, dict] = {}
+        je_art: dict[str, dict] = {was: _art_je_simulator(conn, was)
+                                   for was in ("rauch_hellblau", "licht")}
         for f in strecke_fundstellen(conn, ev["id"]):
             art = f["art"]
             if art not in je_art:
@@ -13155,7 +13182,7 @@ def strecke_objekte_abgleichen(conn: sqlite3.Connection, ev: dict, weg: bool = F
                 for teil, was in (("rauch", "rauch_hellblau"), ("licht", "licht")):
                     gewollt += _soll_setzen_je_simulator(
                         conn, f"{vorsatz}f{f['id']}-{teil}", was,
-                        f["lat"] + _FACKEL_VERSATZ_GRAD, f["lon"], gilt_bis)
+                        f["lat"] + _FACKEL_VERSATZ_GRAD, f["lon"], gilt_bis, je_sim=je_art[was])
     behalten = set(gewollt)
     # Der Vorsatz endet auf "-": `strecke-1-` trifft `strecke-12-…` nicht. GLOB statt LIKE,
     # weil LIKE den Unterstrich als Platzhalter liest.
@@ -13181,8 +13208,8 @@ def strecke_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> di
 
     **Ohne Gelaendehoehen wird nicht gerechnet** (Spec A7): ``ohne_grund`` ist dann wahr, der
     Stand bleibt, wie er ist, und ``bis`` rueckt NICHT vor -- sobald die Hoehen da sind, holt
-    der naechste Aufruf alles nach, solange die Sekundenpunkte noch liegen. Das gilt auch, wenn
-    nur einer Fundstelle die Hoehe fehlt.
+    der naechste Aufruf alles nach, solange die Sekundenpunkte noch liegen. Fehlt nur einer
+    FUNDSTELLE die Hoehe, laeuft alles andere weiter; sie selbst ist bis dahin nicht zu finden.
 
     Rueckgabe: ``{"abschnitte", "abgedeckt", "anteil", "je_pilot", "treffer", "bis",
     "ohne_grund", "fundstellen"}``; ``treffer`` ist ``{schluessel: [cid, ts]}``.
@@ -13200,7 +13227,10 @@ def strecke_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> di
     grenzen = st.hoehe_je_ziel(ev)
     fundstellen = strecke_fundstellen(conn, ev["id"])
     box = _strecke_box(ev, fundstellen)
-    ohne_grund = grenzen is None or any(f.get("grund_ft") is None for f in fundstellen)
+    # Nur die Hoehen der STRECKE halten die Rechnung an. Eine Fundstelle ohne Gelaendehoehe
+    # kann bloss selbst nicht gefunden werden, bis der Knopf sie nachtraegt -- sonst froere
+    # eine einzige nachtraeglich gesetzte Fundstelle den ganzen Abend ein (Befund 10.10.2026).
+    ohne_grund = grenzen is None
 
     if not ohne_grund and box is not None and bis > von:
         # Mit den Punkten des Kniebretts: Hier zaehlt nur, wie genau die Position ist.
@@ -13220,7 +13250,7 @@ def strecke_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> di
             # nur Punkte danach -- auch wenn spaeter von `dtstart` an neu gerechnet wird.
             gruppen_ab: dict[str, list[dict]] = {}
             for f in fundstellen:
-                if not f.get("gefunden_am"):
+                if not f.get("gefunden_am") and f.get("grund_ft") is not None:
                     gruppen_ab.setdefault(f.get("gilt_ab") or "", []).append(f)
             for ab, verborgen in gruppen_ab.items():
                 sicht = spuren if not ab else [
