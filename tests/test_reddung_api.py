@@ -709,7 +709,7 @@ def test_der_hinweis_sagt_dass_ohne_bruegge_nichts_gewertet_wird():
     """⚠ Genau hier stand am 20.09.2026 das Gegenteil -- "gewertet wirst du trotzdem, nur
     groeber". Das war sachlich falsch: Wrack und Rauchsaeulen kommen ueber die FriesenBruegge
     in den Simulator, ohne sie ist der Sektor leer. Seither zaehlt der Server die Spur eines
-    Piloten ohne Bruegge auch nicht mehr mit (`_reddung_punkte_mischen`, `gemeldet_seit`).
+    Piloten ohne Bruegge auch nicht mehr mit (`_spur_punkte_mischen`, `gemeldet_seit`).
 
     Der Text ist die einzige Stelle, an der der Pilot das rechtzeitig erfaehrt -- wer ihn
     wieder aufweicht, verspricht eine Teilnahme, die es nicht gibt.

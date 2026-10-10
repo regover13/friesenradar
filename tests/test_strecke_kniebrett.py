@@ -108,7 +108,7 @@ def test_ist_das_melden_abgeschaltet_wird_nichts_geschrieben(env, strecke):
 def test_die_liste_nennt_platz_und_radius_fuer_die_flugspuren(env, strecke, monkeypatch):
     """Unter der Eventansicht stehen die Flugspuren des Abends wie bei der Reddung -- dafür
     braucht die Seite einen Platz und einen Radius, der die ganze Strecke erfasst."""
-    monkeypatch.setattr(main, "reddung_analyse_platz",
+    monkeypatch.setattr(main, "analyse_platz",
                         lambda box: {"icao": "EDWS", "radius_km": 12, "box": box})
     (e,) = main.strecke_events()
     assert e["analyse"]["icao"] == "EDWS" and e["analyse"]["radius_km"] == 12

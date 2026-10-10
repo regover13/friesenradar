@@ -233,7 +233,8 @@ def test_der_stand_nennt_kilometer_und_piloten(conn, monkeypatch):
     monkeypatch.setattr(db, "_now_utc", lambda: _zeit(300))
     s = compute_strecke_stand(conn, ev, mit_geometrie=True)
     assert s["km_gesamt"] == 10.0 and s["km_abgedeckt"] == 4.0 and s["abschnitt_m"] == 1000
-    assert s["je_pilot"] == [{"cid": 7, "name": "Anna", "abschnitte": 4, "km": 4.0}]
+    assert s["je_pilot"] == [{"cid": 7, "name": "Anna", "abschnitte": 4, "km": 4.0,
+                              "funde": 0}]
     assert s["regeln"]["korridor_m"] == 500 and s["ohne_grund"] is False
     assert len(s["strecke"]) == 10
     assert s["strecke"][0]["cid"] == 7 and s["strecke"][0]["ts"]
@@ -344,18 +345,18 @@ def test_ein_punkt_der_bruegge_geht_dem_des_kniebretts_vor(conn, monkeypatch):
 def test_bei_der_reddung_zaehlt_das_kniebrett_nicht(conn, monkeypatch):
     """Die Reddung stellt Wrack und Rauch in den Simulator -- das kann nur die FriesenBrügge.
     Ein Punkt des Kniebretts macht dort niemanden zum Teilnehmer."""
-    from app.database import _reddung_punkte_mischen, kniebrett_spur_schreiben
+    from app.database import _spur_punkte_mischen, kniebrett_spur_schreiben
     _ev(conn)
     monkeypatch.setattr(db, "_now_utc", lambda: _zeit(120))
     kniebrett_spur_schreiben(conn, 5, LAT, _ost(5.0), 800.0, 100.0, ts=_zeit(60))
     _vatsim(conn, 5, 3.0, 6.0, ab_s=100)
     grenzen = (LAT - 1, LAT + 1, LON - 1, LON + 2)
-    nur_bruegge = _reddung_punkte_mischen(conn, START, _zeit(900), grenzen, gemeldet_seit=START)
+    nur_bruegge = _spur_punkte_mischen(conn, START, _zeit(900), grenzen, gemeldet_seit=START)
     assert nur_bruegge == {}
-    beide = _reddung_punkte_mischen(conn, START, _zeit(900), grenzen, gemeldet_seit=START,
+    beide = _spur_punkte_mischen(conn, START, _zeit(900), grenzen, gemeldet_seit=START,
                                     mit_kniebrett=True)
     assert beide == {}, "ohne Brügge nimmt auch mit Kniebrett-Punkten niemand teil"
     _bruegge_da(conn, 5)
-    beide = _reddung_punkte_mischen(conn, START, _zeit(900), grenzen, gemeldet_seit=START,
+    beide = _spur_punkte_mischen(conn, START, _zeit(900), grenzen, gemeldet_seit=START,
                                     mit_kniebrett=True)
     assert 5 in beide and len(beide[5]) > 2

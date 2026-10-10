@@ -49,7 +49,8 @@ def test_die_laenge_wird_gleichmaessig_verteilt_statt_einen_rest_zu_lassen():
 
 def test_die_vorgaben_gelten_ohne_angabe():
     assert st.regeln({}) == {"korridor_m": 500.0, "hoehe_max_ft": 1000.0,
-                             "gs_max_kt": 140.0, "gs_min_kt": 30.0}
+                             "gs_max_kt": 140.0, "gs_min_kt": 30.0,
+                             "fund_radius_m": 150.0, "fund_hoehe_ft": 1000.0}
 
 
 def test_die_geometrie_folgt_den_knicken_der_strecke():

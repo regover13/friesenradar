@@ -285,7 +285,8 @@ def test_die_liste_traegt_kurzstand_und_zeiten(db, modell):
     assert e["id"] == eid and e["laeuft"] is True and e["vorbei_seit_s"] is None
     assert e["km_gesamt"] == 10.0 and e["km_abgedeckt"] == 4.0
     assert e["regeln"] == {"korridor_m": 500.0, "hoehe_max_ft": 1000.0,
-                           "gs_max_kt": 140.0, "gs_min_kt": 30.0}
+                           "gs_max_kt": 140.0, "gs_min_kt": 30.0,
+                             "fund_radius_m": 150.0, "fund_hoehe_ft": 1000.0}
     assert "strecke" not in e, "die Geometrie kommt erst mit dem Stand eines Events"
 
 

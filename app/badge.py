@@ -343,3 +343,34 @@ def render_reddung_badge(d: dict) -> bytes:
         _ctext(dr, int(_S * 0.745), d["date"], 16, _LBLUE, 0.50)
     _footer(dr, _LBLUE, y_frac=0.795)
     return _finish(img)
+
+
+def _km_text(km) -> str:
+    return f"{float(km or 0):.1f}".replace(".", ",") + " km"
+
+
+def _strecke_zeilen(d: dict) -> tuple[str | None, str | None]:
+    """Beitrag (hellblau) und Funde (orange) fuer das Badge der Deichkontrolle -- pure Funktion."""
+    km = float(d.get("km") or 0)
+    funde = int(d.get("funde") or 0)
+    return (f"{_km_text(km)} abgeflogen" if km > 0 else None,
+            f"{funde} entdeckt" if funde else None)
+
+
+def render_strecke_badge(d: dict) -> bytes:
+    """Badge der Deichkontrolle: die Medaille der FriesenFlieger mit Kilometern und Funden."""
+    img = _load_bg("medal_bg.png") or _fallback_disk(_NAVY)
+    dr = ImageDraw.Draw(img)
+
+    _ctext(dr, int(_S * 0.215), "ABGEFLOGEN!", 34, _ORANGE, 0.78)
+    _ctext(dr, int(_S * 0.310), d.get("callsign", ""), 58, _LBLUE, 0.72)
+    _ctext(dr, int(_S * 0.435), d.get("aircraft") or "k. A.", 22, _LBLUE, 0.80)
+    km, funde = _strecke_zeilen(d)
+    if km:
+        _ctext(dr, int(_S * 0.505), km, 24, _WHITE, 0.80)
+    if funde:
+        _ctext(dr, int(_S * (0.575 if km else 0.515)), funde, 24, _ORANGE, 0.80)
+
+    _event_caption(dr, d, _LBLUE)
+    _footer(dr, _LBLUE)
+    return _finish(img)

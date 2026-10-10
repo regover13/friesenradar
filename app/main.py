@@ -229,7 +229,7 @@ from app.database import (
 from app import geo
 from app import bruegge
 from app import bruegge_bindung
-from app.reddung import analyse_platz as reddung_analyse_platz
+from app.geo import analyse_platz
 from app.geo import filter_event_pilots
 from app.poller import VatsimPoller, create_poller, send_web_push
 from app.messeverkehr import messeverkehr_fuer_anzeige
@@ -3224,7 +3224,7 @@ async def meine_reddung(request: Request):
     ⭐ **Die FriesenBrügge ist hier Voraussetzung, nicht Empfehlung.** Wrack und Rauchsäulen
     kommen über sie in den Simulator (``bruegge_soll``); ohne sie sieht der Pilot einen leeren
     Sektor und kann gar nichts finden. Seit dem 20.09.2026 zählt der Server seine Spur deshalb
-    auch nicht mehr mit (``_reddung_punkte_mischen``, ``gemeldet_seit``) — sonst nähme er den
+    auch nicht mehr mit (``_spur_punkte_mischen``, ``gemeldet_seit``) — sonst nähme er den
     anderen Fläche weg, die nie jemand angesehen hat.
 
     Deshalb muss der Hinweis VOR dem Flug kommen und nicht hinterher in der Bilanz: Er ist die
@@ -3738,7 +3738,21 @@ def pilot_orden(cid: int, days: int = 30):
                 "datum": ev.get("dtstart"), "sieger": False,
                 "bild": f"/api/reddung/events/{ev['id']}/badge/{cid}.png",
             })
-        conn.commit()          # compute_reddung_stand kann den Snapshot ergaenzt haben
+        # Deichkontrolle: dieselbe Regel wie beim Badge-Bild (_strecke_badge_data).
+        for ev in list_strecken_events(conn, since=since):
+            if not (ev.get("dtend") or "") < now:
+                continue
+            try:
+                _strecke_badge_data(conn, ev, cid)
+            except HTTPException:
+                continue
+            orden.append({
+                "art": "strecke", "event_id": ev["id"],
+                "name": ev.get("badge_name") or ev.get("name") or "Deichkontrolle",
+                "datum": ev.get("dtstart"), "sieger": False,
+                "bild": f"/api/strecke/events/{ev['id']}/badge/{cid}.png",
+            })
+        conn.commit()          # die Staende koennen den Snapshot ergaenzt haben
 
         orden.sort(key=lambda o: o["datum"] or "", reverse=True)
         return orden
@@ -6923,7 +6937,7 @@ def reddung_events():
                 "laeuft": (ev.get("dtstart") or "") <= now <= dtend,
                 "vorbei_seit_s": vorbei_seit,
                 # Platz und Radius fuer die Event-Analyse der Bilanz -- nur aus dem Sektor.
-                "analyse": reddung_analyse_platz(ev),
+                "analyse": analyse_platz(ev),
                 "source": ev.get("source"),
                 "aufnehmen_noetig": ev.get("aufnehmen_noetig"),
                 "landung_noetig": ev.get("landung_noetig"),
@@ -7868,9 +7882,12 @@ async def admin_reddung_aufnahme_freigeben(request: Request, event_id: int):
 from app import strecke as _st                                            # noqa: E402
 from app.database import (                                                # noqa: E402
     compute_strecke_stand, create_strecken_event, delete_strecken_event, get_strecken_event,
-    list_strecken_events, strecke_stand_verwerfen, update_strecken_event,
+    list_strecken_events, strecke_fundstellen, strecke_fundstellen_grund_setzen,
+    strecke_fundstellen_setzen, strecke_objekte_abgleichen, strecke_stand_verwerfen,
+    update_strecken_event,
     _STRECKE_OHNE_RECHNUNG, _effective_dtend, STRECKE_FARBEN,
 )
+from app import gruppen as _gruppen                                       # noqa: E402
 
 #: So viele Koordinaten nimmt das Hoehenmodell je Anfrage. Gemessen am 10.10.2026 vom
 #: Container: 100 gehen, 101 werden mit 400 abgelehnt.
@@ -7908,12 +7925,21 @@ async def _gelaende_ft_viele(punkte: list[tuple[float, float]]) -> list[float] |
     return raus
 
 
-async def _strecke_grund_holen(ev: dict) -> list[float] | None:
-    """Die Gelaendehoehe am Mittelpunkt jedes Abschnitts dieser Strecke."""
-    ziele = _st.ziele(ev)
-    if not ziele:
-        return None
-    return await _gelaende_ft_viele([(z[1], z[2]) for z in ziele])
+async def _strecke_grund_holen(ev: dict, fundstellen: list[dict] | None = None
+                               ) -> tuple[list[float] | None, list[float] | None]:
+    """Die Gelaendehoehe am Mittelpunkt jedes Abschnitts dieser Strecke und an jeder
+    Fundstelle: ``(abschnitte, fundstellen)``. Ein Abruf fuer beides -- und ``(None, None)``,
+    wenn er scheitert. ``abschnitte`` ist auch ``None``, wenn nur die Fundstellen gefragt sind
+    (``ev`` leer)."""
+    ziele = _st.ziele(ev) if ev else []
+    orte = [(z[1], z[2]) for z in ziele] + [(float(f["lat"]), float(f["lon"]))
+                                            for f in (fundstellen or [])]
+    if not orte:
+        return None, None
+    hoehen = await _gelaende_ft_viele(orte)
+    if hoehen is None:
+        return None, None
+    return (hoehen[:len(ziele)] if ziele else None), hoehen[len(ziele):]
 
 
 def _strecke_zeit(ev: dict, now: str) -> dict:
@@ -7932,7 +7958,7 @@ def _strecke_analyse(ev: dict) -> dict:
     if box is None:
         return {"icao": "global", "radius_km": None}
     sued, west, nord, ost = box
-    return reddung_analyse_platz({"sued": sued, "west": west, "nord": nord, "ost": ost})
+    return analyse_platz({"sued": sued, "west": west, "nord": nord, "ost": ost})
 
 
 @app.get("/api/strecke/events")
@@ -7970,16 +7996,87 @@ def strecke_stand(event_id: int):
         conn.close()
 
 
+def _strecke_badge_data(conn, ev: dict, cid: int) -> dict:
+    """Render-Daten fuer das Badge der Deichkontrolle. Wirft 404, wenn die CID nichts
+    beigetragen hat: keinen Abschnitt als Erster abgeflogen und nichts entdeckt.
+
+    Das Rufzeichen kommt wie bei der Reddung aus dem laengsten Flug im Eventfenster."""
+    stand = compute_strecke_stand(conn, ev)
+    eintrag = next((p for p in stand.get("je_pilot", []) if p["cid"] == cid), None)
+    if not eintrag or not (eintrag["abschnitte"] or eintrag["funde"]):
+        raise HTTPException(status_code=404, detail="Teilnehmer nicht gefunden")
+    flug = conn.execute(
+        "SELECT callsign, aircraft_short FROM flights WHERE cid = ? AND superseded_by IS NULL "
+        "AND logon_time <= ? AND (logoff_time IS NULL OR logoff_time >= ?) "
+        "ORDER BY duration_min DESC LIMIT 1",
+        (cid, ev.get("dtend") or "", ev.get("dtstart") or "")).fetchone()
+    return {
+        "callsign": (flug and flug[0]) or f"CID {cid}",
+        "aircraft": (flug and flug[1]) or "",
+        "km": eintrag["km"],
+        "funde": eintrag["funde"],
+        "event": ev.get("badge_name") or ev.get("name") or "Deichkontrolle",
+        "date": _fmt_de_date(ev.get("dtstart")),
+    }
+
+
+@app.get("/api/strecke/events/{event_id}/badge/{cid}.png")
+def get_strecke_badge(request: Request, event_id: int, cid: int):
+    """Forum-Badge (PNG) fuer einen Teilnehmer der Deichkontrolle -- erst nach ``dtend``, damit
+    kein Zwischenstand als „fertig“ verewigt wird. Cache und ETag wie beim Reddung-Badge."""
+    import hashlib
+    import os
+
+    settings = get_settings()
+    conn = get_connection(settings.DB_PATH)
+    try:
+        ev = get_strecken_event(conn, event_id)
+        if not ev or not (ev.get("dtend") or "") < _now_iso():
+            raise HTTPException(status_code=404, detail="Event noch nicht abgeschlossen")
+        d = _strecke_badge_data(conn, ev, cid)
+        conn.commit()          # compute_strecke_stand kann den Snapshot ergaenzt haben
+    finally:
+        conn.close()
+
+    key = hashlib.md5(
+        f"v{_BADGE_RENDER_VERSION}|strecke|{d['km']}|{d['funde']}|"
+        f"{d['aircraft']}|{d['callsign']}|{d['event']}|{d['date']}".encode()
+    ).hexdigest()[:10]
+    etag = f'"{key}"'
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
+
+    from app.badge import render_strecke_badge
+    cache_dir = os.path.join(os.path.dirname(settings.DB_PATH) or ".", "badges")
+    path = os.path.join(cache_dir, f"strecke_{event_id}_{cid}_{key}.png")
+    try:
+        with open(path, "rb") as fh:
+            png = fh.read()
+    except OSError:
+        png = render_strecke_badge(d)
+        try:
+            os.makedirs(cache_dir, exist_ok=True)
+            with open(path, "wb") as fh:
+                fh.write(png)
+        except OSError:
+            pass  # Cache optional -- Bild wurde bereits erzeugt
+    return Response(content=png, media_type="image/png",
+                    headers={"Cache-Control": "no-cache", "ETag": etag})
+
+
 #: Was die Verwaltung schicken darf. Die Gelaendehoehen gehoeren nicht dazu -- die holt der
 #: Server selbst.
 _STRECKE_KOERPER = ("name", "dtstart", "dtend", "korridor_m", "hoehe_max_ft",
-                    "gs_max_kt", "gs_min_kt", "farbe")
+                    "gs_max_kt", "gs_min_kt", "farbe", "fund_radius_m", "fund_hoehe_ft",
+                    "badge_name")
 _STRECKE_ZAHLEN = {"korridor_m": (_st.KORRIDOR_MIN_M, _st.KORRIDOR_MAX_M),
                    "hoehe_max_ft": (100.0, 20000.0),
-                   "gs_max_kt": (20.0, 1000.0), "gs_min_kt": (0.0, 500.0)}
+                   "gs_max_kt": (20.0, 1000.0), "gs_min_kt": (0.0, 500.0),
+                   "fund_radius_m": (20.0, 2000.0), "fund_hoehe_ft": (100.0, 20000.0)}
 _STRECKE_NAMEN = {"korridor_m": "Der Korridor", "hoehe_max_ft": "Die Höhe",
                   "gs_max_kt": "Die Höchstgeschwindigkeit",
-                  "gs_min_kt": "Die Mindestgeschwindigkeit"}
+                  "gs_min_kt": "Die Mindestgeschwindigkeit",
+                  "fund_radius_m": "Der Fundradius", "fund_hoehe_ft": "Die Fundhöhe"}
 
 
 def _strecke_koerper_pruefen(body: dict, alt: dict | None = None) -> tuple[dict, list | None]:
@@ -8005,6 +8102,9 @@ def _strecke_koerper_pruefen(body: dict, alt: dict | None = None) -> tuple[dict,
                 status_code=400,
                 detail=f"{_STRECKE_NAMEN[k]} muss zwischen {unten:g} und {oben:g} liegen.")
         felder[k] = wert
+    if "badge_name" in felder:
+        # Leer = zurueck zur Automatik (das Badge nimmt den Namen des Events).
+        felder["badge_name"] = (str(felder["badge_name"] or "").strip())[:60] or None
     if "farbe" in felder and felder["farbe"] not in STRECKE_FARBEN:
         raise HTTPException(status_code=400,
                             detail="Die Farbe ist „eine“ (eine für alle) oder „pilot“ (je Pilot).")
@@ -8033,18 +8133,104 @@ def _strecke_koerper_pruefen(body: dict, alt: dict | None = None) -> tuple[dict,
 
 
 def _strecke_admin_zeile(conn, ev: dict, now: str) -> dict:
+    fundstellen = strecke_fundstellen(conn, ev["id"])
+    namen = {}
+    if any(f.get("gefunden_von") is not None for f in fundstellen):
+        namen = {int(r[0]): r[1] for r in conn.execute("SELECT cid, name FROM pilots").fetchall()}
     return {
         **{k: ev.get(k) for k in ("id", "name", "dtstart", "dtend", "korridor_m",
-                                  "hoehe_max_ft", "gs_max_kt", "gs_min_kt", "grund_geholt_am")},
+                                  "hoehe_max_ft", "gs_max_kt", "gs_min_kt", "grund_geholt_am",
+                                  "badge_name")},
+        "fund_radius_m": _st.regeln(ev)["fund_radius_m"],
+        "fund_hoehe_ft": _st.regeln(ev)["fund_hoehe_ft"],
         "punkte": [[la, lo] for la, lo in _st.punkte(ev)],
         "laenge_km": round(_st.laenge_km(ev), 1),
-        "grund_da": _st.grund(ev) is not None,
+        "grund_da": (_st.grund(ev) is not None
+                     and all(f.get("grund_ft") is not None for f in fundstellen)),
+        # Die Verwaltung sieht alles: Lage, gewuerfelte Menge, Objekte, Fund.
+        "fundstellen": [
+            {**{k: f.get(k) for k in ("id", "nr", "lat", "lon", "art", "menge_min", "menge_max",
+                                      "abstand_min_m", "abstand_max_m", "richtung", "startwert",
+                                      "menge", "objekte", "gefunden_am", "gefunden_von")},
+             "gefunden_name": namen.get(f.get("gefunden_von"))}
+            for f in fundstellen],
         "farbe": ev.get("farbe") if ev.get("farbe") in STRECKE_FARBEN else "eine",
         "push_enabled": bool(ev.get("push_enabled")),
         "abschnitte": _st.teilung(ev)[0],
         "stand": compute_strecke_stand(conn, ev),
         **_strecke_zeit(ev, now),
     }
+
+
+def _strecke_fundstellen_koerper(body: dict) -> list[dict] | None:
+    """Die Fundstellen aus dem Koerper der Verwaltung -- ``None``, wenn sie nicht mitkamen (dann
+    bleiben die gespeicherten, wie sie sind). Nur die Form; den Inhalt prueft die Ablage."""
+    if "fundstellen" not in body:
+        return None
+    roh = body["fundstellen"]
+    if not isinstance(roh, list) or any(not isinstance(f, dict) for f in roh):
+        raise HTTPException(status_code=400, detail="Die Fundstellen sind nicht lesbar.")
+    erlaubt = ("lat", "lon", "art", "menge_min", "menge_max", "abstand_min_m", "abstand_max_m",
+               "richtung", "startwert")
+    return [{k: f.get(k) for k in erlaubt} for f in roh]
+
+
+def _strecke_fundstellen_speichern(conn, event_id: int, fundstellen: list[dict],
+                                   hoehen: list[float] | None) -> dict:
+    """Fundstellen ablegen und pruefen, ob sie in den Simulator passen (kein commit).
+
+    Wirft 400 mit einem Satz fuer die Verwaltung; der Aufrufer rollt dann zurueck. ``hoehen``
+    sind die Gelaendehoehen in Reihenfolge der Liste (``None``, wenn der Abruf scheiterte --
+    eine unveraenderte Fundstelle behaelt dann ihre, eine neue wartet auf den Knopf).
+    """
+    bekannt = {z["art"] for z in bruegge_arten_uebersicht(conn) if z.get("anforderbar")}
+    for nr, f in enumerate(fundstellen, 1):
+        if str(f.get("art") or "") not in bekannt:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Fundstelle {nr}: „{f.get('art') or ''}“ kann die FriesenBrügge "
+                       "nicht setzen.")
+        f["grund_ft"] = hoehen[nr - 1] if hoehen is not None else None
+    try:
+        erg = strecke_fundstellen_setzen(conn, event_id, fundstellen)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    # Je Fundstelle kommen nach dem Fund Rauch und Licht dazu. Gezaehlt wird, was EIN Pilot
+    # hoechstens gleichzeitig bekommt -- die Bruegge fasst 200 Objekte je Meldung.
+    eigene = {r["id"] for r in bruegge_soll_alle(conn)
+              if r["id"].startswith(f"strecke-{int(event_id)}-")}
+    bedarf = erg["objekte"] + 2 * erg["fundstellen"]
+    frei = _BRUEGGE_SOLL_MAX - bruegge_soll_anzahl(conn, eigene)
+    if bedarf > frei:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Die Fundstellen brauchen {bedarf} Objekte im Simulator (Rauch und Licht "
+                   f"eingerechnet), frei sind {frei}. Bitte Mengen oder Fundstellen verringern.")
+    return erg
+
+
+@app.post("/api/admin/strecke/streuen")
+async def admin_strecke_streuen(request: Request):
+    """Vorschau einer Fundstelle: die gewuerfelte Lage zu Ort, Mengen und Abstaenden.
+
+    Ohne ``startwert`` wird ein neuer vergeben -- das ist „neu würfeln“. Die Verwaltung schickt
+    den Startwert beim Speichern wieder mit; die Lage selbst rechnet der Server dann erneut,
+    nie nimmt er sie aus dem Koerper.
+    """
+    require_admin(request)
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Objekt erwartet")
+    start = str(body.get("startwert") or "").strip()[:40] or _gruppen.startwert()
+    try:
+        objekte = _gruppen.streuen(
+            float(body.get("lat")), float(body.get("lon")), body.get("menge_min"),
+            body.get("menge_max"), body.get("abstand_min_m"), body.get("abstand_max_m"),
+            start, body.get("richtung") if body.get("richtung") not in ("", None) else None)
+    except (TypeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e) if isinstance(e, ValueError)
+                            else "Der Ort ist nicht lesbar.")
+    return {"startwert": start, "menge": len(objekte), "objekte": objekte}
 
 
 @app.get("/api/admin/strecke/events")
@@ -8074,7 +8260,8 @@ async def admin_create_strecken_event(request: Request):
     if "punkte" not in body:
         raise HTTPException(status_code=400, detail="Eine Strecke braucht mindestens zwei Punkte.")
     felder, punkte = _strecke_koerper_pruefen(body)
-    grund = await _strecke_grund_holen({"punkte_json": punkte, **felder})
+    fundstellen = _strecke_fundstellen_koerper(body) or []
+    grund, hoehen = await _strecke_grund_holen({"punkte_json": punkte, **felder}, fundstellen)
     name = (str(felder.pop("name", "") or "").strip() or "Deichkontrolle")[:120]
     dtstart, dtend = felder.pop("dtstart"), felder.pop("dtend", None) or None
     if grund is not None:
@@ -8084,6 +8271,11 @@ async def admin_create_strecken_event(request: Request):
     try:
         eid = create_strecken_event(conn, name=name, dtstart=dtstart, dtend=dtend,
                                     punkte=punkte, **felder)
+        try:
+            _strecke_fundstellen_speichern(conn, eid, fundstellen, hoehen)
+        except HTTPException:
+            conn.rollback()
+            raise
         conn.commit()
         return {"status": "ok", "id": eid, "grund_fehlt": grund is None}
     finally:
@@ -8134,18 +8326,35 @@ async def admin_update_strecken_event(request: Request, event_id: int):
     rechnung = bool(geaendert - _STRECKE_OHNE_RECHNUNG)
     teilung_neu = bool(geaendert & {"punkte_json", "korridor_m"})
     grund_fehlt = _st.grund(alt) is None
-    if teilung_neu:
-        grund = await _strecke_grund_holen({**alt, **felder})
-        felder["grund_json"] = json.dumps(grund) if grund is not None else None
-        felder["grund_geholt_am"] = _now_iso() if grund is not None else None
-        grund_fehlt = grund is None
+    fundstellen = _strecke_fundstellen_koerper(body)
+    hoehen = None
+    if teilung_neu or fundstellen:
+        # Ein Abruf fuer beides. Die Fundstellen kommen immer alle mit (das Formular schickt
+        # sie so); eine unveraenderte bekaeme dieselbe Hoehe noch einmal.
+        grund, hoehen = await _strecke_grund_holen({**alt, **felder} if teilung_neu else {},
+                                                   fundstellen)
+        if teilung_neu:
+            felder["grund_json"] = json.dumps(grund) if grund is not None else None
+            felder["grund_geholt_am"] = _now_iso() if grund is not None else None
+            grund_fehlt = grund is None
     conn = get_connection(get_settings().DB_PATH)
     try:
         if get_strecken_event(conn, event_id) is None:
             raise HTTPException(status_code=404, detail="unbekannt")
         update_strecken_event(conn, event_id, **felder)
+        if fundstellen is not None:
+            try:
+                _strecke_fundstellen_speichern(conn, event_id, fundstellen, hoehen)
+            except HTTPException:
+                conn.rollback()
+                raise
         if rechnung:
             strecke_stand_verwerfen(conn, event_id)
+        # Sofort in den Simulator, nicht erst im naechsten Takt: Wer waehrend des Events eine
+        # Fundstelle entfernt, will sie auch dort gleich los sein.
+        strecke_objekte_abgleichen(conn, get_strecken_event(conn, event_id))
+        grund_fehlt = grund_fehlt or any(
+            f.get("grund_ft") is None for f in strecke_fundstellen(conn, event_id))
         conn.commit()
         return {"status": "ok", "stand_verworfen": rechnung, "grund_fehlt": grund_fehlt}
     finally:
@@ -8164,7 +8373,12 @@ async def admin_strecke_grund(request: Request, event_id: int):
         conn.close()
     if ev is None:
         raise HTTPException(status_code=404, detail="unbekannt")
-    grund = await _strecke_grund_holen(ev)
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        fundstellen = strecke_fundstellen(conn, event_id)
+    finally:
+        conn.close()
+    grund, hoehen = await _strecke_grund_holen(ev, fundstellen)
     if grund is None:
         raise HTTPException(status_code=502, detail="Das Höhenmodell hat nicht geantwortet. "
                                                     "Bitte später noch einmal versuchen.")
@@ -8172,6 +8386,8 @@ async def admin_strecke_grund(request: Request, event_id: int):
     try:
         update_strecken_event(conn, event_id, grund_json=json.dumps(grund),
                               grund_geholt_am=_now_iso())
+        strecke_fundstellen_grund_setzen(
+            conn, {f["id"]: h for f, h in zip(fundstellen, hoehen or [])})
         conn.commit()
         return {"status": "ok", "abschnitte": len(grund)}
     finally:

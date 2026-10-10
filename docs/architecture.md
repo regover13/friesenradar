@@ -480,7 +480,7 @@ Höhenmeldung zählt nur von einem Piloten näher als 200 km (am Bodensee gemess
 
 **Ohne FriesenBrügge keine Teilnahme** (Nutzerentscheidung 20.09.2026). Wrack und Rauchsäulen
 kommen über `bruegge_soll` in den Simulator — wer ohne fliegt, sieht einen leeren Sektor und
-*kann* nichts finden. `_reddung_punkte_mischen` nimmt seine VATSIM-Punkte deshalb nicht mehr an
+*kann* nichts finden. `_spur_punkte_mischen` nimmt seine VATSIM-Punkte deshalb nicht mehr an
 (Parameter `gemeldet_seit`); sonst nähme er den anderen Fläche weg, die nie jemand angesehen
 hat. **Die Trennlinie gilt allgemein: Stellt ein Eventtyp etwas in den Simulator, ist die
 Brügge Voraussetzung.** FriesenBummel und FriesenKutter werten Flugbewegungen aus und bleiben

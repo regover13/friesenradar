@@ -3315,9 +3315,9 @@ class VatsimPoller:
     async def _check_strecke(self) -> None:
         """Periodisch: den Stand laufender Deichkontrollen fortschreiben.
 
-        Kein Latch und keine Meldung -- die Karte holt den Stand selbst. Der Takt sorgt nur
-        dafuer, dass der Stand auch dann waechst, wenn niemand zusieht: Gerechnet wird aus
-        ``bruegge_spur``, und die ist nach zwoelf Stunden leer.
+        Die Karte holt den Stand selbst. Der Takt sorgt dafuer, dass der Stand auch dann
+        waechst, wenn niemand zusieht (gerechnet wird aus ``bruegge_spur``, und die ist nach
+        zwoelf Stunden leer), und er bringt die Objekte der Fundstellen in den Simulator.
 
         Ein Event laeuft noch ``_STRECKE_NACHLAUF_S`` ueber ``dtend`` hinaus durch den Takt,
         damit die letzten Sekunden des Abends sicher im Stand stehen; ``strecke_fortschreiben``
@@ -3327,7 +3327,7 @@ class VatsimPoller:
             from datetime import datetime, timedelta, timezone
             from app.database import (
                 get_push_subscriptions_for_events, list_strecken_events, strecke_fortschreiben,
-                strecke_start_melden,
+                strecke_objekte_abgleichen, strecke_start_melden,
             )
 
             now_dt = datetime.now(timezone.utc)
@@ -3361,6 +3361,9 @@ class VatsimPoller:
                                          "FriesenBrügge fliegt."),
                                 "url": "/"})
                         strecke_fortschreiben(conn, ev, bis=min(now, ev["dtend"]))
+                        # Die Objekte der Fundstellen: verborgene nur aus der Naehe, gefundene
+                        # fuer alle und mit Rauch. Nach `dtend` raeumt derselbe Aufruf ab.
+                        strecke_objekte_abgleichen(conn, ev, now=now)
                         conn.commit()
                     except Exception:
                         conn.rollback()

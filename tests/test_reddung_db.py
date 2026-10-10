@@ -559,14 +559,14 @@ def test_im_bruegge_zeitraum_kommt_kein_vatsim_punkt_dazu(conn):
     """⚠ Gemischt wird nach Zeitraum, nicht nach Punkt. Punktweise zu mischen erzeugte an
     jeder Naht einen Sprung zwischen zwei Hoehenmessarten -- und Hoehen entscheiden hier ueber
     Treffer."""
-    from app.database import _reddung_grenzen, _reddung_punkte_mischen
+    from app.database import _spur_grenzen, _spur_punkte_mischen
     eid = _kleiner_sektor(conn)
     ev = get_reddung_event(conn, eid)
     t0 = JETZT - timedelta(minutes=30)
     _spur(conn, 111, [(LAT, LON, _iso(t0 + timedelta(seconds=s))) for s in (0, 15, 30)])
     _spur_bruegge(conn, 111, [(LAT, LON, _iso(t0 + timedelta(seconds=s))) for s in range(0, 31)])
-    grenzen = _reddung_grenzen((ev["sued"], ev["west"], ev["nord"], ev["ost"]))
-    punkte = _reddung_punkte_mischen(conn, _iso(t0 - timedelta(minutes=1)), _iso(JETZT),
+    grenzen = _spur_grenzen((ev["sued"], ev["west"], ev["nord"], ev["ost"]))
+    punkte = _spur_punkte_mischen(conn, _iso(t0 - timedelta(minutes=1)), _iso(JETZT),
                                      grenzen)[111]
     assert len(punkte) == 31, f"31 Bruegge-Punkte, keine VATSIM-Punkte dazwischen: {len(punkte)}"
 
@@ -685,12 +685,12 @@ def test_im_selben_lauf_zaehlt_nichts_nach_dem_fund(conn):
 
 # --- #44: Nachbesserungen aus dem Review --------------------------------------------------
 
-from app.database import _reddung_grenzen, _reddung_snapshot_schreiben  # noqa: E402
+from app.database import _spur_grenzen, _reddung_snapshot_schreiben  # noqa: E402
 
 
 def test_grenzen_sortieren_vertauschte_ecken():
     """#44 Punkt 1: Bei `sued > nord` wurde der BETWEEN leer, und es kam kein Punkt."""
-    assert _reddung_grenzen((53.9, 7.55, 53.54, 6.95)) == _reddung_grenzen((53.54, 6.95, 53.9, 7.55))
+    assert _spur_grenzen((53.9, 7.55, 53.54, 6.95)) == _spur_grenzen((53.54, 6.95, 53.9, 7.55))
 
 
 def test_ein_verdrehter_grosser_sektor_wird_trotzdem_abgesucht(conn):

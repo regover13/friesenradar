@@ -466,7 +466,7 @@ lassen wir Bummel und Kutter so wie sie sind."*
 **VATSIM bleibt der Lückenfüller, aber nur für Teilnehmer.** Die Brügge schweigt bei jedem
 Verbindungsabriss und in jeder Sim-Pause; wer sie hat, soll deswegen kein Loch in seiner
 Fläche bekommen. Der Bezug ist der **Eventstart**, nicht der laufende Takt
-(`_reddung_punkte_mischen`, Parameter `gemeldet_seit`) — sonst verliert ein Pilot seine
+(`_spur_punkte_mischen`, Parameter `gemeldet_seit`) — sonst verliert ein Pilot seine
 Lückenfüllung, sobald die Brügge einmal 30 Sekunden schweigt.
 
 ⚠ **Vor dem Erhöhen von `_REDDUNG_STAND_FASSUNG` prüfen, ob die Brügge-Spuren der betroffenen

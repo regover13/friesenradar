@@ -213,3 +213,55 @@ def test_ein_kaputtes_event_meldet_seinen_beginn_nicht_in_jedem_takt_neu(db):
     for _ in range(3):
         asyncio.run(p._check_strecke())
     assert len(p.gesendet) == 1
+
+
+# --- Fundstellen im Takt ---------------------------------------------------------------------
+
+def _fundstelle(pfad, eid, km=3.0):
+    c = get_connection(pfad)
+    try:
+        dbm.strecke_fundstellen_setzen(c, eid, [{
+            "lat": LAT, "lon": _ost(km), "art": "seehund_kuh", "menge_min": 4, "menge_max": 4,
+            "abstand_min_m": 10, "abstand_max_m": 30, "startwert": "p", "grund_ft": 0.0}])
+        c.commit()
+    finally:
+        c.close()
+
+
+def _soll(pfad, eid):
+    c = get_connection(pfad)
+    try:
+        return {r["id"]: r for r in dbm.bruegge_soll_alle(c)
+                if r["id"].startswith(f"strecke-{eid}-")}
+    finally:
+        c.close()
+
+
+def test_der_takt_stellt_die_fundstelle_verborgen_in_den_simulator(db):
+    eid = _event(db)
+    _fundstelle(db, eid)
+    _takt(db)
+    soll = _soll(db, eid)
+    assert len(soll) >= 4 and all(r["nur_nah_m"] is not None for r in soll.values())
+
+
+def test_nach_dem_fund_stellt_der_takt_rauch_dazu_und_zeigt_sie_allen(db):
+    eid = _event(db)
+    _fundstelle(db, eid)
+    _flug(db, 7, vor_min=10)
+    _takt(db)
+    soll = _soll(db, eid)
+    assert all(r["nur_nah_m"] is None for r in soll.values())
+    assert {r["art"] for i, r in soll.items() if i.endswith("-rauch")
+            or "-rauch-" in i} == {"rauch_hellblau"}
+
+
+def test_nach_dem_ende_raeumt_der_takt_den_simulator(db):
+    eid = _event(db, start_vor_min=60, ende_in_min=-2)
+    _fundstelle(db, eid)
+    c = get_connection(db)
+    dbm.bruegge_soll_setzen(c, f"strecke-{eid}-f1-0", "licht", LAT, LON)
+    c.commit()
+    c.close()
+    _takt(db)
+    assert _soll(db, eid) == {}

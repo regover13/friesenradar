@@ -441,8 +441,38 @@ CREATE TABLE IF NOT EXISTS strecken_events (
     -- Veranstalter je Event ein; Mitglieder haben keinen Umschalter (Nutzer, 10.10.2026).
     farbe           TEXT DEFAULT 'eine',
     push_enabled    INTEGER DEFAULT 1,
+    -- FINDEN einer Fundstelle: so nah und so tief darueber, wie bei der Reddung.
+    fund_radius_m   REAL DEFAULT 150,
+    fund_hoehe_ft   REAL DEFAULT 1000,
+    badge_name      TEXT,                   -- Kurzname fuers Badge-PNG; leer = name
     created_at      TEXT NOT NULL
 );
+
+-- Fundstellen einer Deichkontrolle: Orte, an denen eine Gruppe von Objekten im Simulator steht
+-- (eine Kolonie, ein einzelnes Wrack ...). Die Lage der Objekte wuerfelt app/gruppen.py aus
+-- `startwert`; sie steht ausgerechnet in `objekte_json`, damit der Simulator und die Verwaltung
+-- dasselbe sehen, auch wenn sich die Rechnung einmal aendert. `menge` ist die gewuerfelte Zahl.
+-- Gezaehlt wird die FUNDSTELLE, nicht das einzelne Objekt (Nutzer, 10.10.2026).
+CREATE TABLE IF NOT EXISTS strecken_fundstellen (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id      INTEGER NOT NULL,
+    nr            INTEGER NOT NULL,       -- Reihenfolge in der Verwaltung, ab 1
+    lat           REAL NOT NULL,
+    lon           REAL NOT NULL,
+    art           TEXT NOT NULL,          -- Art der FriesenBruegge (bruegge_art.art)
+    menge_min     INTEGER NOT NULL,
+    menge_max     INTEGER NOT NULL,
+    abstand_min_m REAL NOT NULL,
+    abstand_max_m REAL NOT NULL,
+    richtung      REAL,                   -- NULL = je Objekt gewuerfelt
+    startwert     TEXT NOT NULL,
+    menge         INTEGER NOT NULL,
+    objekte_json  TEXT NOT NULL,          -- [{"lat","lon","kurs"}, ...]
+    grund_ft      REAL,                   -- Gelaendehoehe an der Stelle; NULL = noch nicht geholt
+    gefunden_am   TEXT,
+    gefunden_von  INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_strecken_fundstellen_event ON strecken_fundstellen (event_id);
 
 CREATE TABLE IF NOT EXISTS aircraft_payloads (
     type_code   TEXT PRIMARY KEY,        -- normalisiert (Uppercase, vor "/" gekürzt), z. B. "C172"
@@ -1230,6 +1260,10 @@ _PANEL_DIAG_MIGRATIONS = [
 _STRECKE_MIGRATIONS = [
     "ALTER TABLE strecken_events ADD COLUMN farbe TEXT DEFAULT 'eine'",
     "ALTER TABLE strecken_events ADD COLUMN push_enabled INTEGER DEFAULT 1",
+    # Fundstellen (10.10.2026): Fundradius und Fundhoehe je Event, wie bei der Reddung.
+    "ALTER TABLE strecken_events ADD COLUMN fund_radius_m REAL DEFAULT 150",
+    "ALTER TABLE strecken_events ADD COLUMN fund_hoehe_ft REAL DEFAULT 1000",
+    "ALTER TABLE strecken_events ADD COLUMN badge_name TEXT",
 ]
 
 _BRUEGGE_MIGRATIONS = [
@@ -3492,7 +3526,7 @@ _SPUR_HALTEN_STUNDEN = 12
 _spur_sektoren: tuple[float, list] = (0.0, [])
 
 
-def _reddung_sektoren(conn: sqlite3.Connection) -> list[tuple]:
+def _spur_sektoren_holen(conn: sqlite3.Connection) -> list[tuple]:
     """Die Sektoren der gerade laufenden Reddungen und der Umkreis laufender Strecken, mit
     Rand. Hoechstens alle 30 s frisch."""
     global _spur_sektoren
@@ -3501,13 +3535,13 @@ def _reddung_sektoren(conn: sqlite3.Connection) -> list[tuple]:
     if jetzt - _spur_sektoren[0] < 30.0:
         return _spur_sektoren[1]
     now = _now_utc()
-    rand_lat = _REDDUNG_RAND_KM / 111.32
+    rand_lat = _SPUR_RAND_KM / 111.32
     sektoren = []
     for r in conn.execute(
             "SELECT sued, west, nord, ost FROM reddung_events "
             "WHERE dtstart <= ? AND dtend >= ? AND aufgeloest_am IS NULL", (now, now)).fetchall():
         sued, west, nord, ost = (float(x) for x in r)
-        rand_lon = _REDDUNG_RAND_KM / max(_km_je_grad_lon((sued + nord) / 2.0), 1.0)
+        rand_lon = _SPUR_RAND_KM / max(_km_je_grad_lon((sued + nord) / 2.0), 1.0)
         sektoren.append((sued - rand_lat, west - rand_lon, nord + rand_lat, ost + rand_lon))
     # ... und der Umkreis laufender Strecken (Deichkontrolle): Auch dort rechnet die Abdeckung
     # aus den Sekundenpunkten.
@@ -3523,7 +3557,7 @@ def bruegge_spur_schreiben(conn: sqlite3.Connection, cid: int, lage: dict) -> bo
     ein Vergleich gegen wenige Rechtecke) -- sie sitzt in einem Pfad, der je Pilot einmal pro
     Sekunde laeuft.
     """
-    sektoren = _reddung_sektoren(conn)
+    sektoren = _spur_sektoren_holen(conn)
     if not sektoren:
         return False
     try:
@@ -3588,18 +3622,22 @@ def strecken_boxen(conn: sqlite3.Connection) -> list[tuple]:
 
 def _strecken_boxen_lesen(conn: sqlite3.Connection, now: str) -> list[tuple]:
     """Die umschliessenden Rechtecke der zu ``now`` laufenden Strecken, mit Rand -- ungepuffert.
-    Die eine Stelle, die das liest; ``strecken_boxen`` und ``_reddung_sektoren`` puffern je fuer sich."""
+    Die eine Stelle, die das liest; ``strecken_boxen`` und ``_spur_sektoren_holen`` puffern je fuer sich."""
     from app import strecke as _st
-    rand_lat = _REDDUNG_RAND_KM / 111.32
+    rand_lat = _SPUR_RAND_KM / 111.32
     boxen = []
     for r in conn.execute(
-            "SELECT punkte_json FROM strecken_events WHERE dtstart <= ? AND dtend >= ?",
+            "SELECT id, punkte_json FROM strecken_events WHERE dtstart <= ? AND dtend >= ?",
             (now, now)).fetchall():
-        box = _st.box({"punkte_json": r[0]})
+        # Mit den Fundstellen: Sie duerfen abseits der Strecke liegen.
+        box = _strecke_box({"punkte_json": r[1]}, [
+            {"lat": f[0], "lon": f[1]} for f in conn.execute(
+                "SELECT lat, lon FROM strecken_fundstellen WHERE event_id = ?",
+                (r[0],)).fetchall()])
         if box is None:
             continue
         sued, west, nord, ost = box
-        rand_lon = _REDDUNG_RAND_KM / max(_km_je_grad_lon((sued + nord) / 2.0), 1.0)
+        rand_lon = _SPUR_RAND_KM / max(_km_je_grad_lon((sued + nord) / 2.0), 1.0)
         boxen.append((sued - rand_lat, west - rand_lon, nord + rand_lat, ost + rand_lon))
     return boxen
 
@@ -3613,7 +3651,7 @@ def kniebrett_spur_schreiben(conn: sqlite3.Connection, cid: int, lat: float, lon
     Sie soll nicht zwingend aus der Bruegge kommen muessen (Nutzer, 10.10.2026). Das Kniebrett
     meldet aus dem Simulator, also genauso genau, und der Meldeweg hat die Position schon gegen
     VATSIM geprueft. **Teilnehmer wird dadurch niemand:** Dafuer muss die Bruegge gemeldet haben
-    (s. ``_reddung_punkte_mischen``).
+    (s. ``_spur_punkte_mischen``).
 
     ``INSERT OR IGNORE``: Meldet in derselben Sekunde auch die Bruegge dieses Piloten, gilt ihr
     Punkt (sie schreibt mit ``OR REPLACE``).
@@ -10225,7 +10263,7 @@ def reddung_grund_merken(conn: sqlite3.Connection, event_id: int, hoehe_ft: floa
 #: lang, also liegt bei einem sektornahen Segment mindestens ein Endpunkt innerhalb von
 #: Korridor + 6 km -- und der andere dann innerhalb von Korridor + 12 km. 15 km deckt das mit
 #: Reserve ab und schließt trotzdem jeden aus, der nicht in der Gegend fliegt.
-_REDDUNG_RAND_KM = 15.0
+_SPUR_RAND_KM = 15.0
 
 
 def _km_je_grad_lon(lat: float) -> float:
@@ -10233,8 +10271,8 @@ def _km_je_grad_lon(lat: float) -> float:
     return _f(lat)
 
 
-def _reddung_grenzen(box: tuple) -> tuple:
-    """Sektor plus Rand als ``(sued, nord, west, ost)`` -- s. ``_REDDUNG_RAND_KM``.
+def _spur_grenzen(box: tuple) -> tuple:
+    """Sektor plus Rand als ``(sued, nord, west, ost)`` -- s. ``_SPUR_RAND_KM``.
 
     Die Ecken werden sortiert wie in ``raster_masse``: Bei ``sued > nord`` wurde der BETWEEN
     sonst leer, und ein verdreht gespeicherter Sektor bekam keinen einzigen Punkt (#44, Punkt 1).
@@ -10244,8 +10282,8 @@ def _reddung_grenzen(box: tuple) -> tuple:
         sued, nord = nord, sued
     if ost < west:
         west, ost = ost, west
-    d_lat = _REDDUNG_RAND_KM / 111.32
-    d_lon = _REDDUNG_RAND_KM / max(_km_je_grad_lon((sued + nord) / 2.0), 1.0)
+    d_lat = _SPUR_RAND_KM / 111.32
+    d_lon = _SPUR_RAND_KM / max(_km_je_grad_lon((sued + nord) / 2.0), 1.0)
     return (sued - d_lat, nord + d_lat, west - d_lon, ost + d_lon)
 
 
@@ -10254,7 +10292,7 @@ def _knapp_davor(ts: str) -> str:
     return _shift_iso(ts, hours=-1.0 / 3600.0)
 
 
-def _reddung_punkte_mischen(conn: sqlite3.Connection, von: str, bis: str,
+def _spur_punkte_mischen(conn: sqlite3.Connection, von: str, bis: str,
                             grenzen: tuple, *,
                             gemeldet_seit: str | None = None,
                             mit_kniebrett: bool = False) -> dict[int, list]:
@@ -10339,18 +10377,18 @@ def reddung_spuren(conn: sqlite3.Connection, start: str, end: str, *,
     und nicht beim Aufrufer gefiltert, damit niemand versehentlich den Überflug des Finders
     selbst als Aufnahme wertet.
 
-    ``box`` ist der Sektor als ``(sued, west, nord, ost)``. Er wird um ``_REDDUNG_RAND_KM``
+    ``box`` ist der Sektor als ``(sued, west, nord, ost)``. Er wird um ``_SPUR_RAND_KM``
     erweitert und in die Abfrage gegeben: **Wer nicht in der Gegend fliegt, wird nicht
     geladen.** Ohne das holt jeder Poller-Takt die Spuren aller Piloten weltweit, um sie
     danach wegzuwerfen.
     """
     von = max(start, ab) if ab else start
-    grenzen = _reddung_grenzen(box) if box else (-90.0, 90.0, -180.0, 180.0)
+    grenzen = _spur_grenzen(box) if box else (-90.0, 90.0, -180.0, 180.0)
     # `_knapp_davor`, weil `von` hier eine Fensterkante ist und kein zuletzt gerechneter Punkt:
     # Ein Punkt genau darauf gehoert dazu.
     # `start` und nicht `von`: `ab` schneidet fuers Aufnehmen vorn ab, wer teilnimmt entscheidet
     # aber der ganze Abend. Sonst faellt heraus, wessen Bruegge vor dem Fund gemeldet hat.
-    je_cid = _reddung_punkte_mischen(conn, _knapp_davor(von), end, grenzen,
+    je_cid = _spur_punkte_mischen(conn, _knapp_davor(von), end, grenzen,
                                      gemeldet_seit=_knapp_davor(start))
     return [(cid, punkte) for cid, punkte in je_cid.items()]
 
@@ -10391,7 +10429,7 @@ _REDDUNG_PLATZ_KM = 4.0
 _REDDUNG_LUECKE_MAX_S = 300.0
 
 
-def _reddung_punkte_neu(conn: sqlite3.Connection, ev: dict, von: str, bis: str,
+def _spur_punkte_neu(conn: sqlite3.Connection, ev: dict, von: str, bis: str,
                         box: tuple, *, mit_kniebrett: bool = False) -> list[tuple[int, list]]:
     """Die Punkte seit ``von`` -- plus je Pilot den LETZTEN Punkt davor.
 
@@ -10399,13 +10437,13 @@ def _reddung_punkte_neu(conn: sqlite3.Connection, ev: dict, von: str, bis: str,
     letzten Punkt des vorigen Takts fehlt genau das Stück, das über die Schnittkante läuft --
     und es entstünde alle 60 Sekunden ein blinder Fleck, in dem ein Überflug verschwindet.
     """
-    grenzen = _reddung_grenzen(box)
+    grenzen = _spur_grenzen(box)
     # Ein Stueck VOR dem Schnitt mitladen -- zwei Minuten reichen, ein Segment darf ohnehin nur
     # 60 s lang sein (``Fenster.luecke_max_s``). Danach bleibt je Pilot nur der LETZTE Punkt
     # davor stehen: Er baut das Segment ueber die Schnittkante, alles Aeltere waere Arbeit, die
     # mit jedem Takt wieder anfiele.
     frueher = _shift_iso(von, hours=-1.0 / 30.0)
-    je_cid = _reddung_punkte_mischen(conn, frueher, bis, grenzen,
+    je_cid = _spur_punkte_mischen(conn, frueher, bis, grenzen,
                                      gemeldet_seit=_knapp_davor(ev["dtstart"]),
                                      mit_kniebrett=mit_kniebrett)
     raus: list[tuple[int, list]] = []
@@ -10554,7 +10592,7 @@ def reddung_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> di
 
     if bis > von:
         box = (ev["sued"], ev["west"], ev["nord"], ev["ost"])
-        spuren = _reddung_punkte_neu(conn, ev, von, bis, box)
+        spuren = _spur_punkte_neu(conn, ev, von, bis, box)
         if spuren:
             offen = [z for z in rd.zellen_fuer(ev) if z[0] not in treffer]
             if offen:
@@ -10765,7 +10803,7 @@ def reddung_eingrenzung(ev: dict) -> dict | None:
 
 
 #: Die drei Simulatoren, für die ein Havarist gesetzt werden kann.
-_REDDUNG_SIMULATOREN = ("msfs2020", "msfs2024", "xplane12")
+_SOLL_SIMULATOREN = ("msfs2020", "msfs2024", "xplane12")
 
 #: Vorgabe-Art des Havaristen -- eine VORGABE, keine Regel. Der Admin kann jede Art wählen,
 #: die alle drei Simulatoren setzen können: Boot, Seehund, Fahrzeug, Gabelstapler. Ein
@@ -10846,7 +10884,7 @@ def reddung_letzte_naehe(conn: sqlite3.Connection, ev: dict, ab: str, bis: str) 
 def _art_je_simulator(conn: sqlite3.Connection, art: str) -> dict[str, str | None]:
     """Welche Art ist in welchem Simulator setzbar? ``None`` = dort gibt es keine."""
     ergebnis: dict[str, str | None] = {}
-    for sim in _REDDUNG_SIMULATOREN:
+    for sim in _SOLL_SIMULATOREN:
         vorhanden = bruegge_titel_fuer(conn, sim)
         if art in vorhanden:
             ergebnis[sim] = art
@@ -10855,30 +10893,36 @@ def _art_je_simulator(conn: sqlite3.Connection, art: str) -> dict[str, str | Non
     return ergebnis
 
 
-def _reddung_soll_setzen(conn: sqlite3.Connection, basis_id: str, art: str,
-                         lat: float, lon: float, gilt_bis: str,
-                         nur_nah_m: float | None = None) -> list[str]:
+def _soll_setzen_je_simulator(conn: sqlite3.Connection, basis_id: str, art: str,
+                              lat: float, lon: float, gilt_bis: str,
+                              nur_nah_m: float | None = None, *,
+                              kurs: float | None = None,
+                              je_sim: dict | None = None) -> list[str]:
     """Eine Zeile, wenn die Art überall geht -- sonst eine je Simulator.
+
+    Eventunabhängig: Reddung und Deichkontrolle stellen ihre Objekte beide hierüber. ``je_sim``
+    erspart die Abfrage, wenn der Aufrufer viele Objekte derselben Art setzt.
 
     Der Normalfall ist EINE Zeile mit ``simulator = NULL``; die Aufspaltung entsteht nur bei
     einer lückenhaften Art. Wo es auch keinen Ersatz gibt, bleibt der Simulator leer: besser
     nichts als eine Zeile, die die Brügge nicht setzen kann.
     """
-    je_sim = _art_je_simulator(conn, art)
+    if je_sim is None:
+        je_sim = _art_je_simulator(conn, art)
     if set(je_sim.values()) == {art}:
-        bruegge_soll_setzen(conn, basis_id, art, lat, lon, auf_boden=True,
+        bruegge_soll_setzen(conn, basis_id, art, lat, lon, auf_boden=True, kurs=kurs,
                             gilt_bis=gilt_bis, simulator=None, nur_nah_m=nur_nah_m)
-        for sim in _REDDUNG_SIMULATOREN:
+        for sim in _SOLL_SIMULATOREN:
             bruegge_soll_loeschen(conn, f"{basis_id}-{sim}")
         return [basis_id]
     ids: list[str] = []
-    for sim in _REDDUNG_SIMULATOREN:
+    for sim in _SOLL_SIMULATOREN:
         sid = f"{basis_id}-{sim}"
         gewaehlt = je_sim.get(sim)
         if gewaehlt is None:
             bruegge_soll_loeschen(conn, sid)
             continue
-        bruegge_soll_setzen(conn, sid, gewaehlt, lat, lon, auf_boden=True,
+        bruegge_soll_setzen(conn, sid, gewaehlt, lat, lon, auf_boden=True, kurs=kurs,
                             gilt_bis=gilt_bis, simulator=sim, nur_nah_m=nur_nah_m)
         ids.append(sid)
     bruegge_soll_loeschen(conn, basis_id)
@@ -10916,7 +10960,7 @@ def reddung_objekte_abgleichen(conn: sqlite3.Connection, ev: dict,
     # nichts, und es sah aus wie ein Fehler im Katalog.
     def raeumen(basis_id: str) -> None:
         bruegge_soll_loeschen(conn, basis_id)
-        for sim in _REDDUNG_SIMULATOREN:
+        for sim in _SOLL_SIMULATOREN:
             bruegge_soll_loeschen(conn, f"{basis_id}-{sim}")
 
     licht_id = f"{basis}-licht"
@@ -10930,7 +10974,7 @@ def reddung_objekte_abgleichen(conn: sqlite3.Connection, ev: dict,
     gilt_bis = ev["dtend"]
     # Vor dem Fund nur aus der Naehe, danach fuer alle -- s. `_HAVARIST_NAH_M`.
     nah = None if ev.get("gefunden_am") else _HAVARIST_NAH_M
-    ids = _reddung_soll_setzen(conn, hav_id,
+    ids = _soll_setzen_je_simulator(conn, hav_id,
                                ev.get("havarist_art") or _HAVARIST_VORGABE_ART,
                                lat, lon, gilt_bis, nur_nah_m=nah)
 
@@ -10953,11 +10997,11 @@ def reddung_objekte_abgleichen(conn: sqlite3.Connection, ev: dict,
     elif ev.get("signal_am"):
         fackel = "rauch_navy"
     if fackel:
-        ids += _reddung_soll_setzen(conn, fackel_id, fackel,
+        ids += _soll_setzen_je_simulator(conn, fackel_id, fackel,
                                     lat + _FACKEL_VERSATZ_GRAD, lon, gilt_bis)
         # Ein Licht am Fuss JEDER Fackel, exakt an derselben Stelle -- fuer die Nacht, und
         # immer, statt die Uhrzeit im Simulator auszuwerten (Nutzer, 28.09.2026).
-        ids += _reddung_soll_setzen(conn, licht_id, "licht",
+        ids += _soll_setzen_je_simulator(conn, licht_id, "licht",
                                     lat + _FACKEL_VERSATZ_GRAD, lon, gilt_bis)
     else:
         raeumen(fackel_id)
@@ -12817,6 +12861,7 @@ def set_messeverkehr_ausschluss_callsigns(conn: sqlite3.Connection, callsigns: l
 _STRECKE_FELDER = {
     "name", "dtstart", "dtend", "punkte_json", "korridor_m", "hoehe_max_ft",
     "gs_max_kt", "gs_min_kt", "grund_json", "grund_geholt_am", "farbe", "push_enabled",
+    "fund_radius_m", "fund_hoehe_ft", "badge_name",
 }
 
 #: Die beiden Faerbungen des Abgeflogenen.
@@ -12825,7 +12870,7 @@ STRECKE_FARBEN = ("eine", "pilot")
 #: Felder, die NICHT in die Rechnung eingehen. Aendert sich nur eines davon, bleibt der Stand
 #: stehen -- sonst verwuerfe ein neuer Name den Stand eines abgeschlossenen Abends, und nach
 #: zwoelf Stunden sind die Sekundenpunkte weg (dieselbe Falle wie bei der Reddung, 15.25.0).
-_STRECKE_OHNE_RECHNUNG = {"name", "farbe", "push_enabled"}
+_STRECKE_OHNE_RECHNUNG = {"name", "farbe", "push_enabled", "badge_name"}
 
 #: Fassung des fortgeschriebenen Stands, IM Payload (s. ``_REDDUNG_STAND_FASSUNG``).
 #: ⚠ Vor dem Erhoehen pruefen, ob die Sekundenpunkte der betroffenen Events noch da sind.
@@ -12877,15 +12922,199 @@ def update_strecken_event(conn: sqlite3.Connection, event_id: int, **felder) -> 
 
 
 def delete_strecken_event(conn: sqlite3.Connection, event_id: int) -> None:
+    """Das Event samt Fundstellen und Stand loeschen -- und was davon im Simulator steht."""
+    strecke_objekte_abgleichen(conn, {"id": int(event_id)}, weg=True)
+    conn.execute("DELETE FROM strecken_fundstellen WHERE event_id = ?", (int(event_id),))
     conn.execute("DELETE FROM strecken_events WHERE id = ?", (int(event_id),))
     conn.execute("DELETE FROM progress_snapshot WHERE kind = 'strecke' AND ref_id = ?",
                  (int(event_id),))
 
 
 def strecke_stand_verwerfen(conn: sqlite3.Connection, event_id: int) -> None:
-    """Den fortgeschriebenen Stand loeschen -- nach einer Aenderung, die in die Rechnung eingeht."""
+    """Den fortgeschriebenen Stand loeschen -- nach einer Aenderung, die in die Rechnung eingeht.
+
+    Die Funde gehen mit: Sie gehoeren zum selben Stand, und das Fortschreiben rechnet danach
+    von ``dtstart`` an neu, also auch sie -- solange die Sekundenpunkte noch liegen.
+    """
     conn.execute("DELETE FROM progress_snapshot WHERE kind = 'strecke' AND ref_id = ?",
                  (int(event_id),))
+    conn.execute("UPDATE strecken_fundstellen SET gefunden_am = NULL, gefunden_von = NULL "
+                 "WHERE event_id = ?", (int(event_id),))
+
+
+# --- Fundstellen ------------------------------------------------------------------------------
+
+#: So viele Fundstellen je Event. Die eigentliche Grenze ist der Platz in ``bruegge_soll``
+#: (200 Objekte, Rauch und Licht eingerechnet); die prueft die Verwaltung beim Speichern.
+STRECKE_FUNDSTELLEN_MAX = 40
+
+#: Vor dem Fund bekommt die Bruegge die Objekte erst aus der Naehe -- derselbe Riegel und
+#: derselbe Grund wie beim Wrack der Reddung (``_HAVARIST_NAH_M``: LittleNavMap).
+_FUNDSTELLE_NAH_M = 1000.0
+
+
+def _fundstelle_kern(f: dict) -> tuple:
+    """Woran eine Fundstelle wiedererkannt wird. Bleibt das gleich, bleibt ihr Fundstand."""
+    richtung = f.get("richtung")
+    return (round(float(f["lat"]), 6), round(float(f["lon"]), 6), str(f["art"]),
+            int(f["menge_min"]), int(f["menge_max"]),
+            round(float(f["abstand_min_m"]), 3), round(float(f["abstand_max_m"]), 3),
+            None if richtung is None else round(float(richtung), 1), str(f["startwert"]))
+
+
+def strecke_fundstellen(conn: sqlite3.Connection, event_id: int) -> list[dict]:
+    """Die Fundstellen eines Events in Reihenfolge, ``objekte`` schon als Liste."""
+    raus = []
+    for r in conn.execute("SELECT * FROM strecken_fundstellen WHERE event_id = ? ORDER BY nr, id",
+                          (int(event_id),)).fetchall():
+        d = _row_to_dict(r)
+        try:
+            d["objekte"] = json.loads(d.pop("objekte_json") or "[]")
+        except ValueError:
+            d["objekte"] = []
+        raus.append(d)
+    return raus
+
+
+def strecke_fundstellen_setzen(conn: sqlite3.Connection, event_id: int,
+                               liste: list[dict]) -> dict:
+    """Die Fundstellen eines Events auf ``liste`` bringen (kein commit).
+
+    Je Eintrag: ``lat``, ``lon``, ``art``, ``menge_min``, ``menge_max``, ``abstand_min_m``,
+    ``abstand_max_m``, wahlweise ``richtung``, ``startwert`` und ``grund_ft``. Ohne Startwert
+    wird einer vergeben -- das ist „neu wuerfeln“.
+
+    **Eine unveraenderte Fundstelle behaelt ihren Fundstand** (und ihre Zeile): Das Formular der
+    Verwaltung schickt immer alle, und ein neuer Name fuers Event darf keinen Fund loeschen.
+    Unveraendert heisst: derselbe Ort, dieselbe Art, dieselben Angaben, derselbe Startwert.
+    Alles andere ist eine neue Fundstelle; was nicht mehr in der Liste steht, faellt weg.
+
+    Wirft ``ValueError`` mit einem Satz fuer die Verwaltung. Rueckgabe: ``{"geblieben", "neu",
+    "weg", "fundstellen", "objekte"}`` -- ``objekte`` ist die Summe der gewuerfelten Mengen.
+    """
+    from app import gruppen
+
+    if len(liste) > STRECKE_FUNDSTELLEN_MAX:
+        raise ValueError(f"Höchstens {STRECKE_FUNDSTELLEN_MAX} Fundstellen je Event.")
+    alt: dict[tuple, dict] = {}
+    for f in strecke_fundstellen(conn, event_id):
+        alt.setdefault(_fundstelle_kern(f), f)
+    bleibt: set[int] = set()
+    neu = objekte_gesamt = 0
+    for nr, roh in enumerate(liste, 1):
+        try:
+            lat, lon = float(roh["lat"]), float(roh["lon"])
+        except (KeyError, TypeError, ValueError):
+            raise ValueError(f"Fundstelle {nr}: Der Ort ist nicht lesbar.")
+        if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+            raise ValueError(f"Fundstelle {nr} liegt außerhalb der Karte.")
+        art = str(roh.get("art") or "").strip()
+        if not art:
+            raise ValueError(f"Fundstelle {nr}: Es fehlt, was dort stehen soll.")
+        try:
+            m_min, m_max, a_min, a_max, richtung = gruppen.pruefen(
+                roh.get("menge_min"), roh.get("menge_max"),
+                roh.get("abstand_min_m"), roh.get("abstand_max_m"), roh.get("richtung"))
+        except ValueError as e:
+            raise ValueError(f"Fundstelle {nr}: {e}")
+        start = str(roh.get("startwert") or "").strip()[:40] or gruppen.startwert()
+        f = {"lat": lat, "lon": lon, "art": art, "menge_min": m_min, "menge_max": m_max,
+             "abstand_min_m": a_min, "abstand_max_m": a_max, "richtung": richtung,
+             "startwert": start}
+        grund = roh.get("grund_ft")
+        da = alt.get(_fundstelle_kern(f))
+        if da is not None and da["id"] not in bleibt:
+            bleibt.add(da["id"])
+            objekte_gesamt += len(da["objekte"])
+            conn.execute("UPDATE strecken_fundstellen SET nr = ?, grund_ft = COALESCE(?, grund_ft) "
+                         "WHERE id = ?", (nr, grund, da["id"]))
+            continue
+        objekte = gruppen.streuen(lat, lon, m_min, m_max, a_min, a_max, start, richtung)
+        objekte_gesamt += len(objekte)
+        neu += 1
+        cur = conn.execute(
+            "INSERT INTO strecken_fundstellen (event_id, nr, lat, lon, art, menge_min, menge_max, "
+            "  abstand_min_m, abstand_max_m, richtung, startwert, menge, objekte_json, grund_ft) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (int(event_id), nr, lat, lon, art, m_min, m_max, a_min, a_max, richtung, start,
+             len(objekte), json.dumps(objekte), grund))
+        bleibt.add(int(cur.lastrowid))
+    weg = 0
+    for (fid,) in conn.execute("SELECT id FROM strecken_fundstellen WHERE event_id = ?",
+                               (int(event_id),)).fetchall():
+        if fid not in bleibt:
+            conn.execute("DELETE FROM strecken_fundstellen WHERE id = ?", (fid,))
+            weg += 1
+    return {"geblieben": len(bleibt) - neu, "neu": neu, "weg": weg,
+            "fundstellen": len(bleibt), "objekte": objekte_gesamt}
+
+
+def strecke_fundstellen_grund_setzen(conn: sqlite3.Connection, hoehen: dict[int, float]) -> None:
+    """Die Gelaendehoehe je Fundstelle eintragen (``{id: ft}``, kein commit)."""
+    for fid, ft in hoehen.items():
+        conn.execute("UPDATE strecken_fundstellen SET grund_ft = ? WHERE id = ?",
+                     (float(ft), int(fid)))
+
+
+def _strecke_box(ev: dict, fundstellen: list[dict]) -> tuple | None:
+    """Das Rechteck um Strecke UND Fundstellen als ``(sued, west, nord, ost)`` -- eine
+    Fundstelle darf abseits der Strecke liegen, und auch dort muessen die Punkte mitkommen."""
+    from app import strecke as st
+    box = st.box(ev)
+    if box is None:
+        return None
+    sued, west, nord, ost = box
+    for f in fundstellen:
+        sued, nord = min(sued, f["lat"]), max(nord, f["lat"])
+        west, ost = min(west, f["lon"]), max(ost, f["lon"])
+    return (sued, west, nord, ost)
+
+
+def strecke_objekte_abgleichen(conn: sqlite3.Connection, ev: dict, weg: bool = False,
+                               now: str | None = None) -> list[str]:
+    """Die Objekte der Fundstellen in ``bruegge_soll`` auf den Stand des Events bringen.
+
+    Vollstaendiger Abgleich wie ``reddung_objekte_abgleichen``: darf in jedem Poller-Takt
+    laufen und schreibt denselben Zustand. Solange das Event laeuft, steht jede Fundstelle im
+    Soll --
+
+    * **vor dem Fund** mit dem Naehe-Riegel (``nur_nah_m``): Die Bruegge bekommt die Objekte
+      erst, wenn der Pilot nah dran ist. Sonst stuende die Lage von weitem in LittleNavMap.
+    * **nach dem Fund** fuer alle, dazu hellblauer Rauch und ein Licht an der Stelle. Die
+      Objekte bleiben stehen -- es wird nichts aufgenommen.
+
+    Vor dem Beginn und nach ``dtend`` steht nichts im Soll; ``weg=True`` nimmt alles sofort
+    zurueck (beim Loeschen). Was zu diesem Event im Soll steht und nicht mehr gewollt ist
+    (Fundstelle entfernt, neu gewuerfelt mit weniger Objekten), faellt hier ebenfalls weg.
+    """
+    vorsatz = f"strecke-{int(ev['id'])}-"
+    gewollt: list[str] = []
+    now = now or _now_utc()
+    if not weg and (ev.get("dtstart") or "") <= now <= (ev.get("dtend") or ""):
+        gilt_bis = ev["dtend"]
+        je_art: dict[str, dict] = {}
+        for f in strecke_fundstellen(conn, ev["id"]):
+            art = f["art"]
+            if art not in je_art:
+                je_art[art] = _art_je_simulator(conn, art)
+            nah = None if f.get("gefunden_am") else _FUNDSTELLE_NAH_M
+            for i, o in enumerate(f["objekte"]):
+                gewollt += _soll_setzen_je_simulator(
+                    conn, f"{vorsatz}f{f['id']}-{i}", art, o["lat"], o["lon"], gilt_bis,
+                    nur_nah_m=nah, kurs=o.get("kurs"), je_sim=je_art[art])
+            if f.get("gefunden_am"):
+                for teil, was in (("rauch", "rauch_hellblau"), ("licht", "licht")):
+                    gewollt += _soll_setzen_je_simulator(
+                        conn, f"{vorsatz}f{f['id']}-{teil}", was,
+                        f["lat"] + _FACKEL_VERSATZ_GRAD, f["lon"], gilt_bis)
+    behalten = set(gewollt)
+    # Der Vorsatz endet auf "-": `strecke-1-` trifft `strecke-12-…` nicht. GLOB statt LIKE,
+    # weil LIKE den Unterstrich als Platzhalter liest.
+    for (sid,) in conn.execute("SELECT id FROM bruegge_soll WHERE id GLOB ?",
+                               (vorsatz + "*",)).fetchall():
+        if sid not in behalten:
+            bruegge_soll_loeschen(conn, sid)
+    return gewollt
 
 
 def strecke_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> dict:
@@ -12896,12 +13125,18 @@ def strecke_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> di
     ``abdeckung()`` nach Segment-ENDE sortiert rechnet -- ein Treffer von vorhin faellt durch
     einen spaeteren Punkt nie mehr um.
 
+    **Fundstellen werden im selben Zug gefunden**, aus denselben Punkten: wer tief und nah ueber
+    die Mitte einer Fundstelle fliegt (``fund_radius_m``, ``fund_hoehe_ft`` ueber dem Gelaende
+    dort, ohne Mindestgeschwindigkeit -- wie beim Wrack der Reddung). Der Fund steht in der
+    Tabelle, nicht im Snapshot, und wird nur gesetzt, solange noch keiner da ist.
+
     **Ohne Gelaendehoehen wird nicht gerechnet** (Spec A7): ``ohne_grund`` ist dann wahr, der
     Stand bleibt, wie er ist, und ``bis`` rueckt NICHT vor -- sobald die Hoehen da sind, holt
-    der naechste Aufruf alles nach, solange die Sekundenpunkte noch liegen.
+    der naechste Aufruf alles nach, solange die Sekundenpunkte noch liegen. Das gilt auch, wenn
+    nur einer Fundstelle die Hoehe fehlt.
 
     Rueckgabe: ``{"abschnitte", "abgedeckt", "anteil", "je_pilot", "treffer", "bis",
-    "ohne_grund"}``; ``treffer`` ist ``{schluessel: [cid, ts]}``.
+    "ohne_grund", "fundstellen"}``; ``treffer`` ist ``{schluessel: [cid, ts]}``.
     """
     from app import strecke as st
     from app.abdeckung import abdeckung
@@ -12914,11 +13149,13 @@ def strecke_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> di
     je_pilot: dict[int, int] = {int(k): int(v) for k, v in (alt.get("je_pilot") or {}).items()}
     von = alt.get("bis") or ev["dtstart"]
     grenzen = st.hoehe_je_ziel(ev)
-    box = st.box(ev)
+    fundstellen = strecke_fundstellen(conn, ev["id"])
+    box = _strecke_box(ev, fundstellen)
+    ohne_grund = grenzen is None or any(f.get("grund_ft") is None for f in fundstellen)
 
-    if grenzen is not None and box is not None and bis > von:
+    if not ohne_grund and box is not None and bis > von:
         # Mit den Punkten des Kniebretts: Hier zaehlt nur, wie genau die Position ist.
-        spuren = _reddung_punkte_neu(conn, ev, von, bis, box, mit_kniebrett=True)
+        spuren = _spur_punkte_neu(conn, ev, von, bis, box, mit_kniebrett=True)
         if spuren:
             offen = [z for z in st.ziele(ev) if z[0] not in treffer]
             if offen:
@@ -12928,6 +13165,23 @@ def strecke_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> di
                     je_pilot[t.cid] = je_pilot.get(t.cid, 0) + 1
             for cid, _punkte in spuren:
                 je_pilot.setdefault(cid, 0)
+            verborgen = [f for f in fundstellen if not f.get("gefunden_am")]
+            if verborgen:
+                radius = st.fund_radius_km(ev)
+                hoch = st.fund_hoehe_ft(ev)
+                erg = abdeckung(
+                    spuren,
+                    [(f"f{f['id']}", f["lat"], f["lon"], radius) for f in verborgen],
+                    st.fenster_finden(ev),
+                    {f"f{f['id']}": float(f["grund_ft"]) + hoch for f in verborgen})
+                for f in verborgen:
+                    t = erg.treffer.get(f"f{f['id']}")
+                    if t is None:
+                        continue
+                    conn.execute(
+                        "UPDATE strecken_fundstellen SET gefunden_am = ?, gefunden_von = ? "
+                        "WHERE id = ? AND gefunden_am IS NULL", (t.ts, t.cid, f["id"]))
+                    f["gefunden_am"], f["gefunden_von"] = t.ts, t.cid
         _stand_snapshot_schreiben(conn, "strecke", ev["id"], {
             "v": _STRECKE_STAND_FASSUNG, "bis": bis, "treffer": treffer,
             "je_pilot": {str(k): v for k, v in je_pilot.items()},
@@ -12941,7 +13195,8 @@ def strecke_fortschreiben(conn: sqlite3.Connection, ev: dict, *, bis: str) -> di
         "je_pilot": je_pilot,
         "treffer": treffer,
         "bis": von,
-        "ohne_grund": grenzen is None,
+        "ohne_grund": ohne_grund,
+        "fundstellen": fundstellen,
     }
 
 
@@ -12962,11 +13217,17 @@ def compute_strecke_stand(conn: sqlite3.Connection, ev: dict, *,
     stand = strecke_fortschreiben(conn, ev, bis=_strecke_lese_ende(ev))
     anzahl, schritt = st.teilung(ev)
     namen = {int(r[0]): r[1] for r in conn.execute("SELECT cid, name FROM pilots").fetchall()}
+    fundstellen = stand["fundstellen"]
+    funde: dict[int, int] = {}
+    for f in fundstellen:
+        if f.get("gefunden_von") is not None:
+            funde[int(f["gefunden_von"])] = funde.get(int(f["gefunden_von"]), 0) + 1
+    je_cid = {**{cid: 0 for cid in funde}, **stand["je_pilot"]}
     je_pilot = sorted(
         ({"cid": cid, "name": namen.get(cid) or str(cid), "abschnitte": n,
-          "km": round(n * schritt, 1)}
-         for cid, n in stand["je_pilot"].items()),
-        key=lambda p: (-p["abschnitte"], p["cid"]))
+          "km": round(n * schritt, 1), "funde": funde.get(cid, 0)}
+         for cid, n in je_cid.items()),
+        key=lambda p: (-p["abschnitte"], -p["funde"], p["cid"]))
     raus = {
         "id": ev["id"],
         "name": ev.get("name") or "Deichkontrolle",
@@ -12982,7 +13243,30 @@ def compute_strecke_stand(conn: sqlite3.Connection, ev: dict, *,
         "regeln": st.regeln(ev),
         "ohne_grund": stand["ohne_grund"],
         "farbe": ev.get("farbe") if ev.get("farbe") in STRECKE_FARBEN else "eine",
+        # Fundstellen: gezaehlt wird die Fundstelle, nicht das einzelne Objekt.
+        "fundstellen": {"anzahl": len(fundstellen),
+                        "gefunden": sum(1 for f in fundstellen if f.get("gefunden_am"))},
     }
+    if mit_geometrie and fundstellen:
+        # ⚠ Eine noch nicht gefundene Fundstelle geht NIE mit ihrer Lage hinaus, solange das
+        # Event laeuft -- auch nicht „versteckt“ im Datensatz. Nach dem Ende duerfen alle
+        # erscheinen (wie der Fundort der Reddung).
+        vorbei = (ev.get("dtend") or "") < _now_utc()
+        arten = {r[0]: r[1] for r in conn.execute(
+            "SELECT art, bedeutung FROM bruegge_art").fetchall()}
+        liste = []
+        for f in fundstellen:
+            gefunden = bool(f.get("gefunden_am"))
+            if not gefunden and not vorbei:
+                continue
+            eintrag = {"nr": f["nr"], "gefunden": gefunden, "lat": f["lat"], "lon": f["lon"],
+                       "art": f["art"], "art_name": arten.get(f["art"]) or f["art"],
+                       "menge": f["menge"]}
+            if gefunden:
+                cid = int(f["gefunden_von"])
+                eintrag.update(cid=cid, name=namen.get(cid) or str(cid), ts=f["gefunden_am"])
+            liste.append(eintrag)
+        raus["fundstellen"]["liste"] = liste
     if mit_geometrie:
         geo = st.geometrie(ev)
         raus["strecke"] = [

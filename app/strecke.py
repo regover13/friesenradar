@@ -33,6 +33,9 @@ VORGABE_KORRIDOR_M = 500.0
 VORGABE_HOEHE_FT = 1000.0
 VORGABE_GS_MAX_KT = 140.0
 VORGABE_GS_MIN_KT = 30.0
+#: Finden einer Fundstelle -- dieselben Vorgaben wie bei der Reddung.
+VORGABE_FUND_RADIUS_M = 150.0
+VORGABE_FUND_HOEHE_FT = 1000.0
 
 #: Grenzen der Eingabe. 2.000 Abschnitte sind 20 Abrufe beim Höhenmodell (100 Punkte je Abruf,
 #: gemessen am 10.10.2026) und bei 500 m Korridor 2.000 km Strecke.
@@ -188,6 +191,23 @@ def fenster(ev: dict) -> Fenster:
     )
 
 
+def fund_radius_km(ev: dict) -> float:
+    return _zahl(ev, "fund_radius_m", VORGABE_FUND_RADIUS_M) / 1000.0
+
+
+def fund_hoehe_ft(ev: dict) -> float:
+    """So hoch über dem Gelände an der Fundstelle darf man beim Finden höchstens sein."""
+    return _zahl(ev, "fund_hoehe_ft", VORGABE_FUND_HOEHE_FT)
+
+
+def fenster_finden(ev: dict) -> Fenster:
+    """Finden einer Fundstelle: dieselbe Höchstgeschwindigkeit wie beim Abfliegen, aber **ohne
+    Untergrenze** -- wer über der Stelle schwebt, hat sie gefunden (bei der Reddung so
+    entschieden am 25.09.2026). Die Höhe steht je Fundstelle (Gelände dort plus Fundhöhe)."""
+    return Fenster(hoehe_max_ft=float("inf"),
+                   gs_max_kt=_zahl(ev, "gs_max_kt", VORGABE_GS_MAX_KT), gs_min_kt=0.0)
+
+
 def box(ev: dict) -> tuple[float, float, float, float] | None:
     """Das umschließende Rechteck der Strecke als ``(sued, west, nord, ost)``."""
     pts = punkte(ev)
@@ -204,6 +224,8 @@ def regeln(ev: dict) -> dict:
         "hoehe_max_ft": _zahl(ev, "hoehe_max_ft", VORGABE_HOEHE_FT),
         "gs_max_kt": _zahl(ev, "gs_max_kt", VORGABE_GS_MAX_KT),
         "gs_min_kt": _zahl(ev, "gs_min_kt", VORGABE_GS_MIN_KT),
+        "fund_radius_m": _zahl(ev, "fund_radius_m", VORGABE_FUND_RADIUS_M),
+        "fund_hoehe_ft": fund_hoehe_ft(ev),
     }
 
 
