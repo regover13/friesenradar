@@ -272,3 +272,63 @@ def test_schnittstelle_liefert_online_und_geplant(pfad, monkeypatch):
 def test_schnittstelle_steht_hinter_der_anmeldung():
     import app.main as main
     assert not "/api/lotsen".startswith(main._GATE_ALLOW_PREFIXES)
+
+
+# --- Name eines Lotsen, den wir nur aus dem Forum kennen (Nutzer 10.10.2026) ---------------
+
+def _feed_mit_namen(cid, cs, name):
+    return {"controllers": [{"cid": cid, "name": name, "callsign": cs, "frequency": "124.075",
+                             "facility": 6, "text_atis": [], "logon_time": "2026-10-10T08:00:00Z"}]}
+
+
+def test_wer_nur_aus_dem_forum_bekannt_ist_bekommt_den_namen_aus_dem_feed(pfad):
+    """FRS66 lotste und stand nur mit Rufzeichen da: Er war nie geflogen, die Pilotenliste
+    kannte ihn nicht. Der Feed nennt den Namen bei jedem Lotsen."""
+    p = _poller(pfad)
+    p._lotsen_aus_feed(_feed(), set())
+    p._lotsen_aus_feed(_feed_mit_namen(1000004, "EDWW_E1D_CTR", "Frieda Forum EDDW"), set())
+    assert p.lotsen_online[0]["name"] == "Frieda Forum EDDW"
+    assert "feedname" not in p.lotsen_online[0]
+    assert p.gesendet[0][2]["title"] == "Frieda Forum lotst jetzt Bremen Radar 🎧"
+
+
+def test_der_name_wird_gemerkt_und_gilt_auch_fuer_gebuchte_schichten(pfad):
+    p = _poller(pfad)
+    p._lotsen_aus_feed(_feed_mit_namen(1000004, "EDWW_E1D_CTR", "Frieda Forum EDDW"), set())
+    c = get_connection(pfad)
+    try:
+        assert db.lotsen_bekannte(c)[1000004] == "Frieda Forum EDDW", "auch wenn er wieder offline ist"
+        assert c.execute("SELECT COUNT(*) FROM pilots WHERE cid = 1000004").fetchone()[0] == 0, \
+            "in die Pilotenliste und die Statistik kommt er dadurch nicht"
+    finally:
+        c.close()
+
+
+def test_die_pilotenliste_geht_vor_dem_feed(pfad):
+    p = _poller(pfad)
+    p._lotsen_aus_feed(_feed_mit_namen(1000001, "EDDP_GND", "Ganz Anders"), set())
+    assert p.lotsen_online[0]["name"] == "Erika Muster"
+
+
+@pytest.mark.parametrize("feedname", ["", "   ", "1000004", None])
+def test_ohne_brauchbaren_namen_im_feed_bleibt_das_rufzeichen(pfad, feedname):
+    p = _poller(pfad)
+    p._lotsen_aus_feed(_feed_mit_namen(1000004, "EDWW_E1D_CTR", feedname), set())
+    assert p.lotsen_online[0]["name"] == "FRS77"
+
+
+def test_der_name_wird_nicht_bei_jedem_durchlauf_neu_geschrieben(pfad):
+    p = _poller(pfad)
+    feed = _feed_mit_namen(1000004, "EDWW_E1D_CTR", "Frieda Forum EDDW")
+    p._lotsen_aus_feed(feed, set())
+    c = get_connection(pfad)
+    stand = c.execute("SELECT gesehen_am FROM lotsen_name WHERE cid = 1000004").fetchone()[0]
+    c.execute("UPDATE lotsen_name SET gesehen_am = 'unveraendert' WHERE cid = 1000004")
+    c.commit(); c.close()
+    p._lotsen_aus_feed(feed, set())
+    c = get_connection(pfad)
+    try:
+        assert c.execute("SELECT gesehen_am FROM lotsen_name WHERE cid = 1000004").fetchone()[0] == "unveraendert"
+    finally:
+        c.close()
+    assert stand

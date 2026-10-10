@@ -28,6 +28,8 @@ from app.database import (
     set_app_setting,
     lotsen_bekannte,
     lotsen_gemeldete,
+    lotsen_mit_pilotenname,
+    lotsen_name_merken,
     lotsen_merken,
     get_live_positions,
     get_push_subscriptions_for_pilot,
@@ -1780,15 +1782,28 @@ class VatsimPoller:
 
         Fängt alles ab: Ein Fehler hier darf den Poll-Zyklus nicht mitreißen."""
         try:
+            jetzt = self._now()
             conn = get_connection(self.db_path)
             try:
                 bekannte = lotsen_bekannte(conn)
+                for cid in ausgenommen or ():
+                    bekannte.pop(cid, None)
+                liste = lotsen.friesen_lotsen(vatsim_data, set(bekannte))
+                # Wen die Pilotenliste nicht kennt (nie geflogen), der bekommt den Namen aus
+                # dem Feed -- und wir merken ihn uns, damit er auch bei seinen gebuchten
+                # Schichten steht. Geschrieben wird nur, wenn er neu ist oder sich ändert.
+                mit_pilotenname = lotsen_mit_pilotenname(conn)
+                geschrieben = False
+                for l in liste:
+                    name = l.pop("feedname", "")
+                    if name and l["cid"] not in mit_pilotenname and bekannte.get(l["cid"]) != name:
+                        lotsen_name_merken(conn, l["cid"], name, jetzt.strftime("%Y-%m-%dT%H:%M:%SZ"))
+                        bekannte[l["cid"]] = name
+                        geschrieben = True
+                if geschrieben:
+                    conn.commit()
             finally:
                 conn.close()
-            for cid in ausgenommen or ():
-                bekannte.pop(cid, None)
-            jetzt = self._now()
-            liste = lotsen.friesen_lotsen(vatsim_data, set(bekannte))
             for l in liste:
                 l["name"] = bekannte.get(l["cid"], "")
                 l["bis"] = lotsen.endzeit(l, self.lotsen_buchungen, jetzt)

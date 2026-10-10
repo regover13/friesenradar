@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.4.4",
+    "date": "2026-10-10",
+    "highlight": false,
+    "title": "Lotsen mit Namen, auch ohne eigenen Flug",
+    "items": [
+      "🎧 Lotst ein Friese, der bei FriesenRadar noch nie geflogen ist, stand dort bisher nur sein Rufzeichen. Jetzt steht sein Name da, wie VATSIM ihn nennt, und FriesenRadar merkt ihn sich für die gebuchten Schichten."
+    ]
+  },
+  {
     "version": "16.4.3",
     "date": "2026-10-10",
     "highlight": false,

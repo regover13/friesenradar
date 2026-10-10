@@ -245,6 +245,12 @@ CREATE TABLE IF NOT EXISTS bummel_overrides (
     PRIMARY KEY(race_id, cid)
 );
 
+CREATE TABLE IF NOT EXISTS lotsen_name (
+    cid        INTEGER PRIMARY KEY,     -- Friese, den wir nur aus dem Forum kennen (nie geflogen)
+    name       TEXT NOT NULL,           -- Name aus dem VATSIM-Feed, gesehen beim Lotsen
+    gesehen_am TEXT
+);
+
 CREATE TABLE IF NOT EXISTS lotsen_buchung_gemeldet (
     buchung_id  INTEGER PRIMARY KEY,    -- Kennung aus der VATSIM-Buchungsliste (#61)
     gemeldet_am TEXT
@@ -12108,13 +12114,19 @@ def lotsen_bekannte(conn: sqlite3.Connection) -> dict[int, str]:
     """VATSIM-Nummer -> Anzeigename aller Friesen, die als Lotse erkannt werden sollen.
 
     Lotsen tragen kein FRS-Rufzeichen; erkannt wird über die Nummer. Quellen: die aktive
-    Pilotenliste und die Rufzeichen aus der Forum-Anmeldung. Wer nur aus dem Forum bekannt
-    ist, heißt wie sein Rufzeichen. Abgeschaltete Piloten fehlen."""
+    Pilotenliste und die Rufzeichen aus der Forum-Anmeldung. Abgeschaltete Piloten fehlen.
+
+    Der Name kommt aus der Pilotenliste. Wer nie geflogen ist, steht dort nicht; für ihn gilt
+    der Name, den der VATSIM-Feed beim Lotsen genannt hat (``lotsen_name``), und bis dahin
+    sein Rufzeichen."""
     aus = {r["cid"] for r in conn.execute("SELECT cid FROM pilots WHERE active = 0")}
     bekannt: dict[int, str] = {}
     for r in conn.execute("SELECT cid, callsign FROM forum_callsign ORDER BY callsign"):
         if r["cid"] not in aus:
             bekannt.setdefault(r["cid"], r["callsign"])
+    for r in conn.execute("SELECT cid, name FROM lotsen_name"):
+        if r["cid"] in bekannt:
+            bekannt[r["cid"]] = r["name"]
     for r in conn.execute("SELECT cid, name FROM pilots WHERE active = 1"):
         name = (r["name"] or "").strip()
         if name and not name.isdigit():
@@ -12122,6 +12134,22 @@ def lotsen_bekannte(conn: sqlite3.Connection) -> dict[int, str]:
         else:
             bekannt.setdefault(r["cid"], "Ein Friese")
     return bekannt
+
+
+def lotsen_mit_pilotenname(conn: sqlite3.Connection) -> set[int]:
+    """Nummern, deren Name aus der Pilotenliste kommt -- der geht jedem anderen vor."""
+    return {r["cid"] for r in conn.execute("SELECT cid, name FROM pilots WHERE active = 1")
+            if (r["name"] or "").strip() and not (r["name"] or "").strip().isdigit()}
+
+
+def lotsen_name_merken(conn: sqlite3.Connection, cid: int, name: str, ts: str) -> None:
+    """Namen aus dem VATSIM-Feed festhalten (kein commit). Nur für die Lotsen-Anzeige:
+    In die Pilotenliste und die Statistik kommt dadurch niemand."""
+    conn.execute(
+        "INSERT INTO lotsen_name (cid, name, gesehen_am) VALUES (?, ?, ?) "
+        "ON CONFLICT(cid) DO UPDATE SET name = excluded.name, gesehen_am = excluded.gesehen_am",
+        (int(cid), name, ts),
+    )
 
 
 def lotsen_gemeldete(conn: sqlite3.Connection) -> set[int]:

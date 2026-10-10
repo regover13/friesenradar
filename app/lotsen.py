@@ -107,6 +107,13 @@ def station(callsign: str) -> dict | None:
             "lat": float(koord[0]), "lon": float(koord[1])}
 
 
+def feedname(roh) -> str:
+    """Brauchbarer Name aus dem Feed, sonst leer. Wer seinen Namen bei VATSIM verbirgt,
+    steht dort mit seiner Nummer."""
+    name = str(roh or "").strip()
+    return "" if not name or name.isdigit() else name[:80]
+
+
 def friesen_lotsen(vatsim_data: dict, cids: set[int]) -> list[dict]:
     """Friesen, die laut Feed gerade an einem Flugplatz lotsen."""
     erg = []
@@ -123,6 +130,8 @@ def friesen_lotsen(vatsim_data: dict, cids: set[int]) -> list[dict]:
             "station": s["name"], "icao": s["icao"], "lat": s["lat"], "lon": s["lon"],
             "online_seit": c.get("logon_time") or "",
             "infotext": [str(z) for z in (c.get("text_atis") or []) if z],
+            # Name laut VATSIM; nur Rückfall für Friesen, die die Pilotenliste nicht kennt.
+            "feedname": feedname(c.get("name")),
         })
     erg.sort(key=lambda l: l["callsign"])
     return erg
