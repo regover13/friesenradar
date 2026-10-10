@@ -390,3 +390,23 @@ def test_der_riegel_faellt_mit_dem_fund(conn):
     werte = [r[0] for r in conn.execute("SELECT nur_nah_m FROM bruegge_soll").fetchall()]
     # Wrack, Fackel und (seit 28.09.2026) das Licht am Fuss der Fackel.
     assert werte == [None, None, None], "nach dem Fund kein Riegel mehr"
+
+
+def test_der_abgleich_liest_den_katalog_je_simulator_nur_einmal(conn, monkeypatch):
+    """Wrack, Fackel und Licht schlugen ihre Art je Simulator einzeln nach -- neun Abfragen zu
+    rund 9 ms in einem Job, der alle zehn Sekunden die Event-Loop haelt (gemessen an der
+    Deichkontrolle, 10.10.2026). Das Ergebnis ist dasselbe wie vorher."""
+    import app.database as db
+    ev = {**_ev(conn), "gefunden_am": "2026-09-25T18:00:00Z"}
+    erwartet = sorted(reddung_objekte_abgleichen(conn, ev))
+    davor = conn.execute("SELECT id, art, simulator, lat, lon, nur_nah_m FROM bruegge_soll "
+                         "ORDER BY id").fetchall()
+    assert any("fackel" in i for i in erwartet) and any("licht" in i for i in erwartet)
+
+    rufe = []
+    echt = db.bruegge_titel_fuer
+    monkeypatch.setattr(db, "bruegge_titel_fuer", lambda c, sim: rufe.append(sim) or echt(c, sim))
+    assert sorted(reddung_objekte_abgleichen(conn, ev)) == erwartet
+    assert sorted(rufe) == sorted(db._SOLL_SIMULATOREN)
+    assert conn.execute("SELECT id, art, simulator, lat, lon, nur_nah_m FROM bruegge_soll "
+                        "ORDER BY id").fetchall() == davor

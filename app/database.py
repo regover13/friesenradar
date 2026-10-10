@@ -10982,9 +10982,18 @@ def reddung_objekte_abgleichen(conn: sqlite3.Connection, ev: dict,
     gilt_bis = ev["dtend"]
     # Vor dem Fund nur aus der Naehe, danach fuer alle -- s. `_HAVARIST_NAH_M`.
     nah = None if ev.get("gefunden_am") else _HAVARIST_NAH_M
-    ids = _soll_setzen_je_simulator(conn, hav_id,
-                               ev.get("havarist_art") or _HAVARIST_VORGABE_ART,
-                               lat, lon, gilt_bis, nur_nah_m=nah)
+    # Den Katalog je Simulator EINMAL je Aufruf lesen, wie in ``strecke_objekte_abgleichen``:
+    # Mit dem echten Katalog kostet jedes Nachschlagen rund 9 ms, und Wrack, Fackel und Licht
+    # waren neun davon -- in einem Job, der alle zehn Sekunden die Event-Loop haelt. Am
+    # Ergebnis aendert das nichts (Nutzer, 10.10.2026: „genau gleich nachschlagen“).
+    titel = {sim: bruegge_titel_fuer(conn, sim) for sim in _SOLL_SIMULATOREN}
+
+    def je_sim(art: str) -> dict:
+        return _art_je_simulator(conn, art, titel)
+
+    hav_art = ev.get("havarist_art") or _HAVARIST_VORGABE_ART
+    ids = _soll_setzen_je_simulator(conn, hav_id, hav_art, lat, lon, gilt_bis, nur_nah_m=nah,
+                                    je_sim=je_sim(hav_art))
 
     # Die Fackel als Zustandsanzeige, von hinten nach vorn gelesen:
     #   rot      -- der Fall ist abgeschlossen (oder das Event vorbei). Steht bis `dtend` und
@@ -11006,11 +11015,13 @@ def reddung_objekte_abgleichen(conn: sqlite3.Connection, ev: dict,
         fackel = "rauch_navy"
     if fackel:
         ids += _soll_setzen_je_simulator(conn, fackel_id, fackel,
-                                    lat + _FACKEL_VERSATZ_GRAD, lon, gilt_bis)
+                                         lat + _FACKEL_VERSATZ_GRAD, lon, gilt_bis,
+                                         je_sim=je_sim(fackel))
         # Ein Licht am Fuss JEDER Fackel, exakt an derselben Stelle -- fuer die Nacht, und
         # immer, statt die Uhrzeit im Simulator auszuwerten (Nutzer, 28.09.2026).
         ids += _soll_setzen_je_simulator(conn, licht_id, "licht",
-                                    lat + _FACKEL_VERSATZ_GRAD, lon, gilt_bis)
+                                         lat + _FACKEL_VERSATZ_GRAD, lon, gilt_bis,
+                                         je_sim=je_sim("licht"))
     else:
         raeumen(fackel_id)
         raeumen(licht_id)
