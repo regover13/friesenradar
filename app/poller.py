@@ -424,6 +424,13 @@ def _vrp_faellig(stand: str) -> bool:
 #: `position_history` pruefen (Spec, offener Punkt 4).
 _REDDUNG_SCHONFRIST_MIN = 10
 
+#: **Ein Takt fuer alle Eventtypen, die etwas in den Simulator stellen** (Nutzerentscheidung
+#: 10.10.2026): Reddung, Deichkontrolle, spaeter Kieker und Baake. Mit ihm kommt nach einem Fund
+#: der Rauch. Wer ihn aendert, aendert ihn hier und damit fuer alle -- nicht je Eventtyp.
+#: Bummel und Kutter stellen nichts in den Simulator und laufen mit eigenen 60 s.
+#: Die Herkunft der Zahl steht bei ``_REDDUNG_TAKT_S`` darunter.
+_OBJEKT_TAKT_S = 10
+
 #: Takt des Reddung-Jobs. Anfangs 60 s wie Bummel und Kutter -- dort geht es um Pushes nach dem
 #: Eventende, und eine Minute faellt nicht auf. Dann 30 s, als das Fortschreiben einen Lauf
 #: billig gemacht hatte. **10 s seit #49, Punkt 3** (Nutzerentscheidung 25.09.2026): Beim Test
@@ -431,7 +438,7 @@ _REDDUNG_SCHONFRIST_MIN = 10
 #: Pilot am Wrack. ⚠ Der Job laeuft IM Event-Loop (async ohne await): Waehrend seiner rund 70 ms
 #: beantwortet der Server nichts, auch keine Brügge-Meldung. Bei 10 s sind das im Mittel 0,7 %
 #: der Zeit. Wer kuerzer geht, misst vorher die Laufzeit mit vielen Teilnehmern.
-_REDDUNG_TAKT_S = 10
+_REDDUNG_TAKT_S = _OBJEKT_TAKT_S
 
 #: Takt der Deichkontrolle. Anfangs 30 s, als es nur die Strecke gab und niemand auf etwas
 #: wartete. **10 s wie bei der Reddung, seit es Fundstellen gibt** (Nutzer, 10.10.2026): Der
@@ -439,7 +446,7 @@ _REDDUNG_TAKT_S = 10
 #: Kilometer weiter. Dieselbe Warnung wie oben: Der Job laeuft im Event-Loop; gemessen sind
 #: rund 10 bis 20 ms fuer den Abgleich von 170 bis 190 verborgenen Objekten, mit allen
 #: Fundstellen gefunden (Rauch und Licht dazu) waren es vor dem Zwischenspeichern der Arten 80 ms.
-_STRECKE_TAKT_S = 10
+_STRECKE_TAKT_S = _OBJEKT_TAKT_S
 #: So lange nach ``dtend`` laeuft ein Event noch durch den Takt.
 _STRECKE_NACHLAUF_S = 600
 

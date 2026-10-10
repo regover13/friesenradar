@@ -283,3 +283,9 @@ def test_reste_eines_events_das_waehrend_eines_ausfalls_endete_werden_abgeraeumt
     da = {r["id"] for r in dbm.bruegge_soll_alle(c)}
     c.close()
     assert da == {"strecke-78-f1-0", "reddung-1-havarist"}
+
+
+def test_alle_eventtypen_mit_objekten_im_simulator_laufen_im_selben_takt():
+    """Nutzerentscheidung 10.10.2026: ein Wert fuer Reddung, Deichkontrolle und was noch kommt."""
+    from app import poller
+    assert poller._REDDUNG_TAKT_S == poller._STRECKE_TAKT_S == poller._OBJEKT_TAKT_S == 10

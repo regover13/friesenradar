@@ -508,6 +508,8 @@ ausgehandelt wird:
   `app/gruppen.py`), nicht im Namensraum eines Eventtyps.
 - **README-Abschnitt für Mitglieder und für die Verwaltung im selben Commit**, Changelog ohne
   Hauptnummer und ohne Highlight, solange der Nutzer nichts anderes sagt.
+- **Stellt der Typ etwas in den Simulator, läuft sein Poller-Job im gemeinsamen Takt**
+  `_OBJEKT_TAKT_S` (10 s), nicht in einem eigenen.
 - **Erst aufs Testsystem** (Zweig `test`), nach `main` nur auf Wort des Nutzers.
 - **Entscheidungsfragen einzeln stellen**, eine je Nachricht, mit Empfehlung.
 
@@ -581,8 +583,12 @@ ausgehandelt wird:
 - **Fundradius und Fundhöhe verwerfen den Stand nicht** (`_STRECKE_OHNE_RECHNUNG`); sie gelten
   ab dem Speichern für das, was offen ist. Eine Fundstelle, die während des Events dazukommt,
   trägt `gilt_ab` und wird auch beim Neurechnen nicht rückwirkend gefunden.
-- **Der Takt ist 10 s wie bei der Reddung** (`_STRECKE_TAKT_S`): Der Rauch nach dem Fund kommt
-  mit ihm. Wer einen der beiden Takte ändert, ändert beide (Nutzer, 10.10.2026).
+- **Ein Takt für alle Eventtypen, die etwas in den Simulator stellen: 10 s** (`_OBJEKT_TAKT_S`
+  in `app/poller.py`, Nutzerentscheidung 10.10.2026). Reddung und Deichkontrolle hängen daran,
+  Kieker und Baake später ebenso. Der Rauch nach dem Fund kommt mit ihm. Nicht je Eventtyp
+  ändern, und vor einer Änderung fragen: Die Deichkontrolle stand zuerst auf 30 s, und die
+  Angleichung ohne Rücksprache war dem Nutzer nicht recht (*„das wollten wir doch diskutieren
+  und dann überall standardisieren!“*).
 - **Jede Zahl aus einem Körper auf Endlichkeit prüfen.** `float("nan")` kommt durch `json.loads`
   und macht jeden Vergleich falsch: In `gruppen.streuen` war das eine Endlosschleife in der
   Event-Loop, im Sektor der Reddung ging es ungeprüft durch. `not (a <= x <= b)` fängt es.
