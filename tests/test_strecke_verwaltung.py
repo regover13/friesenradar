@@ -192,9 +192,28 @@ def test_der_name_allein_loest_die_warnung_nicht_aus():
 
 # -------------------------------------------------------------------- Die Liste
 
-def test_die_liste_steht_im_scrollbaren_wrapper():
+def test_die_liste_sieht_aus_wie_die_der_reddung():
+    """Nutzer, 10.10.2026: „das soll bei allen neuen Events so aussehen wie hier" -- Kopfzeile mit
+    Abzeichen, Stand als Satz, Einzelheiten und die Knopfreihe Bearbeiten, Link, Push, Löschen."""
     rumpf = _rumpf("loadStrecke")
-    assert '<div class="table-wrap"><table id="sk-tabelle">' in rumpf
-    for feld in ("ev.laenge_km", "st.abschnitte", "st.km_abgedeckt", "st.km_gesamt", "st.anteil"):
+    assert 'class="list-row' in rumpf
+    for feld in ("ev.laenge_km", "st.abschnitte", "st.km_abgedeckt", "st.km_gesamt", "st.anteil",
+                 "st.je_pilot", "ev.korridor_m", "ev.push_enabled", "ev.farbe"):
         assert feld in rumpf, feld
-    assert "skEdit(" in rumpf and "skLoeschen(" in rumpf
+    assert "badge-push-on" in rumpf and "badge-push-off" in rumpf and "_skZustand(ev)" in rumpf
+    for knopf in ("skEdit(", "skCopyLink(", "skPush(", "skLoeschen("):
+        assert knopf in rumpf, knopf
+
+
+def test_push_und_link_haben_ihre_wege():
+    assert "'/api/admin/strecke/events/' + id + '/push'" in _rumpf("skPush")
+    assert "'/#tab=events&strecke=' + id" in _rumpf("skCopyLink")
+    assert "_teilenUrsprung()" in _rumpf("skCopyLink")
+
+
+def test_die_farbe_ist_eine_einstellung_im_formular():
+    assert 'id="sk-farbe"' in ADMIN
+    assert "skFarbeSetzen('eine')" in ADMIN and "skFarbeSetzen('pilot')" in ADMIN
+    assert "farbe: _skFarbe" in _rumpf("skSpeichern")
+    assert "skFarbeSetzen(ev.farbe)" in _rumpf("skEdit")
+    assert "skFarbeSetzen('eine')" in _rumpf("_skFormSchliessen")

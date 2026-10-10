@@ -1700,6 +1700,20 @@
                 </p>
               </div>
 
+              <div class="section-title">Anzeige</div>
+              <div class="form-group">
+                <label>Farbe des Abgeflogenen</label>
+                <div id="sk-farbe" class="sk-farbe" role="group" aria-label="Farbe des Abgeflogenen">
+                  <button type="button" class="btn btn-sm" data-farbe="eine" onclick="skFarbeSetzen('eine')">Eine Farbe für alle</button>
+                  <button type="button" class="btn btn-sm" data-farbe="pilot" onclick="skFarbeSetzen('pilot')">Je Pilot eine Farbe</button>
+                </div>
+                <p class="form-hint" style="margin:0.4rem 0 0;">
+                  So sehen es alle auf der Karte und in der Ansicht des Events. Mit einer Farbe
+                  füllt die Gruppe gemeinsam eine Linie; je Pilot eine Farbe zeigt, wer welches
+                  Stück geholt hat. Lässt sich jederzeit umstellen, der Stand bleibt.
+                </p>
+              </div>
+
               <div class="form-actions">
                 <button class="btn btn-primary" id="sk-save-btn">Speichern</button>
                 <button class="btn" id="sk-cancel-btn">Abbrechen</button>
@@ -7974,6 +7988,17 @@
       toast(detail, true);
     }
 
+    // Die Farbwahl ist eine Einstellung des Events (Nutzer, 10.10.2026: „unter admin als button in
+    // den Einstellung des events!"). Mitglieder haben keinen Umschalter.
+    let _skFarbe = 'eine';
+    function skFarbeSetzen(wahl) {
+      _skFarbe = wahl === 'pilot' ? 'pilot' : 'eine';
+      document.querySelectorAll('#sk-farbe button').forEach(function (b) {
+        b.classList.toggle('btn-primary', b.dataset.farbe === _skFarbe);
+        b.setAttribute('aria-pressed', b.dataset.farbe === _skFarbe ? 'true' : 'false');
+      });
+    }
+
     function _skZustand(ev) {
       if (ev.laeuft) return '<span class="badge badge-running">läuft</span>';
       if (ev.vorbei_seit_s !== null && ev.vorbei_seit_s !== undefined) {
@@ -7993,36 +8018,69 @@
         c.innerHTML = '<div class="empty-hint">Noch keine Events.</div>';
         return;
       }
-      const zeilen = _skEvents.map(function (ev) {
+      // Aufbau wie die Liste der Reddung (Nutzer, 10.10.2026: „das soll bei allen neuen Events so
+      // aussehen wie hier"): Kopfzeile mit Abzeichen, Stand als Satz, Einzelheiten, Knopfreihe.
+      c.innerHTML = _skEvents.map(function (ev) {
         const st = ev.stand || {};
-        const abschnitte = st.abschnitte || 0;
-        const stand = _skZahl(st.km_abgedeckt, 1) + ' von ' + _skZahl(st.km_gesamt, 1) + ' km · '
-          + _skZahl((st.anteil || 0) * 100) + ' %';
+        const anteil = Math.round((st.anteil || 0) * 100);
+        const beitraege = (st.je_pilot || []).filter(function (x) { return x.abschnitte > 0; })
+          .map(function (x) { return escH(x.name) + ' ' + _skZahl(x.km, 1) + ' km'; }).join(', ') || '—';
         const grundFehlt = !ev.grund_da;
-        return '<tr class="dg-row">'
-          + '<td><strong>' + escH(ev.name) + '</strong> ' + _skZustand(ev) + '</td>'
-          + '<td>' + escH(fmtDt(ev.dtstart)) + ' – ' + escH(fmtDt(ev.dtend)) + '</td>'
-          + '<td style="text-align:right;">' + _skZahl(ev.laenge_km, 1) + ' km</td>'
-          + '<td style="text-align:right;">' + _skZahl(abschnitte)
-          + (st.abschnitt_m ? ' <span class="hint">zu je ' + _skZahl(st.abschnitt_m) + ' m</span>' : '')
-          + '</td>'
-          + '<td>' + stand + '</td>'
-          + '</tr>'
-          + '<tr class="dg-actions"><td colspan="5">'
-          + (grundFehlt
-             // Der Hinweis als eigene Zeile UEBER den Knoepfen: In einer Reihe schoebe er sie
-             // auf dem Handy aus dem Bild (die Tabelle ist so breit wie ihr Inhalt).
-             ? '<div class="sk-grund-fehlt sk-warnung" style="margin:0 0 0.4rem;">⚠ Geländehöhen fehlen – es wird nicht gerechnet</div>'
-               + '<button class="btn btn-sm" onclick="skGrundHolen(' + ev.id + ', this)">Geländehöhen holen</button> '
-             : '')
+        const gelaende = grundFehlt
+          ? '<span class="sk-grund-fehlt" style="color:#e0a33e">⚠ Geländehöhen fehlen – es wird nicht gerechnet</span>'
+          : 'Geländehöhen geholt' + (ev.grund_geholt_am
+              ? ' <span class="hint">(' + escH(fmtDt(ev.grund_geholt_am)) + ')</span>' : '');
+        return '<div class="list-row sk-karte-zeile" style="padding:10px 0;border-bottom:1px solid #1e2b3a;">'
+          + '<div><strong>' + escH(ev.name) + '</strong> <span class="hint">'
+          + escH((ev.dtstart || '').replace('T', ' ').slice(0, 16)) + ' UTC</span> '
+          + _skZustand(ev)
+          + ' <span style="color:#8aa0b8;font-size:0.72rem;">✎ manuell</span>'
+          + (ev.push_enabled
+             ? ' <span class="badge badge-push-on">Push an</span>'
+             : ' <span class="badge badge-push-off">Push aus</span>')
+          + '</div>'
+          + '<div class="hint" style="margin:4px 0;">' + anteil + ' % abgeflogen ('
+          + _skZahl(st.km_abgedeckt, 1) + ' von ' + _skZahl(st.km_gesamt, 1) + ' km, '
+          + _skZahl(st.abgedeckt || 0) + ' von ' + _skZahl(st.abschnitte || 0) + ' Abschnitten bei '
+          + _skZahl(ev.korridor_m) + ' m Korridor)</div>'
+          + '<table style="font-size:0.8rem;"><tbody>'
+          + '<tr><td style="padding-right:10px;">Beiträge</td><td>' + beitraege + '</td></tr>'
+          + '<tr><td>Strecke</td><td>' + _skZahl(ev.laenge_km, 1) + ' km · '
+          + _skZahl((ev.punkte || []).length) + ' Punkte · Abschnitte zu je '
+          + _skZahl(st.abschnitt_m) + ' m</td></tr>'
+          + '<tr><td>Vorgabe</td><td>höchstens ' + _skZahl(ev.hoehe_max_ft) + ' ft über der Strecke · '
+          + _skZahl(ev.gs_min_kt) + ' bis ' + _skZahl(ev.gs_max_kt) + ' kt · '
+          + (ev.farbe === 'pilot' ? 'je Pilot eine Farbe' : 'eine Farbe für alle') + '</td></tr>'
+          + '<tr><td>Gelände</td><td>' + gelaende + '</td></tr>'
+          + '<tr><td>Ende</td><td>' + escH((ev.dtend || '').replace('T', ' ').slice(0, 16)) + ' UTC</td></tr>'
+          + '</tbody></table>'
+          + '<div style="margin-top:6px;">'
           + '<button class="btn btn-sm" onclick="skEdit(' + ev.id + ')">Bearbeiten</button> '
+          + '<button class="btn btn-sm" onclick="skCopyLink(' + ev.id + ')" title="Direktlink zur Deichkontrolle (fürs Forum/Discord) kopieren">🔗 Link</button> '
+          + (grundFehlt
+             ? '<button class="btn btn-sm" onclick="skGrundHolen(' + ev.id + ', this)">Geländehöhen holen</button> '
+             : '')
+          + '<button class="btn btn-sm" onclick="skPush(' + ev.id + ','
+          + (ev.push_enabled ? 'false' : 'true') + ')">'
+          + (ev.push_enabled ? 'Push ausschalten' : 'Push einschalten') + '</button> '
           + '<button class="btn btn-sm btn-danger" onclick="skLoeschen(' + ev.id + ')">Löschen</button>'
-          + '</td></tr>';
+          + '</div></div>';
       }).join('');
-      c.innerHTML = '<div class="table-wrap"><table id="sk-tabelle">'
-        + '<thead><tr><th>Name</th><th>Zeitraum</th><th style="text-align:right;">Länge</th>'
-        + '<th style="text-align:right;">Abschnitte</th><th>Stand</th></tr></thead>'
-        + '<tbody>' + zeilen + '</tbody></table></div>';
+    }
+
+    async function skPush(id, an) {
+      const res = await api('POST', '/api/admin/strecke/events/' + id + '/push', { enabled: an });
+      if (res && res.ok) loadStrecke();
+      else await _skFehler(res);
+    }
+
+    async function skCopyLink(id) {
+      // Direktlink fuers Forum/Discord, wie bei Kutter und Reddung.
+      const url = _teilenUrsprung() + '/#tab=events&strecke=' + id;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast('Link zur Deichkontrolle kopiert: ' + url);
+      } catch { toast('Kopieren fehlgeschlagen — Link: ' + url, true); }
     }
 
     async function skGrundHolen(id, knopf) {
@@ -8104,6 +8162,7 @@
         hoehe_max_ft: _rdZahl('sk-hoehe', NaN),
         gs_max_kt: _rdZahl('sk-gsmax', NaN),
         gs_min_kt: _rdZahl('sk-gsmin', NaN),
+        farbe: _skFarbe,
       };
       const leer = ['korridor_m', 'hoehe_max_ft', 'gs_max_kt', 'gs_min_kt']
         .some(function (f) { return !isFinite(koerper[f]); });
@@ -8160,6 +8219,7 @@
         const el = document.getElementById(id);
         if (el) el.value = _SK_VORGABEN[id];
       });
+      skFarbeSetzen('eine');
       const t = document.getElementById('sk-form-title');
       if (t) t.textContent = 'Neues Event anlegen';
       if (_skKarte) _skKarte.closePopup();
@@ -8193,6 +8253,7 @@
       setz('sk-hoehe', ev.hoehe_max_ft);
       setz('sk-gsmax', ev.gs_max_kt);
       setz('sk-gsmin', ev.gs_min_kt);
+      skFarbeSetzen(ev.farbe);
       const t = document.getElementById('sk-form-title');
       if (t) t.textContent = 'Event bearbeiten: ' + (ev.name || '');
       _skFormOeffnen();

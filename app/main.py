@@ -1288,6 +1288,7 @@ async def kniebrett_melden(request: Request):
     fremde = _kniebrett_fremde(request) if modus == "fremd" else {}
     poller = getattr(request.app.state, "poller", None)
     uebernommen = 0
+    spur_geschrieben = False
     for e in flugzeuge:
         if not isinstance(e, dict):
             verworfen += 1
@@ -1345,7 +1346,10 @@ async def kniebrett_melden(request: Request):
         # fliegen? Das muss auch funktionieren."). Nur das EIGENE Flugzeug, nur mit Hoehe, und
         # erst NACH der Pruefung gegen VATSIM. Ausserhalb einer Strecke bleibt es dabei: keine
         # Datenbank im Meldeweg (s. `_kniebrett_spur`).
-        if hat_alt and int(kand.cid) == int(melder):
+        # Hoechstens EINMAL je Meldung: Wer das eigene Rufzeichen vierzigmal in eine Meldung
+        # schreibt, soll damit nicht vierzig Datenbankzugriffe ausloesen.
+        if hat_alt and int(kand.cid) == int(melder) and not spur_geschrieben:
+            spur_geschrieben = True
             _kniebrett_spur(settings, int(kand.cid), lat, lon, alt, gs)
         if poller is None:
             # Ohne Poller ist die Meldung gespeichert-nirgends, aber nicht kaputt -- dieselbe
@@ -7865,7 +7869,7 @@ from app import strecke as _st                                            # noqa
 from app.database import (                                                # noqa: E402
     compute_strecke_stand, create_strecken_event, delete_strecken_event, get_strecken_event,
     list_strecken_events, strecke_stand_verwerfen, update_strecken_event,
-    _STRECKE_OHNE_RECHNUNG, _effective_dtend,
+    _STRECKE_OHNE_RECHNUNG, _effective_dtend, STRECKE_FARBEN,
 )
 
 #: So viele Koordinaten nimmt das Hoehenmodell je Anfrage. Gemessen am 10.10.2026 vom
@@ -7969,7 +7973,7 @@ def strecke_stand(event_id: int):
 #: Was die Verwaltung schicken darf. Die Gelaendehoehen gehoeren nicht dazu -- die holt der
 #: Server selbst.
 _STRECKE_KOERPER = ("name", "dtstart", "dtend", "korridor_m", "hoehe_max_ft",
-                    "gs_max_kt", "gs_min_kt")
+                    "gs_max_kt", "gs_min_kt", "farbe")
 _STRECKE_ZAHLEN = {"korridor_m": (_st.KORRIDOR_MIN_M, _st.KORRIDOR_MAX_M),
                    "hoehe_max_ft": (100.0, 20000.0),
                    "gs_max_kt": (20.0, 1000.0), "gs_min_kt": (0.0, 500.0)}
@@ -8001,6 +8005,9 @@ def _strecke_koerper_pruefen(body: dict, alt: dict | None = None) -> tuple[dict,
                 status_code=400,
                 detail=f"{_STRECKE_NAMEN[k]} muss zwischen {unten:g} und {oben:g} liegen.")
         felder[k] = wert
+    if "farbe" in felder and felder["farbe"] not in STRECKE_FARBEN:
+        raise HTTPException(status_code=400,
+                            detail="Die Farbe ist „eine“ (eine für alle) oder „pilot“ (je Pilot).")
     zusammen = {**(alt or {}), **felder}
     gs_max = float(zusammen.get("gs_max_kt") or _st.VORGABE_GS_MAX_KT)
     gs_min = float(zusammen.get("gs_min_kt")
@@ -8032,6 +8039,9 @@ def _strecke_admin_zeile(conn, ev: dict, now: str) -> dict:
         "punkte": [[la, lo] for la, lo in _st.punkte(ev)],
         "laenge_km": round(_st.laenge_km(ev), 1),
         "grund_da": _st.grund(ev) is not None,
+        "farbe": ev.get("farbe") if ev.get("farbe") in STRECKE_FARBEN else "eine",
+        "push_enabled": bool(ev.get("push_enabled")),
+        "abschnitte": _st.teilung(ev)[0],
         "stand": compute_strecke_stand(conn, ev),
         **_strecke_zeit(ev, now),
     }
@@ -8164,6 +8174,23 @@ async def admin_strecke_grund(request: Request, event_id: int):
                               grund_geholt_am=_now_iso())
         conn.commit()
         return {"status": "ok", "abschnitte": len(grund)}
+    finally:
+        conn.close()
+
+
+@app.post("/api/admin/strecke/events/{event_id}/push")
+async def admin_strecke_push(request: Request, event_id: int):
+    """Erinnerung und Meldung zum Beginn fuer dieses Event ein- oder ausschalten."""
+    require_admin(request)
+    body = await request.json()
+    an = bool(body.get("enabled")) if isinstance(body, dict) else False
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        if get_strecken_event(conn, event_id) is None:
+            raise HTTPException(status_code=404, detail="unbekannt")
+        update_strecken_event(conn, event_id, push_enabled=1 if an else 0)
+        conn.commit()
+        return {"status": "ok", "push_enabled": an}
     finally:
         conn.close()
 

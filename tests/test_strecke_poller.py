@@ -137,3 +137,64 @@ def test_der_takt_ist_im_poller_eingeplant():
     quelle = inspect.getsource(poller.VatsimPoller)
     assert "self._check_strecke," in quelle and 'id="strecke_check"' in quelle
     assert poller._STRECKE_TAKT_S <= 60
+
+
+# --- Push: Erinnerung eine Stunde vorher und Meldung zum Beginn -----------------------------------
+
+class _Mitschnitt(VatsimPoller):
+    def __init__(self, pfad):
+        super().__init__(pfad)
+        self.gesendet = []
+
+    def broadcast_notify(self, kanal, cid, payload):
+        self.gesendet.append((kanal, payload))
+
+
+def test_zum_beginn_kommt_einmal_eine_meldung(db):
+    _event(db, start_vor_min=1, ende_in_min=60, name="Grenzflug")
+    p = _Mitschnitt(db)
+    asyncio.run(p._check_strecke())
+    asyncio.run(p._check_strecke())
+    assert len(p.gesendet) == 1
+    kanal, payload = p.gesendet[0]
+    assert kanal == "events" and payload["title"] == "Grenzflug"
+    assert "Kniebrett" in payload["body"] and "FriesenBrügge" in payload["body"]
+
+
+def test_ohne_push_bleibt_es_still_und_spaeter_wird_nicht_nachgeholt(db):
+    eid = _event(db, start_vor_min=1, ende_in_min=60)
+    c = get_connection(db)
+    update_strecken_event(c, eid, push_enabled=0)
+    c.commit()
+    p = _Mitschnitt(db)
+    asyncio.run(p._check_strecke())
+    update_strecken_event(c, eid, push_enabled=1)
+    c.commit()
+    c.close()
+    asyncio.run(p._check_strecke())
+    assert p.gesendet == [], "der Beginn ist gelatcht -- kein verspäteter Push mitten im Abend"
+
+
+def test_nach_dem_ende_kommt_keine_meldung_zum_beginn_mehr(db):
+    _event(db, start_vor_min=60, ende_in_min=-5)
+    p = _Mitschnitt(db)
+    asyncio.run(p._check_strecke())
+    assert p.gesendet == []
+
+
+def test_die_erinnerung_kennt_die_deichkontrolle(db):
+    from app.database import strecken_events_due_for_reminder
+    bald = _event(db, start_vor_min=-30, ende_in_min=120, name="bald")
+    _event(db, start_vor_min=-300, ende_in_min=400, name="später")
+    aus = _event(db, start_vor_min=-30, ende_in_min=120, name="aus")
+    c = get_connection(db)
+    update_strecken_event(c, aus, push_enabled=0)
+    c.commit()
+    jetzt = _iso(datetime.now(timezone.utc))
+    assert [e["id"] for e in strecken_events_due_for_reminder(c, jetzt)] == [bald]
+    c.close()
+    p = _Mitschnitt(db)
+    asyncio.run(p._check_event_reminders())
+    asyncio.run(p._check_event_reminders())
+    assert [x[1]["title"] for x in p.gesendet] == ["Deichkontrolle"]
+    assert "bald" in p.gesendet[0][1]["body"]

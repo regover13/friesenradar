@@ -114,3 +114,14 @@ def test_die_liste_nennt_platz_und_radius_fuer_die_flugspuren(env, strecke, monk
     assert e["analyse"]["icao"] == "EDWS" and e["analyse"]["radius_km"] == 12
     assert e["analyse"]["box"] == {"sued": LAT, "nord": LAT, "west": pytest.approx(LON - 0.05),
                                    "ost": pytest.approx(LON + 0.05)}
+
+
+def test_eine_meldung_schreibt_hoechstens_einen_sekundenpunkt(env, strecke, monkeypatch):
+    """Wer das eigene Rufzeichen vielfach in eine Meldung schreibt, löst damit nicht ebenso viele
+    Datenbankzugriffe aus (Befund der Sicherheitsprüfung, 10.10.2026)."""
+    _modus_setzen(env, "eigene")
+    rufe = []
+    echt = main._kniebrett_spur
+    monkeypatch.setattr(main, "_kniebrett_spur", lambda *a: rufe.append(a) or echt(*a))
+    _melden(env, [_flugzeug(cs=MELDER_CS, lat=LAT, lon=LON)] * 20)
+    assert len(rufe) == 1 and len(_spur(env)) == 1

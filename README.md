@@ -519,12 +519,11 @@ Setzt die Meldung unterwegs kurz aus, füllt VATSIM die Lücke.
   und FriesenReddung die Flugspuren des Abends. Solange das Event läuft, wächst
   die Ansicht von selbst mit; danach bleibt der Endstand stehen. **Teilen** oben rechts kopiert
   den Link auf die Ansicht.
-- **Eine Farbe oder je Pilot eine:** Über der Karte in der Ansicht des Events wählst du, ob alles
-  Abgeflogene orange ist oder jeder Pilot seine eigene Farbe hat. Die Wahl gilt auch für die
-  Live-Karte. Die Farben werden in der Reihenfolge vergeben, in der die Piloten ihren ersten
-  Abschnitt geholt haben, und jeder behält seine; dieselbe Farbe steht als Marke vor seinem Namen
-  in der Liste. Dein Browser merkt sich die Wahl. Im Kniebrett gilt nach jedem Start wieder eine
-  Farbe für alle.
+- **Eine Farbe oder je Pilot eine:** Ob alles Abgeflogene orange ist oder jeder Pilot seine eigene
+  Farbe hat, legt der Veranstalter für das Event fest; es gilt für alle und überall, auch auf der
+  Live-Karte und im Kniebrett. Die Farben werden in der Reihenfolge vergeben, in der die Piloten
+  ihren ersten Abschnitt geholt haben, und jeder behält seine; dieselbe Farbe steht als Marke vor
+  seinem Namen in der Liste.
 - **Fehlen die Geländehöhen** für eine Strecke, steht das als Hinweis in der Ansicht. Solange
   wird nichts gewertet — sonst würde ohne Höhenprüfung gezählt.
 
@@ -666,6 +665,9 @@ VATSIM weiterhin die Sekunden, in denen sie schweigt.
 - **Was als abgeflogen zählt** — vier Zahlen je Event: der **Korridor** (wie weit neben der Strecke, nach jeder Seite), die **Höhe über der Strecke**, die **Höchst-** und die **Mindestgeschwindigkeit**. Ein Abschnitt ist immer doppelt so lang wie der Korridor breit ist; je schmaler der Korridor, desto mehr und kürzere Abschnitte.
 - **Geländehöhen** — beim Speichern holt FriesenRadar für jeden Abschnitt die Höhe des Geländes. Die Höhe zählt damit über der Strecke selbst, auch im Gebirge. Klappt das einmal nicht, steht in der Liste „Geländehöhen fehlen – es wird nicht gerechnet“ mit dem Knopf **Geländehöhen holen**. Bis sie da sind, wird nichts gewertet; danach wird nachgeholt, was inzwischen geflogen wurde.
 - **Bearbeiten** — ein neuer Name ändert am Stand nichts. Änderst du bei einem laufenden oder vergangenen Event Strecke, Korridor, Höhe, Geschwindigkeit oder Zeiten, fragt die Verwaltung vorher nach: Der bisherige Stand wird dann verworfen und neu gerechnet. **Nach einem halben Tag geht das nicht mehr vollständig**, weil die genauen Positionen der FriesenBrügge nur zwölf Stunden aufbewahrt werden.
+- **Farbe des Abgeflogenen** — im Formular wählst du, ob alle dieselbe Farbe bekommen oder jeder Pilot seine eigene. Das gilt für alle Mitglieder; sie selbst können es nicht umstellen. Du kannst es jederzeit ändern, auch während das Event läuft.
+- **Push** — eine Stunde vor dem Beginn geht eine Erinnerung an die Events-Abonnenten, zum Beginn eine zweite. Mit **Push ausschalten** bleibt beides für dieses Event aus.
+- **Link** — kopiert den Direktlink auf die Ansicht des Events, fürs Forum oder Discord.
 - **Löschen** — entfernt das Event samt Stand und verlangt das Passwort erneut.
 
 ### Flugbetrieb und Daten

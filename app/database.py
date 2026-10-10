@@ -437,6 +437,10 @@ CREATE TABLE IF NOT EXISTS strecken_events (
     -- Teilung aus punkte_json und korridor_m; aendert sich eins davon, wird sie verworfen.
     grund_json      TEXT,
     grund_geholt_am TEXT,
+    -- Wie das Abgeflogene gefaerbt wird: 'eine' Farbe fuer alle oder je 'pilot' eine. Stellt der
+    -- Veranstalter je Event ein; Mitglieder haben keinen Umschalter (Nutzer, 10.10.2026).
+    farbe           TEXT DEFAULT 'eine',
+    push_enabled    INTEGER DEFAULT 1,
     created_at      TEXT NOT NULL
 );
 
@@ -1221,6 +1225,13 @@ _PANEL_DIAG_MIGRATIONS = [
 
 # Die Bruegge-Tabellen sind am 11.09.2026 entstanden und wachsen noch -- eine Aenderung am
 # CREATE TABLE erreicht eine bestehende Datenbank NICHT (IF NOT EXISTS legt nichts nach).
+# Deichkontrolle: Die Tabelle stand mit dem ersten Stand der Teststufe schon, als Farbe und Push
+# dazukamen.
+_STRECKE_MIGRATIONS = [
+    "ALTER TABLE strecken_events ADD COLUMN farbe TEXT DEFAULT 'eine'",
+    "ALTER TABLE strecken_events ADD COLUMN push_enabled INTEGER DEFAULT 1",
+]
+
 _BRUEGGE_MIGRATIONS = [
     # Quelle eines Sekundenpunkts (s. DDL von bruegge_spur), 10.10.2026.
     "ALTER TABLE bruegge_spur ADD COLUMN quelle TEXT",
@@ -1593,6 +1604,11 @@ def init_db(db_path: str) -> None:
             except sqlite3.OperationalError:
                 pass
         for stmt in _BRUEGGE_MIGRATIONS:
+            try:
+                conn.execute(stmt)
+            except sqlite3.OperationalError:
+                pass
+        for stmt in _STRECKE_MIGRATIONS:
             try:
                 conn.execute(stmt)
             except sqlite3.OperationalError:
@@ -12199,6 +12215,30 @@ def reddung_start_melden(conn: sqlite3.Connection, event_id: int, ts: str) -> bo
     return (cur.rowcount or 0) > 0
 
 
+def strecken_events_due_for_reminder(
+    conn: sqlite3.Connection, now: str, lead_min: int = 60
+) -> list[dict]:
+    """Deichkontrollen mit dtstart in (now, now+lead_min], push_enabled=1, noch nicht erinnert
+    (Schlüssel 'strecke:{id}' in event_reminders_sent) -- wie bei Kutter und Reddung."""
+    until = (_parse_iso(now) + timedelta(minutes=lead_min)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    rows = conn.execute(
+        "SELECT id, name, dtstart FROM strecken_events "
+        "WHERE dtstart > ? AND dtstart <= ? AND push_enabled = 1 "
+        "AND ('strecke:' || id) NOT IN (SELECT uid FROM event_reminders_sent) "
+        "ORDER BY dtstart",
+        (now, until),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def strecke_start_melden(conn: sqlite3.Connection, event_id: int, ts: str) -> bool:
+    """Den Beginn einer Deichkontrolle einmal festhalten. True nur beim ersten Mal (Latch in
+    ``event_reminders_sent``, Schlüssel 'strecke-start:{id}') -- wie ``reddung_start_melden``."""
+    cur = conn.execute("INSERT OR IGNORE INTO event_reminders_sent (uid, sent_at) VALUES (?, ?)",
+                       (f"strecke-start:{int(event_id)}", ts))
+    return (cur.rowcount or 0) > 0
+
+
 def mark_event_reminded(conn: sqlite3.Connection, uid: str, ts: str) -> None:
     """Erinnerung für ein Event als verschickt markieren (Dedup, idempotent)."""
     conn.execute(
@@ -12768,13 +12808,16 @@ def set_messeverkehr_ausschluss_callsigns(conn: sqlite3.Connection, callsigns: l
 #: Felder, die ``update_strecken_event`` schreiben darf (Positivliste wie bei der Reddung).
 _STRECKE_FELDER = {
     "name", "dtstart", "dtend", "punkte_json", "korridor_m", "hoehe_max_ft",
-    "gs_max_kt", "gs_min_kt", "grund_json", "grund_geholt_am",
+    "gs_max_kt", "gs_min_kt", "grund_json", "grund_geholt_am", "farbe", "push_enabled",
 }
+
+#: Die beiden Faerbungen des Abgeflogenen.
+STRECKE_FARBEN = ("eine", "pilot")
 
 #: Felder, die NICHT in die Rechnung eingehen. Aendert sich nur eines davon, bleibt der Stand
 #: stehen -- sonst verwuerfe ein neuer Name den Stand eines abgeschlossenen Abends, und nach
 #: zwoelf Stunden sind die Sekundenpunkte weg (dieselbe Falle wie bei der Reddung, 15.25.0).
-_STRECKE_OHNE_RECHNUNG = {"name"}
+_STRECKE_OHNE_RECHNUNG = {"name", "farbe", "push_enabled"}
 
 #: Fassung des fortgeschriebenen Stands, IM Payload (s. ``_REDDUNG_STAND_FASSUNG``).
 #: ⚠ Vor dem Erhoehen pruefen, ob die Sekundenpunkte der betroffenen Events noch da sind.
@@ -12930,6 +12973,7 @@ def compute_strecke_stand(conn: sqlite3.Connection, ev: dict, *,
         "je_pilot": je_pilot,
         "regeln": st.regeln(ev),
         "ohne_grund": stand["ohne_grund"],
+        "farbe": ev.get("farbe") if ev.get("farbe") in STRECKE_FARBEN else "eine",
     }
     if mit_geometrie:
         geo = st.geometrie(ev)

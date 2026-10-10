@@ -23,7 +23,8 @@ neutral `strecke`.
 | E4 | **Höhe wie bei der Reddung:** Geländehöhe aus dem Höhenmodell, hier **je Abschnitt**. Geprüft wird die Höhe über Meer gegen „Gelände am Abschnitt + eingestellte Höhe“. | 10.10. |
 | E5 | **Korridor und Höhe sind je Event einstellbar.** | 10.10. |
 | E6 | **Geschwindigkeit wie bei der Reddung:** Höchst- und Mindestwert je Event. | 10.10. |
-| E7 | **Karte:** Die Strecke ist der Fortschrittsbalken, der Korridor liegt als Band darunter, ein Umschalter wechselt zwischen einer Farbe für alle und einer Farbe je Pilot. | 10.10. |
+| E7 | **Karte:** Die Strecke ist der Fortschrittsbalken, der Korridor liegt als Band darunter. Ob eine Farbe für alle gilt oder je Pilot eine, **stellt der Veranstalter je Event in der Verwaltung ein**; Mitglieder haben keinen Umschalter (nach dem ersten Bau berichtigt: „unter admin als button in den Einstellung des events!“). | 10.10. |
+| E8 | **Die Liste in der Verwaltung sieht aus wie bei der Reddung**, bei allen neuen Eventtypen: Kopfzeile mit Abzeichen, Stand, Einzelheiten, Knöpfe Bearbeiten, Link, Push, Löschen. Dafür hat die Deichkontrolle Push bekommen (Erinnerung eine Stunde vorher, Meldung zum Beginn). | 10.10. |
 
 ## 3. Angenommen (bitte beim Lesen prüfen)
 

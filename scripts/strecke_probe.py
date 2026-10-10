@@ -85,7 +85,9 @@ def main() -> int:
               "erfundene Piloten und Positionen.", file=sys.stderr)
         return 2
 
-    jetzt = datetime.now(timezone.utc)
+    # Auf volle Minuten: Die Verwaltung kennt keine Sekunden, und ein Event mit Sekunden im
+    # Beginn saehe dort bei jedem Speichern wie „Zeiten geaendert" aus.
+    jetzt = datetime.now(timezone.utc).replace(second=0, microsecond=0)
     start = jetzt - timedelta(minutes=20)
     st.pruefen(BEISPIEL, args.korridor)
     conn = get_connection(pfad)

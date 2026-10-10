@@ -1572,13 +1572,6 @@
       margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--green-dim);
     }
     #strecke-banner a, #strecke-results .bb-sub a { color: var(--green); }
-    .strecke-umschalter { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.8rem 0 0.5rem; }
-    .strecke-umschalter button {
-      background: transparent; border: 1px solid var(--green-dim); color: var(--green);
-      font-family: var(--text-display); font-size: 0.72rem; letter-spacing: 0.06em;
-      padding: 0.4rem 0.75rem; cursor: pointer;
-    }
-    .strecke-umschalter button.aktiv { background: var(--green); color: var(--bg-panel); border-color: var(--green); }
     #strecke-karte { width: 100%; height: 62vh; min-height: 18rem; max-height: 36rem; }
     .strecke-legende { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.75rem; color: var(--text-label); margin: 0.4rem 0 0.8rem; }
     .strecke-legende i { display: inline-block; width: 1.6rem; height: 0; vertical-align: middle; margin-right: 0.35rem; border-top: 0.25rem solid; }
@@ -5347,10 +5340,6 @@
         </div>
         <div id="strecke-content"></div>
         <div id="strecke-rest" hidden>
-          <div id="strecke-umschalter" class="strecke-umschalter">
-            <button type="button" data-wahl="eine" onclick="streckeFarbwahlSetzen('eine')">Eine Farbe für alle</button>
-            <button type="button" data-wahl="pilot" onclick="streckeFarbwahlSetzen('pilot')">Je Pilot eine Farbe</button>
-          </div>
           <div id="strecke-karte"></div>
           <div class="strecke-legende">
             <span><i class="sl-offen"></i>offen</span>
@@ -17401,7 +17390,6 @@ const _streckeZeichnung = new Map();    // 'live:<id>' | 'event' -> die Pfade ei
 let _streckeKarte = null;               // die Karte in der Eventansicht
 let _streckeKarteWird = null;           // ihr Aufbau laeuft (Promise) -- nie zwei Karten
 let _streckeKarteFuer = null;           // fuer welches Event der Ausschnitt schon gesetzt ist
-let _streckeFarbwahlJetzt = null;       // 'eine' | 'pilot'; null = noch nicht gelesen
 
 // Das Zeichen als Text, wie das Blaulicht der FriesenReddung. Liegt dafuer einmal eine eigene
 // Grafik unter /static/emoji/, genuegt hier emojiChar(_STRECKE_ZEICHEN).
@@ -17409,9 +17397,9 @@ function _streckeZeichenHtml() {
   return escHtml(_STRECKE_ZEICHEN);
 }
 
-// Die Wahl „eine Farbe / je Pilot“ merkt sich der Browser. Im Kniebrett haelt kein Speicher
-// ueber einen Sim-Neustart -- dort gilt immer die Vorgabe, und gemerkt wird nichts.
-const _STRECKE_FARBWAHL_KEY = 'friesenspy_strecke_farbe';
+// Die Wahl „eine Farbe / je Pilot“ trifft der Veranstalter je Event in der Verwaltung; sie
+// kommt als `farbe` mit Liste und Stand. Mitglieder haben keinen Umschalter (Nutzer,
+// 10.10.2026: „unter admin als button in den Einstellung des events!").
 const _STRECKE_FARBE_AB = '#D75F28';      // abgeflogen: Friesen-Orange
 const _STRECKE_FARBE_OFFEN = '#6b9ab8';   // offen, gestrichelt
 const _STRECKE_FARBE_BAND = '#f5c542';    // der Korridor, sehr blass
@@ -17420,18 +17408,8 @@ const _STRECKE_FARBE_BAND = '#f5c542';    // der Korridor, sehr blass
 const _STRECKE_PALETTE = ['#E69F00', '#56B4E9', '#009E73', '#CC79A7', '#F0E442', '#D55E00',
                           '#B48BFF', '#7FDBCA'];
 
-function _streckeFarbwahl() {
-  if (_streckeFarbwahlJetzt == null) {
-    _streckeFarbwahlJetzt = (!_PANEL_MODUS && _prefLies(_STRECKE_FARBWAHL_KEY) === 'pilot')
-      ? 'pilot' : 'eine';
-  }
-  return _streckeFarbwahlJetzt;
-}
-
-function streckeFarbwahlSetzen(wahl) {
-  _streckeFarbwahlJetzt = wahl === 'pilot' ? 'pilot' : 'eine';
-  if (!_PANEL_MODUS) _prefSchreib(_STRECKE_FARBWAHL_KEY, _streckeFarbwahlJetzt);
-  _streckeAllesNeuZeichnen();
+function _streckeFarbwahl(r) {
+  return (r && r.farbe === 'pilot') ? 'pilot' : 'eine';
 }
 
 // Deutsches Zahlenformat von Hand: Tausenderpunkt, Dezimalkomma. Nicht toLocaleString --
@@ -17555,7 +17533,7 @@ function _streckeMitte(strecke) {
 // `ziel` ist die Ebenengruppe der Live-Karte oder die Karte der Eventansicht.
 function _streckeZeichnen(schluessel, ziel, karte, d) {
   if (!ziel || !karte || !d || !d.strecke || !d.strecke.length) return;
-  const jePilot = _streckeFarbwahl() === 'pilot';
+  const jePilot = _streckeFarbwahl(d) === 'pilot';
   const laeufe = _streckeLaeufe(d.strecke, jePilot ? _streckeFarben(d.strecke) : null);
   const ganze = _streckeLaeufe(d.strecke.map(a => ({ linie: a.linie, cid: null })), null).offen;
   const korridor = Number((d.regeln || {}).korridor_m) || 0;
@@ -17617,14 +17595,6 @@ function _streckeZeichnungWeg(schluessel) {
   [z.band, z.offen, z.tipp, ...z.farbig.values()].forEach(p => z.ziel.removeLayer(p));
   z.karte.off('zoomend', z.beiZoom);
   _streckeZeichnung.delete(schluessel);
-}
-
-// Nach dem Umschalten der Farbwahl: alles, was gerade steht, in der neuen Wahl.
-function _streckeAllesNeuZeichnen() {
-  for (const [schluessel, z] of _streckeZeichnung) {
-    if (z.stand) _streckeZeichnen(schluessel, z.ziel, z.karte, z.stand);
-  }
-  _streckeAnsichtZeigen();
 }
 
 // Ein Takt fuer alles: Eventliste, Live-Block, Karte und Ansicht lesen dieselbe Liste. Ein
@@ -17920,13 +17890,7 @@ function _streckeAnsichtZeigen() {
     + _streckeBalken(r)
     + `<div class="strecke-stand">${_streckeStandText(r)}</div>`
     + _streckeRegelnHtml(r);
-  const wahl = _streckeFarbwahl();
-  document.querySelectorAll('#strecke-umschalter button').forEach(b => {
-    const an = b.dataset.wahl === wahl;
-    b.classList.toggle('aktiv', an);
-    b.setAttribute('aria-pressed', an ? 'true' : 'false');
-  });
-  piloten.innerHTML = _streckePilotenHtml(r, wahl);
+  piloten.innerHTML = _streckePilotenHtml(r, _streckeFarbwahl(r));
   const knoepfe = document.getElementById('strecke-knoepfe');
   if (knoepfe) {
     // „Zur Karte“ nur solange das Event laeuft: Danach zeigt die Live-Karte es nicht mehr.

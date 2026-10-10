@@ -488,6 +488,13 @@ Feld ohne Einfluss auf den Stand anlegt, trägt es dort ein.
   lass irgendwelche Deiche oder sonst was abfragen.“* Keine fremden Linienquellen vorschlagen,
   nichts an Deiche oder Küste binden. Im Code heißt der Typ `strecke`.
 - **Nur Strecken, keine Flächen.** Flächen sucht die FriesenReddung ab.
+- **Die Farbwahl ist eine Einstellung des Events in der Verwaltung** („eine Farbe für alle“ oder
+  „je Pilot eine“, Spalte `farbe`). Mitglieder bekommen keinen Umschalter — der erste Bau hatte
+  einen, der Nutzer dazu: *„unter admin als button in den Einstellung des events!“*
+- **Die Eventliste jedes neuen Eventtyps in der Verwaltung sieht aus wie die der Reddung:**
+  Kopfzeile mit Abzeichen (Zustand, Herkunft, Push an/aus), Stand als Satz, Einzelheiten als
+  kleine Tabelle, darunter Bearbeiten · 🔗 Link · Push ein/aus · Löschen. *„das soll bei allen
+  neuen Events so aussehen wie hier“* — keine eigene Tabellenform erfinden.
 - **Kniebrett ODER FriesenBrügge.** *„Was ist mit Menschen, die mit dem Kniebrett fliegen? Das
   muss auch funktionieren.“* Der Meldeweg des Kniebretts schreibt die Position des EIGENEN
   Flugzeugs im Umkreis einer laufenden Strecke als Sekundenpunkt mit (`bruegge_spur`,

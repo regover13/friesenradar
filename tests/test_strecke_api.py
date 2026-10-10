@@ -365,3 +365,41 @@ def test_ein_netzfehler_beim_hoehenmodell_wirft_nicht(monkeypatch):
 
     monkeypatch.setattr(main._httpx, "AsyncClient", _klient(kaputt, []))
     assert asyncio.run(main._gelaende_ft_viele([(47.0, 11.0)])) is None
+
+
+# --- Farbe und Push sind Einstellungen des Events (Nutzer, 10.10.2026) ----------------------------
+#
+# „unter admin als button in den Einstellung des events!" -- die Wahl „eine Farbe / je Pilot" trifft
+# der Veranstalter je Event, Mitglieder haben keinen Umschalter. Und die Liste der Verwaltung soll
+# aussehen wie bei der Reddung, samt Push ein/aus.
+
+def test_die_farbe_ist_eine_einstellung_des_events(db, modell):
+    eid = _anlegen()["id"]
+    assert main.strecke_stand(eid)["farbe"] == "eine", "Vorgabe"
+    assert main.strecke_events()[0]["farbe"] == "eine"
+    eid2 = _anlegen(farbe="pilot")["id"]
+    assert main.strecke_stand(eid2)["farbe"] == "pilot"
+    _aendern(eid, farbe="pilot")
+    assert main.strecke_stand(eid)["farbe"] == "pilot"
+    f = _fehler(lambda: _aendern(eid, farbe="bunt"))
+    assert f.status_code == 400 and "Farbe" in f.detail
+
+
+def test_eine_andere_farbe_laesst_den_stand_stehen(db, modell):
+    eid = _anlegen()["id"]
+    _mit_stand(db, eid)
+    assert _aendern(eid, farbe="pilot")["stand_verworfen"] is False
+    assert _abgedeckt(eid) == 4
+
+
+def test_push_laesst_sich_je_event_schalten(db, modell):
+    eid = _anlegen()["id"]
+    (z,) = main.admin_list_strecken_events(FakeReq())
+    assert z["push_enabled"] is True and z["farbe"] == "eine", "Vorgabe: an"
+    antwort = asyncio.run(main.admin_strecke_push(FakeReq(body={"enabled": False}), eid))
+    assert antwort == {"status": "ok", "push_enabled": False}
+    assert main.admin_list_strecken_events(FakeReq())[0]["push_enabled"] is False
+    assert _fehler(lambda: asyncio.run(main.admin_strecke_push(
+        FakeReq(body={"enabled": True}), 999))).status_code == 404
+    assert _fehler(lambda: asyncio.run(main.admin_strecke_push(
+        FakeReq(cookies={}, body={"enabled": True}), eid))).status_code == 401

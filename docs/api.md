@@ -1225,7 +1225,8 @@ Alle Deichkontrollen mit Kurzstand, für die Eventliste. Je Event:
 `id`, `name`, `dtstart`, `dtend`, `laeuft`, `vorbei_seit_s` (beides vom Server gerechnet),
 `anteil` (0..1), `abschnitte`, `abgedeckt`, `km_gesamt`, `km_abgedeckt`, `abschnitt_m`,
 `je_pilot` (`[{cid, name, abschnitte, km}]`, absteigend, auch Piloten mit 0),
-`regeln` (`korridor_m`, `hoehe_max_ft`, `gs_max_kt`, `gs_min_kt`) und `ohne_grund`.
+`regeln` (`korridor_m`, `hoehe_max_ft`, `gs_max_kt`, `gs_min_kt`), `ohne_grund` und `farbe`
+(`eine` oder `pilot`: wie das Abgeflogene gefärbt wird, vom Veranstalter je Event eingestellt).
 
 `ohne_grund: true` heißt: Die Geländehöhen fehlen, es wird nicht gerechnet. Der Stand rückt dann
 nicht vor und holt nach, sobald sie da sind.
@@ -1261,6 +1262,7 @@ Stand fort; ein Server-Ereignis für Änderungen gibt es nicht, die Karte fragt 
 | `POST /api/admin/strecke/events` | anlegen: `name`, `dtstart`, `dtend`, `punkte`, `korridor_m`, `hoehe_max_ft`, `gs_max_kt`, `gs_min_kt`; Antwort `{id, grund_fehlt}` |
 | `POST /api/admin/strecke/events/{id}` | ändern; Antwort `{stand_verworfen, grund_fehlt}` |
 | `POST /api/admin/strecke/events/{id}/grund` | Geländehöhen neu holen; 502, wenn das Höhenmodell nicht antwortet |
+| `POST /api/admin/strecke/events/{id}/push` | `{enabled}`: Erinnerung und Meldung zum Beginn ein- oder ausschalten |
 | `DELETE /api/admin/strecke/events/{id}` | löschen, verlangt das Passwort erneut |
 
 Grenzen: 2 bis 500 Punkte, Korridor 50 bis 10.000 m, höchstens 2.000 Abschnitte. Fehler kommen als

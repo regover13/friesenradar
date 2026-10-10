@@ -3325,12 +3325,17 @@ class VatsimPoller:
         """
         try:
             from datetime import datetime, timedelta, timezone
-            from app.database import list_strecken_events, strecke_fortschreiben
+            from app.database import (
+                get_push_subscriptions_for_events, list_strecken_events, strecke_fortschreiben,
+                strecke_start_melden,
+            )
 
             now_dt = datetime.now(timezone.utc)
             now = now_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
             seit = (now_dt - timedelta(seconds=_STRECKE_NACHLAUF_S)).strftime("%Y-%m-%dT%H:%M:%SZ")
             conn = get_connection(self.db_path)
+            pushes: list[dict] = []
+            subscriptions: list = []
             try:
                 for ev in list_strecken_events(conn, since=seit):
                     # EIN `try` JE EVENT -- ein kaputtes Event darf den Takt der anderen nicht
@@ -3338,14 +3343,36 @@ class VatsimPoller:
                     try:
                         if now < (ev.get("dtstart") or ""):
                             continue
+                        # Der Beginn: einmal je Event, solange es laeuft. Gelatcht wird auch bei
+                        # abgeschaltetem Push -- sonst kaeme die Meldung mitten im Abend, sobald
+                        # jemand den Push wieder einschaltet.
+                        if (now < (ev.get("dtend") or "")
+                                and strecke_start_melden(conn, ev["id"], now)
+                                and ev.get("push_enabled")):
+                            pushes.append({
+                                "title": ev.get("name") or "Deichkontrolle",
+                                "body": ("Die Deichkontrolle läuft — fliegt die Strecke "
+                                         "gemeinsam ab. \U0001f30a Gewertet wird, wer mit dem "
+                                         "Kniebrett oder der FriesenBrügge fliegt."),
+                                "url": "/"})
                         strecke_fortschreiben(conn, ev, bis=min(now, ev["dtend"]))
                         conn.commit()
                     except Exception:
                         conn.rollback()
                         logger.exception("Deichkontrolle %s: Fortschreiben gescheitert",
                                          ev.get("id"))
+                if pushes:
+                    subscriptions = get_push_subscriptions_for_events(conn)
             finally:
                 conn.close()
+            for payload in pushes:
+                self.broadcast_notify("events", None, payload)
+            if pushes and subscriptions and self.vapid_private_key:
+                for payload in pushes:
+                    asyncio.create_task(send_web_push(
+                        self.vapid_private_key, self.vapid_contact_email, self.db_path,
+                        subscriptions, payload, label="Deichkontrolle",
+                    ))
         except Exception:
             logger.exception("Deichkontrolle: Takt gescheitert")
 
@@ -3362,6 +3389,7 @@ class VatsimPoller:
             from app.database import (
                 events_due_for_reminder, bummel_races_due_for_reminder,
                 transport_events_due_for_reminder, reddung_events_due_for_reminder,
+                strecken_events_due_for_reminder,
                 mark_event_reminded,
                 get_push_subscriptions_for_events,
             )
@@ -3372,7 +3400,8 @@ class VatsimPoller:
                 bummels = bummel_races_due_for_reminder(conn, now, lead_min=60)
                 kutters = transport_events_due_for_reminder(conn, now, lead_min=60)
                 reddungen = reddung_events_due_for_reminder(conn, now, lead_min=60)
-                any_due = bool(generic or bummels or kutters or reddungen)
+                strecken = strecken_events_due_for_reminder(conn, now, lead_min=60)
+                any_due = bool(generic or bummels or kutters or reddungen or strecken)
                 subscriptions = get_push_subscriptions_for_events(conn) if any_due else []
                 for ev in generic:
                     mark_event_reminded(conn, ev["uid"], now)  # latchen, auch ohne Empfänger
@@ -3382,6 +3411,8 @@ class VatsimPoller:
                     mark_event_reminded(conn, f"kutter:{k['id']}", now)
                 for rd_ev in reddungen:
                     mark_event_reminded(conn, f"reddung:{rd_ev['id']}", now)
+                for st_ev in strecken:
+                    mark_event_reminded(conn, f"strecke:{st_ev['id']}", now)
                 conn.commit()
             finally:
                 conn.close()
@@ -3417,6 +3448,12 @@ class VatsimPoller:
                 reminder_pushes.append({
                     "title": "FriesenReddung",
                     "body": f"🗓 {_lead_phrase(rd_ev['dtstart'], now)}: {rd_ev.get('name') or 'FriesenReddung'}",
+                    "url": "/",
+                })
+            for st_ev in strecken:
+                reminder_pushes.append({
+                    "title": "Deichkontrolle",
+                    "body": f"🗓 {_lead_phrase(st_ev['dtstart'], now)}: {st_ev.get('name') or 'Deichkontrolle'}",
                     "url": "/",
                 })
             for payload in reminder_pushes:

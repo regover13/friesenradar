@@ -94,10 +94,10 @@ def test_die_zustaende_stehen_vor_dem_ersten_aufruf():
     und `node --check` merkt es nicht."""
     erster = INDEX.index("\n_streckeTakt();")
     for name in ("_streckeListe", "_streckeTaktNr", "_streckeOffenId", "_streckeGruppe",
-                 "_streckeFarbwahlJetzt", "_streckeKarte"):
+                 "_streckeKarte"):
         m = re.search(rf"^let {name} = ", INDEX, flags=re.M)
         assert m and m.start() < erster, name
-    for name in ("_STRECKE_NAME", "_STRECKE_ZEICHEN", "_STRECKE_FARBWAHL_KEY", "_STRECKE_PALETTE",
+    for name in ("_STRECKE_NAME", "_STRECKE_ZEICHEN", "_STRECKE_PALETTE",
                  "_streckeStand", "_streckeStandNr", "_streckeZeichnung"):
         m = re.search(rf"^const {name} = ", INDEX, flags=re.M)
         assert m and m.start() < erster, name
@@ -133,7 +133,7 @@ def test_die_eventliste_fuehrt_den_typ_mit_kurzstand_und_oeffnet_seine_ansicht()
 
 def test_die_ansicht_hat_ihre_bausteine():
     block = INDEX[INDEX.index('<div id="strecke-results"'):INDEX.index('<div class="panel-title">Event-Analyse')]
-    for stueck in ('id="strecke-title"', 'id="strecke-content"', 'id="strecke-umschalter"',
+    for stueck in ('id="strecke-title"', 'id="strecke-content"',
                    'id="strecke-karte"', 'id="strecke-piloten"',
                    'onclick="copyStreckeShareHeader(this)"'):
         assert stueck in block, stueck
@@ -143,7 +143,7 @@ def test_die_ansicht_hat_ihre_bausteine():
     assert 'id="strecke-banner"' in live
     zeigen = _ohne_kommentare(_funktion("_streckeAnsichtZeigen"))
     for stueck in ("_streckeBalken(r)", "_streckeStandText(r)", "_streckeRegelnHtml(r)",
-                   "_streckePilotenHtml(r, wahl)"):
+                   "_streckePilotenHtml(r, _streckeFarbwahl(r))"):
         assert stueck in zeigen, stueck
 
 
@@ -187,40 +187,29 @@ def test_jede_andere_ansicht_schliesst_die_strecke_und_umgekehrt():
     assert "_streckeOffenId = null;" in _funktion("_streckeZu")
 
 
-# --- Umschalter und Merker ----------------------------------------------------------------
+# --- Die Farbe ist eine Einstellung des Events ----------------------------------------------
+#
+# Nutzer, 10.10.2026: „unter admin als button in den Einstellung des events!" Zuerst gab es
+# einen Umschalter in der Ansicht, den jedes Mitglied bedienen konnte.
 
-def test_der_umschalter_und_sein_merker_existieren():
-    block = INDEX[INDEX.index('<div id="strecke-umschalter"'):INDEX.index('<div id="strecke-karte"')]
-    assert "streckeFarbwahlSetzen('eine')" in block and "streckeFarbwahlSetzen('pilot')" in block
-    assert "'friesenspy_strecke_farbe'" in _konstante("_STRECKE_FARBWAHL_KEY")
-    assert "_prefSchreib(_STRECKE_FARBWAHL_KEY" in _funktion("streckeFarbwahlSetzen")
-    assert "_prefLies(_STRECKE_FARBWAHL_KEY)" in _funktion("_streckeFarbwahl")
-
-
-_WAHL = "let _streckeFarbwahlJetzt = null; const _STRECKE_FARBWAHL_KEY = 'k';"
+def test_mitglieder_haben_keinen_farbumschalter():
+    assert "strecke-umschalter" not in INDEX
+    assert "streckeFarbwahlSetzen" not in INDEX
+    assert "friesenspy_strecke_farbe" not in INDEX
 
 
 @pytest.mark.skipif(not _NODE, reason="node fehlt")
-def test_im_kniebrett_gilt_die_vorgabe_und_nichts_wird_gemerkt():
-    """Dort haelt kein Speicher: Auch ein (zufaellig vorhandener) Merker zaehlt nicht, und
-    das Umschalten schreibt keinen."""
-    js = (_WAHL + "let geschrieben = 0; const _PANEL_MODUS = true;"
-          "function _prefLies() { return 'pilot'; } function _prefSchreib() { geschrieben++; }"
-          "function _streckeAllesNeuZeichnen() {}"
-          + _funktion("_streckeFarbwahl") + _funktion("streckeFarbwahlSetzen"))
-    assert _node(js, "_streckeFarbwahl()") == "eine"
-    assert _node(js, "(streckeFarbwahlSetzen('pilot'), [_streckeFarbwahl(), geschrieben])") == ["pilot", 0]
+def test_die_farbe_kommt_vom_event():
+    js = _funktion("_streckeFarbwahl")
+    assert _node(js, "_streckeFarbwahl({farbe: 'pilot'})") == "pilot"
+    assert _node(js, "_streckeFarbwahl({farbe: 'eine'})") == "eine"
+    assert _node(js, "[_streckeFarbwahl({}), _streckeFarbwahl(null), "
+                     "_streckeFarbwahl({farbe: 'bunt'})]") == ["eine", "eine", "eine"]
 
 
-@pytest.mark.skipif(not _NODE, reason="node fehlt")
-def test_im_browser_wird_die_wahl_gemerkt_und_wieder_gelesen():
-    js = (_WAHL + "let merker = null; const _PANEL_MODUS = false;"
-          "function _prefLies(k) { return merker; } function _prefSchreib(k, w) { merker = w; }"
-          "function _streckeAllesNeuZeichnen() {}"
-          + _funktion("_streckeFarbwahl") + _funktion("streckeFarbwahlSetzen"))
-    assert _node(js, "_streckeFarbwahl()") == "eine"                 # Vorgabe ohne Merker
-    assert _node(js, "(streckeFarbwahlSetzen('pilot'), merker)") == "pilot"
-    assert _node(js.replace("let merker = null", "let merker = 'pilot'"), "_streckeFarbwahl()") == "pilot"
+def test_karte_und_pilotenliste_nehmen_die_farbe_des_events():
+    assert "_streckeFarbwahl(d)" in _funktion("_streckeZeichnen")
+    assert "_streckePilotenHtml(r, _streckeFarbwahl(r))" in _funktion("_streckeAnsichtZeigen")
 
 
 # --- Rechnen fuer die Karte ---------------------------------------------------------------

@@ -7,7 +7,8 @@
     "items": [
       "🌊 Neuer Eventtyp **Deichkontrolle**: Die Gruppe fliegt gemeinsam eine Strecke ab, tief und nah daran entlang. Der Balken füllt sich mit Kilometern, einen Sieger gibt es nicht. Welche Strecke es ist, legt der Veranstalter für jedes Event fest.",
       "🗺️ Auf der Karte ist die Strecke selbst der Fortschritt: blass gestrichelt, was noch offen ist, kräftig, was schon abgeflogen ist. Das gelbe Band zeigt, wie nah man dran sein muss. Ein Tipp auf die Strecke nennt, wer den Abschnitt wann abgeflogen hat.",
-      "🎨 In der Ansicht des Events wählst du, ob alles Abgeflogene eine Farbe hat oder jeder Pilot seine eigene.",
+      "🎨 Der Veranstalter legt je Event fest, ob alles Abgeflogene eine Farbe hat oder jeder Pilot seine eigene.",
+      "🔔 Wer Event-Erinnerungen abonniert hat, bekommt eine Stunde vorher und zum Beginn eine Meldung.",
       "📡 Gewertet wird nur, wer mit dem Kniebrett oder der FriesenBrügge fliegt. Gebraucht werden die genauen Positionen aus dem Simulator."
     ]
   },
