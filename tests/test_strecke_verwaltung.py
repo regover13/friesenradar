@@ -399,3 +399,20 @@ def test_die_liste_der_events_nennt_die_fundstellen():
     assert "' von ' + _skZahl(fundAnzahl) + ' gefunden'" in rumpf and "'keine'" in rumpf
     # Fundradius und Fundhöhe stehen in der Vorgabe nur, wenn es Fundstellen gibt.
     assert re.search(r"\(fundAnzahl\s*\?[^:]*ev\.fund_radius_m", rumpf, re.S)
+
+
+def test_ein_klick_auf_die_linie_fuegt_dort_einen_punkt_ein():
+    """Nutzerentscheidung 10.10.2026. Daneben wird wie bisher ans Ende angehängt, und die beiden
+    Enden der Strecke zählen nicht als Treffer -- wer dort klickt, will verlängern."""
+    stelle = _rumpf("_skEinfuegeStelle")
+    assert "latLngToLayerPoint" in stelle, "in Bildpunkten, bei jeder Zoomstufe gleich breit"
+    assert "_SK_EINFUEGEN_PX" in stelle and "t <= 0 || t >= 1" in stelle
+    aufbau = _rumpf("_skKarteAufbauen")
+    assert "_skEinfuegeStelle(e.latlng)" in aufbau
+    assert "_skPunkte.splice(stelle, 0, neu)" in aufbau and "_skPunkte.push(neu)" in aufbau
+    # Die Obergrenze gilt auch fürs Einfügen: Die Prüfung steht davor.
+    assert aufbau.index("_SK_PUNKTE_MAX") < aufbau.index("_skEinfuegeStelle(")
+
+
+def test_die_karte_startet_mit_dem_luftbild_wie_bei_der_reddung():
+    assert "L.tileLayer(_RD_TILE_SAT" in _rumpf("_skKarteAufbauen")

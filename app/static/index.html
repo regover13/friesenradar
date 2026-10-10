@@ -17435,8 +17435,13 @@ const _STRECKE_STRICH_OFFEN = '7 9';
 const _STRECKE_FARBE_BAND = '#f5c542';    // der Korridor, sehr blass
 // Fest und gut unterscheidbar, auch bei Farbfehlsichtigkeit (Okabe-Ito, um zwei ergaenzt).
 // Vergeben in der Reihenfolge des ersten Treffers -- wer einmal eine Farbe hat, behaelt sie.
+// Sechzehn: die acht und dieselben acht dunkler (Nutzerentscheidung 10.10.2026). Dunkler statt
+// heller, weil das helle Blau sonst dem Offenen gliche und Helles auf der Fliegerkarte verschwindet.
+// Erst der siebzehnte Pilot teilt sich eine Farbe.
 const _STRECKE_PALETTE = ['#E69F00', '#56B4E9', '#009E73', '#CC79A7', '#F0E442', '#D55E00',
-                          '#B48BFF', '#7FDBCA'];
+                          '#B48BFF', '#7FDBCA',
+                          '#8F6300', '#357090', '#006247', '#7E4B68', '#958D29', '#843A00',
+                          '#70569E', '#4F887D'];
 
 function _streckeFarbwahl(r) {
   return (r && r.farbe === 'pilot') ? 'pilot' : 'eine';

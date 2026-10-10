@@ -1691,7 +1691,7 @@
 
               <div class="form-section-title">Strecke</div>
               <p class="form-hint" style="margin:0 0 8px;">
-                <b>Jeder Klick auf die Karte hängt einen Punkt an.</b> Punkte lassen sich
+                <b>Jeder Klick auf die Karte hängt einen Punkt an, ein Klick auf die Linie fügt dort einen ein.</b> Punkte lassen sich
                 ziehen; ein Klick auf einen Punkt öffnet ein kleines Menü zum Entfernen.
                 Mit „Fundstellen setzen“ legt ein Klick stattdessen eine Fundstelle an.
               </p>
@@ -7871,6 +7871,8 @@
     /** Womit eine neue Fundstelle beginnt, wenn noch keine Art gewaehlt wurde. */
     const _SK_FUND_ART_VORGABE = 'seehund_kuh';
     const _SK_FUND_ENTPRELLT_MS = 400;
+    /** So nah (Bildpunkte) muss ein Klick an der Linie sein, um dort einen Punkt einzufuegen. */
+    const _SK_EINFUEGEN_PX = 10;
     const _SK_KM_JE_GRAD_LAT = 111.32;
     const _SK_FARBE_LINIE = '#D75F28', _SK_FARBE_BAND = '#f5c542';
 
@@ -8090,7 +8092,12 @@
           return;
         }
         // Fuenf Nachkommastellen sind rund ein Meter -- genauer klickt niemand.
-        _skPunkte.push([Number(e.latlng.lat.toFixed(5)), Number(e.latlng.lng.toFixed(5))]);
+        const neu = [Number(e.latlng.lat.toFixed(5)), Number(e.latlng.lng.toFixed(5))];
+        // Ein Klick AUF die Linie fuegt dort einen Punkt ein, einer daneben haengt ans Ende an
+        // (Nutzerentscheidung 10.10.2026).
+        const stelle = _skEinfuegeStelle(e.latlng);
+        if (stelle === null) _skPunkte.push(neu);
+        else _skPunkte.splice(stelle, 0, neu);
         _skZeichnen();
       });
       // Die Bandbreite haengt an der Zoomstufe: Meter bleiben, Pixel nicht.
@@ -8099,6 +8106,27 @@
       _rdIcaoSuche(_skKarte, 'sk-icao-vorschlaege');
       // Erst nach dem Einblenden hat der Kasten eine Groesse -- ohne das bleibt die Karte grau.
       setTimeout(function () { _skKarte.invalidateSize(); _skEinpassen(); }, 60);
+    }
+
+    /** Trifft ein Klick die Linie? Dann der Index, an dem der neue Punkt einzufuegen ist --
+     *  sonst `null` (ans Ende anhaengen). Gemessen in Bildpunkten, damit die Trefferbreite bei
+     *  jeder Zoomstufe dieselbe ist. Die beiden ENDEN der Strecke zaehlen nicht als Treffer:
+     *  Wer dort klickt, will verlaengern. */
+    function _skEinfuegeStelle(latlng) {
+      if (!_skKarte || _skPunkte.length < 2) return null;
+      const p = _skKarte.latLngToLayerPoint(latlng);
+      let best = _SK_EINFUEGEN_PX, stelle = null;
+      for (let i = 1; i < _skPunkte.length; i++) {
+        const a = _skKarte.latLngToLayerPoint(_skPunkte[i - 1]);
+        const b = _skKarte.latLngToLayerPoint(_skPunkte[i]);
+        const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+        if (l2 <= 0) continue;
+        const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2;
+        if (t <= 0 || t >= 1) continue;          // neben dem Stueck oder an seinem Ende
+        const d = Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+        if (d < best) { best = d; stelle = i; }
+      }
+      return stelle;
     }
 
     // --- Fundstellen --------------------------------------------------------------------

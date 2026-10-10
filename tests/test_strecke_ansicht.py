@@ -240,7 +240,8 @@ def test_die_farbe_folgt_dem_ersten_treffer_und_bleibt():
                            (9, "2026-10-10T18:20:00Z"), (7, "2026-10-10T18:30:00Z")])
     f2 = dict(map(tuple, _node(js, f"[..._streckeFarben({spaeter})]")))
     assert f2[3] == palette[0] and f2[7] == palette[1] and f2[9] == palette[2]
-    assert len(set(palette)) == len(palette) >= 8
+    assert len(set(palette)) == len(palette) == 16, "sechzehn verschiedene (Nutzer, 10.10.2026)"
+    assert "#8FBFF1" not in palette and "#D75F28" not in palette, "nicht die Farben von offen und abgeflogen"
 
 
 @pytest.mark.skipif(not _NODE, reason="node fehlt")
