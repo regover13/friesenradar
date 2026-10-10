@@ -501,8 +501,7 @@ Position auch von dort kommen. Setzt die Meldung unterwegs kurz aus, füllt VATS
 
 **Fundstellen:** Der Veranstalter kann entlang der Strecke Fundstellen verstecken, zum Beispiel
 eine Seehundkolonie oder einen einzelnen Container. Wie viele es sind, steht in der Ansicht des
-Events; wo sie liegen, steht nirgends. Im Simulator erscheinen die Objekte erst, wenn du nah dran
-bist. Gefunden hast du eine Fundstelle, wenn du tief und nah genug über ihre Mitte fliegst (die
+Events; wo sie liegen, steht nirgends. Gefunden hast du eine Fundstelle, wenn du tief und nah genug über ihre Mitte fliegst (die
 Zahlen stehen beim Event, zum Beispiel „höchstens 1.000 ft über der Stelle und näher als 150 m,
 nicht schneller als 140 kt“); wie langsam du dabei bist, spielt keine Rolle. Wer die Strecke nur
 mit Abstand abfliegt, kommt an einer Fundstelle vorbei, ohne sie zu finden: Dafür musst du

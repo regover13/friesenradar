@@ -381,7 +381,12 @@ def test_was_dort_steht_wer_es_entdeckt_hat_und_wann():
 def test_der_regeltext_nennt_fundhoehe_und_fundradius_aus_dem_event():
     satz = _node(_FUND_JS, '_streckeFundRegelText({"fund_radius_m": 150.0, "fund_hoehe_ft": 1000.0})')
     assert "höchstens 1.000 ft" in satz and "näher als 150 m" in satz
-    assert "hellblauer Rauch" in satz and "FriesenBrügge" in satz
+    assert "hellblauer Rauch" in satz
+    # Nutzer, 10.10.2026: Dass die Objekte erst aus der Nähe erscheinen, steht hier nicht, und
+    # die FriesenBrügge auch nicht noch einmal -- das ganze Event geht nur mit ihr.
+    assert "aus der Nähe" not in satz and "FriesenBrügge" not in satz
+    mit_tempo = _node(_FUND_JS, '_streckeFundRegelText({"fund_radius_m": 150.0, "fund_hoehe_ft": 1000.0, "gs_max_kt": 140})')
+    assert "nicht schneller als 140 kt" in mit_tempo
     assert _node(_FUND_JS, "[_streckeFundRegelText(null), _streckeFundRegelText({})]") == ["", ""]
     regeln = _ohne_kommentare(_funktion("_streckeRegelnHtml"))
     assert "_streckeFundstellen(r) ? _streckeFundRegelText(r.regeln)" in regeln

@@ -17515,8 +17515,8 @@ function _streckeFundRegelText(g) {
   const n = x => _streckeZahl(Math.round(Number(x)), 0);
   const tempo = g.gs_max_kt != null ? `, nicht schneller als ${n(g.gs_max_kt)} kt` : '';
   return `Eine Fundstelle entdeckst du, wenn du höchstens ${n(g.fund_hoehe_ft)} ft über ihr und näher als `
-       + `${n(g.fund_radius_m)} m an ihr vorbeifliegst${tempo}. Was dort steht, erscheint im Simulator erst aus der Nähe. `
-       + 'Nach dem Fund steigt an der Stelle hellblauer Rauch auf. Das geht nur mit der FriesenBrügge.';
+       + `${n(g.fund_radius_m)} m an ihr vorbeifliegst${tempo}. `
+       + 'Nach dem Fund steigt an der Stelle hellblauer Rauch auf.';
 }
 
 // Die Vorgabe als Satz, alles aus den Parametern des Events.
@@ -17790,8 +17790,7 @@ function _streckeBalken(r) {
 // 10.10.2026: „Wer keine Friesenbrücke hat, kann nicht mitmachen."). Im Kniebrett gibt es keine
 // Links -- dort steht die Adresse als Text (wie beim Reddung-Hinweis).
 function _streckeBrueggeHtml() {
-  return '<div class="bb-sub">Gewertet wird nur, wer mit der <strong>FriesenBrügge</strong> fliegt — '
-    + 'gebraucht werden die genauen Positionen aus dem Simulator. '
+  return '<div class="bb-sub">Gewertet wird nur, wer mit der <strong>FriesenBrügge</strong> fliegt. '
     + (_PANEL_MODUS
        ? 'radar.friesenflieger.de/download'
        : '<a href="/download" target="_blank" rel="noopener">Zur Download-Seite</a>')
