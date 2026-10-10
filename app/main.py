@@ -4834,12 +4834,19 @@ def require_admin(request: Request) -> None:
     2. Passwort-Admin-Cookie (``fs_admin``) — Fallback/Break-glass, wenn keine Events-Gruppe
        erkannt wird (Board-Login aus, Forum-Ausfall, Nicht-Events-Admin).
     """
-    _herkunft_pruefen(request)
     settings = get_settings()
+    # Erst das Passwort-Cookie: Es traegt ``SameSite=Lax``, der Browser schickt es bei einem
+    # aendernden Aufruf von einer fremden Seite gar nicht mit. Liegt es vor, kommt der Aufruf
+    # also von uns oder von einem Werkzeug ohne Browser (``friesenbruegge/katalog_hochladen.py``
+    # meldet sich so an) -- die Herkunft wird dann nur geprueft, soweit sie genannt ist.
+    if verify_admin_token(request.cookies.get(ADMIN_COOKIE, ""), settings.SECRET_KEY, settings.ADMIN_PASSWORD):
+        _herkunft_pruefen(request, streng=False)
+        return
+    # Die Forum-Anmeldung traegt ``SameSite=None`` und kommt auch von fremden Seiten mit: Hier
+    # MUSS die Herkunft genannt sein und stimmen.
     claims = verify_user_token(request.cookies.get(USER_COOKIE, ""), settings.SECRET_KEY)
     if claims and claims.get("is_admin"):
-        return
-    if verify_admin_token(request.cookies.get(ADMIN_COOKIE, ""), settings.SECRET_KEY, settings.ADMIN_PASSWORD):
+        _herkunft_pruefen(request, streng=True)
         return
     raise HTTPException(status_code=401, detail="Admin-Login erforderlich")
 
@@ -4849,7 +4856,7 @@ def require_admin(request: Request) -> None:
 _HERKUNFT_METHODEN = {"POST", "PUT", "PATCH", "DELETE"}
 
 
-def _herkunft_pruefen(request: Request) -> None:
+def _herkunft_pruefen(request: Request, *, streng: bool) -> None:
     """Ein aendernder Aufruf der Verwaltung muss von der EIGENEN Seite kommen -- sonst 403.
 
     Warum: Die Forum-Anmeldung (``fs_user``) traegt ``SameSite=None``, weil sie auch aus dem
@@ -4864,8 +4871,10 @@ def _herkunft_pruefen(request: Request) -> None:
     durch) -- keine feste Liste, also gilt es fuer alle drei Adressen, die Testinstanz und
     lokal gleich. Fehlt ``Origin``, entscheidet ``Sec-Fetch-Site``, dann ``Referer``.
 
-    **Ohne jede dieser Angaben wird durchgelassen:** Das ist kein Browser (Skript, curl,
-    Test), und ohne Browser gibt es niemanden, dem man einen Aufruf unterschieben koennte.
+    ``streng`` (Forum-Anmeldung): **Ohne jede dieser Angaben wird abgelehnt** -- s. unten,
+    warum nicht durchgelassen. Nicht streng (Passwort-Cookie, das von fremden Seiten ohnehin
+    nicht mitkommt): Fehlen alle Angaben, geht der Aufruf durch; eine GENANNTE fremde Herkunft
+    wird trotzdem abgelehnt.
     """
     if str(getattr(request, "method", "GET")).upper() not in _HERKUNFT_METHODEN:
         return
@@ -4888,7 +4897,14 @@ def _herkunft_pruefen(request: Request) -> None:
             raise HTTPException(status_code=403, detail="Aufruf von einer fremden Seite abgelehnt")
         return
     referer = (kopf.get("referer") or "").strip()
-    if referer and (not host or fremd(referer)):
+    if not referer and not streng:
+        return
+    # ⚠ Mit der Forum-Anmeldung wird ein Aufruf OHNE jede Angabe abgelehnt, nicht
+    # durchgelassen. Zuerst ging er durch („das ist kein Browser“) -- aber eine fremde Seite
+    # kann den Referer selbst unterdruecken, und ein alter Browser nennt weder Origin noch
+    # Sec-Fetch-Site: Genau der Aufruf, den die Pruefung aufhalten soll, haette sie umgangen
+    # (Befund der Sicherheitspruefung, 10.10.2026).
+    if not referer or not host or fremd(referer):
         raise HTTPException(status_code=403, detail="Aufruf von einer fremden Seite abgelehnt")
 
 

@@ -15,15 +15,25 @@ from fastapi.testclient import TestClient
 
 import app.main as main
 from app.auth import ADMIN_COOKIE, make_admin_token
+from app.forum_sso import USER_COOKIE, make_user_token
 
 SECRET, PW = "s3cr3t", "test-admin-pw"
 
 
+def _forum_cookie() -> dict:
+    """Die Forum-Anmeldung eines Mitglieds der Gruppe „Events“ -- das Cookie, das der Browser
+    auch von fremden Seiten mitschickt (``SameSite=None``)."""
+    return {USER_COOKIE: make_user_token(SECRET, "Anna", "7", True, 9_999_999_999)}
+
+
 class Req:
-    def __init__(self, method="POST", **kopf):
+    """Eine Anfrage mit Forum-Anmeldung; ``passwort=True`` nimmt stattdessen das Passwort-Cookie."""
+
+    def __init__(self, method="POST", passwort=False, **kopf):
         self.method = method
         self.headers = {k.replace("_", "-"): v for k, v in kopf.items()}
-        self.cookies = {ADMIN_COOKIE: make_admin_token(SECRET, PW)}
+        self.cookies = ({ADMIN_COOKIE: make_admin_token(SECRET, PW)} if passwort
+                        else _forum_cookie())
 
 
 @pytest.fixture(autouse=True)
@@ -86,10 +96,42 @@ def test_ohne_beides_entscheidet_der_referer():
                               referer="https://radar.friesenflieger.de/admin"))
 
 
-def test_ohne_jede_angabe_ist_es_kein_browser_und_geht_durch():
-    """Skripte, curl, die direkten Aufrufe der Tests -- niemand, dem man etwas unterschieben könnte."""
-    assert not _abgelehnt(Req(host="radar.friesenflieger.de"))
+def test_ohne_jede_angabe_wird_abgelehnt():
+    """Nicht durchlassen: Eine fremde Seite kann den Referer unterdrücken, und ein alter Browser
+    nennt weder Origin noch Sec-Fetch-Site -- genau dieser Aufruf käme sonst durch."""
+    assert _abgelehnt(Req(host="radar.friesenflieger.de"))
+    assert _abgelehnt(Req(origin="https://radar.friesenflieger.de")), "ohne Host kein Vergleich"
+    assert _abgelehnt(Req(host="radar.friesenflieger.de", origin=""))
+
+
+def test_die_attrappen_der_tests_ohne_methode_bleiben_unberuehrt():
+    """Die Tests rufen Endpunkt-Funktionen direkt mit einer Attrappe ohne ``method`` auf. Eine
+    echte Anfrage hat immer eine."""
     assert not _abgelehnt(SimpleNamespace(headers={}, cookies=Req().cookies))
+
+
+def test_mit_dem_passwort_cookie_geht_ein_werkzeug_ohne_browser_durch():
+    """Das Passwort-Cookie trägt ``SameSite=Lax`` und kommt von fremden Seiten gar nicht mit.
+    Die Werkzeuge der FriesenBrügge (Katalog hochladen) melden sich so an und nennen keine
+    Herkunft -- sie dürfen nicht ausgesperrt werden."""
+    assert not _abgelehnt(Req(passwort=True, host="radar.friesenflieger.de"))
+    assert not _abgelehnt(Req(passwort=True))
+
+
+def test_auch_mit_dem_passwort_cookie_wird_eine_genannte_fremde_herkunft_abgelehnt():
+    assert _abgelehnt(Req(passwort=True, host="radar.friesenflieger.de",
+                          origin="https://boese.example"))
+    assert _abgelehnt(Req(passwort=True, host="radar.friesenflieger.de",
+                          sec_fetch_site="cross-site"))
+
+
+def test_das_passwort_cookie_im_browser_neben_der_forum_anmeldung_aendert_nichts():
+    """Beide Cookies, eigene Seite: geht. Von einer fremden Seite käme das Passwort-Cookie
+    nicht mit -- dann gilt die strenge Prüfung der Forum-Anmeldung (die übrigen Tests)."""
+    req = Req(passwort=True, host="radar.friesenflieger.de",
+              origin="https://radar.friesenflieger.de")
+    req.cookies.update(_forum_cookie())
+    assert not _abgelehnt(req)
 
 
 def test_die_pruefung_ersetzt_die_anmeldung_nicht():
@@ -124,7 +166,7 @@ def test_durch_die_ganze_app_ein_fremder_aufruf_scheitert_der_eigene_nicht(tmp_p
     monkeypatch.setattr(main, "get_settings", lambda: SimpleNamespace(
         SECRET_KEY=SECRET, ADMIN_PASSWORD=PW, DB_PATH=p, CALLSIGN_PREFIX="FRS"))
     client = TestClient(main.app)
-    cookies = {ADMIN_COOKIE: make_admin_token(SECRET, PW)}
+    cookies = _forum_cookie()
     koerper = {"lat": 54.0, "lon": 9.0, "menge_min": 2, "menge_max": 2,
                "abstand_min_m": 5, "abstand_max_m": 9}
     pfad = "/api/admin/strecke/streuen"

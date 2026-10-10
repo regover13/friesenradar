@@ -496,7 +496,9 @@ Passwort-Cookie (`SameSite=Lax`) war nie betroffen.
   es für alle drei Adressen, die Testinstanz und lokal. nginx muss `Host $host` durchreichen
   (tut es in allen `location`-Blöcken); wer einen neuen Block ohne das anlegt, sperrt damit die
   Verwaltung aus.
-- **Ohne `Origin`, `Sec-Fetch-Site` und `Referer` wird durchgelassen**: Das ist kein Browser.
+- **Ohne `Origin`, `Sec-Fetch-Site` und `Referer` wird abgelehnt.** Zuerst ging so ein Aufruf
+  durch („kein Browser“); eine fremde Seite kann den Referer aber unterdrücken, und ein alter
+  Browser nennt die beiden anderen nicht. Wer per `curl` ändert, gibt `-H "Origin: https://…"` mit.
 - **Nicht erfasst** sind die ändernden Endpunkte für Mitglieder außerhalb der Verwaltung
   (`/api/prefs`, `/api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/claim`,
   `/api/me/visibility`). Dort ließe sich einem angemeldeten Mitglied höchstens eine eigene

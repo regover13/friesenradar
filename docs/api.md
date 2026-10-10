@@ -1219,8 +1219,8 @@ In der Bilanz stehen „Badge" (Bild öffnen) und „Forum" (BBCode kopieren) ne
 Jeder ändernde Aufruf unter `/api/admin` (POST, PUT, PATCH, DELETE) muss von der eigenen Seite
 kommen: Der Kopf `Origin` muss zum `Host` des Aufrufs passen, sonst antwortet der Server mit 403
 („Aufruf von einer fremden Seite abgelehnt“). Fehlt `Origin`, entscheidet `Sec-Fetch-Site`
-(`same-origin` oder `none`), danach `Referer`. Aufrufe ohne diese Köpfe (Skripte, `curl`) gehen
-durch; lesende Aufrufe werden nicht geprüft. An- und Abmeldung sind ausgenommen.
+(`same-origin` oder `none`), danach `Referer`. Aufrufe ganz ohne diese Köpfe werden abgelehnt; wer per
+`curl` ändert, gibt `-H "Origin: https://<adresse>"` mit. Lesende Aufrufe werden nicht geprüft. An- und Abmeldung sind ausgenommen.
 
 ## Deichkontrolle (Eventtyp `strecke`, #22)
 
