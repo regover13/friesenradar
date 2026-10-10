@@ -124,7 +124,7 @@ def test_eine_spaete_antwort_ueberschreibt_keine_juengere():
 def test_die_eventliste_fuehrt_den_typ_mit_kurzstand_und_oeffnet_seine_ansicht():
     holen = _ohne_kommentare(_funktion("fetchFriesenEvents"))
     assert "is_strecke: 1" in holen and "_streckeId: r.id" in holen
-    assert "_streckeKurz: _streckeKurzText(r)" in holen
+    assert "_streckeKurz: _streckeListenText(r)" in holen
     liste = _ohne_kommentare(_funktion("renderFriesenEvents"))
     assert "ev.is_strecke" in liste and "_STRECKE_NAME" in liste and "ev._streckeKurz" in liste
     assert "openStreckeDetail(ev._streckeId)" in liste
@@ -339,7 +339,7 @@ def test_die_friesenbruegge_ist_voraussetzung():
 
 _FUND_JS = "function escHtml(t) { return String(t); }" + "".join(_funktion(n) for n in (
     "_streckeZahl", "_streckeKm", "_streckeStandText", "_streckeFundstellen", "_streckeFundText",
-    "_streckeKurzText", "_streckeFundWas", "_streckeFundZeit", "_streckeFundTippHtml",
+    "_streckeKurzText", "_streckeListenText", "_streckeFundWas", "_streckeFundZeit", "_streckeFundTippHtml",
     "_streckeFundRegelText"))
 
 
@@ -360,6 +360,15 @@ def test_der_kurzstand_nennt_die_funde_nur_bei_fundstellen():
     assert _node(_FUND_JS, "_streckeKurzText({%s, fundstellen: {anzahl: 10, gefunden: 3}})" % stand) == (
         "21,0 von 50,0 km · 42 % · 3 von 10 Fundstellen gefunden")
     assert "_streckeKurzText(r)" in _ohne_kommentare(_funktion("_streckeBannerBlock"))
+
+
+@pytest.mark.skipif(not _NODE, reason="node fehlt")
+def test_die_eventliste_bekommt_den_kurzen_stand():
+    """Die Spalte ist schmal: mit Fundstellen nur Anteil und Funde (Nutzer, 10.10.2026)."""
+    stand = '"anteil": 0.55, "km_abgedeckt": 50.6, "km_gesamt": 92.3'
+    assert _node(_FUND_JS, "_streckeListenText({%s, fundstellen: {anzahl: 4, gefunden: 2}})" % stand) == (
+        "55 % · 2 von 4 gefunden")
+    assert _node(_FUND_JS, "_streckeListenText({%s})" % stand) == "50,6 von 92,3 km · 55 %"
 
 
 @pytest.mark.skipif(not _NODE, reason="node fehlt")

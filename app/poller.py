@@ -3369,7 +3369,7 @@ class VatsimPoller:
                         if erster and ev.get("push_enabled"):
                             pushes.append({
                                 "title": ev.get("name") or "Deichkontrolle",
-                                "body": ("Die Deichkontrolle läuft — fliegt die Strecke "
+                                "body": ("Die Deichkontrolle läuft. Fliegt die Strecke "
                                          "gemeinsam ab. \U0001f30a Gewertet wird nur, wer mit der "
                                          "FriesenBrügge fliegt."),
                                 "url": "/"})

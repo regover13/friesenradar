@@ -529,7 +529,7 @@ Orden an deinem Namen.
   Sekunden auf, auch im Kniebrett, und ist nur da, solange eine Deichkontrolle läuft. Schaltest
   du sie ab, gilt das für dieses Event.
 - **Events:** In der Eventliste steht die Deichkontrolle mit ihrem Stand („50,6 von 92,3 km ·
-  55 %"). Ein Klick öffnet ihre Ansicht: Balken und Stand, die Vorgabe, die Karte mit der Strecke
+  55 %", mit Fundstellen „55 % · 2 von 4 gefunden"). Ein Klick öffnet ihre Ansicht: Balken und Stand, die Vorgabe, die Karte mit der Strecke
   und darunter die Piloten mit ihren Kilometern — ohne Rangfolge. Darunter stehen wie bei Kutter
   und FriesenReddung die Flugspuren des Abends. Solange das Event läuft, wächst
   die Ansicht von selbst mit; danach bleibt der Endstand stehen. **Teilen** oben rechts kopiert

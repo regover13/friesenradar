@@ -11450,7 +11450,7 @@ async function fetchFriesenEvents() {
           location: '',
           is_strecke: 1,
           _streckeId: r.id,
-          _streckeKurz: _streckeKurzText(r),
+          _streckeKurz: _streckeListenText(r),
         })));
     } catch (_) { /* ignorieren */ }
     const combined = [...calEvents, ...objectEvents]
@@ -17466,6 +17466,15 @@ function _streckeKm(km, gesamt) {
 function _streckeStandText(r) {
   const pct = Math.round((r.anteil || 0) * 100);
   return `${_streckeKm(r.km_abgedeckt || 0, r.km_gesamt)} von ${_streckeKm(r.km_gesamt || 0, r.km_gesamt)} km · ${pct} %`;
+}
+
+// Der Stand fuer die schmale Spalte der Eventliste. Mit Fundstellen nur Anteil und Funde
+// („55 % · 2 von 4 gefunden“) -- Kilometer UND Funde brachen dort mehrfach um (Nutzer, 10.10.2026).
+// Ohne Fundstellen bleibt es beim Stand mit Kilometern.
+function _streckeListenText(r) {
+  const f = _streckeFundstellen(r);
+  if (!f) return _streckeStandText(r);
+  return `${Math.round((r.anteil || 0) * 100)} % · ${Number(f.gefunden) || 0} von ${Number(f.anzahl)} gefunden`;
 }
 
 // Fundstellen (Spec Abschnitt 15): Orte, an denen im Simulator eine Gruppe von Objekten steht.
