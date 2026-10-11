@@ -1,5 +1,17 @@
 [
   {
+    "version": "16.4.6",
+    "date": "2026-10-11",
+    "highlight": false,
+    "title": "Flüge werden auch geschrieben, wenn der VATSIM-Datenstand stehen bleibt",
+    "items": [
+      "📡 Am 11.10.2026 lieferte VATSIM über viele Stunden denselben Datenstand, obwohl das Netz lief. FriesenRadar zeigte in dieser Zeit niemanden. Bleibt der Stand jetzt länger als zwei Minuten stehen, holt FriesenRadar die Friesen aus der Funkliste von VATSIM und den Flugplan aus der Statusabfrage und schreibt den Flug damit mit.",
+      "📡 Läuft der Datenstand wieder, geht es dort weiter, mit demselben Flug.",
+      "🎧 Lotsen laufen in dieser Zeit über die Lotsenliste weiter, ohne Frequenz.",
+      "ℹ️ Grenzen des Ersatzwegs: Wer kein Funkgerät eingeschaltet hat, steht nicht in der Funkliste. Wessen VATSIM-Nummer FriesenRadar noch nicht kennt (nie geflogen, kein Rufzeichen im Forum), wird nicht mitgeschrieben. Geschwindigkeit und Kurs sind aus den Positionen gerechnet."
+    ]
+  },
+  {
     "version": "16.4.5",
     "date": "2026-10-10",
     "highlight": false,

@@ -44,6 +44,8 @@ FriesenRadar überwacht automatisch alle VATSIM-Verbindungen mit dem Callsign-Pr
 
 Es wird kein VATSIM-Account benötigt. FriesenRadar liest ausschließlich öffentliche Daten.
 
+**Wenn der Datenstand von VATSIM stehen bleibt.** Es kommt vor, dass VATSIM über längere Zeit denselben Datenstand ausliefert, obwohl das Netz läuft (zuletzt am 11.10.2026, viele Stunden lang). Ist der Stand älter als zwei Minuten, nimmt FriesenRadar einen Ersatzweg: Die Positionen kommen aus der Funkliste von VATSIM, Anmeldezeit und Flugplan aus der Statusabfrage zum Piloten, Lotsen aus der Lotsenliste. Der Flug wird damit wie gewohnt aufgezeichnet, und sobald der Datenstand wieder läuft, geht derselbe Flug dort weiter. Der Ersatzweg hat Grenzen: In der Funkliste steht nur, wer ein Funkgerät eingeschaltet hat. Mitgeschrieben wird nur, wessen VATSIM-Nummer FriesenRadar kennt, also wer schon einmal geflogen ist oder sein Rufzeichen im Forum hinterlegt hat. Geschwindigkeit und Kurs sind aus aufeinanderfolgenden Positionen gerechnet, und bei Lotsen fehlt die Frequenz. Der übrige Verkehr erscheint ohne Muster und Strecke. Bereits eingereichte Flugpläne ohne Verbindung bleiben auf dem Stand vor dem Stillstand.
+
 > **Test-Connects** (keine Bewegung, kein Flugplan) werden herausgefiltert — ein Flug erscheint nur wenn er mindestens ~1 km zurückgelegt hat oder länger als 5 Minuten dauerte. Echte Kurzstrecken erscheinen damit vollständig. Flüge, die FriesenRadar selbst aufgezeichnet hat und die auch in StatSim vorhanden sind, werden nie doppelt gezählt.
 
 ### Wie FriesenRadar Flüge zählt (GPS-only, seit v8.0.0)

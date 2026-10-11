@@ -121,12 +121,14 @@ def friesen_lotsen(vatsim_data: dict, cids: set[int]) -> list[dict]:
         if not isinstance(c, dict) or c.get("cid") not in cids:
             continue
         s = station(c.get("callsign", ""))
-        if s is None or str(c.get("frequency") or "") in ("", _KEINE_FREQUENZ):
+        # Die Lotsenliste des Ersatzwegs (#63) kennt keine Frequenz; wer dort steht, gilt.
+        ersatz = bool(c.get("ersatz"))
+        if s is None or (not ersatz and str(c.get("frequency") or "") in ("", _KEINE_FREQUENZ)):
             continue
         erg.append({
             "cid": c["cid"],
             "callsign": str(c.get("callsign", "")).upper(),
-            "frequenz": str(c.get("frequency") or ""),
+            "frequenz": str(c.get("frequency") or "") or ("–" if ersatz else ""),
             "station": s["name"], "icao": s["icao"], "lat": s["lat"], "lon": s["lon"],
             "online_seit": c.get("logon_time") or "",
             "infotext": [str(z) for z in (c.get("text_atis") or []) if z],

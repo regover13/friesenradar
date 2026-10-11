@@ -245,6 +245,11 @@ CREATE TABLE IF NOT EXISTS bummel_overrides (
     PRIMARY KEY(race_id, cid)
 );
 
+CREATE TABLE IF NOT EXISTS feed_ersatzweg (
+    von TEXT PRIMARY KEY,               -- Beginn eines Stillstands des VATSIM-Hauptfeeds (#63)
+    bis TEXT                            -- zuletzt gesehen; Positionen dazwischen: Funkliste
+);
+
 CREATE TABLE IF NOT EXISTS lotsen_name (
     cid        INTEGER PRIMARY KEY,     -- Friese, den wir nur aus dem Forum kennen (nie geflogen)
     name       TEXT NOT NULL,           -- Name aus dem VATSIM-Feed, gesehen beim Lotsen
@@ -12109,6 +12114,15 @@ def mark_event_reminded(conn: sqlite3.Connection, uid: str, ts: str) -> None:
 # ---------------------------------------------------------------------------
 # Friesen als Lotsen (#61)
 # ---------------------------------------------------------------------------
+
+def ersatzweg_merken(conn: sqlite3.Connection, von: str, bis: str) -> None:
+    """Zeitraum, in dem der Ersatzweg (#63) statt des Hauptfeeds lief (kein commit)."""
+    conn.execute(
+        "INSERT INTO feed_ersatzweg (von, bis) VALUES (?, ?) "
+        "ON CONFLICT(von) DO UPDATE SET bis = excluded.bis",
+        (von, bis),
+    )
+
 
 def lotsen_bekannte(conn: sqlite3.Connection) -> dict[int, str]:
     """VATSIM-Nummer -> Anzeigename aller Friesen, die als Lotse erkannt werden sollen.

@@ -680,6 +680,14 @@ unauffällig und seit dem 13.09.2026 ohnehin auf 5 × 20 MB gedeckelt.
 - `app/config.py` — pydantic-settings, CALLSIGN_PREFIX (Friesen-Erkennung), ADMIN_PASSWORD, VAPID
 - `app/database.py` — SQLite WAL, alle DB-Funktionen
 - `app/vatsim.py` — VATSIM-API-Client
+- `app/ersatzweg.py` — Ersatzweg bei stehendem Hauptfeed (GitHub #63): Steht
+  `general.update_timestamp` länger als 120 s, baut `VatsimPoller._feed_holen` aus Funkliste
+  (`transceivers-data.json`), Statusabfrage (`/v2/members/<cid>/status`) und Lotsenliste
+  (`/v2/atc/online`) einen Feed **in derselben Form** nach; `_poll_once` läuft unverändert
+  weiter. Synthetische Einträge tragen `ersatz: True`, der Feed `ersatzweg: True`,
+  Fremdverkehr hat dort `cid None`. Die Zeiträume stehen in der Tabelle `feed_ersatzweg`
+  (von, bis) — daran lässt sich später ablesen, welche Positionen aus der Funkliste stammen.
+  Nachsehen: `docker logs friesenradar-friesenradar-1 2>&1 | grep -i ersatzweg`.
 - `app/geo.py` — Haversine, ICAO→Koordinaten, Event-Filter
 - `app/aip_charts.py` — DFS-Blätter beschaffen und ablegen (AIRAC-Auflösung, Kapitelseiten)
 - `app/ground_charts.py` — Blattkunde, Handpassung aus zwei Punkten, Nordung

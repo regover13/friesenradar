@@ -22,6 +22,7 @@ from app.database import (
     delete_push_subscription,
     record_push_delivery,
     ensure_pilot,
+    ersatzweg_merken,
     get_connection,
     get_inactive_cids,
     get_app_setting,
@@ -67,6 +68,7 @@ from app.teamspeak import fetch_channel_clients, parse_channel_ids
 from app import vrp
 from app import bruegge
 from app import lotsen
+from app import ersatzweg
 
 logger = logging.getLogger(__name__)
 
@@ -549,6 +551,21 @@ class VatsimPoller:
         self._lotsen_buchungen_da = False            # erster Abruf gelungen?
         self._lotsen_bekannt: set[int] | None = None  # None = erster Durchlauf, nur Stand setzen
         self._lotsen_last_notified: dict[int, datetime] = {}
+        # Ersatzweg bei stehendem Hauptfeed (#63): Friesen aus der Funkliste, Flugplan aus
+        # der Statusabfrage, Lotsen aus der Lotsenliste. Alles nur im Speicher.
+        self.ersatzweg_aktiv = False
+        self._ersatz_seit: str | None = None          # Beginn des laufenden Stillstands (ISO)
+        self._ersatz_gemerkt = 0.0                    # wann der Zeitraum zuletzt geschrieben wurde
+        self._feed_frisch = time.monotonic()          # letzter frische Stand des Hauptfeeds
+        self._ersatz_fahrt = ersatzweg.Fahrtrechner()
+        self._ersatz_status: dict[str, dict] = {}     # Rufzeichen -> Statusabfrage
+        self._ersatz_lotsen: list[dict] = []
+        self._ersatz_lotsen_naechste = 0.0
+        self._ersatz_unbekannt: set[str] = set()      # schon gemeldete Rufzeichen ohne Nummer
+        self._ersatz_fehlt: dict[int, int] = {}       # cid -> Zyklen in Folge ohne Eintrag
+        # cid -> Anmeldezeit in der Schreibweise, unter der die Verbindung zuerst gesehen
+        # wurde. Feed und Statusabfrage schreiben dieselbe Zeit verschieden.
+        self._logon_merker: dict[int, str] = {}
         # TS-Login: FRS → Anzahl konsekutiver Polls, in denen die FRS präsent war.
         # None = vor dem ersten erfolgreichen Poll (Baseline noch nicht gesetzt).
         # Beim Start präsente FRS werden mit _TS_BASELINE_STREAK markiert (lösen nie aus).
@@ -613,9 +630,11 @@ class VatsimPoller:
         conn = get_connection(self.db_path)
         try:
             for r in conn.execute(
-                "SELECT cid, id, departure, arrival FROM flights "
+                "SELECT cid, id, departure, arrival, logon_time FROM flights "
                 "WHERE logoff_time IS NULL AND superseded_by IS NULL"
             ).fetchall():
+                if r["logon_time"]:
+                    self._logon_merker[r["cid"]] = r["logon_time"]
                 self._active_flights[r["cid"]] = {
                     "id": r["id"], "dep": r["departure"] or "", "arr": r["arrival"] or "",
                 }
@@ -1355,7 +1374,7 @@ class VatsimPoller:
             uhr = _Abschnittsuhr()
 
             # 1. Fetch + filter
-            vatsim_data = await fetch_vatsim_data(self._http_client)
+            vatsim_data = await self._feed_holen()
             uhr.marke("abruf")
 
             # Vor jeder weiteren Verarbeitung: Der Feed ist hier vollständig in der Hand,
@@ -1458,6 +1477,13 @@ class VatsimPoller:
                 for cid in newly_online:
                     pos = current[cid]
                     is_new_pilot = ensure_pilot(conn, cid, pos["name"])
+                    if not is_new_pilot and pos["name"]:
+                        # Wer über den Ersatzweg (#63) zum ersten Mal gesehen wurde, steht
+                        # ohne Namen in der Liste -- die Funkliste kennt keinen.
+                        conn.execute(
+                            "UPDATE pilots SET name = ? WHERE cid = ? AND COALESCE(name, '') = ''",
+                            (pos["name"], cid),
+                        )
                     if is_new_pilot and get_settings().STATSIM_API_KEY:
                         asyncio.create_task(
                             _load_statsim_history(cid, get_settings().STATSIM_API_KEY, self.db_path)
@@ -1776,6 +1802,266 @@ class VatsimPoller:
             logger.exception("Error in _poll_once")
 
     # ------------------------------------------------------------------
+    # Ersatzweg bei stehendem Hauptfeed (#63)
+    # ------------------------------------------------------------------
+
+    async def _feed_holen(self) -> dict:
+        """Der Hauptfeed -- und wenn er steht, der Ersatzfeed in derselben Form.
+
+        Steht der Feed und der Ersatzweg scheitert (Funkliste nicht abrufbar), fliegt die
+        Ausnahme weiter: Der Zyklus fällt aus, niemand wird ab- oder angemeldet. Den
+        stehenden Feed zu verarbeiten wäre schlimmer -- er zeigt Flugzeuge von vor Stunden."""
+        jetzt = self._now()
+        try:
+            vatsim_data = await fetch_vatsim_data(self._http_client)
+        except Exception:
+            if time.monotonic() - self._feed_frisch <= ersatzweg.STILLSTAND_SEC:
+                raise
+            logger.warning("Hauptfeed nicht abrufbar, Ersatzweg übernimmt", exc_info=True)
+            vatsim_data = {"prefiles": list(self.last_prefiles or [])}
+            steht = True
+        else:
+            steht = ersatzweg.feed_steht(vatsim_data, jetzt)
+        if not steht:
+            self._feed_frisch = time.monotonic()
+            if self.ersatzweg_aktiv:
+                self._ersatzweg_schalten(False, jetzt, vatsim_data)
+            self._logon_angleichen(vatsim_data)
+            return vatsim_data
+        if not self.ersatzweg_aktiv:
+            self._ersatzweg_schalten(True, jetzt, vatsim_data)
+        daten = await self._ersatzfeed(vatsim_data)
+        self._ersatzweg_zeitraum_merken(jetzt)
+        return daten
+
+    def _ersatzweg_schalten(self, an: bool, jetzt: datetime, vatsim_data: dict) -> None:
+        iso = jetzt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        alter = ersatzweg.feed_alter_s(vatsim_data, jetzt)
+        if an:
+            self.ersatzweg_aktiv = True
+            self._ersatz_seit = iso
+            self._ersatz_gemerkt = 0.0
+            logger.warning("Hauptfeed steht (Stand %s s alt) -- Ersatzweg an",
+                           "?" if alter is None else int(alter))
+        else:
+            self._ersatzweg_zeitraum_merken(jetzt, sofort=True)
+            self.ersatzweg_aktiv = False
+            self._ersatz_seit = None
+            self._ersatz_status.clear()
+            self._ersatz_unbekannt.clear()
+            self._ersatz_fehlt.clear()
+            self._ersatz_lotsen = []
+            self._ersatz_lotsen_naechste = 0.0
+            # Sonst rechnete der nächste Stillstand gegen Positionen von diesem.
+            self._ersatz_fahrt = ersatzweg.Fahrtrechner()
+            logger.warning("Hauptfeed läuft wieder -- Ersatzweg aus")
+
+    def _ersatzweg_zeitraum_merken(self, jetzt: datetime, sofort: bool = False) -> None:
+        """Hält fest, von wann bis wann der Ersatzweg lief -- damit sich später sagen lässt,
+        welche Positionen aus der Funkliste stammen. Höchstens einmal je Minute."""
+        if not self._ersatz_seit or (not sofort and time.monotonic() - self._ersatz_gemerkt < 60):
+            return
+        self._ersatz_gemerkt = time.monotonic()
+        try:
+            conn = get_connection(self.db_path)
+            try:
+                ersatzweg_merken(conn, self._ersatz_seit, jetzt.strftime("%Y-%m-%dT%H:%M:%SZ"))
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception:
+            logger.exception("Ersatzweg: Zeitraum nicht gemerkt")
+
+    def _logon_gleich(self, cid, logon: str) -> str:
+        """Die Anmeldezeit in der Schreibweise, unter der diese Verbindung zuerst gesehen
+        wurde -- damit ein Flug beim Wechsel zwischen Feed und Ersatzweg derselbe bleibt."""
+        if cid is None or not logon:
+            return logon
+        alt = self._logon_merker.get(cid)
+        if alt and ersatzweg.gleiche_anmeldung(alt, logon):
+            return alt
+        self._logon_merker[cid] = logon
+        return logon
+
+    def _logon_angleichen(self, vatsim_data: dict) -> None:
+        prefix = self.callsign_prefix.upper()
+        pilots = vatsim_data.get("pilots") if isinstance(vatsim_data, dict) else None
+        for p in pilots if isinstance(pilots, list) else []:
+            if isinstance(p, dict) and str(p.get("callsign") or "").upper().startswith(prefix):
+                p["logon_time"] = self._logon_gleich(p.get("cid"), p.get("logon_time") or "")
+
+    async def _ersatz_status_pflegen(self, zuordnung: dict[str, int]) -> None:
+        """Anmeldezeit und Flugplan je Friese über die Statusabfrage -- einmal je Flug, danach
+        selten. Die Abfrage prüft nebenbei die Zuordnung: Nennt sie ein anderes Rufzeichen,
+        gehört die Nummer nicht zu diesem Flugzeug."""
+        jetzt = time.monotonic()
+        for cs in [c for c in self._ersatz_status if c not in zuordnung]:
+            del self._ersatz_status[cs]
+        faellig = [
+            (cs, cid) for cs, cid in zuordnung.items()
+            if (st := self._ersatz_status.get(cs)) is None or st["cid"] != cid
+            or jetzt >= st["naechste"]
+        ][:10]
+
+        async def eins(cs: str, cid: int) -> None:
+            alt = self._ersatz_status.get(cs)
+            if alt is not None and alt["cid"] != cid:
+                alt = None
+            try:
+                status = await ersatzweg.hole_status(self._http_client, cid)
+            except Exception as e:
+                logger.warning("Ersatzweg: Statusabfrage für %s gescheitert (%s)", cs, e)
+                st = alt or {"cid": cid, "art": "fehler", "logon": "", "fp": None}
+                st["naechste"] = jetzt + ersatzweg.STATUS_TAKT_FEHLER_SEC
+                self._ersatz_status[cs] = st
+                return
+            if status and str(status.get("callsign") or "").strip().upper() == cs:
+                fp = ersatzweg.flugplan_aus_status(status)
+                takt = ersatzweg.STATUS_TAKT_SEC if fp else ersatzweg.STATUS_TAKT_OHNE_PLAN_SEC
+                self._ersatz_status[cs] = {"cid": cid, "art": "ok", "fp": fp,
+                                           "logon": str(status.get("start") or ""),
+                                           "naechste": jetzt + takt}
+            else:
+                if alt is None or alt["art"] != "fremd":
+                    logger.info("Ersatzweg: %s ist laut Statusabfrage nicht Nummer %s", cs, cid)
+                self._ersatz_status[cs] = {"cid": cid, "art": "fremd", "logon": "", "fp": None,
+                                           "naechste": jetzt + ersatzweg.STATUS_TAKT_OHNE_PLAN_SEC}
+
+        if faellig:
+            await asyncio.gather(*(eins(cs, cid) for cs, cid in faellig))
+
+    async def _ersatzfeed(self, vatsim_data: dict) -> dict:
+        """Baut ``pilots`` und ``controllers`` aus Funkliste, Statusabfrage und Lotsenliste.
+
+        Fremdverkehr steht mit Position, Höhe und gerechneter Fahrt drin, aber ohne Nummer
+        und Flugplan. Ein Friese erscheint, sobald Nummer, Anmeldezeit und Fahrt feststehen;
+        wer schon einen laufenden Flug hat, fällt deswegen nicht heraus (letzte bekannte
+        Fahrt, Anmeldezeit des laufenden Flugs)."""
+        roh, stand = await ersatzweg.hole_funkliste(self._http_client)
+        if stand is not None and time.time() - stand > ersatzweg.STILLSTAND_SEC:
+            # Steht auch die Funkliste, fällt der Zyklus aus -- sonst schriebe der Ersatzweg
+            # dieselbe Position ohne Ende weiter.
+            raise RuntimeError(f"Funkliste steht ebenfalls (Stand {int(time.time() - stand)} s alt)")
+        t = stand or time.time()
+        stand_iso = datetime.fromtimestamp(t, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        funk = ersatzweg.funk_positionen(roh)
+        fahrt = {}
+        for cs, (lat, lon, _hoehe) in funk.items():
+            w = self._ersatz_fahrt.rechne(cs, lat, lon, t)
+            if w is not None:
+                fahrt[cs] = w
+        self._ersatz_fahrt.behalte(funk)
+
+        prefix = self.callsign_prefix.upper()
+        friesen = [cs for cs in funk if cs.startswith(prefix)]
+        zuordnung: dict[str, int] = {}
+        namen: dict[int, str] = {}
+        letzte: dict[int, tuple[int, int, str]] = {}
+        if friesen:
+            conn = get_connection(self.db_path)
+            try:
+                for cs in friesen:
+                    cid = cid_for_callsign_authoritative(conn, cs)
+                    if cid is None:
+                        if cs not in self._ersatz_unbekannt:
+                            self._ersatz_unbekannt.add(cs)
+                            logger.warning("Ersatzweg: %s fliegt, aber die Nummer ist "
+                                           "unbekannt -- wird nicht mitgeschrieben", cs)
+                        continue
+                    zuordnung[cs] = cid
+                    r = conn.execute("SELECT name FROM pilots WHERE cid = ?", (cid,)).fetchone()
+                    namen[cid] = (r["name"] or "") if r is not None else ""
+                    r = conn.execute("SELECT groundspeed, heading, logon_time FROM live_positions "
+                                     "WHERE cid = ?", (cid,)).fetchone()
+                    if r is not None:
+                        letzte[cid] = (int(r["groundspeed"] or 0), int(r["heading"] or 0),
+                                       r["logon_time"] or "")
+                    if cid not in self._logon_merker:
+                        # Nach einem Neustart: die Schreibweise, unter der die Verbindung
+                        # in der Flugliste steht -- sonst legte ein Wiederöffnen eine
+                        # zweite Zeile an.
+                        r = conn.execute(
+                            "SELECT logon_time FROM flights WHERE cid = ? AND superseded_by IS NULL "
+                            "ORDER BY id DESC LIMIT 1", (cid,)).fetchone()
+                        if r is not None and r["logon_time"]:
+                            self._logon_merker[cid] = r["logon_time"]
+            finally:
+                conn.close()
+        # Erst nach dem Schließen der Verbindung ins Netz (stehende Regel).
+        await self._ersatz_status_pflegen(zuordnung)
+
+        pilots = []
+        for cs, (lat, lon, hoehe) in funk.items():
+            if not cs.startswith(prefix):
+                if cs in fahrt:
+                    pilots.append(ersatzweg.pilot_eintrag(
+                        None, "", cs, lat, lon, hoehe, fahrt[cs][0], fahrt[cs][1], "", None, stand_iso))
+                continue
+            cid = zuordnung.get(cs)
+            if cid is None:
+                continue
+            st = self._ersatz_status.get(cs) or {"art": "fehler", "logon": "", "fp": None}
+            if st["art"] == "fremd":
+                continue
+            laeuft = cid in self._active_flights
+            w = fahrt.get(cs)
+            if w is None and laeuft and cid in letzte:
+                w = letzte[cid][:2]
+            logon = st["logon"] or (letzte[cid][2] if laeuft and cid in letzte else "")
+            if w is None or not logon or (st["art"] != "ok" and not laeuft):
+                continue
+            pilots.append(ersatzweg.pilot_eintrag(
+                cid, namen.get(cid, ""), cs, lat, lon, hoehe, w[0], w[1],
+                self._logon_gleich(cid, logon), st["fp"], stand_iso))
+
+        # Karenz: Ein laufender Flug fällt nicht bei der ersten Lücke heraus (Funkgerät kurz
+        # weg, eine einzelne Statusantwort daneben). Er läuft bis zu drei Zyklen mit der
+        # letzten Position weiter; erst danach gilt er als abgemeldet.
+        da = {p["cid"] for p in pilots if p["cid"] is not None}
+        for cid in [c for c in self._ersatz_fehlt if c in da or c not in self._active_flights]:
+            del self._ersatz_fehlt[cid]
+        luecken = [c for c in self._active_flights if c not in da and c > 0]
+        if luecken:
+            conn = get_connection(self.db_path)
+            try:
+                for cid in luecken:
+                    self._ersatz_fehlt[cid] = self._ersatz_fehlt.get(cid, 0) + 1
+                    if self._ersatz_fehlt[cid] > ersatzweg.KARENZ_ZYKLEN:
+                        continue
+                    r = conn.execute("SELECT * FROM live_positions WHERE cid = ?", (cid,)).fetchone()
+                    if r is None or not r["logon_time"]:
+                        continue
+                    n = conn.execute("SELECT name FROM pilots WHERE cid = ?", (cid,)).fetchone()
+                    fp = {"aircraft_short": r["aircraft"] or "", "aircraft_icao": r["aircraft_icao"] or "",
+                          "departure": r["departure"] or "", "arrival": r["arrival"] or "",
+                          "flight_rules": r["flight_rules"] or "", "alternate": r["alternate"] or "",
+                          "deptime": r["deptime"] or "", "cruise_tas": r["cruise_tas"] or "",
+                          "enroute_time": r["enroute_time"] or "", "fuel_time": r["fuel_time"] or "",
+                          "route": r["route"] or "", "remarks": r["remarks"] or ""}
+                    pilots.append(ersatzweg.pilot_eintrag(
+                        cid, (n["name"] or "") if n is not None else "", r["callsign"] or "",
+                        r["latitude"], r["longitude"], int(r["altitude"] or 0),
+                        int(r["groundspeed"] or 0), int(r["heading"] or 0),
+                        r["logon_time"], fp, stand_iso))
+            finally:
+                conn.close()
+
+        if time.monotonic() >= self._ersatz_lotsen_naechste:
+            self._ersatz_lotsen_naechste = time.monotonic() + ersatzweg.LOTSEN_TAKT_SEC
+            try:
+                self._ersatz_lotsen = ersatzweg.lotsen_eintraege(
+                    await ersatzweg.hole_lotsenliste(self._http_client))
+            except Exception as e:
+                self._ersatz_lotsen_naechste = time.monotonic() + ersatzweg.STATUS_TAKT_FEHLER_SEC / 2
+                logger.warning("Ersatzweg: Lotsenliste nicht abrufbar (%s)", e)
+
+        daten = dict(vatsim_data or {})
+        daten["pilots"] = pilots
+        daten["controllers"] = list(self._ersatz_lotsen)
+        daten["ersatzweg"] = True
+        return daten
+
+    # ------------------------------------------------------------------
     # Friesen als Lotsen (#61)
     # ------------------------------------------------------------------
 
@@ -1796,9 +2082,12 @@ class VatsimPoller:
                 # Schichten steht. Geschrieben wird nur, wenn er neu ist oder sich ändert.
                 mit_pilotenname = lotsen_mit_pilotenname(conn)
                 geschrieben = neu_lesen = False
+                # Die Lotsenliste des Ersatzwegs (#63) nennt keine Namen -- das heißt nicht,
+                # dass jemand seinen verbirgt. Gemerkte Namen bleiben.
+                ohne_namen = bool(vatsim_data.get("ersatzweg"))
                 for l in liste:
                     name = l.pop("feedname", "")
-                    if l["cid"] in mit_pilotenname:
+                    if ohne_namen or l["cid"] in mit_pilotenname:
                         continue
                     if not name:
                         # Verbirgt jemand seinen Namen bei VATSIM, behalten wir den alten nicht.
