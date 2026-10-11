@@ -108,6 +108,82 @@ def test_thema_ohne_luftfahrzeug_wird_verworfen():
 
 # --- User-Agent -------------------------------------------------------------
 
+# Gemessen am 11.10.2026 an LEG2: Die Suche fand "Lancair Legacy" als ersten Treffer, der
+# Artikel fiel aber durch (kein Wort der Liste im Text), und der Artikel ueber den HERSTELLER
+# bestand, weil in "Flugzeugbausaetzen" das Wort "Flugzeug" steckt. Beide Texte sind die echten.
+_LEGACY_EXTRACT = ("Die Lancair Legacy ist eine modernisierte Version der Lancair 320. Der "
+                   "zweisitzige Tiefdecker verfügt über ein Einziehfahrwerk und besteht "
+                   "vollständig aus GFK.")
+_LANCAIR_DESC = "US-amerikanischer Hersteller von Flugzeugbausätzen"
+_LANCAIR_EXTRACT = ("Lancair [ˈlæːnsʔɛə̯ɹ] ist ein US-amerikanischer Hersteller von "
+                    "Flugzeugbausätzen für die Allgemeine Luftfahrt.")
+
+
+def test_bauart_woerter_zaehlen_als_luftfahrzeug():
+    assert looks_like_aircraft(None, _LEGACY_EXTRACT) is True
+    assert looks_like_aircraft(None, "Der Hochdecker wird seit 1960 gebaut.") is True
+    assert looks_like_aircraft("two-seat low-wing monoplane kit", None) is True
+    assert looks_like_aircraft(None, "A two-seat high-wing design from 1960.") is True
+
+
+@pytest.mark.parametrize("desc, extract", [
+    (_LANCAIR_DESC, _LANCAIR_EXTRACT),
+    (None, _LANCAIR_EXTRACT),
+    ("deutscher Flugzeughersteller", None),
+    ("American aircraft manufacturer", None),
+    # Die beiden Herstellerartikel, auf denen im Bestand ein Muster stand (F260, TL20):
+    ("ehemaliger italienischer Hersteller von Flugzeugen 1922-1944",
+     "SIAI-Marchetti war ein italienischer Flugzeughersteller."),
+    ("Czech aircraft manufacturer", "TL-Ultralight is an aircraft manufacturer based in "
+                                    "Hradec Králové, Czech Republic."),
+    ("helicopter manufacturer", "Robinson Helicopter Company is a manufacturer of helicopters."),
+    (None, "Piper Aircraft, Inc. is a manufacturer of general aviation aircraft."),
+])
+def test_ein_hersteller_ist_kein_luftfahrzeug(desc, extract):
+    assert looks_like_aircraft(desc, extract) is False
+
+
+@pytest.mark.parametrize("desc, extract", [
+    ("Flugzeug des Herstellers Piper", None),
+    (None, "Die Cessna 172 ist ein viersitziges Leichtflugzeug des US-amerikanischen "
+           "Flugzeugherstellers Cessna."),
+    (None, "The SportStar is a light aircraft produced by Czech aircraft manufacturer Evektor."),
+    ("light aircraft by the Czech manufacturer Evektor", None),
+    # Der einzige Fehlgriff der ersten Fassung im Bestand (F22):
+    ("Luftüberlegenheitsjäger der US-Flugzeugbauer Lockheed Martin und Boeing",
+     "Die Lockheed Martin F-22 Raptor ist ein Luftüberlegenheitsjäger der fünften Generation."),
+])
+def test_ein_flugzeug_darf_seinen_hersteller_nennen(desc, extract):
+    assert looks_like_aircraft(desc, extract) is True
+
+
+def test_der_herstellerartikel_gewinnt_nicht_gegen_das_muster():
+    """Der Fall LEG2 im Ganzen: erster Treffer das Muster, zweiter der Hersteller."""
+    from app.aircraft_info import _such_url, _summary_url, _medialist_url
+    name = "Lancair Legacy (retractable, Continental IO-550-N)"
+    routen = {
+        _such_url("de", name): _such(),
+        _such_url("de", "Lancair Legacy"): _such("Lancair Legacy", "Lancair", "Legacy"),
+        _summary_url("de", "Lancair Legacy"): _summary("Lancair Legacy", None, _LEGACY_EXTRACT),
+        _summary_url("de", "Lancair"): _summary("Lancair", _LANCAIR_DESC, _LANCAIR_EXTRACT),
+        _medialist_url("de", "Lancair Legacy"): _medialist(),
+        _medialist_url("de", "Lancair"): _medialist(),
+    }
+    res = resolve_type(name, _fetcher(routen))
+    assert res is not None and res["wiki_title"] == "Lancair Legacy"
+
+
+def test_nur_der_hersteller_gefunden_heisst_nichts_gefunden():
+    """Lieber kein Artikel als der falsche."""
+    from app.aircraft_info import _such_url, _summary_url
+    routen = {
+        _such_url("de", "Lancair Evolution"): _such("Lancair"),
+        _summary_url("de", "Lancair"): _summary("Lancair", _LANCAIR_DESC, _LANCAIR_EXTRACT),
+        _such_url("en", "Lancair Evolution"): _such(),
+    }
+    assert resolve_type("Lancair Evolution", _fetcher(routen)) is None
+
+
 def test_user_agent_traegt_kontakt_und_version():
     """B3: ohne aussagekraeftigen UA antwortet Wikimedia von diesem Server mit 403
     ('Contabo networks are forbidden due to abuse'). Gemessen 2026-07-30 im Container."""

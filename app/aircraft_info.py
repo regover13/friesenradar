@@ -43,7 +43,41 @@ _LUFTFAHRZEUG_WOERTER = (
     "motorsegler", "tragschrauber", "wasserflugzeug", "doppeldecker",
     "aircraft", "airliner", "airplane", "aeroplane", "helicopter", "glider",
     "sailplane", "biplane", "monoplane", "airship", "utility plane", "trainer",
+    # Bauart statt Gattung: "Der zweisitzige Tiefdecker verfügt über ein Einziehfahrwerk"
+    # nennt kein einziges der Wörter darüber (Lancair Legacy, 11.10.2026).
+    "tiefdecker", "hochdecker", "schulterdecker", "mitteldecker", "eindecker",
+    "low-wing", "high-wing", "mid-wing",
 )
+
+# Ein Artikel über den HERSTELLER besteht die Wortprüfung fast immer: "Hersteller von
+# Flugzeugbausätzen", "aircraft manufacturer". Für LEG2 gewann so "Lancair" statt
+# "Lancair Legacy". Ein Flugzeug darf seinen Hersteller aber nennen ("Leichtflugzeug des
+# Flugzeugherstellers Cessna", "aircraft produced by Czech aircraft manufacturer Evektor") —
+# es entscheidet deshalb, was im Satz ZUERST kommt, gezählt ab "ist ein"/"is a", weil der
+# Firmenname davor selbst "Aircraft" oder "Helicopter" enthalten kann.
+_HERSTELLER_GENITIV = re.compile(r"\w*herstellers")
+_HERSTELLER = re.compile(
+    r"(?:aircraft|helicopter|aerospace|airplane)\s+manufacturers?|manufacturers?"
+    r"|\w*hersteller"
+)
+# "Flugzeugbauer" steht bewusst NICHT in der Liste: Die F-22 heisst bei Wikidata
+# "Luftüberlegenheitsjäger der US-Flugzeugbauer Lockheed Martin und Boeing" und fiele sonst
+# durch (gemessen an allen 99 Artikeln des Bestands, 11.10.2026).
+_KOPULA = re.compile(r"\b(?:ist|war|is|was)\s+(?:eine?|an?|the|der|die|das)\b")
+
+
+def _ist_hersteller(text: str) -> bool:
+    """Steht in ``text`` (klein) ein Hersteller, bevor ein Luftfahrzeug genannt wird?"""
+    kopula = _KOPULA.search(text)
+    if kopula:
+        text = text[kopula.end():]
+    text = _HERSTELLER_GENITIV.sub(lambda m: " " * len(m.group()), text)
+    hersteller = _HERSTELLER.search(text)
+    if not hersteller:
+        return False
+    rest = _HERSTELLER.sub(lambda m: " " * len(m.group()), text)
+    orte = [rest.find(w) for w in _LUFTFAHRZEUG_WOERTER if w in rest]
+    return not orte or hersteller.start() < min(orte)
 
 # Bekannte Hersteller-/Baureihen-Umbenennungen, die reine Wortüberlappung nicht mehr erkennt.
 # Bei Hubschraubern wandert der Hersteller durch Firmengeschichte UND die Typbezeichnung
@@ -175,11 +209,16 @@ def looks_like_aircraft(description: str | None, extract: str | None) -> bool:
     ``description`` (kurze Wikidata-Beschreibung) zuerst; ist sie leer, entscheidet der Anfang
     des ``extract``. Rev. 1 prüfte nur ``description`` und hätte damit korrekte Artikel
     verworfen, die keine haben — gemessen bei *Piper PA-60* und *Scheibe SF 25*.
+
+    Ein Artikel über einen Hersteller ist keins, auch wenn er von Flugzeugen handelt
+    (:func:`_ist_hersteller`).
     """
     for quelle in (description, extract):
         if not quelle:
             continue
         text = quelle[:400].lower()
+        if _ist_hersteller(text):
+            return False
         if any(w in text for w in _LUFTFAHRZEUG_WOERTER):
             return True
     return False

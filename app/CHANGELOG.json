@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.4.11",
+    "date": "2026-10-11",
+    "highlight": false,
+    "title": "Muster-Fenster: das Flugzeug statt seines Herstellers",
+    "items": [
+      "✈️ Bei einem neuen Muster landete die Suche manchmal beim Artikel über den Hersteller statt über das Flugzeug, zuletzt bei der Lancair Legacy. Ein Herstellerartikel gilt jetzt nicht mehr als Treffer.",
+      "✈️ Artikel, die ein Flugzeug nur über seine Bauart beschreiben (Tiefdecker, Hochdecker), werden jetzt erkannt."
+    ]
+  },
+  {
     "version": "16.4.10",
     "date": "2026-10-11",
     "highlight": false,
