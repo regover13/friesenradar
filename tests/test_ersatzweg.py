@@ -600,3 +600,33 @@ def test_wer_im_stillstand_nur_steht_behaelt_den_letzten_kurs(pfad):
         _poll(p, welt)
     letzte = _spur(pfad)[-1]
     assert (letzte["groundspeed"], letzte["heading"]) == (0, 300)
+
+
+def test_neuverbindung_im_ersatzweg_ergibt_zwei_zeilen_ohne_ueberlappung(pfad):
+    """Probe 11.10.2026: FRS49 verband sich um 14:03:39 neu, aufgefallen ist es erst mit der
+    nächsten Statusabfrage um 14:06:49 -- der alte Flug lief bis dahin weiter."""
+    welt = Welt()
+    welt.status[CID] = _status(start="2026-10-11T10:50:00Z")
+    welt.fliegt("FRS61", 64.0, -12.0)
+    p = _poller(pfad, welt)
+    lat = 64.0
+    for _ in range(4):
+        welt.weiter(15)
+        lat += 0.01
+        welt.fliegt("FRS61", lat, -12.0)
+        _poll(p, welt)
+    assert len(_fluege(pfad)) == 1
+    # Neue Verbindung, begonnen nach der Anmeldung des alten Flugs und vor dessen letzter
+    # Position; aufgefallen erst jetzt, mit der Auffrischung.
+    neu_ab = "2026-10-11T10:55:00Z"
+    welt.status[CID] = _status(start=neu_ab)
+    p._ersatz_status["FRS61"]["naechste"] = 0
+    for _ in range(3):
+        welt.weiter(15)
+        lat += 0.01
+        welt.fliegt("FRS61", lat, -12.0)
+        _poll(p, welt)
+    fluege = _fluege(pfad)
+    assert len(fluege) == 2
+    assert fluege[0]["logoff_time"] == neu_ab == fluege[1]["logon_time"]
+    assert fluege[1]["logoff_time"] is None

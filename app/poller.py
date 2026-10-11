@@ -563,6 +563,7 @@ class VatsimPoller:
         self._ersatz_lotsen_naechste = 0.0
         self._ersatz_unbekannt: set[str] = set()      # schon gemeldete Rufzeichen ohne Nummer
         self._ersatz_fehlt: dict[int, int] = {}       # cid -> Zyklen in Folge ohne Eintrag
+        self._ersatz_wechsel_ende: dict[int, str] = {}  # cid -> Beginn der neuen Verbindung
         # cid -> Anmeldezeit in der Schreibweise, unter der die Verbindung zuerst gesehen
         # wurde. Feed und Statusabfrage schreiben dieselbe Zeit verschieden.
         self._logon_merker: dict[int, str] = {}
@@ -1713,7 +1714,11 @@ class VatsimPoller:
                             "SELECT MAX(ts) FROM position_history WHERE cid = ? AND ts >= ?",
                             (cid, row[0]),
                         ).fetchone()[0]
-                    close_flight(conn, flight_id, last_pos or now_str)
+                    ende = last_pos or now_str
+                    neu_ab = self._ersatz_wechsel_ende.pop(cid, None)
+                    if neu_ab and row is not None and row[0] < neu_ab < ende:
+                        ende = neu_ab
+                    close_flight(conn, flight_id, ende)
                     remove_live_position(conn, cid)
                     del self._active_flights[cid]
 
@@ -2049,6 +2054,10 @@ class VatsimPoller:
                 # Der offene Flug gehört zu einer älteren Verbindung (vor dem Stillstand):
                 # erst schließen, die neue Verbindung beginnt im nächsten Zyklus als neuer Flug.
                 wechsel.add(cid)
+                # Die neue Verbindung fällt oft erst Minuten später auf (nächste
+                # Statusabfrage). Der alte Flug endet deshalb spätestens mit ihrem Beginn,
+                # sonst überlappten sich die beiden Zeilen.
+                self._ersatz_wechsel_ende[cid] = st["logon"]
                 continue
             w = fahrt.get(cs)
             if w is None and laeuft and cid in letzte:
