@@ -29,6 +29,8 @@ STILLSTAND_SEC = 120
 STATUS_TAKT_SEC = 300
 STATUS_TAKT_OHNE_PLAN_SEC = 120
 STATUS_TAKT_FEHLER_SEC = 30
+# Scheitert die Statusabfrage, gilt eine frühere Bestätigung höchstens so lange weiter.
+BESTAETIGUNG_GILT_SEC = 600
 LOTSEN_TAKT_SEC = 60
 # So viele Zyklen läuft ein laufender Flug ohne Eintrag in der Funkliste weiter.
 KARENZ_ZYKLEN = 3
@@ -135,6 +137,8 @@ class Fahrtrechner:
     def __init__(self) -> None:
         # cs -> [lat, lon, t, gs, hdg, bekannt]
         self._stand: dict[str, list] = {}
+        # Rufzeichen, die im letzten Durchgang gesprungen sind (neue Verbindung an anderem Ort).
+        self.spruenge: set[str] = set()
 
     def rechne(self, cs: str, lat: float, lon: float, t: float) -> tuple[int, int] | None:
         """``(gs_kt, kurs)`` oder ``None``, solange noch nichts feststeht (erster Punkt)."""
@@ -153,6 +157,7 @@ class Fahrtrechner:
         if gs > _GS_MAX_KT:
             # Sprung (Neuverbindung an anderem Ort): Bezug neu setzen, Wert verwerfen.
             self._stand[cs] = [lat, lon, t, 0, s[4], False]
+            self.spruenge.add(cs)
             return None
         # Unter 1 kt ist es Zittern am Boden; der Kurs daraus wäre gewürfelt.
         hdg = _kurs(s[0], s[1], lat, lon) if gs >= 1.0 else s[4]

@@ -422,3 +422,44 @@ def test_meldung_ohne_frequenz_nennt_keine():
     from app import lotsen
     l = {"callsign": "EDDH_TWR", "frequenz": "–", "station": "Hamburg Tower", "bis": ""}
     assert lotsen.payload_lotse_online("Lotte", l)["body"] == "EDDH_TWR"
+
+
+def test_springt_das_rufzeichen_wird_die_bestaetigung_neu_geholt(pfad):
+    welt = Welt()
+    welt.status[CID] = _status()
+    welt.fliegt("FRS61", 64.0, -12.0)
+    p = _poller(pfad, welt)
+    _poll(p, welt)
+    welt.weiter(15)
+    welt.fliegt("FRS61", 64.01, -12.0)
+    _poll(p, welt)
+    assert len(_spur(pfad)) == 1 and welt.status_abrufe == 1
+    welt.status[CID] = None                    # der Friese ist weg ...
+    welt.weiter(15)
+    welt.fliegt("FRS61", 10.0, 10.0)          # ... und das Rufzeichen taucht woanders auf
+    _poll(p, welt)
+    assert welt.status_abrufe == 2, "nach einem Sprung sofort neu gefragt"
+    assert all(z["latitude"] > 60 for z in _spur(pfad)), "die fremde Position wird nicht geschrieben"
+
+
+def test_alte_bestaetigung_verfaellt_wenn_die_statusabfrage_dauerhaft_scheitert(pfad):
+    welt = Welt()
+    welt.status[CID] = _status()
+    p = _poller(pfad, welt)
+    asyncio.run(_pflegen(p, welt))
+    assert p._ersatz_status["FRS61"]["art"] == "ok"
+    welt.status[CID] = RuntimeError("weg")
+    p._ersatz_status["FRS61"]["naechste"] = 0
+    p._ersatz_status["FRS61"]["bestaetigt"] -= ersatzweg.BESTAETIGUNG_GILT_SEC + 1
+    asyncio.run(_pflegen(p, welt))
+    assert p._ersatz_status["FRS61"]["art"] == "fehler"
+
+
+async def _pflegen(p, welt):
+    async def status(_client, cid):
+        antwort = welt.status.get(cid)
+        if isinstance(antwort, Exception):
+            raise antwort
+        return antwort
+    with patch("app.ersatzweg.hole_status", new=status):
+        await p._ersatz_status_pflegen({"FRS61": CID})

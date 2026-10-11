@@ -1926,6 +1926,9 @@ class VatsimPoller:
             except Exception as e:
                 logger.warning("Ersatzweg: Statusabfrage für %s gescheitert (%s)", cs, e)
                 st = alt or {"cid": cid, "art": "fehler", "logon": "", "fp": None}
+                if jetzt - st.get("bestaetigt", jetzt) > ersatzweg.BESTAETIGUNG_GILT_SEC:
+                    # Eine alte Bestätigung trägt nicht ewig: ohne neue gilt sie nicht mehr.
+                    st = {"cid": cid, "art": "fehler", "logon": "", "fp": None}
                 st["naechste"] = jetzt + ersatzweg.STATUS_TAKT_FEHLER_SEC
                 self._ersatz_status[cs] = st
                 return
@@ -1934,7 +1937,7 @@ class VatsimPoller:
                 takt = ersatzweg.STATUS_TAKT_SEC if fp else ersatzweg.STATUS_TAKT_OHNE_PLAN_SEC
                 self._ersatz_status[cs] = {"cid": cid, "art": "ok", "fp": fp,
                                            "logon": str(status.get("start") or ""),
-                                           "naechste": jetzt + takt}
+                                           "bestaetigt": jetzt, "naechste": jetzt + takt}
             else:
                 if alt is None or alt["art"] != "fremd":
                     logger.info("Ersatzweg: %s ist laut Statusabfrage nicht Nummer %s", cs, cid)
@@ -1960,6 +1963,7 @@ class VatsimPoller:
         stand_iso = datetime.fromtimestamp(t, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         funk = ersatzweg.funk_positionen(roh)
         fahrt = {}
+        self._ersatz_fahrt.spruenge.clear()
         for cs, (lat, lon, _hoehe) in funk.items():
             w = self._ersatz_fahrt.rechne(cs, lat, lon, t)
             if w is not None:
@@ -2001,6 +2005,11 @@ class VatsimPoller:
                             self._logon_merker[cid] = r["logon_time"]
             finally:
                 conn.close()
+        # Springt ein Rufzeichen, ist es eine neue Verbindung -- womöglich die eines anderen.
+        # Die Bestätigung gilt dann nicht mehr und wird in diesem Zyklus neu geholt.
+        for cs in self._ersatz_fahrt.spruenge:
+            if cs in self._ersatz_status:
+                del self._ersatz_status[cs]
         # Erst nach dem Schließen der Verbindung ins Netz (stehende Regel).
         await self._ersatz_status_pflegen(zuordnung)
 
