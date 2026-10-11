@@ -1821,7 +1821,7 @@ class VatsimPoller:
             vatsim_data = {"prefiles": list(self.last_prefiles or [])}
             steht = True
         else:
-            steht = ersatzweg.feed_steht(vatsim_data, jetzt)
+            steht = ersatzweg.feed_steht(vatsim_data, jetzt) or self._ersatzweg_erzwungen(jetzt)
         if not steht:
             self._feed_frisch = time.monotonic()
             if self.ersatzweg_aktiv:
@@ -1833,6 +1833,20 @@ class VatsimPoller:
         daten = await self._ersatzfeed(vatsim_data)
         self._ersatzweg_zeitraum_merken(jetzt)
         return daten
+
+    def _ersatzweg_erzwungen(self, jetzt: datetime) -> bool:
+        """Probe: Steht in ``app_settings`` unter ``ersatzweg_erzwingen_bis`` ein Zeitpunkt in
+        der Zukunft, läuft der Ersatzweg bis dahin, obwohl der Hauptfeed liefert. Der
+        Zeitpunkt begrenzt die Probe von selbst."""
+        try:
+            conn = get_connection(self.db_path)
+            try:
+                bis = ersatzweg._zeit(get_app_setting(conn, "ersatzweg_erzwingen_bis", ""))
+            finally:
+                conn.close()
+        except Exception:
+            return False
+        return bis is not None and jetzt < bis
 
     def _ersatzweg_schalten(self, an: bool, jetzt: datetime, vatsim_data: dict) -> None:
         iso = jetzt.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1991,6 +2005,7 @@ class VatsimPoller:
         await self._ersatz_status_pflegen(zuordnung)
 
         pilots = []
+        wechsel: set[int] = set()
         for cs, (lat, lon, hoehe) in funk.items():
             if not cs.startswith(prefix):
                 if cs in fahrt:
@@ -2000,19 +2015,27 @@ class VatsimPoller:
             cid = zuordnung.get(cs)
             if cid is None:
                 continue
-            st = self._ersatz_status.get(cs) or {"art": "fehler", "logon": "", "fp": None}
-            if st["art"] == "fremd":
+            # Ein Rufzeichen kann sich bei VATSIM jeder geben. Geschrieben wird deshalb nur,
+            # wem die Statusabfrage dieses Rufzeichen bestätigt hat -- auch bei laufendem
+            # Flug. Scheitert die Abfrage, trägt die Karenz unten den Flug so lange.
+            st = self._ersatz_status.get(cs)
+            if st is None or st["art"] != "ok" or not st["logon"]:
                 continue
             laeuft = cid in self._active_flights
+            if laeuft and cid in letzte and letzte[cid][2] \
+                    and not ersatzweg.gleiche_anmeldung(letzte[cid][2], st["logon"]):
+                # Der offene Flug gehört zu einer älteren Verbindung (vor dem Stillstand):
+                # erst schließen, die neue Verbindung beginnt im nächsten Zyklus als neuer Flug.
+                wechsel.add(cid)
+                continue
             w = fahrt.get(cs)
             if w is None and laeuft and cid in letzte:
                 w = letzte[cid][:2]
-            logon = st["logon"] or (letzte[cid][2] if laeuft and cid in letzte else "")
-            if w is None or not logon or (st["art"] != "ok" and not laeuft):
+            if w is None:
                 continue
             pilots.append(ersatzweg.pilot_eintrag(
                 cid, namen.get(cid, ""), cs, lat, lon, hoehe, w[0], w[1],
-                self._logon_gleich(cid, logon), st["fp"], stand_iso))
+                self._logon_gleich(cid, st["logon"]), st["fp"], stand_iso))
 
         # Karenz: Ein laufender Flug fällt nicht bei der ersten Lücke heraus (Funkgerät kurz
         # weg, eine einzelne Statusantwort daneben). Er läuft bis zu drei Zyklen mit der
@@ -2020,7 +2043,7 @@ class VatsimPoller:
         da = {p["cid"] for p in pilots if p["cid"] is not None}
         for cid in [c for c in self._ersatz_fehlt if c in da or c not in self._active_flights]:
             del self._ersatz_fehlt[cid]
-        luecken = [c for c in self._active_flights if c not in da and c > 0]
+        luecken = [c for c in self._active_flights if c not in da and c > 0 and c not in wechsel]
         if luecken:
             conn = get_connection(self.db_path)
             try:

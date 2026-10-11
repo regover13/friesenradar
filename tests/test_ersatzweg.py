@@ -87,7 +87,10 @@ def _poll(p, welt):
 
     async def status(_client, cid):
         welt.status_abrufe += 1
-        return welt.status.get(cid)
+        antwort = welt.status.get(cid)
+        if isinstance(antwort, Exception):
+            raise antwort
+        return antwort
 
     async def lotsen(_client):
         return welt.lotsen
@@ -361,3 +364,61 @@ def test_lotsen_ueber_den_ersatzweg_ohne_frequenz_und_namen_bleiben(pfad):
         assert c.execute("SELECT name FROM lotsen_name WHERE cid = 1000004").fetchone()["name"] == "Lotte Lotse"
     finally:
         c.close()
+
+
+def test_ohne_bestaetigung_der_statusabfrage_wird_auch_ein_laufender_flug_nicht_fortgeschrieben(pfad):
+    """Ein Rufzeichen kann sich jeder geben: Positionen aus der Funkliste zählen erst, wenn die
+    Statusabfrage das Rufzeichen für diese Nummer bestätigt hat."""
+    welt = Welt()
+    _frischer_feed(welt, _pilot_im_feed())
+    p = _poller(pfad, welt)
+    _poll(p, welt)
+    welt.feed = Welt().feed
+    welt.fliegt("FRS61", 10.0, 10.0)          # jemand anderes unter demselben Rufzeichen
+    welt.status[CID] = RuntimeError("api.vatsim.net antwortet nicht")
+    for _ in range(ersatzweg.KARENZ_ZYKLEN + 1):
+        welt.weiter(15)
+        _poll(p, welt)
+    assert all(z["latitude"] == 64.0 for z in _spur(pfad)), "keine fremde Position geschrieben"
+    assert _fluege(pfad)[0]["logoff_time"] is not None
+
+
+def test_neue_verbindung_wird_nicht_an_den_alten_offenen_flug_gehaengt(pfad):
+    welt = Welt()
+    _frischer_feed(welt, _pilot_im_feed(logon="2026-10-11T02:00:00.1234567Z"))
+    p = _poller(pfad, welt)
+    _poll(p, welt)
+    welt.feed = Welt().feed
+    welt.status[CID] = _status(start="2026-10-11T08:46:23Z")
+    welt.fliegt("FRS61", 64.0, -12.0)
+    _poll(p, welt)
+    welt.weiter(15)
+    welt.fliegt("FRS61", 64.01, -12.0)
+    _poll(p, welt)
+    fluege = _fluege(pfad)
+    assert [f["logon_time"] for f in fluege] == ["2026-10-11T02:00:00.1234567Z", "2026-10-11T08:46:23Z"]
+    assert fluege[0]["logoff_time"] is not None and fluege[1]["logoff_time"] is None
+
+
+def test_probe_erzwingt_den_ersatzweg_bis_zum_gesetzten_zeitpunkt(pfad):
+    from app.database import set_app_setting
+    welt = Welt()
+    _frischer_feed(welt, _pilot_im_feed())
+    p = _poller(pfad, welt)
+    c = get_connection(pfad)
+    set_app_setting(c, "ersatzweg_erzwingen_bis", "2026-10-11T11:05:00Z")
+    c.commit()
+    c.close()
+    _poll(p, welt)
+    assert p.ersatzweg_aktiv and welt.funk_abrufe == 1
+    p._now = lambda: JETZT + timedelta(minutes=6)
+    _frischer_feed(welt, _pilot_im_feed())
+    welt.feed["general"]["update_timestamp"] = "2026-10-11T11:05:55.0000000Z"
+    _poll(p, welt)
+    assert not p.ersatzweg_aktiv and welt.funk_abrufe == 1
+
+
+def test_meldung_ohne_frequenz_nennt_keine():
+    from app import lotsen
+    l = {"callsign": "EDDH_TWR", "frequenz": "–", "station": "Hamburg Tower", "bis": ""}
+    assert lotsen.payload_lotse_online("Lotte", l)["body"] == "EDDH_TWR"

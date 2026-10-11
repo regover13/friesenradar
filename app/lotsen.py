@@ -224,7 +224,9 @@ def meldename(name: str) -> str:
 
 def payload_lotse_online(name: str, lotse: dict) -> dict:
     name = meldename(name)
-    body = f"{lotse['callsign']} auf {lotse['frequenz']}"
+    body = lotse["callsign"]
+    if lotse["frequenz"] and lotse["frequenz"] != "–":   # über den Ersatzweg (#63) unbekannt
+        body += f" auf {lotse['frequenz']}"
     if lotse.get("bis"):
         body += f", bis ca. {lotse['bis']} UTC"
     return {"title": f"{name} lotst jetzt {lotse['station']} 🎧", "body": body, "url": "/"}

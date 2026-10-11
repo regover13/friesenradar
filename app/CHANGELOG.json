@@ -1,5 +1,16 @@
 [
   {
+    "version": "16.4.7",
+    "date": "2026-10-11",
+    "highlight": false,
+    "title": "Ersatzweg schreibt nur bestätigte Flüge",
+    "items": [
+      "🔒 Bleibt der VATSIM-Datenstand stehen, schreibt FriesenRadar eine Position aus der Funkliste nur noch mit, wenn VATSIM das Rufzeichen für genau diesen Piloten bestätigt hat. Das gilt jetzt auch für einen schon laufenden Flug.",
+      "📡 Wer sich während eines Stillstands neu verbunden hat, bekommt einen neuen Flug. Vorher wäre er an einen noch offenen älteren Flug angehängt worden.",
+      "🎧 Die Meldung „lotst jetzt“ nennt keine Frequenz mehr, wenn gerade keine bekannt ist."
+    ]
+  },
+  {
     "version": "16.4.6",
     "date": "2026-10-11",
     "highlight": false,
