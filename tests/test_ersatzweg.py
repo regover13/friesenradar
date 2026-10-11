@@ -515,3 +515,46 @@ def test_nicht_aufgefrischte_bestaetigung_traegt_keine_position_mehr(pfad):
     welt.fliegt("FRS61", 64.02, -12.0)
     _poll(p, welt)
     assert all(z["latitude"] != 64.02 for z in _spur(pfad))
+
+
+def test_bestaetigung_fuer_eine_andere_nummer_zaehlt_nicht(pfad):
+    welt = Welt()
+    welt.status[CID] = _status()
+    welt.fliegt("FRS61", 64.0, -12.0)
+    p = _poller(pfad, welt)
+    _poll(p, welt)
+    st = p._ersatz_status["FRS61"]
+    st["cid"] = 1000099                       # die Zuordnung hat inzwischen gewechselt ...
+    st["naechste"] = time.monotonic() + 9999
+    p._ersatz_status_pflegen = _nichts        # ... und die Auffrischung kam nicht dran
+    welt.weiter(15)
+    welt.fliegt("FRS61", 64.01, -12.0)
+    _poll(p, welt)
+    assert _fluege(pfad) == []
+
+
+async def _nichts(_zuordnung):
+    return None
+
+
+def test_laufende_fluege_werden_vor_unbekannten_aufgefrischt(pfad):
+    c = get_connection(pfad)
+    for i in range(20):
+        c.execute("INSERT INTO forum_callsign (callsign, cid, updated_at) VALUES (?, ?, '2026-01-01')",
+                  (f"FRS9{i:02d}", 2000000 + i))
+    c.commit()
+    c.close()
+    welt = Welt()
+    p = _poller(pfad, welt)
+    p._active_flights[CID] = {"id": 1, "dep": "", "arr": ""}
+    gefragt = []
+
+    async def status(_client, cid):
+        gefragt.append(cid)
+        return None
+
+    zuordnung = {f"FRS9{i:02d}": 2000000 + i for i in range(20)}
+    zuordnung["FRS61"] = CID
+    with patch("app.ersatzweg.hole_status", new=status):
+        asyncio.run(p._ersatz_status_pflegen(zuordnung))
+    assert CID in gefragt and len(gefragt) == 10
