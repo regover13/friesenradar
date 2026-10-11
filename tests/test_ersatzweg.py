@@ -572,3 +572,31 @@ def test_schnittstelle_meldet_den_ersatzweg_und_die_seite_zeigt_den_hinweis(pfad
     seite = (Path(main.__file__).parent / "static" / "index.html").read_text(encoding="utf-8")
     assert '<div id="ersatzweg-hinweis" hidden>' in seite
     assert "getElementById('ersatzweg-hinweis').hidden = !lotsenNeu.ersatzweg" in seite
+
+
+def test_fahrt_wird_ueber_mehrere_zyklen_gerechnet_und_glaettet_den_takt():
+    """Gleichmäßig 120 kt nach Norden, aber der Listenstand kommt mal nach 13, mal nach 17 s."""
+    f = ersatzweg.Fahrtrechner()
+    lat, t, werte = 54.0, 0.0, []
+    f.rechne("A", lat, 8.0, t)
+    for i in range(12):
+        lat += 15 * 120 / 3600 / 60          # der Weg von genau 15 s
+        t += 13 if i % 2 else 17
+        werte.append(f.rechne("A", lat, 8.0, t)[0])
+    assert all(112 <= w <= 128 for w in werte[2:]), werte
+    assert f.kurs_bekannt("A")
+
+
+def test_wer_im_stillstand_nur_steht_behaelt_den_letzten_kurs(pfad):
+    welt = Welt()
+    _frischer_feed(welt, _pilot_im_feed())            # Kurs 300 laut Feed
+    p = _poller(pfad, welt)
+    _poll(p, welt)
+    welt.feed = Welt().feed
+    welt.status[CID] = _status(start="2026-10-11T08:46:23Z")
+    welt.fliegt("FRS61", 64.0, -12.0)
+    for _ in range(5):
+        welt.weiter(15)
+        _poll(p, welt)
+    letzte = _spur(pfad)[-1]
+    assert (letzte["groundspeed"], letzte["heading"]) == (0, 300)

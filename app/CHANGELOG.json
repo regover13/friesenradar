@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.4.9",
+    "date": "2026-10-11",
+    "highlight": false,
+    "title": "Ruhigere Geschwindigkeit, wenn der VATSIM-Datenstand steht",
+    "items": [
+      "📡 Zeigt FriesenRadar die Positionen aus der Funkliste, wird die Geschwindigkeit jetzt über 45 Sekunden gerechnet statt von Meldung zu Meldung. Vorher schwankte sie stark.",
+      "📡 Wer in dieser Zeit nur steht, behält seinen letzten Kurs."
+    ]
+  },
+  {
     "version": "16.4.8",
     "date": "2026-10-11",
     "highlight": false,

@@ -36,6 +36,8 @@ LOTSEN_TAKT_SEC = 60
 KARENZ_ZYKLEN = 3
 # Steht die Position so lange unverändert, steht das Flugzeug (und nicht nur die Funkliste).
 _STAND_SEC = 40
+# Über diese Spanne wird die Fahrt gerechnet (drei Zyklen).
+_FENSTER_SEC = 45
 # Schneller ist kein Flugzeug im Netz (höchster je gemessener echter Wert: 762 kt). Was
 # darüber liegt, ist ein Sprung -- eine neue Verbindung an anderem Ort.
 _GS_MAX_KT = 900
@@ -132,47 +134,66 @@ class Fahrtrechner:
     """Geschwindigkeit und Kurs aus aufeinanderfolgenden Positionen je Rufzeichen.
 
     Die Funkliste trägt keinen Zeitstempel je Eintrag; ``t`` ist der Stand der Liste
-    (``Last-Modified``) in Sekunden. Eine unveränderte Position heißt meist nur, dass die
-    Liste zwischen zwei Abrufen nicht erneuert wurde -- erst nach ``_STAND_SEC`` gilt das
-    Flugzeug als stehend.
+    (``Last-Modified``, auf die Sekunde) in Sekunden. Über einen einzelnen Zyklus gerechnet
+    schwankt die Fahrt deshalb stark (Probe 11.10.2026: 280 bis 350 kt bei gleichmäßigem
+    Flug); gerechnet wird der zurückgelegte Weg über die letzten ``_FENSTER_SEC``.
+
+    Eine unveränderte Position heißt meist nur, dass die Liste zwischen zwei Abrufen nicht
+    erneuert wurde -- erst nach ``_STAND_SEC`` gilt das Flugzeug als stehend.
     """
 
     def __init__(self) -> None:
-        # cs -> [lat, lon, t, gs, hdg, bekannt]
-        self._stand: dict[str, list] = {}
+        # cs -> {"p": [(lat, lon, t), ...], "gs": int, "hdg": int, "da": bool, "kurs": bool}
+        self._stand: dict[str, dict] = {}
         # Rufzeichen, die im letzten Durchgang gesprungen sind (neue Verbindung an anderem Ort).
         self.spruenge: set[str] = set()
+
+    def _neu(self, cs: str, lat: float, lon: float, t: float, hdg: int = 0, kurs: bool = False) -> None:
+        self._stand[cs] = {"p": [(lat, lon, t)], "gs": 0, "hdg": hdg, "da": False, "kurs": kurs}
 
     def rechne(self, cs: str, lat: float, lon: float, t: float) -> tuple[int, int] | None:
         """``(gs_kt, kurs)`` oder ``None``, solange noch nichts feststeht (erster Punkt)."""
         s = self._stand.get(cs)
         if s is None:
-            self._stand[cs] = [lat, lon, t, 0, 0, False]
+            self._neu(cs, lat, lon, t)
             return None
-        if lat == s[0] and lon == s[1]:
-            if t - s[2] > _STAND_SEC:
-                s[3], s[5] = 0, True
-            return (s[3], s[4]) if s[5] else None
-        dt = t - s[2]
-        strecke = _strecke_nm(s[0], s[1], lat, lon)
+        l_lat, l_lon, l_t = s["p"][-1]
+        if lat == l_lat and lon == l_lon:
+            if t - l_t > _STAND_SEC:
+                s["gs"], s["da"] = 0, True
+                s["p"] = [(l_lat, l_lon, l_t)]
+            return (s["gs"], s["hdg"]) if s["da"] else None
+        dt = t - l_t
+        strecke = _strecke_nm(l_lat, l_lon, lat, lon)
         if dt < 1.0:
             # Derselbe Listenstand, andere Position: Über die Zeit lässt sich nichts rechnen.
             # Ein weiter Versatz ist trotzdem ein Sprung.
             if strecke > _SPRUNG_NM:
-                self._stand[cs] = [lat, lon, t, 0, s[4], False]
+                self._neu(cs, lat, lon, t, s["hdg"], s["kurs"])
                 self.spruenge.add(cs)
                 return None
-            return (s[3], s[4]) if s[5] else None
-        gs = strecke / dt * 3600.0
-        if gs > _GS_MAX_KT:
+            return (s["gs"], s["hdg"]) if s["da"] else None
+        if strecke / dt * 3600.0 > _GS_MAX_KT:
             # Sprung (Neuverbindung an anderem Ort): Bezug neu setzen, Wert verwerfen.
-            self._stand[cs] = [lat, lon, t, 0, s[4], False]
+            self._neu(cs, lat, lon, t, s["hdg"], s["kurs"])
             self.spruenge.add(cs)
             return None
+        p = s["p"]
+        p.append((lat, lon, t))
+        while len(p) > 2 and t - p[1][2] >= _FENSTER_SEC:
+            del p[0]
+        weg = sum(_strecke_nm(p[i][0], p[i][1], p[i + 1][0], p[i + 1][1]) for i in range(len(p) - 1))
+        gs = weg / (t - p[0][2]) * 3600.0
         # Unter 1 kt ist es Zittern am Boden; der Kurs daraus wäre gewürfelt.
-        hdg = _kurs(s[0], s[1], lat, lon) if gs >= 1.0 else s[4]
-        self._stand[cs] = [lat, lon, t, int(round(gs)), hdg, True]
-        return int(round(gs)), hdg
+        if strecke / dt * 3600.0 >= 1.0:
+            s["hdg"], s["kurs"] = _kurs(l_lat, l_lon, lat, lon), True
+        s["gs"], s["da"] = int(round(gs)), True
+        return s["gs"], s["hdg"]
+
+    def kurs_bekannt(self, cs: str) -> bool:
+        """Hat sich das Flugzeug schon einmal bewegt? Sonst ist der Kurs nur der Platzhalter 0."""
+        s = self._stand.get(cs)
+        return bool(s and s["kurs"])
 
     def behalte(self, rufzeichen) -> None:
         """Vergisst alle, die nicht mehr in der Liste stehen."""

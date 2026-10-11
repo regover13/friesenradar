@@ -2055,6 +2055,9 @@ class VatsimPoller:
                 w = letzte[cid][:2]
             if w is None:
                 continue
+            if cid in letzte and not self._ersatz_fahrt.kurs_bekannt(cs):
+                # Wer seit Beginn des Stillstands steht, behält seinen letzten Kurs.
+                w = (w[0], letzte[cid][1])
             pilots.append(ersatzweg.pilot_eintrag(
                 cid, namen.get(cid, ""), cs, lat, lon, hoehe, w[0], w[1],
                 self._logon_gleich(cid, st["logon"]), st["fp"], stand_iso))
