@@ -688,6 +688,29 @@ unauffällig und seit dem 13.09.2026 ohnehin auf 5 × 20 MB gedeckelt.
   Fremdverkehr hat dort `cid None`. Die Zeiträume stehen in der Tabelle `feed_ersatzweg`
   (von, bis) — daran lässt sich später ablesen, welche Positionen aus der Funkliste stammen.
   Nachsehen: `docker logs friesenradar-friesenradar-1 2>&1 | grep -i ersatzweg`.
+  **Regeln und Befunde (Stand 11.10.2026, in der Produktion erprobt):**
+  - **Proben ohne Stillstand:** `app_settings.ersatzweg_erzwingen_bis` auf einen Zeitpunkt in
+    der Zukunft setzen (`set_app_setting` per `docker exec … python -c`); der Ersatzweg läuft
+    bis dahin, obwohl der Feed liefert, und endet von selbst. Das trifft jeden, der gerade
+    fliegt -- nur mit Wissen des Nutzers.
+  - **Geschrieben wird nur, wem die Statusabfrage das Rufzeichen für genau diese Nummer
+    bestätigt hat** (ein FRS-Rufzeichen kann sich jeder geben). Die Bestätigung gilt höchstens
+    `BESTAETIGUNG_GILT_SEC`, verfällt bei einem Positionssprung und wird alle fünf Minuten
+    aufgefrischt. Friesen ohne bekannte Nummer bleiben weg (Nutzerentscheidung).
+  - **Die Statusabfrage hinkt dem Netz hinterher:** 30 s nach der Anmeldung kannte sie den
+    Piloten noch nicht. Die erste Absage wird deshalb nach 30 s wiederholt.
+  - **Nicht jeder Verbundene steht in der Funkliste** (gemessen: 52 von 1623 fehlten, 22 davon
+    in der Luft; ein Friese kalt am Boden fehlte, bis sein Funkgerät lief). Ein laufender Flug
+    übersteht `KARENZ_ZYKLEN` Zyklen ohne Eintrag.
+  - **Die gerechnete Geschwindigkeit bleibt unruhig**, auch über 45 s gemittelt (Reiseflug mit
+    202 kt laut Feed: 171 bis 293 kt, Mittel 201). Die Funkliste nennt keinen Zeitpunkt je
+    Position. Der gerechnete Kurs ist die Richtung über Grund, nicht die der Nase. Für den
+    Notbetrieb hingenommen; Positionen zählen in Wertungen gleichwertig (Nutzerentscheidung).
+  - **Kniebrett und FriesenBrügge laufen daneben unverändert** -- die sekundengenaue Anzeige
+    kommt weiter von ihnen, der Ersatzweg ersetzt nur den VATSIM-Weg (Live-Liste, Spur).
+  - **Nicht ersetzt:** die eingereichten Flugpläne ohne Verbindung (keine zweite Quelle).
+  - **Mitglieder sehen einen Hinweis** über der Live-Liste (`#ersatzweg-hinweis`, gespeist aus
+    `/api/lotsen`, Feld `ersatzweg`).
 - `app/geo.py` — Haversine, ICAO→Koordinaten, Event-Filter
 - `app/aip_charts.py` — DFS-Blätter beschaffen und ablegen (AIRAC-Auflösung, Kapitelseiten)
 - `app/ground_charts.py` — Blattkunde, Handpassung aus zwei Punkten, Nordung
