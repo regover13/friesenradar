@@ -463,3 +463,20 @@ async def _pflegen(p, welt):
         return antwort
     with patch("app.ersatzweg.hole_status", new=status):
         await p._ersatz_status_pflegen({"FRS61": CID})
+
+
+def test_bestaetigung_bleibt_verworfen_wenn_der_zyklus_nach_dem_sprung_abbricht(pfad):
+    welt = Welt()
+    welt.status[CID] = _status()
+    welt.fliegt("FRS61", 64.0, -12.0)
+    p = _poller(pfad, welt)
+    _poll(p, welt)
+    welt.weiter(15)
+    welt.fliegt("FRS61", 64.01, -12.0)
+    _poll(p, welt)
+    assert p._ersatz_status["FRS61"]["art"] == "ok"
+    welt.weiter(15)
+    welt.fliegt("FRS61", 10.0, 10.0)
+    with patch("app.poller.cid_for_callsign_authoritative", side_effect=RuntimeError("database is locked")):
+        _poll(p, welt)
+    assert "FRS61" not in p._ersatz_status, "der Abbruch darf die alte Bestätigung nicht retten"

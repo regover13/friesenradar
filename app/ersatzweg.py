@@ -30,7 +30,7 @@ STATUS_TAKT_SEC = 300
 STATUS_TAKT_OHNE_PLAN_SEC = 120
 STATUS_TAKT_FEHLER_SEC = 30
 # Scheitert die Statusabfrage, gilt eine frühere Bestätigung höchstens so lange weiter.
-BESTAETIGUNG_GILT_SEC = 600
+BESTAETIGUNG_GILT_SEC = 360   # eine verpasste Auffrischung, nicht mehr
 LOTSEN_TAKT_SEC = 60
 # So viele Zyklen läuft ein laufender Flug ohne Eintrag in der Funkliste weiter.
 KARENZ_ZYKLEN = 3

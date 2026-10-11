@@ -1969,6 +1969,11 @@ class VatsimPoller:
             if w is not None:
                 fahrt[cs] = w
         self._ersatz_fahrt.behalte(funk)
+        # Springt ein Rufzeichen, ist es eine neue Verbindung -- womöglich die eines anderen.
+        # Die Bestätigung gilt dann nicht mehr und wird neu geholt. Das steht hier, vor jedem
+        # Schritt, der scheitern kann: Bricht der Zyklus danach ab, bleibt sie verworfen.
+        for cs in self._ersatz_fahrt.spruenge:
+            self._ersatz_status.pop(cs, None)
 
         prefix = self.callsign_prefix.upper()
         friesen = [cs for cs in funk if cs.startswith(prefix)]
@@ -2005,11 +2010,6 @@ class VatsimPoller:
                             self._logon_merker[cid] = r["logon_time"]
             finally:
                 conn.close()
-        # Springt ein Rufzeichen, ist es eine neue Verbindung -- womöglich die eines anderen.
-        # Die Bestätigung gilt dann nicht mehr und wird in diesem Zyklus neu geholt.
-        for cs in self._ersatz_fahrt.spruenge:
-            if cs in self._ersatz_status:
-                del self._ersatz_status[cs]
         # Erst nach dem Schließen der Verbindung ins Netz (stehende Regel).
         await self._ersatz_status_pflegen(zuordnung)
 
