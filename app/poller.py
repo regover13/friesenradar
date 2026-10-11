@@ -1954,10 +1954,16 @@ class VatsimPoller:
                                            "logon": str(status.get("start") or ""),
                                            "bestaetigt": jetzt, "naechste": jetzt + takt}
             else:
-                if alt is None or alt["art"] != "fremd":
+                # Die Statusabfrage hinkt dem Netz hinterher: Wer sich eben verbunden hat,
+                # steht dort noch nicht (Probe 11.10.2026: 30 s nach der Anmeldung noch nicht,
+                # zwei Minuten später schon). Die erste Absage wird deshalb bald wiederholt,
+                # erst die zweite in Folge gilt für länger.
+                erste = alt is None or alt["art"] != "fremd"
+                if erste:
                     logger.info("Ersatzweg: %s ist laut Statusabfrage nicht Nummer %s", cs, cid)
+                takt = ersatzweg.STATUS_TAKT_FEHLER_SEC if erste else ersatzweg.STATUS_TAKT_OHNE_PLAN_SEC
                 self._ersatz_status[cs] = {"cid": cid, "art": "fremd", "logon": "", "fp": None,
-                                           "naechste": jetzt + ersatzweg.STATUS_TAKT_OHNE_PLAN_SEC}
+                                           "naechste": jetzt + takt}
 
         if faellig:
             await asyncio.gather(*(eins(cs, cid) for cs, cid in faellig))

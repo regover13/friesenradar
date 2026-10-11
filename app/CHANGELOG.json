@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.4.10",
+    "date": "2026-10-11",
+    "highlight": false,
+    "title": "Ersatzweg: Neuverbindung und frischer Start sauber erfasst",
+    "items": [
+      "📡 Verbindet sich ein Pilot neu, während der VATSIM-Datenstand steht, endet sein alter Flug mit dem Beginn der neuen Verbindung. Vorher überlappten sich die beiden Flüge um einige Minuten.",
+      "📡 Wer sich in dieser Zeit frisch verbindet, erscheint nach etwa einer halben Minute statt nach bis zu zwei Minuten."
+    ]
+  },
+  {
     "version": "16.4.9",
     "date": "2026-10-11",
     "highlight": false,

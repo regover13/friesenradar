@@ -630,3 +630,21 @@ def test_neuverbindung_im_ersatzweg_ergibt_zwei_zeilen_ohne_ueberlappung(pfad):
     assert len(fluege) == 2
     assert fluege[0]["logoff_time"] == neu_ab == fluege[1]["logon_time"]
     assert fluege[1]["logoff_time"] is None
+
+
+def test_erste_absage_der_statusabfrage_wird_bald_wiederholt_die_zweite_gilt_laenger(pfad):
+    welt = Welt()
+    p = _poller(pfad, welt)
+    welt.status[CID] = None                       # eben verbunden, die Abfrage kennt ihn noch nicht
+    asyncio.run(_pflegen(p, welt))
+    st = p._ersatz_status["FRS61"]
+    assert st["art"] == "fremd"
+    assert st["naechste"] - time.monotonic() <= ersatzweg.STATUS_TAKT_FEHLER_SEC
+    st["naechste"] = 0
+    asyncio.run(_pflegen(p, welt))                # zweite Absage in Folge
+    st = p._ersatz_status["FRS61"]
+    assert st["naechste"] - time.monotonic() > ersatzweg.STATUS_TAKT_FEHLER_SEC
+    st["naechste"] = 0
+    welt.status[CID] = _status()
+    asyncio.run(_pflegen(p, welt))
+    assert p._ersatz_status["FRS61"]["art"] == "ok"
