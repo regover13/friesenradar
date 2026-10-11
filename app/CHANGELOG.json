@@ -29,7 +29,7 @@
       "📡 Am 11.10.2026 lieferte VATSIM über viele Stunden denselben Datenstand, obwohl das Netz lief. FriesenRadar zeigte in dieser Zeit niemanden. Bleibt der Stand jetzt länger als zwei Minuten stehen, holt FriesenRadar die Friesen aus der Funkliste von VATSIM und den Flugplan aus der Statusabfrage und schreibt den Flug damit mit.",
       "📡 Läuft der Datenstand wieder, geht es dort weiter, mit demselben Flug.",
       "🎧 Lotsen laufen in dieser Zeit über die Lotsenliste weiter, ohne Frequenz.",
-      "ℹ️ Grenzen des Ersatzwegs: Wer kein Funkgerät eingeschaltet hat, steht nicht in der Funkliste. Wessen VATSIM-Nummer FriesenRadar noch nicht kennt (nie geflogen, kein Rufzeichen im Forum), wird nicht mitgeschrieben. Geschwindigkeit und Kurs sind aus den Positionen gerechnet."
+      "ℹ️ Grenzen des Ersatzwegs: In der Funkliste fehlen einzelne Flugzeuge, obwohl sie verbunden sind. Wessen VATSIM-Nummer FriesenRadar noch nicht kennt (nie geflogen, kein Rufzeichen im Forum), wird nicht mitgeschrieben. Geschwindigkeit und Kurs sind aus den Positionen gerechnet."
     ]
   },
   {
