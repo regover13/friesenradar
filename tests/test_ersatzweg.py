@@ -558,3 +558,17 @@ def test_laufende_fluege_werden_vor_unbekannten_aufgefrischt(pfad):
     with patch("app.ersatzweg.hole_status", new=status):
         asyncio.run(p._ersatz_status_pflegen(zuordnung))
     assert CID in gefragt and len(gefragt) == 10
+
+
+def test_schnittstelle_meldet_den_ersatzweg_und_die_seite_zeigt_den_hinweis(pfad):
+    from pathlib import Path
+    from types import SimpleNamespace
+    from app import main
+    p = _poller(pfad, Welt())
+    anfrage = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(poller=p)))
+    assert asyncio.run(main.get_lotsen(anfrage))["ersatzweg"] is False
+    p.ersatzweg_aktiv = True
+    assert asyncio.run(main.get_lotsen(anfrage))["ersatzweg"] is True
+    seite = (Path(main.__file__).parent / "static" / "index.html").read_text(encoding="utf-8")
+    assert '<div id="ersatzweg-hinweis" hidden>' in seite
+    assert "getElementById('ersatzweg-hinweis').hidden = !lotsenNeu.ersatzweg" in seite

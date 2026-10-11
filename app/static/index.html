@@ -1512,6 +1512,11 @@
       color: var(--green);
       white-space: nowrap;
     }
+    #ersatzweg-hinweis {
+      margin-bottom: 1rem; padding: 0.75rem 1rem; border: 1px solid var(--amber);
+      border-radius: 0.5rem; font-size: 0.875rem; line-height: 1.45;
+    }
+    #ersatzweg-hinweis strong { color: var(--amber); display: block; margin-bottom: 0.15rem; }
     #bummel-banner, #kutter-banner, #reddung-banner {
       border: 1px solid var(--green-dim);
       background: linear-gradient(180deg, rgba(var(--green-rgb),0.10), rgba(var(--green-rgb),0.02));
@@ -5103,6 +5108,12 @@
        TAB: LIVE
        ===================================================================== -->
   <div id="tab-live" class="tab-panel active">
+    <div id="ersatzweg-hinweis" hidden>
+      <strong>VATSIM liefert gerade keinen frischen Datenstand.</strong>
+      FriesenRadar zeigt die Positionen deshalb aus der Funkliste von VATSIM. Geschwindigkeit
+      und Kurs sind gerechnet. Wer kein Funkgerät eingeschaltet hat, fehlt, und die
+      eingereichten Flugpläne stehen auf dem Stand vor dem Stillstand.
+    </div>
     <div id="reddung-banner" hidden></div>
     <div id="bummel-banner" hidden></div>
     <div id="kutter-banner" hidden></div>
@@ -11165,6 +11176,8 @@ async function fetchAndRenderPrefiles() {
     const lotsenNeu = await lotsenAbruf;
     if (lotsenNeu && Array.isArray(lotsenNeu.online) && Array.isArray(lotsenNeu.geplant)) {
       _lotsen = lotsenNeu;
+      // Hinweis, solange der Ersatzweg läuft (#63).
+      document.getElementById('ersatzweg-hinweis').hidden = !lotsenNeu.ersatzweg;
       _wennFingerFrei(_liveZeichnen);
     }
     // 429 = transientes Rate-Limit: alten Stand behalten, nächster Intervall-Tick

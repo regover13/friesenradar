@@ -4337,7 +4337,10 @@ async def get_lotsen(request: Request):
     geplant = poller.lotsen_mit_namen(
         [b for b in poller.lotsen_buchungen
          if b["bis"] > jetzt and (b["cid"], b["callsign"]) not in lotst])
-    return {"online": online, "geplant": geplant}
+    # Läuft gerade der Ersatzweg (#63), zeigt die Seite einen Hinweis. Hier mitgegeben, weil
+    # die Seite diese Antwort ohnehin jede Minute holt.
+    return {"online": online, "geplant": geplant,
+            "ersatzweg": bool(getattr(poller, "ersatzweg_aktiv", False))}
 
 
 @app.get("/api/teamspeak")

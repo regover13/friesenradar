@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.4.8",
+    "date": "2026-10-11",
+    "highlight": false,
+    "title": "Hinweis, wenn VATSIM keinen frischen Datenstand liefert",
+    "items": [
+      "📡 Bleibt der Datenstand von VATSIM stehen und FriesenRadar zeigt die Positionen aus der Funkliste, steht das jetzt über der Live-Liste.",
+      "🔒 Eine Position aus der Funkliste wird nur geschrieben, solange VATSIM das Rufzeichen für genau diesen Piloten bestätigt hat. Die Bestätigung gilt höchstens sechs Minuten und wird neu geholt, wenn ein Rufzeichen an einem anderen Ort auftaucht."
+    ]
+  },
+  {
     "version": "16.4.7",
     "date": "2026-10-11",
     "highlight": false,
