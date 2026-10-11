@@ -36,7 +36,10 @@ LOTSEN_TAKT_SEC = 60
 KARENZ_ZYKLEN = 3
 # Steht die Position so lange unverändert, steht das Flugzeug (und nicht nur die Funkliste).
 _STAND_SEC = 40
-_GS_MAX_KT = 2000
+# Schneller ist kein Flugzeug im Netz (höchster je gemessener echter Wert: 762 kt). Was
+# darüber liegt, ist ein Sprung -- eine neue Verbindung an anderem Ort.
+_GS_MAX_KT = 900
+_SPRUNG_NM = 1.0
 _M_IN_FT = 3.28084
 _ERDRADIUS_NM = 3440.065
 # In der Anzeige steht die Frequenz neben der Station; die Lotsenliste kennt keine.
@@ -151,9 +154,16 @@ class Fahrtrechner:
                 s[3], s[5] = 0, True
             return (s[3], s[4]) if s[5] else None
         dt = t - s[2]
+        strecke = _strecke_nm(s[0], s[1], lat, lon)
         if dt < 1.0:
+            # Derselbe Listenstand, andere Position: Über die Zeit lässt sich nichts rechnen.
+            # Ein weiter Versatz ist trotzdem ein Sprung.
+            if strecke > _SPRUNG_NM:
+                self._stand[cs] = [lat, lon, t, 0, s[4], False]
+                self.spruenge.add(cs)
+                return None
             return (s[3], s[4]) if s[5] else None
-        gs = _strecke_nm(s[0], s[1], lat, lon) / dt * 3600.0
+        gs = strecke / dt * 3600.0
         if gs > _GS_MAX_KT:
             # Sprung (Neuverbindung an anderem Ort): Bezug neu setzen, Wert verwerfen.
             self._stand[cs] = [lat, lon, t, 0, s[4], False]

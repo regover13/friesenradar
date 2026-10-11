@@ -1915,7 +1915,11 @@ class VatsimPoller:
             (cs, cid) for cs, cid in zuordnung.items()
             if (st := self._ersatz_status.get(cs)) is None or st["cid"] != cid
             or jetzt >= st["naechste"]
-        ][:10]
+        ]
+        # Höchstens zehn Abfragen je Zyklus, die am längsten fälligen zuerst -- sonst bliebe
+        # bei vielen Friesen immer derselbe Rest unaufgefrischt.
+        faellig.sort(key=lambda p: (self._ersatz_status.get(p[0]) or {}).get("naechste", 0.0))
+        faellig = faellig[:10]
 
         async def eins(cs: str, cid: int) -> None:
             alt = self._ersatz_status.get(cs)
@@ -2028,7 +2032,9 @@ class VatsimPoller:
             # wem die Statusabfrage dieses Rufzeichen bestätigt hat -- auch bei laufendem
             # Flug. Scheitert die Abfrage, trägt die Karenz unten den Flug so lange.
             st = self._ersatz_status.get(cs)
-            if st is None or st["art"] != "ok" or not st["logon"]:
+            if st is None or st["art"] != "ok" or not st["logon"] \
+                    or time.monotonic() - st["bestaetigt"] > ersatzweg.BESTAETIGUNG_GILT_SEC:
+                # Auch eine Bestätigung, die nur nicht aufgefrischt wurde, trägt nicht ewig.
                 continue
             laeuft = cid in self._active_flights
             if laeuft and cid in letzte and letzte[cid][2] \

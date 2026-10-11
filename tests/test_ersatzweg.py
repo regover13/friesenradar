@@ -159,7 +159,23 @@ def test_wer_von_anfang_an_steht_bekommt_null_knoten():
 def test_ein_sprung_ergibt_keine_fahrt():
     f = ersatzweg.Fahrtrechner()
     f.rechne("A", 54.0, 8.0, 0.0)
-    assert f.rechne("A", 10.0, 8.0, 15.0) is None
+    assert f.rechne("A", 10.0, 8.0, 15.0) is None and f.spruenge == {"A"}
+
+
+def test_versatz_bei_gleichem_listenstand_ist_ein_sprung():
+    f = ersatzweg.Fahrtrechner()
+    f.rechne("A", 54.0, 8.0, 100.0)
+    assert f.rechne("A", 54.1, 8.0, 100.0) is None and f.spruenge == {"A"}
+    f.spruenge.clear()
+    f.rechne("B", 54.0, 8.0, 100.0)
+    f.rechne("B", 54.0001, 8.0, 100.0)
+    assert f.spruenge == set(), "ein paar Meter sind kein Sprung"
+
+
+def test_fuenf_meilen_in_einem_zyklus_sind_ein_sprung():
+    f = ersatzweg.Fahrtrechner()
+    f.rechne("A", 54.0, 8.0, 0.0)
+    assert f.rechne("A", 54.0 + 5 / 60, 8.0, 15.0) is None and f.spruenge == {"A"}
 
 
 def test_funkliste_ohne_funkgeraet_und_null_null_fehlen():
@@ -480,3 +496,22 @@ def test_bestaetigung_bleibt_verworfen_wenn_der_zyklus_nach_dem_sprung_abbricht(
     with patch("app.poller.cid_for_callsign_authoritative", side_effect=RuntimeError("database is locked")):
         _poll(p, welt)
     assert "FRS61" not in p._ersatz_status, "der Abbruch darf die alte Bestätigung nicht retten"
+
+
+def test_nicht_aufgefrischte_bestaetigung_traegt_keine_position_mehr(pfad):
+    welt = Welt()
+    welt.status[CID] = _status()
+    welt.fliegt("FRS61", 64.0, -12.0)
+    p = _poller(pfad, welt)
+    _poll(p, welt)
+    welt.weiter(15)
+    welt.fliegt("FRS61", 64.01, -12.0)
+    _poll(p, welt)
+    assert len(_spur(pfad)) == 1
+    st = p._ersatz_status["FRS61"]
+    st["bestaetigt"] -= ersatzweg.BESTAETIGUNG_GILT_SEC + 1
+    st["naechste"] = time.monotonic() + 9999     # die Auffrischung kommt nicht dran
+    welt.weiter(15)
+    welt.fliegt("FRS61", 64.02, -12.0)
+    _poll(p, welt)
+    assert all(z["latitude"] != 64.02 for z in _spur(pfad))
