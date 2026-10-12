@@ -2417,6 +2417,8 @@
       padding: 8px 12px;
     }
     .fassung-hinweis[hidden] { display: none; }
+    /* Mehrere Mängel stehen untereinander (Zeilenumbruch im Text). */
+    #fassung-hinweis-text { white-space: pre-line; }
     /* Der Reddung-Hinweis teilt die Machart, sitzt aber unten LINKS -- sonst verdeckt er den
        Fassungshinweis, und beide sagen etwas anderes. Amber statt Rot: Es ist eine Empfehlung,
        kein Fehler. Wer ohne FriesenBrügge fliegt, wird gewertet, nur gröber. */
@@ -10495,56 +10497,35 @@ function _paketHinweisPruefen() {
 // `XPLMDebugString` (X-Plane) -- im Flug sieht das niemand. Und was man IN sie einbaut,
 // erreicht nur den, der schon aktualisiert hat. Der Hinweis muss also von hier kommen.
 //
-// Der Server entscheidet `veraltet`, nicht diese Seite: Admin, Website und Kniebrett sollen
-// dieselbe Antwort geben, und nur der Server weiß, welches Archiv auf der Platte liegt.
-const _FASSUNG_HINWEIS_KEY = 'friesenspy_fassung_hinweis';
-
+// Der Server entscheidet, was fehlt oder alt ist, und zwar am letzten beendeten Flug
+// (app/paket_hinweis.py): Hat waehrenddessen eine Bruegge gemeldet, ein Kniebrett, und mit
+// welcher Fassung. Er liefert die fertigen Zeilen; diese Seite zeigt sie nur.
+//
+// Wegklicken gilt bis zum naechsten Flug mit Mangel und liegt auf dem Server (Nutzerwunsch
+// 12.10.2026). Bis 16.4.x lag es als Merker im Browser und galt, bis eine neue Paketfassung
+// erschien -- wer einmal wegklickte, sah den Hinweis also nie wieder, und im Kniebrett haelt
+// ohnehin kein Merker ueber einen Sim-Neustart.
+// PAKET-BANNER-ANFANG
 /**
- * Was ist veraltet -- und lohnt es einen Hinweis?
- *
  * ⚠ Das Kniebrett-Paket kommt hier NUR auf der Website zur Sprache. Im Panel hat es seinen
  * eigenen Hinweis (`_paketHinweisPruefen`) aus einer genaueren Quelle: dort meldet die Hülle
- * die tatsächlich laufende Fassung, während diese Liste sagt, was ein Gerät ZULETZT gemeldet
- * hat. Beide Kästen nebeneinander wären dieselbe Nachricht zweimal.
+ * die tatsächlich laufende Fassung. Beide Kästen nebeneinander wären dieselbe Nachricht zweimal.
  */
 function _fassungenPruefen() {
   const kasten = document.getElementById('fassung-hinweis');
   if (!kasten) return;
   const imPanel = document.documentElement.classList.contains('vr-panel');
-  fetch('/api/me/fassungen', { credentials: 'same-origin' })
+  fetch('/api/me/paket-hinweis', { credentials: 'same-origin' })
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (d) {
       if (!d) return;
-      const teile = [];
-      // Nur die zuletzt gesehene Brügge je Simulator -- die Kennung wechselt bei jedem
-      // Sim-Start (s. bruegge_zuordnung_setzen), ältere Zeilen sind Karteileichen und
-      // stünden hier als Dauerwarnung für eine Fassung, die längst ersetzt ist.
-      const gesehen = {};
-      (d.bruegge && d.bruegge.meine || []).forEach(function (b) {
-        const sim = b.simulator || '?';
-        if (gesehen[sim]) return;
-        gesehen[sim] = true;
-        if (b.veraltet) {
-          teile.push('FriesenBrügge ' + b.version + ' → ' + b.aktuell
-                     + ' (' + sim + ')');
-        }
+      const zeilen = (d.zeigen ? (d.zeilen || []) : []).filter(function (z) {
+        return !(imPanel && String(z.art || '').indexOf('kniebrett') === 0);
       });
-      if (!imPanel) {
-        (d.kniebrett && d.kniebrett.meine || []).forEach(function (k) {
-          if (k.veraltet && teile.length < 3) {
-            teile.push('Kniebrett-Paket ' + (k.version || 'vor 2.0.0')
-                       + ' → ' + d.kniebrett.aktuell);
-          }
-        });
-      }
-      if (!teile.length) return;
-      // Einmal weggeklickt gilt für GENAU diesen Stand; kommt eine neue Fassung heraus,
-      // ändert sich der Schlüssel und der Hinweis meldet sich wieder.
-      const stand = teile.join(' | ');
-      if (_prefLies(_FASSUNG_HINWEIS_KEY) === stand) return;
+      if (!zeilen.length) { kasten.hidden = true; return; }
       const text = document.getElementById('fassung-hinweis-text');
-      if (text) text.textContent = stand + ' — radar.friesenflieger.de/download';
-      kasten.dataset.stand = stand;
+      if (text) text.textContent = zeilen.map(function (z) { return z.text; }).join('\n');
+      kasten.dataset.flug = String(d.flug_id);
       kasten.hidden = false;
     }).catch(function () { /* ohne Anmeldung oder ohne Netz gibt es nichts zu sagen */ });
 }
@@ -10553,8 +10534,14 @@ function _fassungHinweisWeg() {
   const kasten = document.getElementById('fassung-hinweis');
   if (!kasten) return;
   kasten.hidden = true;
-  if (kasten.dataset.stand) _prefSchreib(_FASSUNG_HINWEIS_KEY, kasten.dataset.stand);
+  if (!kasten.dataset.flug) return;
+  fetch('/api/me/paket-hinweis/weg', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ flug_id: Number(kasten.dataset.flug) }),
+  }).catch(function () { /* beim naechsten Aufbau steht er wieder da */ });
 }
+// PAKET-BANNER-ENDE
 
 // Event UND Zustand, fuer den der Hinweis weggeklickt wurde -- aendert sich, was fehlt, kommt
 // er wieder (Nutzer, 25.09.2026: „was passiert, wenn einer die Meldung ungeduldig wegklickt").
@@ -17611,8 +17598,10 @@ _prefsPromise.then(function () {
 // schon weggeklickt wurde, und der Kasten blitzte bei jedem Aufbau kurz auf (derselbe Fund
 // wie beim Paket-Hinweis). Und hinter `_prefsPromise`, nicht davor: Ein `const` ist vor
 // seiner Zeile nicht ansprechbar, und ein Zugriff von weiter oben legte die ganze Seite lahm.
-// Einmal je Seitenaufbau genügt -- die gemeldete Fassung ändert sich nicht im Minutentakt.
 _prefsPromise.then(_fassungenPruefen).catch(() => {});
+// Und danach alle zehn Minuten: Der Banner entsteht mit dem ENDE eines Flugs, und wer die
+// Seite offen hat (das Kniebrett immer), soll ihn ohne Neuladen sehen. Baut keine Tabelle um.
+setInterval(_fassungenPruefen, 10 * 60 * 1000);
 // Der Reddung-Hinweis im Takt, nicht nur beim Laden: Ein Event kann beginnen, waehrend die
 // Seite schon offen ist -- und genau dann soll er kommen.
 _prefsPromise.then(_reddungHinweisPruefen).catch(() => {});

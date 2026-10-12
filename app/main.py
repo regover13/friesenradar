@@ -417,6 +417,7 @@ async def lifespan(app: FastAPI):
     _logger.info("Meldepunkte geladen: %d Punkte (Stand %s)",
                  len(_vrp.punkte), _vrp.stand or "—")
     poller = create_poller()
+    poller.paket_aktuell = _paket_aktuell
     app.state.poller = poller
     await poller.start()
     yield
@@ -3292,6 +3293,54 @@ async def meine_fassungen(request: Request):
         conn.close()
 
 
+@app.get("/api/me/paket-hinweis")
+async def mein_paket_hinweis(request: Request):
+    """Banner nach einem Flug mit fehlendem oder altem Paket (app/paket_hinweis.py)."""
+    settings = get_settings()
+    try:
+        cid = _current_cid(request, settings)
+    except Exception:
+        cid = None
+    if cid is None:
+        raise HTTPException(status_code=401, detail="Nicht eingeloggt")
+    conn = get_connection(settings.DB_PATH)
+    try:
+        return paket_hinweis.stand(conn, cid, _paket_aktuell())
+    finally:
+        conn.close()
+
+
+@app.post("/api/me/paket-hinweis/weg")
+async def mein_paket_hinweis_weg(request: Request):
+    """Banner wegklicken. Gilt bis zum nächsten Flug mit Mangel, auf allen Geräten.
+
+    Ohne Herkunftsprüfung, wie `/api/prefs`: Der Aufruf kommt auch aus dem Kniebrett, und ob
+    Coherent GT dort `Origin` mitschickt, ist nicht gemessen. Eine fremde Seite könnte damit
+    höchstens einen Hinweis ausblenden, der beim nächsten Flug wiederkommt."""
+    settings = get_settings()
+    try:
+        cid = _current_cid(request, settings)
+    except Exception:
+        cid = None
+    if cid is None:
+        raise HTTPException(status_code=401, detail="Nicht eingeloggt")
+    try:
+        flug_id = int((await request.json()).get("flug_id"))
+    except Exception:
+        raise HTTPException(status_code=400, detail="flug_id fehlt")
+    conn = get_connection(settings.DB_PATH)
+    try:
+        # Nur was der Server selbst als letzten Flug kennt: Eine erfundene große Nummer würde
+        # den Banner sonst für alle künftigen Flüge abschalten.
+        aktuell = paket_hinweis.stand(conn, cid, {})["flug_id"]
+        if aktuell is None or flug_id > aktuell:
+            raise HTTPException(status_code=400, detail="unbekannter Flug")
+        paket_hinweis.wegklicken(conn, cid, flug_id)
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
 def _fremde_herkunft_abweisen(request: Request) -> None:
     """403, wenn der Aufruf von einer fremden Seite kommt. Das Sitzungs-Cookie traegt
     ``SameSite=None`` (Kniebrett im iframe) und kaeme bei einem seitenfremden POST mit.
@@ -5262,42 +5311,18 @@ def _device_bind_csrf(user_token: str) -> str:
                     "sha256").hexdigest()
 
 
-# Erste Paketfassung, die ihre Version überhaupt meldet. Steht bewusst auch im Frontend
-# (`_PAKET_ERSTE_MELDENDE` in index.html) -- beide Seiten treffen dieselbe Entscheidung, und
-# `test_paket_hinweis.py` hält sie aneinander. Eine gemeinsame Quelle gäbe es nur über einen
-# weiteren Endpunkt; das wäre mehr Maschinerie als die eine Zeile wert ist.
-_PAKET_ERSTE_MELDENDE = "2.0.0"
+# Vergleich und Urteil wohnen in app/paket_hinweis.py, damit auch der Poller sie benutzen kann.
+from app import paket_hinweis
+from app.paket_hinweis import (PAKET_ERSTE_MELDENDE as _PAKET_ERSTE_MELDENDE,
+                               paket_ist_veraltet as _paket_ist_veraltet,
+                               version_kleiner as _version_kleiner)
 
 
-def _version_kleiner(a: str | None, b: str | None) -> bool:
-    """Zahlenweiser Vergleich. Als Zeichenkette wäre ``"1.10.0" < "1.9.0"`` -- also genau
-    verkehrt herum."""
-    def teile(v: str | None) -> list[int]:
-        try:
-            return [int(x) for x in str(v or "").split(".")]
-        except ValueError:
-            return []
-    za, zb = teile(a), teile(b)
-    for i in range(max(len(za), len(zb))):
-        x = za[i] if i < len(za) else 0
-        y = zb[i] if i < len(zb) else 0
-        if x != y:
-            return x < y
-    return False
-
-
-def _paket_ist_veraltet(installiert: str | None, aktuell: str | None) -> bool:
-    """Spiegelt ``_paketVeraltet`` im Frontend -- s. dortiger Kommentar.
-
-    ``installiert=None`` heißt „älter als 2.0.0", aber nur, wenn überhaupt schon eine
-    meldende Fassung ausgeliefert wird. Liegt auf dem Server noch etwas Älteres, meldet auch
-    das aktuelle Paket nichts und die Abwesenheit sagt gar nichts.
-    """
-    if not aktuell:
-        return False
-    if not installiert:
-        return not _version_kleiner(aktuell, _PAKET_ERSTE_MELDENDE)
-    return _version_kleiner(installiert, aktuell)
+def _paket_aktuell() -> dict:
+    """Die hinterlegten Fassungen, gelesen aus den Archiven selbst."""
+    return {"msfs": _bruegge_paket_info("msfs").get("version"),
+            "xplane": _bruegge_paket_info("xplane").get("version"),
+            "kniebrett": _efb_package_version(_efb_zip_path(get_settings()))}
 
 
 def _paket_version_saeubern(roh: str) -> str | None:

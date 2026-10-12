@@ -177,18 +177,69 @@ class TestMeldungSpeichert:
         assert row[0] == "1.7.3"
 
 
+class TestBannerEndpunkt:
+    """Der Banner nach einem Flug mit fehlendem oder altem Paket (12.10.2026). Die Regeln
+    selbst prüft `test_paket_mangel.py`; hier geht es um Anmeldung und Wegklicken."""
+
+    def _flug(self, db, logon="2026-10-12T18:00:00Z", logoff="2026-10-12T19:00:00Z"):
+        conn = get_connection(db)
+        conn.execute("INSERT OR IGNORE INTO pilots (cid, name, added_at, active) "
+                     "VALUES (?, 'Test', '2026-01-01T00:00:00Z', 1)", (CID,))
+        fid = conn.execute(
+            "INSERT INTO flights (cid, callsign, logon_time, logoff_time, duration_min) "
+            "VALUES (?, 'FRS49', ?, ?, 60)", (CID, logon, logoff)).lastrowid
+        conn.commit()
+        conn.close()
+        return fid
+
+    def test_ohne_anmeldung_gibt_es_nichts(self, env):
+        assert env.client.get("/api/me/paket-hinweis").status_code == 401
+        assert env.client.post("/api/me/paket-hinweis/weg", json={"flug_id": 1}).status_code == 401
+
+    def test_flug_ohne_bruegge_zeigt_den_banner(self, env):
+        fid = self._flug(env.db)
+        d = env.client.get("/api/me/paket-hinweis", cookies=_cookie()).json()
+        assert d["flug_id"] == fid and d["zeigen"] is True
+        assert [z["art"] for z in d["zeilen"]] == ["bruegge_fehlt"]
+
+    def test_die_hinterlegten_fassungen_kommen_an(self, env):
+        self._flug(env.db)
+        _bruegge_anlegen(env.db, version="1.9.0", simulator="msfs2020")
+        conn = get_connection(env.db)
+        conn.execute("UPDATE bruegge_zuordnung SET gesehen_am = '2026-10-12T18:30:00Z'")
+        conn.commit()
+        conn.close()
+        (z,) = env.client.get("/api/me/paket-hinweis", cookies=_cookie()).json()["zeilen"]
+        assert z["art"] == "bruegge_alt" and "1.9.0" in z["text"] and "1.12.0" in z["text"]
+
+    def test_wegklicken_gilt_bis_zum_naechsten_flug(self, env):
+        fid = self._flug(env.db)
+        r = env.client.post("/api/me/paket-hinweis/weg", json={"flug_id": fid}, cookies=_cookie())
+        assert r.status_code == 200
+        assert env.client.get("/api/me/paket-hinweis", cookies=_cookie()).json()["zeigen"] is False
+        self._flug(env.db, logon="2026-10-13T18:00:00Z", logoff="2026-10-13T19:00:00Z")
+        assert env.client.get("/api/me/paket-hinweis", cookies=_cookie()).json()["zeigen"] is True
+
+    def test_eine_erfundene_flugnummer_schaltet_den_banner_nicht_fuer_immer_ab(self, env):
+        fid = self._flug(env.db)
+        r = env.client.post("/api/me/paket-hinweis/weg", json={"flug_id": fid + 10 ** 6},
+                            cookies=_cookie())
+        assert r.status_code == 400
+        assert env.client.get("/api/me/paket-hinweis", cookies=_cookie()).json()["zeigen"] is True
+
+
 @pytest.mark.skipif(not _NODE, reason="node fehlt")
 class TestHinweisImBrowser:
     """Der Kasten selbst — ausgeführt, nicht nur gelesen."""
 
-    def _lauf(self, antwort: dict, im_panel=False, merker=None) -> dict:
-        start = INDEX.index("const _FASSUNG_HINWEIS_KEY")
-        ende = INDEX.index("function _paketHinweisWeg(")
+    def _lauf(self, antwort: dict, im_panel=False) -> dict:
+        start = INDEX.index("// PAKET-BANNER-ANFANG")
+        ende = INDEX.index("// PAKET-BANNER-ENDE")
         quelle = INDEX[start:ende]
         harness = """
 'use strict';
-const zustand = { text: '', versteckt: true, gemerkt: null, dataset: {} };
-const kasten = { hidden: true, dataset: zustand.dataset };
+const zustand = { text: '', versteckt: true, dataset: {}, aufrufe: [] };
+const kasten = { dataset: zustand.dataset };
 Object.defineProperty(kasten, 'hidden', {
   get: () => zustand.versteckt, set: (v) => { zustand.versteckt = v; },
 });
@@ -198,94 +249,75 @@ global.document = {
   getElementById: (id) => id === 'fassung-hinweis' ? kasten
                         : id === 'fassung-hinweis-text' ? textFeld : null,
 };
-global.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve(ANTWORT) });
-global._prefLies = () => MERKER;
-global._prefSchreib = (k, v) => { zustand.gemerkt = v; };
+global.fetch = (url, opt) => {
+  zustand.aufrufe.push([url, opt && opt.method || 'GET', opt && opt.body || null]);
+  return Promise.resolve({ ok: true, json: () => Promise.resolve(ANTWORT) });
+};
 QUELLE
 _fassungenPruefen();
 setTimeout(() => {
-  // ERST ablesen, DANN wegklicken -- sonst misst der Test seinen eigenen Klick. (Genau so
-  // ist er beim ersten Anlauf rot geworden, und der Code war richtig.)
+  // ERST ablesen, DANN wegklicken -- sonst misst der Test seinen eigenen Klick.
   const gesehen = { text: zustand.text, versteckt: zustand.versteckt };
   _fassungHinweisWeg();
-  console.log(JSON.stringify(Object.assign(gesehen, { gemerkt: zustand.gemerkt })));
+  console.log(JSON.stringify(Object.assign(gesehen, {
+    danach_versteckt: zustand.versteckt, aufrufe: zustand.aufrufe })));
 }, 30);
 """
         js = (harness
               .replace("IM_PANEL", "true" if im_panel else "false")
               .replace("ANTWORT", json.dumps(antwort))
-              .replace("MERKER", json.dumps(merker))
               .replace("QUELLE", quelle))
         p = subprocess.run([_NODE, "-e", js], capture_output=True, text=True, timeout=20)
         assert p.returncode == 0, p.stderr
         return json.loads(p.stdout.strip().splitlines()[-1])
 
-    def _antwort(self, bruegge=(), kniebrett=()):
-        return {"bruegge": {"aktuell": {"msfs": "1.12.0", "xplane": "1.2.2"},
-                            "meine": list(bruegge)},
-                "kniebrett": {"aktuell": "2.3.0", "meine": list(kniebrett)}}
+    def _antwort(self, *arten, zeigen=True):
+        return {"flug_id": 77, "zeigen": zeigen,
+                "zeilen": [{"art": a, "text": "Text zu " + a} for a in arten]}
 
-    def test_eine_alte_bruegge_zeigt_den_kasten(self):
-        z = self._lauf(self._antwort(bruegge=[
-            {"kennung": "K1", "simulator": "msfs2024", "version": "1.9.0",
-             "aktuell": "1.12.0", "veraltet": True}]))
-        assert z["versteckt"] is False
-        assert "1.9.0" in z["text"] and "1.12.0" in z["text"]
-        assert "radar.friesenflieger.de/download" in z["text"], (
-            "im Kniebrett lässt sich nichts herunterladen — die Adresse muss dastehen")
+    def test_ein_mangel_zeigt_den_kasten(self):
+        z = self._lauf(self._antwort("bruegge_alt"))
+        assert z["versteckt"] is False and z["text"] == "Text zu bruegge_alt"
+        assert z["aufrufe"][0][0] == "/api/me/paket-hinweis"
 
-    def test_ist_alles_aktuell_bleibt_es_still(self):
-        z = self._lauf(self._antwort(bruegge=[
-            {"kennung": "K1", "simulator": "msfs2024", "version": "1.12.0",
-             "aktuell": "1.12.0", "veraltet": False}]))
-        assert z["versteckt"] is True
+    def test_mehrere_maengel_stehen_untereinander(self):
+        z = self._lauf(self._antwort("bruegge_alt", "kniebrett_alt"))
+        assert z["text"] == "Text zu bruegge_alt\nText zu kniebrett_alt"
 
-    def test_nur_die_juengste_bruegge_je_simulator_zaehlt(self):
-        """Die Kennung wechselt bei jedem Sim-Start — ältere Zeilen sind Karteileichen.
+    def test_ohne_mangel_bleibt_es_still(self):
+        assert self._lauf(self._antwort())["versteckt"] is True
 
-        Ohne diese Regel stünde eine Dauerwarnung für eine Fassung da, die längst ersetzt ist.
-        """
-        z = self._lauf(self._antwort(bruegge=[
-            {"kennung": "neu", "simulator": "msfs2024", "version": "1.12.0",
-             "aktuell": "1.12.0", "veraltet": False},
-            {"kennung": "alt", "simulator": "msfs2024", "version": "1.9.0",
-             "aktuell": "1.12.0", "veraltet": True}]))
-        assert z["versteckt"] is True
-
-    def test_auf_der_website_zaehlt_auch_das_kniebrett_paket(self):
-        z = self._lauf(self._antwort(kniebrett=[
-            {"geraet": "abc", "version": "2.1.0", "veraltet": True}]))
-        assert z["versteckt"] is False and "Kniebrett-Paket" in z["text"]
+    def test_weggeklickt_auf_einem_anderen_geraet_bleibt_weg(self):
+        assert self._lauf(self._antwort("bruegge_fehlt", zeigen=False))["versteckt"] is True
 
     def test_im_kniebrett_bleibt_das_paket_seinem_eigenen_hinweis_ueberlassen(self):
         """Dort meldet die Hülle die wirklich laufende Fassung — zwei Kästen wären dieselbe
         Nachricht zweimal."""
-        z = self._lauf(self._antwort(kniebrett=[
-            {"geraet": "abc", "version": "2.1.0", "veraltet": True}]), im_panel=True)
-        assert z["versteckt"] is True
+        assert self._lauf(self._antwort("kniebrett_alt"), im_panel=True)["versteckt"] is True
+        z = self._lauf(self._antwort("bruegge_alt", "kniebrett_alt"), im_panel=True)
+        assert z["versteckt"] is False and z["text"] == "Text zu bruegge_alt"
 
-    def test_weggeklickt_gilt_fuer_genau_diesen_stand(self):
-        eintrag = [{"kennung": "K1", "simulator": "msfs2024", "version": "1.9.0",
-                    "aktuell": "1.12.0", "veraltet": True}]
-        z = self._lauf(self._antwort(bruegge=eintrag))
-        assert z["gemerkt"] and "1.9.0" in z["gemerkt"]
-        # Mit genau diesem Merker kommt er nicht wieder ...
-        z2 = self._lauf(self._antwort(bruegge=eintrag), merker=z["gemerkt"])
-        assert z2["versteckt"] is True
-        # ... bei einer neueren Fassung dagegen schon.
-        eintrag2 = [dict(eintrag[0], aktuell="1.13.0")]
-        z3 = self._lauf(self._antwort(bruegge=eintrag2), merker=z["gemerkt"])
-        assert z3["versteckt"] is False
+    def test_wegklicken_meldet_den_flug_an_den_server(self):
+        z = self._lauf(self._antwort("bruegge_fehlt"))
+        assert z["danach_versteckt"] is True
+        url, methode, koerper = z["aufrufe"][-1]
+        assert (url, methode) == ("/api/me/paket-hinweis/weg", "POST")
+        assert json.loads(koerper) == {"flug_id": 77}
 
 
 class TestBeideEnden:
     """Server und Seite müssen denselben Endpunkt meinen."""
 
     def test_die_seite_fragt_den_endpunkt_den_es_gibt(self):
-        assert "/api/me/fassungen" in INDEX
+        assert "/api/me/paket-hinweis" in INDEX and "/api/me/paket-hinweis/weg" in INDEX
         quelle = (Path(__file__).resolve().parents[1] / "app" / "main.py").read_text(
             encoding="utf-8")
-        assert '@app.get("/api/me/fassungen")' in quelle
+        assert '@app.get("/api/me/paket-hinweis")' in quelle
+        assert '@app.post("/api/me/paket-hinweis/weg")' in quelle
+
+    def test_der_banner_wird_auch_ohne_neuladen_wieder_geprueft(self):
+        """Sonst sieht ihn nach dem Flug nur, wer die Seite neu lädt."""
+        assert re.search(r"setInterval\(_fassungenPruefen,\s*10 \* 60 \* 1000\)", INDEX)
 
     def test_der_endpunkt_liegt_nicht_hinter_dem_gate(self):
         """`/api/me` steht in der Allowlist — sonst käme die Antwort nie an."""

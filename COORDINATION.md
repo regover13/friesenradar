@@ -6,6 +6,16 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-12 — 16.5.0 ist vergeben: Hinweis nach dem Flug bei fehlendem oder altem Paket
+
+Neues Modul `app/paket_hinweis.py`, Tabelle `paket_hinweis`, Endpunkte `/api/me/paket-hinweis`
+und `/api/me/paket-hinweis/weg`, Poller-Job `_paket_push` (alle 60 s). `_version_kleiner` und
+`_paket_ist_veraltet` wohnen jetzt dort; `main.py` importiert sie unter den alten Namen.
+**Wer auf einem Zweig schon 16.5.0 führt (Deichkontrolle), nimmt beim Rebase die nächste freie
+Nummer.**
+
+---
+
 ## 2026-10-10 — Zweig `rueckbau-alter-bruegge-weg`: NICHT vor dem 24.10.2026 nach `main`
 
 Der Rückbau des alten MSFS-Brügge-Wegs (#46) liegt fertig auf dem Zweig

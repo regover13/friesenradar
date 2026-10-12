@@ -256,6 +256,12 @@ CREATE TABLE IF NOT EXISTS lotsen_name (
     gesehen_am TEXT
 );
 
+CREATE TABLE IF NOT EXISTS paket_hinweis (
+    cid          INTEGER PRIMARY KEY,   -- Hinweis auf fehlendes/altes Paket (app/paket_hinweis.py)
+    weg_flug_id  INTEGER,               -- Banner weggeklickt bis einschließlich dieses Flugs
+    push_flug_id INTEGER                -- letzter Flug, für den eine Push-Meldung rausging
+);
+
 CREATE TABLE IF NOT EXISTS lotsen_buchung_gemeldet (
     buchung_id  INTEGER PRIMARY KEY,    -- Kennung aus der VATSIM-Buchungsliste (#61)
     gemeldet_am TEXT

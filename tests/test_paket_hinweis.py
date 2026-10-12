@@ -236,9 +236,9 @@ def test_shell_meldet_die_version_beim_anmelden():
 def test_beide_seiten_nennen_dieselbe_erste_meldende_fassung():
     """Die Konstante steht zwangsläufig doppelt (JavaScript und Python). Laufen beide
     auseinander, widersprechen sich Kniebrett-Hinweis und Admin-Übersicht."""
-    haupt = (WURZEL / "app" / "main.py").read_text(encoding="utf-8")
+    haupt = (WURZEL / "app" / "paket_hinweis.py").read_text(encoding="utf-8")
     js = re.search(r"const _PAKET_ERSTE_MELDENDE = '([^']+)';", INDEX)
-    py = re.search(r'_PAKET_ERSTE_MELDENDE = "([^"]+)"', haupt)
+    py = re.search(r'^PAKET_ERSTE_MELDENDE = "([^"]+)"', haupt, re.M)
     assert js and py, "Konstante fehlt auf einer Seite"
     assert js.group(1) == py.group(1), f"JS sagt {js.group(1)}, Python sagt {py.group(1)}"
 

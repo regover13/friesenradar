@@ -68,6 +68,7 @@ from app.teamspeak import fetch_channel_clients, parse_channel_ids
 from app import vrp
 from app import bruegge
 from app import lotsen
+from app import paket_hinweis
 from app import ersatzweg
 
 logger = logging.getLogger(__name__)
@@ -816,6 +817,7 @@ class VatsimPoller:
         self._scheduler.add_job(self._lotsen_buchungen_holen, "interval", minutes=10,
                                 id="lotsen_buchungen")
         self._scheduler.add_job(self._lotsen_melden, "interval", seconds=60, id="lotsen_melden")
+        self._scheduler.add_job(self._paket_push, "interval", seconds=60, id="paket_push")
         self._scheduler.add_job(
             self._refresh_vrp,
             "interval",
@@ -2273,6 +2275,37 @@ class VatsimPoller:
                 await self._lotse_push_buchung(b, lotsen.payload_lotse_spaet(b.get("name", ""), b))
         except Exception:
             logger.exception("Fehler beim Melden der Lotsenschichten")
+
+    async def _paket_push(self, jetzt: datetime | None = None) -> None:
+        """Push an den Piloten selbst, wenn sein letzter Flug mit einem VERALTETEN Paket lief.
+
+        Die hinterlegten Fassungen kennt nur `main` (sie stehen in den Archiven); es reicht
+        sie beim Start als `paket_aktuell` herein. Stand vor dem Versand festschreiben wie bei
+        den Lotsen-Meldungen: lieber eine Meldung zu wenig als nach einem Absturz dieselbe
+        im Minutentakt."""
+        aktuell_fn = getattr(self, "paket_aktuell", None)
+        if not self.vapid_private_key or aktuell_fn is None:
+            return
+        try:
+            aktuell = aktuell_fn()
+            conn = get_connection(self.db_path)
+            try:
+                auftraege = []
+                for cid, flug_id, payload in paket_hinweis.push_faellig(
+                        conn, jetzt or datetime.now(timezone.utc), aktuell):
+                    paket_hinweis.push_merken(conn, cid, flug_id)
+                    subs = [dict(r) for r in conn.execute(
+                        "SELECT endpoint, p256dh, auth, owner_cid FROM push_subscriptions "
+                        "WHERE owner_cid = ?", (cid,))]
+                    if subs:
+                        auftraege.append((cid, subs, payload))
+            finally:
+                conn.close()
+            for cid, subs, payload in auftraege:
+                await send_web_push(self.vapid_private_key, self.vapid_contact_email,
+                                    self.db_path, subs, payload, label=f"WebPush[Paket {cid}]")
+        except Exception:
+            logger.exception("Paket-Hinweis: Push-Lauf gescheitert")
 
     async def _lotse_push_online(self, lotse: dict, payload: dict) -> None:
         if not self.vapid_private_key:

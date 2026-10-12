@@ -1,5 +1,17 @@
 [
   {
+    "version": "16.5.0",
+    "date": "2026-10-12",
+    "highlight": false,
+    "title": "Hinweis nach dem Flug, wenn ein Paket fehlt oder veraltet ist",
+    "items": [
+      "📦 Nach jedem Flug prüft FriesenRadar, ob FriesenBrügge und Kniebrett dabei waren und auf dem aktuellen Stand sind. Fehlt die FriesenBrügge oder ist ein Paket veraltet, steht unten rechts ein Hinweis mit der Adresse zum Herunterladen.",
+      "📦 Der Hinweis lässt sich wegklicken und gilt dann auf allen Geräten als gelesen. Nach dem nächsten Flug mit demselben Mangel kommt er wieder.",
+      "🔔 Ist ein Paket veraltet, kommt zusätzlich eine Benachrichtigung, rund eine Viertelstunde nach der Landung. Wer ein Paket gar nicht installiert hat, bekommt keine.",
+      "📦 Ein fehlendes Kniebrett wird nur in MSFS 2024 erwähnt."
+    ]
+  },
+  {
     "version": "16.4.11",
     "date": "2026-10-11",
     "highlight": false,
