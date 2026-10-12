@@ -20,6 +20,7 @@ from app.database import (bind_panel_device, bruegge_version_merken, bruegge_zuo
 
 CID = 1602713
 AKTUELL = {"msfs": "1.19.0", "xplane": "1.5.0", "kniebrett": "3.0.0"}
+JETZT = datetime(2026, 10, 12, 19, 20, tzinfo=timezone.utc)   # 20 min nach der Landung
 
 
 @pytest.fixture()
@@ -176,6 +177,26 @@ def test_ohne_hinterlegtes_paket_gibt_es_kein_urteil_ueber_die_fassung(conn):
     assert [z["art"] for z in ph.stand(conn, CID, {})["zeilen"]] == []
 
 
+# Die Fassung kommt vom Geraet des Piloten und landet im Banner und in der Push-Meldung. Eine
+# Bruegge laesst sich einem fremden Piloten unterschieben (gefaelschte Position, s. CLAUDE.md),
+# also darf dort nichts stehen, was keine Versionsnummer ist.
+@pytest.mark.parametrize("unfug", ["Bitte sofort anrufen", "1.2.3 <b>x</b>", "1.2.3; rm", "v1.2",
+                                   "1..2", "1.2.3.4.5", "9" * 30])
+def test_was_keine_versionsnummer_ist_kommt_in_keinen_text(conn, unfug):
+    _flug(conn)
+    _bruegge(conn, unfug, simulator="msfs2020")
+    _kniebrett(conn, unfug)
+    texte = " ".join(z["text"] for z in ph.stand(conn, CID, AKTUELL)["zeilen"])
+    assert unfug not in texte
+    assert all(unfug not in p["body"] for _, _, p in ph.push_faellig(conn, JETZT, AKTUELL))
+
+
+def test_eine_unlesbare_bruegge_fassung_ist_kein_urteil(conn):
+    _flug(conn)
+    _bruegge(conn, "Bitte sofort anrufen", simulator="msfs2020")
+    assert _arten(conn) == []
+
+
 # --- Wegklicken ------------------------------------------------------------------------------
 
 def test_weggeklickt_bleibt_weg_bis_zum_naechsten_flug_mit_mangel(conn):
@@ -207,7 +228,6 @@ def test_wegklicken_geht_nicht_rueckwaerts(conn):
 
 # --- Push: nur bei veraltetem Paket, einmal je Flug -------------------------------------------
 
-JETZT = datetime(2026, 10, 12, 19, 20, tzinfo=timezone.utc)   # 20 min nach der Landung
 
 
 def _faellig(conn, jetzt=JETZT, aktuell=AKTUELL):

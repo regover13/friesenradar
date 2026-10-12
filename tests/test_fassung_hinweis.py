@@ -73,6 +73,9 @@ def env(tmp_path, monkeypatch):
     return SimpleNamespace(client=TestClient(main.app), db=p)
 
 
+_EIGEN = {"Origin": "http://testserver"}
+
+
 def _cookie(cid: int = CID) -> dict:
     return {USER_COOKIE: make_user_token(SECRET, "Tobias", str(cid), False, time.time() + 3600)}
 
@@ -214,7 +217,8 @@ class TestBannerEndpunkt:
 
     def test_wegklicken_gilt_bis_zum_naechsten_flug(self, env):
         fid = self._flug(env.db)
-        r = env.client.post("/api/me/paket-hinweis/weg", json={"flug_id": fid}, cookies=_cookie())
+        r = env.client.post("/api/me/paket-hinweis/weg", json={"flug_id": fid}, cookies=_cookie(),
+                            headers=_EIGEN)
         assert r.status_code == 200
         assert env.client.get("/api/me/paket-hinweis", cookies=_cookie()).json()["zeigen"] is False
         self._flug(env.db, logon="2026-10-13T18:00:00Z", logoff="2026-10-13T19:00:00Z")
@@ -223,9 +227,28 @@ class TestBannerEndpunkt:
     def test_eine_erfundene_flugnummer_schaltet_den_banner_nicht_fuer_immer_ab(self, env):
         fid = self._flug(env.db)
         r = env.client.post("/api/me/paket-hinweis/weg", json={"flug_id": fid + 10 ** 6},
-                            cookies=_cookie())
+                            cookies=_cookie(), headers=_EIGEN)
         assert r.status_code == 400
         assert env.client.get("/api/me/paket-hinweis", cookies=_cookie()).json()["zeigen"] is True
+
+    @pytest.mark.parametrize("kopf", [{"Origin": "https://boese.example"},
+                                      {"Sec-Fetch-Site": "cross-site"},
+                                      {"Referer": "https://boese.example/seite"}, {}])
+    def test_wegklicken_von_einer_fremden_seite_wird_abgewiesen(self, env, kopf):
+        """Dieselbe Schranke wie beim Einschalten der Benachrichtigungen."""
+        fid = self._flug(env.db)
+        r = env.client.post("/api/me/paket-hinweis/weg", json={"flug_id": fid}, cookies=_cookie(),
+                            headers=kopf)
+        assert r.status_code == 403
+        assert env.client.get("/api/me/paket-hinweis", cookies=_cookie()).json()["zeigen"] is True
+
+    def test_das_kniebrett_schickt_nur_einen_referer_und_kommt_durch(self, env):
+        """Gemessen am 12.10.2026 im nginx-Log: Coherent GT schickt bei jedem POST den
+        Referer der eigenen Seite mit (13 787 von 13 787 Meldungen)."""
+        fid = self._flug(env.db)
+        r = env.client.post("/api/me/paket-hinweis/weg", json={"flug_id": fid}, cookies=_cookie(),
+                            headers={"Referer": "http://testserver/panel"})
+        assert r.status_code == 200
 
 
 @pytest.mark.skipif(not _NODE, reason="node fehlt")

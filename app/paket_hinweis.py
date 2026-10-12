@@ -18,6 +18,7 @@ trotzdem, der Flug sei ohne sie gelaufen.
 """
 from __future__ import annotations
 
+import re
 import sqlite3
 from datetime import datetime, timedelta
 
@@ -36,6 +37,18 @@ _PUSH_AB = timedelta(minutes=15)
 _PUSH_BIS = timedelta(minutes=90)
 
 _ALT = ("bruegge_alt", "kniebrett_alt")
+
+#: Die Fassung meldet das Gerät des Piloten, und sie landet im Banner und in der Push-Meldung.
+#: Eine Brügge lässt sich einem fremden Piloten unterschieben (gefälschte Position, s. CLAUDE.md
+#: „Die Brügge-Position ist fälschbar“) -- ohne diese Schranke stünde beliebiger Text in einer
+#: Meldung, die von FriesenRadar zu kommen scheint.
+_VERSION = re.compile(r"\d{1,4}(?:\.\d{1,4}){0,3}")
+
+
+def _fassung(roh) -> str | None:
+    """Die gemeldete Fassung, wenn sie wie eine aussieht -- sonst ``None`` (kein Urteil)."""
+    v = str(roh or "").strip()
+    return v if _VERSION.fullmatch(v) else None
 
 
 def version_kleiner(a: str | None, b: str | None) -> bool:
@@ -103,18 +116,21 @@ def maengel(conn: sqlite3.Connection, cid: int, logon: str, aktuell: dict) -> li
         soll = aktuell.get(_paket_zu(b[0]))
         # Ohne gemeldete Fassung kein Urteil: Ein Hinweis auf Verdacht verbrennt das Vertrauen
         # in alle anderen.
-        if b[1] and soll and version_kleiner(b[1], soll):
+        hat = _fassung(b[1])
+        if hat and soll and version_kleiner(hat, soll):
             zeilen.append({"art": "bruegge_alt",
-                           "text": f"Deine FriesenBrügge {b[1]} ist veraltet, aktuell ist "
+                           "text": f"Deine FriesenBrügge {hat} ist veraltet, aktuell ist "
                                    f"{soll}. Laden unter {DOWNLOAD}"})
     k = conn.execute(
         "SELECT paket_version FROM panel_devices WHERE cid = ? AND last_seen_at >= ? "
         "ORDER BY last_seen_at DESC LIMIT 1", (int(cid), ab)).fetchone()
     soll = aktuell.get("kniebrett")
     if k is not None:
-        if paket_ist_veraltet(k[0], soll):
+        hat = _fassung(k[0])
+        # Gemeldet, aber unlesbar: kein Urteil. Nur GAR NICHTS gemeldet heißt „vor 2.0.0“.
+        if (hat or not k[0]) and paket_ist_veraltet(hat, soll):
             zeilen.append({"art": "kniebrett_alt",
-                           "text": f"Dein Kniebrett-Paket {k[0] or 'vor 2.0.0'} ist veraltet, "
+                           "text": f"Dein Kniebrett-Paket {hat or 'vor 2.0.0'} ist veraltet, "
                                    f"aktuell ist {soll}. Laden unter {DOWNLOAD}"})
     elif b is not None and b[0] == "msfs2024":
         zeilen.append({"art": "kniebrett_fehlt",

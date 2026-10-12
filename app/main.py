@@ -3314,9 +3314,9 @@ async def mein_paket_hinweis(request: Request):
 async def mein_paket_hinweis_weg(request: Request):
     """Banner wegklicken. Gilt bis zum nächsten Flug mit Mangel, auf allen Geräten.
 
-    Ohne Herkunftsprüfung, wie `/api/prefs`: Der Aufruf kommt auch aus dem Kniebrett, und ob
-    Coherent GT dort `Origin` mitschickt, ist nicht gemessen. Eine fremde Seite könnte damit
-    höchstens einen Hinweis ausblenden, der beim nächsten Flug wiederkommt."""
+    Mit Herkunftsprüfung wie `/api/push/subscribe`. Das Kniebrett kommt durch: Coherent GT
+    schickt bei jedem POST den Referer der eigenen Seite mit (gemessen 12.10.2026)."""
+    _fremde_herkunft_abweisen(request)
     settings = get_settings()
     try:
         cid = _current_cid(request, settings)
