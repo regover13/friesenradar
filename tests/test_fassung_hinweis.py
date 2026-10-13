@@ -261,12 +261,13 @@ class TestHinweisImBrowser:
         quelle = INDEX[start:ende]
         harness = """
 'use strict';
-const zustand = { text: '', versteckt: true, dataset: {}, aufrufe: [] };
+const zustand = { text: '', versteckt: true, dataset: {}, aufrufe: [], attr: { href: '/alt' } };
 const kasten = { dataset: zustand.dataset };
 Object.defineProperty(kasten, 'hidden', {
   get: () => zustand.versteckt, set: (v) => { zustand.versteckt = v; },
 });
-const textFeld = { set textContent(v) { zustand.text = v; }, get textContent() { return zustand.text; } };
+const textFeld = { set textContent(v) { zustand.text = v; }, get textContent() { return zustand.text; },
+  setAttribute(k, v) { zustand.attr[k] = v; }, removeAttribute(k) { delete zustand.attr[k]; } };
 global.document = {
   documentElement: { classList: { contains: (k) => k === 'vr-panel' && IM_PANEL } },
   getElementById: (id) => id === 'fassung-hinweis' ? kasten
@@ -280,7 +281,7 @@ QUELLE
 _fassungenPruefen();
 setTimeout(() => {
   // ERST ablesen, DANN wegklicken -- sonst misst der Test seinen eigenen Klick.
-  const gesehen = { text: zustand.text, versteckt: zustand.versteckt };
+  const gesehen = { text: zustand.text, versteckt: zustand.versteckt, href: zustand.attr.href || null };
   _fassungHinweisWeg();
   console.log(JSON.stringify(Object.assign(gesehen, {
     danach_versteckt: zustand.versteckt, aufrufe: zustand.aufrufe })));
@@ -319,6 +320,17 @@ setTimeout(() => {
         assert self._lauf(self._antwort("kniebrett_alt"), im_panel=True)["versteckt"] is True
         z = self._lauf(self._antwort("bruegge_alt", "kniebrett_alt"), im_panel=True)
         assert z["versteckt"] is False and z["text"] == "Text zu bruegge_alt"
+
+    def test_auf_der_website_fuehrt_der_hinweis_zur_download_seite(self):
+        assert self._lauf(self._antwort("bruegge_alt"))["href"] == "/download"
+
+    def test_im_kniebrett_ist_der_hinweis_kein_link(self):
+        """Im Simulator laesst sich nichts herunterladen; ein Link fuehrte dort nur vom
+        Kniebrett weg."""
+        assert self._lauf(self._antwort("bruegge_alt"), im_panel=True)["href"] is None
+
+    def test_der_hinweis_ist_im_dokument_ein_link(self):
+        assert '<a id="fassung-hinweis-text"' in INDEX
 
     def test_wegklicken_meldet_den_flug_an_den_server(self):
         z = self._lauf(self._antwort("bruegge_fehlt"))

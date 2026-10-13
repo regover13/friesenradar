@@ -2419,6 +2419,8 @@
     .fassung-hinweis[hidden] { display: none; }
     /* Mehrere Mängel stehen untereinander (Zeilenumbruch im Text). */
     #fassung-hinweis-text { white-space: pre-line; }
+    a#fassung-hinweis-text { color: inherit; text-decoration: none; }
+    a#fassung-hinweis-text[href] { text-decoration: underline; cursor: pointer; }
     /* Der Reddung-Hinweis teilt die Machart, sitzt aber unten LINKS -- sonst verdeckt er den
        Fassungshinweis, und beide sagen etwas anderes. Amber statt Rot: Es ist eine Empfehlung,
        kein Fehler. Wer ohne FriesenBrügge fliegt, wird gewertet, nur gröber. */
@@ -10525,6 +10527,9 @@ function _fassungenPruefen() {
       if (!zeilen.length) { kasten.hidden = true; return; }
       const text = document.getElementById('fassung-hinweis-text');
       if (text) text.textContent = zeilen.map(function (z) { return z.text; }).join('\n');
+      // Auf der Website fuehrt der Hinweis zur Download-Seite. Im Kniebrett bleibt er Text:
+      // Im Simulator laesst sich nichts herunterladen, der Link fuehrte nur vom Tablet weg.
+      if (text) { if (imPanel) text.removeAttribute('href'); else text.setAttribute('href', '/download'); }
       kasten.dataset.flug = String(d.flug_id);
       kasten.hidden = false;
     }).catch(function () { /* ohne Anmeldung oder ohne Netz gibt es nichts zu sagen */ });
@@ -18899,7 +18904,7 @@ function _ziehAktualisierenBinden() {
 </div>
 
 <div id="fassung-hinweis" class="fassung-hinweis" hidden>
-  <span id="fassung-hinweis-text"></span>
+  <a id="fassung-hinweis-text"></a>
   <button type="button" onclick="_fassungHinweisWeg()" aria-label="Hinweis ausblenden"><svg class="icon"><use href="#icon-x" xlink:href="#icon-x"/></svg></button>
 </div>
 

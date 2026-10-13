@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.5.2",
+    "date": "2026-10-13",
+    "highlight": false,
+    "title": "Paket-Hinweis führt zur Download-Seite",
+    "items": [
+      "📦 Der Hinweis auf ein fehlendes oder veraltetes Paket ist auf der Website jetzt anklickbar und führt direkt zur Download-Seite. Im Kniebrett bleibt er Text."
+    ]
+  },
+  {
     "version": "16.5.1",
     "date": "2026-10-13",
     "highlight": false,
