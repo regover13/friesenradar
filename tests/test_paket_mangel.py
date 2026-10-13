@@ -105,7 +105,7 @@ def test_bruegge_ohne_gemeldete_fassung_wird_nicht_verdaechtigt(conn):
 
 def test_altes_kniebrett(conn):
     _flug(conn)
-    _bruegge(conn, "1.19.0", simulator="msfs2020")
+    _bruegge(conn, "1.19.0", simulator="msfs2024")
     _kniebrett(conn, "2.3.1")
     (z,) = ph.stand(conn, CID, AKTUELL)["zeilen"]
     assert z["art"] == "kniebrett_alt" and "2.3.1" in z["text"] and "3.0.0" in z["text"]
@@ -113,7 +113,7 @@ def test_altes_kniebrett(conn):
 
 def test_kniebrett_ohne_gemeldete_fassung_ist_aelter_als_2_0_0(conn):
     _flug(conn)
-    _bruegge(conn, "1.19.0", simulator="msfs2020")
+    _bruegge(conn, "1.19.0", simulator="msfs2024")
     _kniebrett(conn, None)
     (z,) = ph.stand(conn, CID, AKTUELL)["zeilen"]
     assert z["art"] == "kniebrett_alt" and "vor 2.0.0" in z["text"]
@@ -135,6 +135,58 @@ def test_fehlendes_kniebrett_in_anderen_simulatoren_ist_kein_mangel(conn, simula
 def test_ohne_bruegge_ist_der_simulator_unbekannt_also_kein_wort_zum_fehlenden_kniebrett(conn):
     _flug(conn)
     assert "kniebrett_fehlt" not in _arten(conn)
+
+
+# Das Kniebrett meldet sich nur beim START (``/auth/device``), und es startet mit dem Simulator
+# -- also in aller Regel VOR der Anmeldung bei VATSIM. Bis 16.5.0 zaehlte nur ein Lebenszeichen
+# WAEHREND des Flugs; damit galt das Kniebrett bei fast jedem als fehlend (Fund 13.10.2026: drei
+# von vier Meldungen falsch, eine davon beim Nutzer selbst).
+
+def test_kniebrett_vor_dem_flug_gestartet_fehlt_nicht(conn):
+    _flug(conn)                                             # Anmeldung 18:00
+    _bruegge(conn, "1.19.0")
+    _kniebrett(conn, "3.0.0", gesehen="2026-10-12T17:54:00Z")
+    assert _arten(conn) == []
+
+
+def test_altes_kniebrett_von_voriger_woche_ist_alt_und_nicht_fehlend(conn):
+    _flug(conn)
+    _bruegge(conn, "1.19.0")
+    _kniebrett(conn, "2.3.2", gesehen="2026-10-05T07:18:00Z")
+    (z,) = ph.stand(conn, CID, AKTUELL)["zeilen"]
+    assert z["art"] == "kniebrett_alt" and "2.3.2" in z["text"]
+
+
+def test_von_mehreren_geraeten_zaehlt_das_zuletzt_gesehene(conn):
+    _flug(conn)
+    _bruegge(conn, "1.19.0")
+    _kniebrett(conn, "2.0.0", gesehen="2026-09-01T10:00:00Z", geraet="a" * 40)
+    _kniebrett(conn, "3.0.0", gesehen="2026-10-12T17:54:00Z", geraet="b" * 40)
+    assert _arten(conn) == []
+
+
+def test_ohne_bruegge_wird_ein_altes_kniebrett_trotzdem_genannt(conn):
+    _flug(conn)
+    _kniebrett(conn, "2.2.0", gesehen="2026-10-12T07:00:00Z")
+    assert _arten(conn) == ["bruegge_fehlt", "kniebrett_alt"]
+
+
+@pytest.mark.parametrize("simulator", ["msfs2020", "xplane12"])
+def test_in_anderen_simulatoren_wird_das_kniebrett_gar_nicht_beurteilt(conn, simulator):
+    """Das Kniebrett gibt es nur in MSFS 2024. Wer heute woanders flog, bekommt kein Wort zu
+    einem Geraet, das irgendwann einmal gebunden wurde."""
+    _flug(conn)
+    _bruegge(conn, AKTUELL["xplane" if simulator == "xplane12" else "msfs"], simulator=simulator)
+    _kniebrett(conn, "2.0.0", gesehen="2026-09-01T10:00:00Z")
+    assert _arten(conn) == []
+
+
+def test_ein_fremdes_kniebrett_zaehlt_nicht_fuer_mich(conn):
+    _flug(conn)
+    _flug(conn, cid=999)
+    _bruegge(conn, "1.19.0")
+    _kniebrett(conn, "3.0.0", cid=999)
+    assert _arten(conn) == ["kniebrett_fehlt"]
 
 
 def test_alles_aktuell_ist_still(conn):

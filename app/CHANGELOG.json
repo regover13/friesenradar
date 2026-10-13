@@ -1,5 +1,16 @@
 [
   {
+    "version": "16.5.1",
+    "date": "2026-10-13",
+    "highlight": false,
+    "title": "Paket-Hinweis: Kniebrett fälschlich als fehlend gemeldet",
+    "items": [
+      "🐛 Der Hinweis „Für MSFS 2024 gibt es das FriesenKniebrett“ erschien auch bei Piloten, die es längst benutzen. Das Kniebrett meldet sich beim Start des Simulators, also vor dem Flug, und galt deshalb als nicht dabei. Jetzt zählt, ob du je ein Kniebrett angemeldet hast.",
+      "📦 Ist dein zuletzt benutztes Kniebrett veraltet, steht das jetzt richtig da, statt als fehlend.",
+      "📦 Wer mit FriesenBrügge in MSFS 2020 oder X-Plane fliegt, bekommt zum Kniebrett keinen Hinweis mehr."
+    ]
+  },
+  {
     "version": "16.5.0",
     "date": "2026-10-12",
     "highlight": false,

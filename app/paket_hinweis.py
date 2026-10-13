@@ -12,6 +12,9 @@ Zwei Regeln des Nutzers, die hier wohnen:
 * **Ein fehlendes Kniebrett ist nur in MSFS 2024 ein Mangel**, und den Simulator nennt allein
   die Brügge. Ohne Brügge bleibt es beim Urteil über eine gemeldete alte Fassung.
 
+„Fehlt“ heißt beim Kniebrett: Der Pilot hat NIE ein Gerät gebunden. Ob es beim Flug lief, lässt
+sich nicht feststellen -- es meldet sich nur beim Start, und der liegt vor dem Flug.
+
 Bekannte Grenze: „Brügge hat gemeldet“ heißt hier „wurde dem Piloten zugeordnet“
 (``bruegge_zuordnung``). Läuft eine Brügge, ohne je zugeordnet zu werden, steht im Banner
 trotzdem, der Flug sei ohne sie gelaufen.
@@ -121,9 +124,17 @@ def maengel(conn: sqlite3.Connection, cid: int, logon: str, aktuell: dict) -> li
             zeilen.append({"art": "bruegge_alt",
                            "text": f"Deine FriesenBrügge {hat} ist veraltet, aktuell ist "
                                    f"{soll}. Laden unter {DOWNLOAD}"})
+    # Das Kniebrett gibt es nur in MSFS 2024. Nennt die Brügge einen anderen Simulator, wird
+    # es gar nicht beurteilt.
+    if b is not None and b[0] != "msfs2024":
+        return zeilen
+    # OHNE Zeitgrenze, anders als bei der Brügge: Das Kniebrett meldet sich nur beim Start
+    # (``/auth/device``), und es startet mit dem Simulator -- also vor der Anmeldung bei
+    # VATSIM. Ein Lebenszeichen WÄHREND des Flugs gibt es nicht. Wer je ein Gerät gebunden
+    # hat, hat das Kniebrett; geurteilt wird über die Fassung des zuletzt gesehenen.
     k = conn.execute(
-        "SELECT paket_version FROM panel_devices WHERE cid = ? AND last_seen_at >= ? "
-        "ORDER BY last_seen_at DESC LIMIT 1", (int(cid), ab)).fetchone()
+        "SELECT paket_version FROM panel_devices WHERE cid = ? "
+        "ORDER BY COALESCE(last_seen_at, created_at) DESC LIMIT 1", (int(cid),)).fetchone()
     soll = aktuell.get("kniebrett")
     if k is not None:
         hat = _fassung(k[0])
@@ -132,7 +143,7 @@ def maengel(conn: sqlite3.Connection, cid: int, logon: str, aktuell: dict) -> li
             zeilen.append({"art": "kniebrett_alt",
                            "text": f"Dein Kniebrett-Paket {hat or 'vor 2.0.0'} ist veraltet, "
                                    f"aktuell ist {soll}. Laden unter {DOWNLOAD}"})
-    elif b is not None and b[0] == "msfs2024":
+    elif b is not None:
         zeilen.append({"art": "kniebrett_fehlt",
                        "text": f"Für MSFS 2024 gibt es das FriesenKniebrett. Laden unter {DOWNLOAD}"})
     return zeilen
