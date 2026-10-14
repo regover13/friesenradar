@@ -697,14 +697,14 @@ Das **Zahnrad ⚙ oben rechts** im Header öffnet die Einstellungen; die Benachr
 
 Kniebrett, FriesenBrügge und das Widget im Forum sind davon nicht betroffen.
 
-**Lotsen:** Dieselben Schalter melden auch, wenn ein Friese lotst. „Beim Online-gehen benachrichtigen (Piloten und Lotsen)“ meldet, sobald er sich an einer Station anmeldet, mit Station, Frequenz und voraussichtlichem Ende. „Auch bei Geplantem (Flugpläne und Lotsenschichten)“ meldet gebuchte Schichten: jeden Morgen um 7 Uhr eine Meldung mit allen, die an dem Tag lotsen, und sofort, wenn jemand erst im Lauf des Tages für denselben Tag bucht. Der Regler „Wer darf über mich benachrichtigt werden?“ gilt auch fürs Lotsen.
+**Piloten und Lotsen getrennt:** Unter „Benachrichtigungen auf diesem Gerät“ stehen vier Schalter, die du einzeln an- und abwählst. „Wenn ein Pilot online geht“ und „Wenn ein Pilot einen Flugplan einreicht“ gelten für Piloten. „Wenn ein Lotse online geht“ meldet, sobald ein Friese sich an einer Station anmeldet, mit Station, Frequenz und voraussichtlichem Ende. „Gebuchte Lotsenschichten“ meldet jeden Morgen um 7 Uhr alle, die an dem Tag lotsen, und sofort, wenn jemand erst im Lauf des Tages für denselben Tag bucht. Wer also nur wissen will, wann gelotst wird, lässt die beiden Piloten-Schalter aus. Die Auswahl „Alle Friesen / Nur bestimmte Piloten“ gilt für alle vier und für TeamSpeak. Im Kniebrett gibt es dieselben vier Schalter. Der Regler „Wer darf über mich benachrichtigt werden?“ gilt auch fürs Lotsen.
 
 **Einrichten:**
 1. Zahnrad ⚙ klicken → Einstellungen öffnen sich
-2. „Beim Online-gehen benachrichtigen (Piloten und Lotsen)" aktivieren
+2. „Benachrichtigungen auf diesem Gerät" aktivieren
 3. Browser fragt nach Erlaubnis → **Zulassen**
 4. Optional: Filtern auf bestimmte Piloten (Alle Friesen oder nur ausgewählte)
-5. Optional: „Auch bei Geplantem (Flugpläne und Lotsenschichten)" — standardmäßig aktiv
+5. Optional: die vier Schalter für Piloten und Lotsen („Wenn ein Pilot online geht", „Wenn ein Pilot einen Flugplan einreicht", „Wenn ein Lotse online geht", „Gebuchte Lotsenschichten") — standardmäßig alle aktiv
 6. Optional: **„Events"** — Erinnerung ~1 h vor jedem FriesenEvent + Bummel-Start/Ergebnis (opt-in, Standard: aus)
 7. **Speichern**
 

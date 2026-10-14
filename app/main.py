@@ -3373,6 +3373,11 @@ def _fremde_herkunft_abweisen(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Fremde Herkunft")
 
 
+
+def _schalter_aus_body(body: dict, feld: str) -> bool | None:
+    """``None``, wenn die Seite das Feld nicht schickt -- nicht ``False``."""
+    return None if body.get(feld) is None else bool(body.get(feld))
+
 @app.post("/api/push/subscribe")
 async def push_subscribe(request: Request):
     """Browser-Push-Subscription speichern."""
@@ -3409,6 +3414,10 @@ async def push_subscribe(request: Request):
             notify_events=bool(body.get("notify_events", False)),
             owner_cid=owner_cid,
             herkunft=herkunft,
+            # Fehlen bei einer noch geladenen älteren Seite -- dann bleibt, was gespeichert ist.
+            notify_online_piloten=_schalter_aus_body(body, "notify_online_piloten"),
+            notify_online_lotsen=_schalter_aus_body(body, "notify_online_lotsen"),
+            notify_lotsenschicht=_schalter_aus_body(body, "notify_lotsenschicht"),
         )
         # Nur beim ERSTEN Einschalten aufraeumen: Die Seite schickt ihr Abo bei jedem Laden
         # erneut, und ein Rechner, der bei der alten Adresse bleibt, verloere seines sonst
@@ -6132,7 +6141,7 @@ function render(d){
     ${card(t.health_fail,'🔴 fehlerhaft')}
     ${card(t.health_unknown,'⚪ ungesendet')}
   </div>`;
-  h+=`<div class="sub">Auswahl-Beliebtheit: Flugpläne ${t.will_prefiles} · TeamSpeak ${t.will_ts} · Events ${t.will_events}${d.vapid_configured?'':' · <span style="color:#ff6b6b">VAPID nicht konfiguriert!</span>'}</div>`;
+  h+=`<div class="sub">Auswahl-Beliebtheit: Piloten ${t.will_online_piloten} · Flugpläne ${t.will_prefiles} · Lotsen ${t.will_online_lotsen} · Schichten ${t.will_lotsenschicht} · TeamSpeak ${t.will_ts} · Events ${t.will_events}${d.vapid_configured?'':' · <span style="color:#ff6b6b">VAPID nicht konfiguriert!</span>'}</div>`;
 
   h+='<h2>Abos &amp; Auswahl</h2>';
   h+='<div class="sub">„Online“ ist die Grundfunktion und hat keinen Schalter — jedes Abo bekommt sie, '+
@@ -6142,14 +6151,15 @@ function render(d){
   else{
     h+='<div class="table-scroll"><table><thead><tr>'+
       '<th>Status</th><th>Wer</th><th>Plattform</th><th>Piloten</th>'+
-      '<th>Online</th><th>Flugpläne</th><th>TS</th><th>Events</th>'+
+      '<th>Piloten</th><th>Flugpläne</th><th>Lotsen</th><th>Schichten</th><th>TS</th><th>Events</th>'+
       '<th>angelegt</th><th>letzte OK</th><th>letzter Fehler</th></tr></thead><tbody>';
     for(const s of d.subscriptions){
       const who=s.owner_name?esc(s.owner_name):'<span class="muted">anonym</span>';
       const flt=s.pilot_filter.length?esc(s.pilot_filter.join(', ')):'<span class="muted">alle</span>';
       const fail=s.last_fail_at?ago(s.last_fail_at)+(s.last_status?' ('+esc(s.last_status)+')':''):'';
       h+=`<tr><td>${health(s.health)}</td><td>${who}</td><td>${esc(s.platform)}</td><td>${flt}</td>`+
-         `<td>${b(true)}</td><td>${b(s.notify_prefiles)}</td><td>${b(s.notify_ts)}</td><td>${b(s.notify_events)}</td>`+
+         `<td>${b(s.notify_online_piloten)}</td><td>${b(s.notify_prefiles)}</td><td>${b(s.notify_online_lotsen)}</td>`+
+         `<td>${b(s.notify_lotsenschicht)}</td><td>${b(s.notify_ts)}</td><td>${b(s.notify_events)}</td>`+
          `<td class="muted">${ago(s.created_at)}</td>`+
          `<td class="muted">${ago(s.last_ok_at)}</td><td class="muted">${fail}</td></tr>`;
     }
@@ -6258,6 +6268,9 @@ async def admin_push_overview(request: Request):
             "notify_prefiles": bool(s.get("notify_prefiles")),
             "notify_ts": bool(s.get("notify_ts")),
             "notify_events": bool(s.get("notify_events")),
+            "notify_online_piloten": bool(s.get("notify_online_piloten")),
+            "notify_online_lotsen": bool(s.get("notify_online_lotsen")),
+            "notify_lotsenschicht": bool(s.get("notify_lotsenschicht")),
             "created_at": s.get("created_at"),
             "last_ok_at": s.get("last_ok_at"),
             "last_fail_at": s.get("last_fail_at"),
@@ -6275,6 +6288,9 @@ async def admin_push_overview(request: Request):
         "will_prefiles": sum(1 for s in out_subs if s["notify_prefiles"]),
         "will_ts": sum(1 for s in out_subs if s["notify_ts"]),
         "will_events": sum(1 for s in out_subs if s["notify_events"]),
+        "will_online_piloten": sum(1 for s in out_subs if s["notify_online_piloten"]),
+        "will_online_lotsen": sum(1 for s in out_subs if s["notify_online_lotsen"]),
+        "will_lotsenschicht": sum(1 for s in out_subs if s["notify_lotsenschicht"]),
         "health_ok": sum(1 for s in out_subs if s["health"] == "ok"),
         "health_fail": sum(1 for s in out_subs if s["health"] == "fail"),
         "health_unknown": sum(1 for s in out_subs if s["health"] == "unknown"),

@@ -29,7 +29,7 @@ def _poller(pfad):
     p = VatsimPoller(db_path=pfad, callsign_prefix="FRS", poll_interval=60)
     p.gesendet = []       # (dienst, cid, payload) aus dem Kniebrett-Kanal
     p.push = []           # (art, ...) statt echtem Web-Push
-    p.broadcast_notify = lambda dienst, cid, payload, nur_cid=None: p.gesendet.append((dienst, cid, payload))
+    p.broadcast_notify = lambda dienst, cid, payload, nur_cid=None, art=None: p.gesendet.append((dienst, cid, payload))
 
     async def _push_online(lotse, payload):
         p.push.append(("online", lotse["cid"], payload))

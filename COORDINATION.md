@@ -6,6 +6,16 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-14 — 16.6.0 ist vergeben: getrennte Benachrichtigungen für Piloten und Lotsen
+
+Neue Spalten `notify_online_piloten`, `notify_online_lotsen`, `notify_lotsenschicht` in
+`push_subscriptions`; neue Abfragen `get_push_subscriptions_fuer_lotse_online` und
+`..._fuer_lotsenschicht`. `broadcast_notify` hat ein neues Schlüsselwort `art` -- wer es in
+Tests durch ein `lambda` ersetzt, nimmt `art=None` (oder `**kw`) mit auf. **Der
+Deichkontrolle-Zweig nimmt beim Rebase die nächste freie Nummer.**
+
+---
+
 ## 2026-10-12 — 16.5.0 ist vergeben: Hinweis nach dem Flug bei fehlendem oder altem Paket
 
 Neues Modul `app/paket_hinweis.py`, Tabelle `paket_hinweis`, Endpunkte `/api/me/paket-hinweis`

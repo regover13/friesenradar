@@ -92,7 +92,7 @@ def test_broadcast_notify_legt_vollstaendiges_ereignis_ab(env):
                                            "body": "EDWG → EDXP", "url": "/"})
     ereignis = q.get_nowait()
     assert ereignis == {
-        "type": "notify", "service": "online", "subject_cid": SUBJEKT,
+        "type": "notify", "service": "online", "art": "online", "subject_cid": SUBJEKT,
         "title": "FRS61 ist online! ✈", "body": "EDWG → EDXP", "url": "/",
     }
 

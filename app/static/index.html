@@ -13,6 +13,7 @@
     var UMZUG_ALT = ['friesenspy.devprops.de', 'friesenradar.devprops.de'];
     var UMZUG_NEU = 'radar.friesenflieger.de';
     var UMZUG_SPEICHER = ['notif_prefiles', 'notif_ts', 'notif_events',
+                          'notif_online_piloten', 'notif_online_lotsen', 'notif_lotsenschicht',
                           'notif_pilot_filter', 'fs_changelog_seen'];
 
     /** 'umleiten' | 'hinweis' (App vom Startbildschirm: sie haengt an ihrer Adresse) | 'bleiben' */
@@ -4990,10 +4991,16 @@
     <div id="panel-notif" hidden>
       <div class="panel-abschnitt-titel">Benachrichtigungen</div>
       <button type="button" class="panel-notif-schalter" id="panel-notif-online" data-art="online">
-        <span class="panel-notif-kasten">[ ]</span> Wenn jemand online geht
+        <span class="panel-notif-kasten">[ ]</span> Wenn ein Pilot online geht
       </button>
       <button type="button" class="panel-notif-schalter" id="panel-notif-prefile" data-art="prefile">
-        <span class="panel-notif-kasten">[ ]</span> Bei eingereichten Flugplänen
+        <span class="panel-notif-kasten">[ ]</span> Wenn ein Pilot einen Flugplan einreicht
+      </button>
+      <button type="button" class="panel-notif-schalter" id="panel-notif-lotse_online" data-art="lotse_online">
+        <span class="panel-notif-kasten">[ ]</span> Wenn ein Lotse online geht
+      </button>
+      <button type="button" class="panel-notif-schalter" id="panel-notif-lotse_schicht" data-art="lotse_schicht">
+        <span class="panel-notif-kasten">[ ]</span> Gebuchte Lotsenschichten
       </button>
       <button type="button" class="panel-notif-schalter" id="panel-notif-ts" data-art="ts">
         <span class="panel-notif-kasten">[ ]</span> <svg class="icon"><use href="#icon-headset" xlink:href="#icon-headset"/></svg> Bei TeamSpeak-Beitritt
@@ -5007,11 +5014,20 @@
     </div>
     <div class="panel-abschnitt-titel" id="notif-web-titel">Benachrichtigungen</div>
     <label class="notif-toggle-row" id="notif-enabled-row">
-      <input type="checkbox" id="notif-enabled"> Beim Online-gehen benachrichtigen (Piloten und Lotsen)
+      <input type="checkbox" id="notif-enabled"> Benachrichtigungen auf diesem Gerät
     </label>
     <div id="notif-filter" class="notif-filter-section" hidden>
       <label class="notif-toggle-row">
-        <input type="checkbox" id="notif-prefiles" checked> Auch bei Geplantem (Flugpläne und Lotsenschichten)
+        <input type="checkbox" id="notif-online-piloten" checked> Wenn ein Pilot online geht
+      </label>
+      <label class="notif-toggle-row" style="margin-top:8px;">
+        <input type="checkbox" id="notif-prefiles" checked> Wenn ein Pilot einen Flugplan einreicht
+      </label>
+      <label class="notif-toggle-row" style="margin-top:8px;">
+        <input type="checkbox" id="notif-online-lotsen" checked> Wenn ein Lotse online geht
+      </label>
+      <label class="notif-toggle-row" style="margin-top:8px;">
+        <input type="checkbox" id="notif-lotsenschicht" checked> Gebuchte Lotsenschichten (morgens um 7 und bei später Buchung)
       </label>
       <label class="notif-toggle-row" style="margin-top:8px;">
         <input type="checkbox" id="notif-ts"> <svg class="icon"><use href="#icon-headset" xlink:href="#icon-headset"/></svg> Bei TeamSpeak-Beitritt benachrichtigen
@@ -5019,7 +5035,7 @@
       <label class="notif-toggle-row" style="margin-top:8px;">
         <input type="checkbox" id="notif-events"> <svg class="icon"><use href="#icon-calendar" xlink:href="#icon-calendar"/></svg> Events (Erinnerung ~1 h vorher + Bummel-Start/Ergebnis)
       </label>
-      <div class="notif-filter-title" style="margin-top:12px;">Benachrichtigen wenn (gilt für Online, Geplantes &amp; TeamSpeak):</div>
+      <div class="notif-filter-title" style="margin-top:12px;">Benachrichtigen wenn (gilt für Piloten, Lotsen &amp; TeamSpeak):</div>
       <div class="notif-radio-row">
         <label><input type="radio" name="notif-filter-mode" value="all" checked> Alle Friesen</label>
         <label><input type="radio" name="notif-filter-mode" value="select"> Nur bestimmte Piloten</label>
@@ -8930,6 +8946,17 @@ function _showNotifPanelContent() {
   if (prefilesCb) {
     prefilesCb.checked = localStorage.getItem('notif_prefiles') !== '0';   // Default: an
   }
+  // Getrennte Schalter seit 16.6.0. Ohne eigenen Eintrag gilt, was vorher galt: Online kam
+  // fuer Piloten UND Lotsen, die Lotsenschichten hingen am Flugplan-Schalter.
+  const pilotenCb = document.getElementById('notif-online-piloten');
+  if (pilotenCb) pilotenCb.checked = localStorage.getItem('notif_online_piloten') !== '0';
+  const lotsenCb = document.getElementById('notif-online-lotsen');
+  if (lotsenCb) lotsenCb.checked = localStorage.getItem('notif_online_lotsen') !== '0';
+  const schichtCb = document.getElementById('notif-lotsenschicht');
+  if (schichtCb) {
+    const eigen = localStorage.getItem('notif_lotsenschicht');
+    schichtCb.checked = (eigen === null ? localStorage.getItem('notif_prefiles') : eigen) !== '0';
+  }
   const tsCb = document.getElementById('notif-ts');
   if (tsCb) {
     tsCb.checked = localStorage.getItem('notif_ts') !== '0';   // Default: an
@@ -9040,6 +9067,12 @@ async function _saveNotifFilter() {
   localStorage.setItem('notif_ts', notifyTs ? '1' : '0');
   const notifyEvents = (document.getElementById('notif-events') || {}).checked || false;
   localStorage.setItem('notif_events', notifyEvents ? '1' : '0');
+  const schalter = {};
+  [['notif-online-piloten', 'notif_online_piloten'], ['notif-online-lotsen', 'notif_online_lotsen'],
+   ['notif-lotsenschicht', 'notif_lotsenschicht']].forEach(function (p) {
+    schalter[p[1]] = (document.getElementById(p[0]) || {}).checked || false;
+    localStorage.setItem(p[1], schalter[p[1]] ? '1' : '0');
+  });
   await fetch('/api/push/subscribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -9051,6 +9084,9 @@ async function _saveNotifFilter() {
       notify_prefiles: notifyPrefiles,
       notify_ts: notifyTs,
       notify_events: notifyEvents,
+      notify_online_piloten: schalter.notif_online_piloten,
+      notify_online_lotsen: schalter.notif_online_lotsen,
+      notify_lotsenschicht: schalter.notif_lotsenschicht,
     }),
   });
   const saveBtn = document.getElementById('notif-save-btn');
@@ -10198,7 +10234,10 @@ function _initPanelTranslit() {
 // app/database.py) -- hier wird nur noch nach Geschmack gefiltert.
 
 const _PANEL_NOTIFY_KEY = 'friesenspy_panel_notify';
-const _PANEL_NOTIFY_ARTEN = ['online', 'prefile', 'ts', 'events'];
+const _PANEL_NOTIFY_ARTEN = ['online', 'prefile', 'lotse_online', 'lotse_schicht', 'ts', 'events'];
+// Die Lotsen-Schalter kamen mit 16.6.0. Bis dahin hingen sie an „online“ und „prefile“ --
+// ohne eigenen Eintrag gilt deshalb, was dort gespeichert ist.
+const _PANEL_NOTIFY_ERBE = { lotse_online: 'online', lotse_schicht: 'prefile' };
 // Ob die EFB-Shell unsere Nachrichten ANNIMMT: null = noch nicht geklaert, true/false = gemessen.
 let _panelShellDa = null;
 // Ob die EFB-Shell eine Meldung auch wirklich ANZEIGT. Zwei getrennte Fragen -- im ersten
@@ -10213,7 +10252,12 @@ function _panelNotifyEinstellung() {
   for (let i = 0; i < _PANEL_NOTIFY_ARTEN.length; i++) {
     const art = _PANEL_NOTIFY_ARTEN[i];
     let wert = null;
-    try { wert = localStorage.getItem(_PANEL_NOTIFY_KEY + '_' + art); } catch (_) { }
+    try {
+      wert = localStorage.getItem(_PANEL_NOTIFY_KEY + '_' + art);
+      if (wert === null && _PANEL_NOTIFY_ERBE[art]) {
+        wert = localStorage.getItem(_PANEL_NOTIFY_KEY + '_' + _PANEL_NOTIFY_ERBE[art]);
+      }
+    } catch (_) { }
     aus[art] = wert !== '0';                        // Vorgabe: alles an
   }
   return aus;
@@ -10267,7 +10311,7 @@ function _panelHinweisZeigen(titel, text) {
  */
 function _panelBenachrichtigung(msg) {
   if (!document.documentElement.classList.contains('vr-panel')) return;
-  const art = msg.service || '';
+  const art = msg.art || msg.service || '';
   if (_PANEL_NOTIFY_ARTEN.indexOf(art) < 0) return;
   if (!_panelNotifyEinstellung()[art]) return;
 

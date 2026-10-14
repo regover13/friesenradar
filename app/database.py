@@ -1150,6 +1150,13 @@ _PUSH_MIGRATIONS = [
     # herkunft: ueber welche Adresse das Abo eingeschaltet wurde (Umzug auf
     # friesenradar.devprops.de, 04.10.2026). NULL = Bestand von vor dem Umzug, also die aelteste.
     "ALTER TABLE push_subscriptions ADD COLUMN herkunft TEXT",
+    # Getrennte Schalter (Forum, 13.10.2026): Bis dahin bekam jedes Abo Piloten UND Lotsen,
+    # sobald es bestand, und „Geplant“ galt für Flugpläne UND Lotsenschichten. Die Vorgaben
+    # erhalten genau das: Online steht für alle auf an, und ``notify_lotsenschicht`` bleibt
+    # NULL und folgt damit ``notify_prefiles`` (s. ``_ABO_LOTSENSCHICHT``), bis jemand es setzt.
+    "ALTER TABLE push_subscriptions ADD COLUMN notify_online_piloten INTEGER DEFAULT 1",
+    "ALTER TABLE push_subscriptions ADD COLUMN notify_online_lotsen INTEGER DEFAULT 1",
+    "ALTER TABLE push_subscriptions ADD COLUMN notify_lotsenschicht INTEGER DEFAULT NULL",
 ]
 
 _AIP_CHARTS_MIGRATIONS = [
@@ -6545,7 +6552,10 @@ def get_push_overview(conn: sqlite3.Connection) -> list[dict]:
     """Alle Abos mit ihrer Auswahl + Zustellungs-Diagnose (für die Admin-Push-Übersicht)."""
     rows = conn.execute(
         "SELECT endpoint, owner_cid, pilot_filter, notify_prefiles, notify_ts, "
-        "notify_events, created_at, last_ok_at, last_fail_at, last_status "
+        "notify_events, created_at, last_ok_at, last_fail_at, last_status, "
+        "COALESCE(notify_online_piloten, 1) AS notify_online_piloten, "
+        "COALESCE(notify_online_lotsen, 1) AS notify_online_lotsen, "
+        "COALESCE(notify_lotsenschicht, notify_prefiles, 0) AS notify_lotsenschicht "
         "FROM push_subscriptions ORDER BY created_at"
     ).fetchall()
     return [dict(r) for r in rows]
@@ -7177,8 +7187,15 @@ def upsert_push_subscription(
     notify_events: bool = False,
     owner_cid: int | None = None,
     herkunft: str | None = None,
+    notify_online_piloten: bool | None = None,
+    notify_online_lotsen: bool | None = None,
+    notify_lotsenschicht: bool | None = None,
 ) -> None:
     """Browser-Push-Subscription speichern oder aktualisieren.
+
+    Die drei getrennten Schalter (seit 16.6.0) heißen ``None``, wenn die Seite sie nicht
+    mitschickt -- das tut eine noch geladene ältere Fassung. Dann bleibt der gespeicherte
+    Wert; bei einem neuen Abo gilt die Vorgabe (Online an, Lotsenschichten wie Flugpläne).
 
     ``herkunft`` ist die Adresse, ueber die eingeschaltet wurde; wie ``owner_cid`` ueberschreibt
     sie beim Konflikt nur, wenn sie nicht NULL ist.
@@ -7193,8 +7210,9 @@ def upsert_push_subscription(
     conn.execute(
         """INSERT INTO push_subscriptions
                (endpoint, p256dh, auth, pilot_filter, notify_prefiles,
-                notify_ts, notify_events, owner_cid, herkunft, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                notify_ts, notify_events, owner_cid, herkunft, created_at,
+                notify_online_piloten, notify_online_lotsen, notify_lotsenschicht)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 1), COALESCE(?, 1), ?)
            ON CONFLICT(endpoint) DO UPDATE SET
                p256dh=excluded.p256dh,
                auth=excluded.auth,
@@ -7204,7 +7222,13 @@ def upsert_push_subscription(
                notify_events=excluded.notify_events,
                owner_cid=COALESCE(excluded.owner_cid, push_subscriptions.owner_cid),
                herkunft=COALESCE(excluded.herkunft, push_subscriptions.herkunft),
-               created_at=excluded.created_at""",
+               created_at=excluded.created_at,
+               notify_online_piloten=CASE WHEN ? IS NULL
+                   THEN push_subscriptions.notify_online_piloten ELSE excluded.notify_online_piloten END,
+               notify_online_lotsen=CASE WHEN ? IS NULL
+                   THEN push_subscriptions.notify_online_lotsen ELSE excluded.notify_online_lotsen END,
+               notify_lotsenschicht=CASE WHEN ? IS NULL
+                   THEN push_subscriptions.notify_lotsenschicht ELSE excluded.notify_lotsenschicht END""",
         (
             endpoint, p256dh, auth,
             json.dumps(pilot_filter) if pilot_filter is not None else None,
@@ -7214,8 +7238,14 @@ def upsert_push_subscription(
             owner_cid,
             herkunft,
             _now_utc(),
+            *(_schalter(notify_online_piloten), _schalter(notify_online_lotsen),
+              _schalter(notify_lotsenschicht)) * 2,
         ),
     )
+
+
+def _schalter(wert: bool | None) -> int | None:
+    return None if wert is None else (1 if wert else 0)
 
 
 def set_push_subscription_owner(conn: sqlite3.Connection, endpoint: str, owner_cid: int) -> None:
@@ -11958,17 +11988,40 @@ def apply_bummel_overrides(standings: dict, overrides: list[dict]) -> dict:
     return result
 
 
+#: Lotsenschichten ohne eigene Angabe folgen dem Flugplan-Schalter -- so galt „Geplant“ bis 16.5.x.
+_ABO_LOTSENSCHICHT = "COALESCE(notify_lotsenschicht, notify_prefiles, 0) = 1"
+
+
+def _abos_fuer(conn: sqlite3.Connection, cid: int, bedingung: str) -> list[dict]:
+    """Abos, deren Schalter ``bedingung`` erfüllt und deren Pilotenauswahl ``cid`` einschließt."""
+    rows = conn.execute(
+        "SELECT endpoint, p256dh, auth, pilot_filter, notify_prefiles, owner_cid "
+        f"FROM push_subscriptions WHERE {bedingung}"
+    ).fetchall()
+    return _nach_pilotenauswahl(rows, cid)
+
+
+def get_push_subscriptions_fuer_lotse_online(conn: sqlite3.Connection, cid: int) -> list[dict]:
+    """Abos, die wissen wollen, wenn dieser Friese als Lotse online geht."""
+    return _abos_fuer(conn, cid, "COALESCE(notify_online_lotsen, 1) = 1")
+
+
+def get_push_subscriptions_fuer_lotsenschicht(conn: sqlite3.Connection, cid: int) -> list[dict]:
+    """Abos für gebuchte Schichten dieses Lotsen (Morgenmeldung und späte Buchung)."""
+    return _abos_fuer(conn, cid, _ABO_LOTSENSCHICHT)
+
+
 def get_push_subscriptions_for_pilot(
     conn: sqlite3.Connection, cid: int
 ) -> list[dict]:
-    """Alle Subscriptions die Notifications für diesen Piloten wollen.
+    """Abos, die wissen wollen, wenn dieser Pilot online geht.
 
     Gibt Subscriptions zurück wenn pilot_filter IS NULL (alle) oder cid in der Filter-Liste.
     """
-    rows = conn.execute(
-        "SELECT endpoint, p256dh, auth, pilot_filter, notify_prefiles, owner_cid "
-        "FROM push_subscriptions"
-    ).fetchall()
+    return _abos_fuer(conn, cid, "COALESCE(notify_online_piloten, 1) = 1")
+
+
+def _nach_pilotenauswahl(rows, cid: int) -> list[dict]:
     result = []
     for row in rows:
         pf = row["pilot_filter"]
@@ -11990,22 +12043,7 @@ def get_push_subscriptions_for_prefile(
 
     Wie get_push_subscriptions_for_pilot, aber zusätzlich notify_prefiles = 1.
     """
-    rows = conn.execute(
-        "SELECT endpoint, p256dh, auth, pilot_filter, notify_prefiles, owner_cid "
-        "FROM push_subscriptions WHERE notify_prefiles = 1"
-    ).fetchall()
-    result = []
-    for row in rows:
-        pf = row["pilot_filter"]
-        if pf is None:
-            result.append(dict(row))
-        else:
-            try:
-                if cid in json.loads(pf):
-                    result.append(dict(row))
-            except (json.JSONDecodeError, TypeError):
-                result.append(dict(row))
-    return result
+    return _abos_fuer(conn, cid, "notify_prefiles = 1")
 
 
 def get_push_subscriptions_for_events(conn: sqlite3.Connection) -> list[dict]:

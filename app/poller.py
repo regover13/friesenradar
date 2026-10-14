@@ -37,6 +37,8 @@ from app.database import (
     get_live_positions,
     get_push_subscriptions_for_pilot,
     get_push_subscriptions_for_prefile,
+    get_push_subscriptions_fuer_lotse_online,
+    get_push_subscriptions_fuer_lotsenschicht,
     get_uncached_statsim_ids,
     statsim_track_leer_merken,
     cid_for_callsign_authoritative,
@@ -1318,7 +1320,7 @@ class VatsimPoller:
         })
 
     def broadcast_notify(self, service: str, subject_cid: int | None, payload: dict,
-                         nur_cid: int | None = None) -> None:
+                         nur_cid: int | None = None, art: str | None = None) -> None:
         """Eine Benachrichtigung in den SSE-Strom legen (Anzeigefläche: MSFS-Kniebrett).
 
         ``service`` ∈ {'online','prefile','ts','events'} — dieselben Namen wie in
@@ -1333,10 +1335,15 @@ class VatsimPoller:
         ``nur_cid`` schränkt die Zustellung auf eine einzige CID ein (Test-Meldung aus dem
         Admin: die soll niemanden sonst im Cockpit erreichen). Das Feld wird vom Endpoint vor
         dem Senden entfernt.
+
+        ``art`` ist das, wonach das Kniebrett filtert. Es weicht vom ``service`` nur bei den
+        Lotsen ab (``lotse_online``, ``lotse_schicht``): Für die Sichtbarkeit bleibt ein Lotse
+        „online“ bzw. „prefile“, abwählen lässt er sich seit 16.6.0 aber getrennt.
         """
         nachricht = {
             "type": "notify",
             "service": service,
+            "art": art or service,
             "subject_cid": subject_cid,
             "title": payload.get("title", ""),
             "body": payload.get("body", ""),
@@ -2183,7 +2190,7 @@ class VatsimPoller:
                     continue
                 self._lotsen_last_notified[l["cid"]] = jetzt
                 payload = lotsen.payload_lotse_online(l["name"], l)
-                self.broadcast_notify("online", l["cid"], payload)
+                self.broadcast_notify("online", l["cid"], payload, art="lotse_online")
                 if self.vapid_private_key:
                     asyncio.create_task(self._lotse_push_online(l, payload))
         except Exception:
@@ -2268,7 +2275,8 @@ class VatsimPoller:
             # Im Kniebrett je Schicht eine Meldung: Der Kanal dort kennt genau eine Person
             # je Meldung (Sichtbarkeit), eine Sammelmeldung ließe sich nicht filtern.
             for b in plan["morgen"] + plan["spaet"]:
-                self.broadcast_notify("prefile", b["cid"], lotsen.payload_lotse_spaet(b.get("name", ""), b))
+                self.broadcast_notify("prefile", b["cid"], lotsen.payload_lotse_spaet(b.get("name", ""), b),
+                                      art="lotse_schicht")
             if plan["morgen"]:
                 await self._lotsen_push_morgen(plan["morgen"])
             for b in plan["spaet"]:
@@ -2313,7 +2321,7 @@ class VatsimPoller:
         conn = get_connection(self.db_path)
         try:
             empfaenger = visible_recipients(
-                conn, lotse["cid"], get_push_subscriptions_for_pilot(conn, lotse["cid"]), "online")
+                conn, lotse["cid"], get_push_subscriptions_fuer_lotse_online(conn, lotse["cid"]), "online")
         finally:
             conn.close()
         await send_web_push(self.vapid_private_key, self.vapid_contact_email, self.db_path,
@@ -2325,7 +2333,7 @@ class VatsimPoller:
         conn = get_connection(self.db_path)
         try:
             empfaenger = visible_recipients(
-                conn, buchung["cid"], get_push_subscriptions_for_prefile(conn, buchung["cid"]), "prefile")
+                conn, buchung["cid"], get_push_subscriptions_fuer_lotsenschicht(conn, buchung["cid"]), "prefile")
         finally:
             conn.close()
         await send_web_push(self.vapid_private_key, self.vapid_contact_email, self.db_path,
@@ -2342,7 +2350,7 @@ class VatsimPoller:
         try:
             for b in buchungen:
                 for sub in visible_recipients(
-                        conn, b["cid"], get_push_subscriptions_for_prefile(conn, b["cid"]), "prefile"):
+                        conn, b["cid"], get_push_subscriptions_fuer_lotsenschicht(conn, b["cid"]), "prefile"):
                     je_empfaenger.setdefault(sub["endpoint"], (sub, []))[1].append(b)
         finally:
             conn.close()

@@ -190,3 +190,24 @@ def test_page_404_when_disabled(db):
     with pytest.raises(HTTPException) as ei:
         asyncio.run(main.admin_push_overview_page(FakeReq()))
     assert ei.value.status_code == 404
+
+
+def test_die_getrennten_schalter_stehen_in_der_uebersicht(db):
+    """Seit 16.6.0: Piloten online, Lotsen online und Lotsenschichten einzeln. Die Schichten
+    folgen ohne eigene Angabe dem Flugplan-Schalter -- die Übersicht zeigt, was wirklich gilt."""
+    _seed(db)
+    conn = get_connection(db)
+    upsert_push_subscription(conn, "https://fcm.googleapis.com/fcm/send/ABC", "p", "a",
+                             pilot_filter=[12345], notify_prefiles=True, owner_cid=12345,
+                             notify_online_piloten=False)
+    conn.commit()
+    conn.close()
+    d = asyncio.run(main.admin_push_overview(FakeReq(headers={"x-overview-pass": DIAG_PW})))
+    s = {x["platform"]: x for x in d["subscriptions"]}
+    chrome, firefox = s["Chrome / Android"], s["Firefox"]
+    assert (chrome["notify_online_piloten"], chrome["notify_online_lotsen"],
+            chrome["notify_lotsenschicht"]) == (False, True, True)
+    assert (firefox["notify_online_piloten"], firefox["notify_online_lotsen"],
+            firefox["notify_lotsenschicht"]) == (True, True, False)
+    t = d["totals"]
+    assert (t["will_online_piloten"], t["will_online_lotsen"], t["will_lotsenschicht"]) == (1, 2, 1)

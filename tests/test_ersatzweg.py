@@ -71,7 +71,7 @@ def _poller(pfad, welt):
     p._http_client = object()
     p._now = lambda: JETZT
     p.gesendet = []
-    p.broadcast_notify = lambda dienst, cid, payload, nur_cid=None: p.gesendet.append((dienst, cid))
+    p.broadcast_notify = lambda dienst, cid, payload, nur_cid=None, art=None: p.gesendet.append((dienst, cid))
     return p
 
 

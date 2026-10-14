@@ -1,5 +1,17 @@
 [
   {
+    "version": "16.6.0",
+    "date": "2026-10-14",
+    "highlight": false,
+    "title": "Benachrichtigungen für Piloten und Lotsen getrennt",
+    "items": [
+      "🔔 Der oberste Schalter heißt jetzt „Benachrichtigungen auf diesem Gerät“. Er war schon immer der Hauptschalter, hieß aber „Beim Online-gehen“ und schaltete beim Abwählen alles ab.",
+      "🔔 Darunter stehen vier eigene Schalter: wenn ein Pilot online geht, wenn ein Pilot einen Flugplan einreicht, wenn ein Lotse online geht, gebuchte Lotsenschichten. Wer nur Lotsen und Events will, wählt die Piloten ab.",
+      "🛩️ Im Kniebrett gibt es dieselben vier Schalter.",
+      "🔔 Wer schon Benachrichtigungen bekommt, bekommt weiter dasselbe, bis er umstellt."
+    ]
+  },
+  {
     "version": "16.5.2",
     "date": "2026-10-13",
     "highlight": false,
