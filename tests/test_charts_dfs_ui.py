@@ -89,7 +89,9 @@ def test_status_pruefen_zeigt_das_neue_blatt_mit_den_alten_klickpunkten():
     (Spec 5.4) -- die Maske zeigt beide Wege, uebernehmen und verwerfen."""
     stelle = ADMIN_RUMPF.index("async function dfsPruefenZeigen(")
     block = ADMIN_RUMPF[stelle:stelle + 1500]
-    assert "roh.png" in block
+    # Bis 16.8.1 stand hier ``"roh.png" in block`` -- das bestätigte genau die Adresse,
+    # unter der die Route 404 lieferte (tests/test_charts_dfs_api.py, Prüfdialog).
+    assert ".png?neu=1&t=" in block and ".roh.png" not in block
     assert "dfs-uebernehmen-btn" in block and "dfs-verwerfen-btn" in block
 
 
