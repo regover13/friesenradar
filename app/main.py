@@ -8319,7 +8319,7 @@ def _dfs_blatt_normalisieren(icao: str, sorte: str) -> str:
 
 
 @app.get("/aip-chart-roh/{icao}/{sorte}.png", include_in_schema=False)
-async def aip_chart_roh(icao: str, sorte: str, request: Request):
+async def aip_chart_roh(icao: str, sorte: str, request: Request, neu: int = 0):
     """Das UNGEDREHTE Blatt -- darauf klickt der Admin seine zwei Punkte.
 
     **Mit require_admin.** Die alte Ground-Route dieses Zwecks
@@ -8337,10 +8337,30 @@ async def aip_chart_roh(icao: str, sorte: str, request: Request):
         raise HTTPException(status_code=404, detail="unbekannt")
     code = (icao or "").strip().upper()
     pfad = _dfs_blatt_pfad(get_settings().DB_PATH, code, sorte, "roh")
+    if neu:
+        # Das neue DFS-Blatt einer Karte in Pruefung -- dafuer gibt es den Pruefdialog und
+        # das Neu-Passen. Bis 16.8.1 bekam der Dialog hier 404 und zeigte gar nichts.
+        pfad = _dfs_neues_blatt(code, sorte)
+        if pfad is None:
+            raise HTTPException(status_code=404, detail="keine offene Pruefung")
     if not pfad.is_file():
         raise HTTPException(status_code=404, detail="unbekannt")
     return FileResponse(pfad, media_type="image/png",
                         headers={"Cache-Control": "private, max-age=3600"})
+
+
+def _dfs_neues_blatt(code: str, sorte: str) -> Path | None:
+    """Pfad des neuen Blatts, solange die Karte auf 'pruefen' steht, sonst None."""
+    einst = get_settings()
+    conn = get_connection(einst.DB_PATH)
+    try:
+        z = get_chart_dfs(conn, code, sorte)
+    finally:
+        conn.close()
+    if z is None or z["status"] != "pruefen":
+        return None
+    return _dfs_blatt_pfad(einst.DB_PATH, code, sorte,
+                           f"neu.{(z['gesehener_hash'] or '')[:12]}")
 
 
 _AIP_UA = {"User-Agent": "FriesenRadar/AIP-Kartenabgleich (+https://friesenradar.devprops.de)"}
@@ -8614,9 +8634,18 @@ async def admin_dfs_passen(icao: str, sorte: str, request: Request):
 
         einst = get_settings()
         roh_pfad = _dfs_blatt_pfad(einst.DB_PATH, code, sorte, "roh")
-        if not roh_pfad.is_file():
+        # Steht die Karte auf 'pruefen', wird auf dem NEUEN Blatt gepasst ("Neu passen" im
+        # Pruefdialog). Bis 16.8.1 nahm das hier das alte Rohblatt, setzte 'gepasst', und
+        # das neue Blatt blieb ungenutzt liegen.
+        neu_pfad = _dfs_neues_blatt(code, sorte)
+        if neu_pfad is not None and neu_pfad.is_file():
+            roh_pfad_quelle = neu_pfad
+        else:
+            neu_pfad = None
+            roh_pfad_quelle = roh_pfad
+        if not roh_pfad_quelle.is_file():
             raise HTTPException(status_code=409, detail="kein Blatt fuer diesen Platz")
-        roh = roh_pfad.read_bytes()
+        roh = roh_pfad_quelle.read_bytes()
         passung = ground_charts.handpassung(p1_px, p1_geo, p2_px, p2_geo)
         if passung is None:
             raise HTTPException(status_code=422,
@@ -8632,6 +8661,9 @@ async def admin_dfs_passen(icao: str, sorte: str, request: Request):
             raise HTTPException(status_code=422, detail="Blatt liess sich nicht drehen")
         bild, g = genordet
         aip_charts.blatt_schreiben(_dfs_blatt_pfad(einst.DB_PATH, code, sorte), bild)
+        if neu_pfad is not None:
+            aip_charts.blatt_schreiben(roh_pfad, roh)   # das neue Blatt ist jetzt das gueltige
+            neu_pfad.unlink(missing_ok=True)
         conn = get_connection(einst.DB_PATH)
         try:
             upsert_chart_dfs(

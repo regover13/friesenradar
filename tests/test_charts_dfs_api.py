@@ -568,3 +568,67 @@ def test_die_passhilfe_braucht_anmeldung(client):
 def test_die_passhilfe_lehnt_eine_unbekannte_sorte_ab(client):
     c, _db, _tmp = client
     assert c.get("/api/admin/aip-charts-dfs/EDDL/unfug/passhilfe").status_code == 404
+
+
+# --------------------------------------------------------------- Pruefdialog (14.10.2026)
+def _in_pruefung(db, tmp, icao="EDDL", sorte="flugplatzkarte"):
+    """Karte gepasst, dann neues DFS-Blatt gefunden: altes Rohblatt 2200 breit, neues 2400."""
+    _rohblatt(tmp / "aip_dfs" / f"{icao}.{sorte}.roh.png", 2200, 1000)
+    _rohblatt(tmp / "aip_dfs" / f"{icao}.{sorte}.neu.{'n' * 12}.png", 2400, 1000)
+    conn = get_connection(db)
+    try:
+        upsert_chart_dfs(conn, icao, sorte, status="gepasst", **LAGE)
+        upsert_chart_dfs(conn, icao, sorte, status="pruefen",
+                         status_vorher="gepasst", gesehener_hash="n" * 64)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _breite(antwort) -> int:
+    import io
+    return Image.open(io.BytesIO(antwort.content)).size[0]
+
+
+def test_der_pruefdialog_bekommt_das_neue_blatt(client):
+    """Der Nutzer, 14.10.2026: „prüfen funktioniert nicht richtig“. Der Dialog rief
+    ``…/sichtflug.roh.png`` auf, die Route liest daraus die Sorte „sichtflug.roh“ -- 404.
+    Und selbst richtig adressiert hätte sie das ALTE Blatt geliefert."""
+    c, db, tmp = client
+    _in_pruefung(db, tmp)
+    r = c.get("/aip-chart-roh/EDDL/flugplatzkarte.png?neu=1")
+    assert r.status_code == 200 and _breite(r) == 2400
+    assert _breite(c.get("/aip-chart-roh/EDDL/flugplatzkarte.png")) == 2200
+
+
+def test_ohne_offene_pruefung_gibt_es_kein_neues_blatt(client):
+    c, db, tmp = client
+    _rohblatt(tmp / "aip_dfs" / "EDDL.flugplatzkarte.roh.png", 2200, 1000)
+    _karte(db, "EDDL", "flugplatzkarte")
+    assert c.get("/aip-chart-roh/EDDL/flugplatzkarte.png?neu=1").status_code == 404
+
+
+def test_neu_passen_in_pruefung_nimmt_das_neue_blatt(client):
+    c, db, tmp = client
+    _in_pruefung(db, tmp)
+    antwort = c.post("/api/admin/aip-charts-dfs/EDDL/flugplatzkarte", json={
+        "p1_x": 200, "p1_y": 500, "p1_lat": S_05R[0], "p1_lon": S_05R[1],
+        "p2_x": 1970, "p2_y": 500, "p2_lat": S_23L[0], "p2_lon": S_23L[1],
+    })
+    assert antwort.status_code == 200
+    assert _breite(c.get("/aip-chart-roh/EDDL/flugplatzkarte.png")) == 2400
+    assert not (tmp / "aip_dfs" / f"EDDL.flugplatzkarte.neu.{'n' * 12}.png").exists()
+    conn = get_connection(db)
+    try:
+        assert get_chart_dfs(conn, "EDDL", "flugplatzkarte")["status"] == "gepasst"
+    finally:
+        conn.close()
+
+
+def test_der_pruefdialog_adressiert_die_route_richtig():
+    import pathlib
+    admin = pathlib.Path(__file__).resolve().parents[1].joinpath("app/static/admin.html").read_text("utf-8")
+    rumpf = admin[admin.index("async function dfsPruefenZeigen"):admin.index("function _dfsPruefenMarken")]
+    assert ".roh.png" not in rumpf
+    assert "'.png?neu=1&t='" in rumpf
+    assert "_dfsPruefenMarken(img, zeile)" in rumpf

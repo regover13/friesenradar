@@ -7,7 +7,8 @@
     "items": [
       "🔔 In der Lotsenauswahl der Benachrichtigungen stehen jetzt alle Friesen: oben, wer schon gelotst hat, darunter durch einen Strich getrennt alle übrigen. Bisher fehlte, wer seit dem Update noch nicht gelotst hatte.",
       "🎧 Wer seinen Namen bei VATSIM verbirgt, erscheint als Lotse nicht mehr mit seiner Nummer, sondern mit seinem Namen aus dem Forum oder seinem Rufzeichen.",
-      "🗺️ Hat die DFS ein neues Blatt einer Sichtflug-, Flugplatz- oder Rollkarte veröffentlicht, bleibt das bisherige Blatt auf der Karte, bis es geprüft ist. Bisher verschwand es so lange, so etwa die Sichtflugkarte von Bremen seit dem 1. Oktober."
+      "🗺️ Hat die DFS ein neues Blatt einer Sichtflug-, Flugplatz- oder Rollkarte veröffentlicht, bleibt das bisherige Blatt auf der Karte, bis es geprüft ist. Bisher verschwand es so lange, so etwa die Sichtflugkarte von Bremen seit dem 1. Oktober.",
+      "🗺️ Verwaltung: Der Prüfdialog für neue DFS-Blätter zeigt jetzt wirklich das neue Blatt, mit den bisherigen Passpunkten als Kreuze darauf. Bisher blieb er leer. „Neu passen“ passt dort auf dem neuen Blatt statt auf dem alten."
     ]
   },
   {

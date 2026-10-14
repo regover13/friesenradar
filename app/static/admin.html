@@ -6435,8 +6435,11 @@
       document.getElementById('dfs-passen').style.display = '';
       document.getElementById('dfs-seiten').style.display = 'none';
       const img = document.getElementById('dfs-blatt');
+      const _eintrag = _dfsAlle.find(k => k.icao === icao && k.sorte === sorte) || {};
+      // Steht die Karte auf 'pruefen', wird auf dem NEUEN Blatt gepasst (der Server nimmt
+      // dann ebenfalls das neue).
       img.src = '/aip-chart-roh/' + encodeURIComponent(icao) + '/' + encodeURIComponent(sorte)
-        + '.png?t=' + Date.now();
+        + '.png?' + (_eintrag.status === 'pruefen' ? 'neu=1&' : '') + 't=' + Date.now();
       img.onload = function () { _dfsBlattZoom(0); };
       _dfsBlattZoom(0);
       const eintrag = _dfsAlle.find(k => k.icao === icao && k.sorte === sorte) || {};
@@ -6775,15 +6778,39 @@
         + _dfsSorteText(sorte) + ': neues Blatt bei der DFS</p>'
         + '<p style="color:#8aa0b8;font-size:0.82rem;">Stimmen Inhalt und Position noch? '
         + 'Die Markierungen zeigen die bisherigen Klickpunkte.</p>'
-        + '<div class="aip-blatt-box" style="max-width:600px;">'
+        + '<div class="aip-blatt-box" style="max-width:600px;position:relative;">'
         + '<img id="dfs-pruefen-blatt" style="max-width:100%;display:block;" '
         + 'src="/aip-chart-roh/' + encodeURIComponent(icao) + '/' + encodeURIComponent(sorte)
-        + '.roh.png?t=' + Date.now() + '"></div>'
+        + '.png?neu=1&t=' + Date.now() + '"></div>'
         + '<p style="margin-top:8px;">'
         + '<button class="btn btn-sm" id="dfs-uebernehmen-btn">Übernehmen — neues Blatt gilt</button> '
         + '<button class="btn btn-sm" data-dfs-passen="' + escA(icao) + '|' + escA(sorte) + '">Neu passen</button> '
         + '<button class="btn btn-sm" id="dfs-verwerfen-btn">Verwerfen — altes Blatt bleibt</button>'
         + '</p>';
+      const img = document.getElementById('dfs-pruefen-blatt');
+      img.onload = function () { _dfsPruefenMarken(img, zeile); };
+      img.onerror = function () {
+        img.replaceWith(Object.assign(document.createElement('p'),
+          { textContent: 'Das neue Blatt fehlt auf dem Server.', style: 'color:#e07070;' }));
+      };
+    }
+
+    // Die bisherigen Klickpunkte als Kreuze aufs neue Blatt -- in Pixeln des Rohblatts,
+    // deshalb mit dem Verhältnis von angezeigter zu natürlicher Breite skaliert.
+    function _dfsPruefenMarken(img, zeile) {
+      const box = img.parentNode;
+      box.querySelectorAll('.dfs-pruefen-marke').forEach(m => m.remove());
+      const f = img.clientWidth / (img.naturalWidth || 1);
+      [[zeile.p1_x, zeile.p1_y], [zeile.p2_x, zeile.p2_y]].forEach(function (p, i) {
+        if (p[0] == null || p[1] == null) return;
+        const m = document.createElement('div');
+        m.className = 'dfs-pruefen-marke';
+        m.textContent = '✕' + (i + 1);
+        m.style.cssText = 'position:absolute;transform:translate(-0.45em,-0.6em);color:#e0006a;'
+          + 'font-weight:700;font-size:14px;pointer-events:none;text-shadow:0 0 2px #fff;'
+          + 'left:' + (p[0] * f) + 'px;top:' + (p[1] * f) + 'px;';
+        box.appendChild(m);
+      });
     }
 
     document.getElementById('dfs-seiten').addEventListener('click', async function (e) {
