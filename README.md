@@ -681,15 +681,15 @@ FriesenRadar für den Fernseher: die Karte im Vollbild, bedienbar mit Pfeiltaste
 
 ## 🔔 Benachrichtigungen (Push Notifications)
 
-FriesenRadar kann dich benachrichtigen, wenn ein Friese auf VATSIM online geht — auch wenn der Browser im Hintergrund läuft oder der PC gesperrt ist. Optional auch schon beim **Einreichen oder Ändern eines Flugplans** (Prefile), bevor der Pilot online geht — auch bei Änderungen an Abflugzeit, Abflug- oder Zielflughafen. Die Notification enthält Datum und Uhrzeit des geplanten Fluges (aus dem DOF-Feld). Ist der Pilot bereits online, werden Prefile-Änderungen ignoriert.
+FriesenRadar kann dich benachrichtigen, wenn ein Friese auf VATSIM online geht — auch wenn der Browser im Hintergrund läuft oder der PC gesperrt ist. Auf Wunsch auch schon beim **Einreichen oder Ändern eines Flugplans** (Prefile), bevor der Pilot online geht — auch bei Änderungen an Abflugzeit, Abflug- oder Zielflughafen. Die Notification enthält Datum und Uhrzeit des geplanten Fluges (aus dem DOF-Feld). Ist der Pilot bereits online, werden Prefile-Änderungen ignoriert.
 
 Zusätzlich kann FriesenRadar Push-Benachrichtigungen senden, wenn ein Friese dem **FriesenFlieger-TeamSpeak** beitritt (siehe [TS-Login-Benachrichtigung](#ts-login-benachrichtigung-phase-1)).
 
-Über den **„Events"-Schalter** lassen sich außerdem **Event-Erinnerungen** aktivieren: FriesenRadar sendet dann ~1 h vor jedem FriesenEvent im Kalender einen Push — und benachrichtigt auch bei Bummel-Start und Ergebnisenthüllung. Die ~1h-Erinnerung gilt für Kalender-Events, Bummel-Rennen, Kutter-Events und FriesenReddungen und läuft dadurch auch für **manuell** im Admin angelegte Events (nicht nur Kalender-Termine); pro Rennen/Event lässt sich der Push im Admin abschalten, dann bleibt auch die Erinnerung aus. Bei einer **FriesenReddung** kommt zum Beginn eine weitere Meldung — mit dem Hinweis, dass ohne FriesenBrügge kein Havarist zu sehen ist —, danach je eine bei Fund, Aufnahme, Einlieferung und zum Ende. Dieser Schalter ist separat opt-in und standardmäßig deaktiviert.
+Über den **„Events"-Schalter** lassen sich außerdem **Event-Erinnerungen** aktivieren: FriesenRadar sendet dann ~1 h vor jedem FriesenEvent im Kalender einen Push — und benachrichtigt auch bei Bummel-Start und Ergebnisenthüllung. Die ~1h-Erinnerung gilt für Kalender-Events, Bummel-Rennen, Kutter-Events und FriesenReddungen und läuft dadurch auch für **manuell** im Admin angelegte Events (nicht nur Kalender-Termine); pro Rennen/Event lässt sich der Push im Admin abschalten, dann bleibt auch die Erinnerung aus. Bei einer **FriesenReddung** kommt zum Beginn eine weitere Meldung — mit dem Hinweis, dass ohne FriesenBrügge kein Havarist zu sehen ist —, danach je eine bei Fund, Aufnahme, Einlieferung und zum Ende. Auch diesen Schalter wählst du einzeln an oder ab.
 
 Das **Zahnrad ⚙ oben rechts** im Header öffnet die Einstellungen; die Benachrichtigungen stehen dort unter **„Benachrichtigungen“**. (Bis Version 15.31 war dort eine Glocke 🔔.)
 
-**Wer darf über mich benachrichtigt werden? (bei aktivem Board-Login):** Eingeloggte Mitglieder finden in den Einstellungen unter „Benachrichtigungen“ einen Sichtbarkeits-Regler — **Alle / Nur bestimmte / Keiner**. Damit bestimmt jeder selbst, wer über seine eigene Aktivität (Online, Flugplan, TeamSpeak) per Push benachrichtigt wird; „Keiner"/„Nur bestimmte" unterdrücken auch die Ankündigung im öffentlichen Telegram-Online-Kanal. Die Live-Anzeige bleibt unberührt. Grundlage ist die Identität aus dem Forum-Login (VATSIM-CID + FRS-Rufzeichen); Push-Abos werden dabei dem eingeloggten Mitglied zugeordnet (`owner_cid`), damit „Nur bestimmte" greifen kann. Die alte `manage_ts_consent.py`-Steuerung ist damit abgelöst.
+**Wer darf über mich benachrichtigt werden? (bei aktivem Board-Login):** Eingeloggte Mitglieder finden in den Einstellungen unter „Benachrichtigungen“ einen Sichtbarkeits-Regler — **Alle / Nur bestimmte / Keiner**. Damit bestimmt jeder selbst, wer über seine eigene Aktivität (Online, Flugplan, Lotsen, TeamSpeak) per Push benachrichtigt wird; „Keiner"/„Nur bestimmte" unterdrücken auch die Ankündigung im öffentlichen Telegram-Online-Kanal. Die Live-Anzeige bleibt unberührt. Grundlage ist die Identität aus dem Forum-Login (VATSIM-CID + FRS-Rufzeichen); deine Benachrichtigungen werden dabei deinem Konto zugeordnet, damit „Nur bestimmte" greifen kann.
 
 **Neue Adresse:** FriesenRadar ist unter `radar.friesenflieger.de` zu Hause. Wer eine der früheren Adressen im Browser aufruft, landet von selbst dort; Design, Karten-Ebenen und die übrigen Einstellungen kommen mit. Zwei Dinge hängen an der Adresse und lassen sich nicht mitnehmen:
 
@@ -698,16 +698,17 @@ Das **Zahnrad ⚙ oben rechts** im Header öffnet die Einstellungen; die Benachr
 
 Kniebrett, FriesenBrügge und das Widget im Forum sind davon nicht betroffen.
 
-**Piloten und Lotsen getrennt:** Unter „Benachrichtigungen auf diesem Gerät“ stehen vier Schalter, die du einzeln an- und abwählst. „Wenn ein Pilot online geht“ und „Wenn ein Pilot einen Flugplan einreicht“ gelten für Piloten. „Wenn ein Lotse online geht“ meldet, sobald ein Friese sich an einer Station anmeldet, mit Station, Frequenz und voraussichtlichem Ende. „Gebuchte Lotsenschichten“ meldet jeden Morgen um 7 Uhr alle, die an dem Tag lotsen, und sofort, wenn jemand erst im Lauf des Tages für denselben Tag bucht. Wer also nur wissen will, wann gelotst wird, lässt die beiden Piloten-Schalter aus. Die Auswahl „Alle Friesen / Nur bestimmte Piloten“ gilt für alle vier und für TeamSpeak. Im Kniebrett gibt es dieselben vier Schalter. Der Regler „Wer darf über mich benachrichtigt werden?“ gilt auch fürs Lotsen.
+**Piloten und Lotsen getrennt:** Unter „Benachrichtigungen auf diesem Gerät“ stehen vier Schalter, die du einzeln an- und abwählst. „Wenn ein Pilot online geht“ und „Wenn ein Pilot einen Flugplan einreicht“ gelten für Piloten. „Wenn ein Lotse online geht“ meldet, sobald ein Friese sich an einer Station anmeldet, mit Station, Frequenz und voraussichtlichem Ende. „Gebuchte Lotsenschichten“ meldet jeden Morgen um 7 Uhr alle, die an dem Tag lotsen, und sofort, wenn jemand erst im Lauf des Tages für denselben Tag bucht. Wer also nur wissen will, wann gelotst wird, lässt die beiden Piloten-Schalter aus. Im Kniebrett gibt es dieselben vier Schalter. Der Regler „Wer darf über mich benachrichtigt werden?“ gilt auch fürs Lotsen.
+
+**Welche Piloten, welche Lotsen:** Darunter wählst du getrennt aus, über wen du benachrichtigt werden willst. „Welche Piloten“ (Alle Piloten oder Nur bestimmte Piloten) gilt für „Pilot geht online“, „Flugplan eingereicht“ und für TeamSpeak. „Welche Lotsen“ (Alle Lotsen oder Nur bestimmte Lotsen) gilt für „Lotse geht online“ und „Gebuchte Lotsenschichten“. So geht zum Beispiel: nur deine Staffel als Piloten, aber jeden Friesen, der lotst. In der Lotsenliste steht, wer schon als Friese gelotst oder eine Schicht gebucht hat; sie füllt sich mit der Zeit. Wer vor Version 16.8.0 eine Pilotenauswahl gespeichert hatte, findet sie auch bei den Lotsen wieder, bis er dort etwas anderes speichert. Beim Umschalten auf „Nur bestimmte“ sind zunächst alle angehakt, du entfernst die Haken bei denen, die du nicht willst, auch bei dir selbst. Im Kniebrett gibt es diese Auswahl nicht, dort kommen Meldungen über alle.
 
 **Einrichten:**
 1. Zahnrad ⚙ klicken → Einstellungen öffnen sich
 2. „Benachrichtigungen auf diesem Gerät" aktivieren
 3. Browser fragt nach Erlaubnis → **Zulassen**
-4. Optional: Filtern auf bestimmte Piloten (Alle Friesen oder nur ausgewählte)
-5. Optional: die vier Schalter für Piloten und Lotsen („Wenn ein Pilot online geht", „Wenn ein Pilot einen Flugplan einreicht", „Wenn ein Lotse online geht", „Gebuchte Lotsenschichten") — standardmäßig alle aktiv
-6. Optional: **„Events"** — Erinnerung ~1 h vor jedem FriesenEvent + Bummel-Start/Ergebnis (opt-in, Standard: aus)
-7. **Speichern**
+4. Die vier Schalter für Piloten und Lotsen („Wenn ein Pilot online geht", „Wenn ein Pilot einen Flugplan einreicht", „Wenn ein Lotse online geht", „Gebuchte Lotsenschichten"), dazu TeamSpeak und **„Events"** (Erinnerung ~1 h vor jedem FriesenEvent + Bummel-Start/Ergebnis) nach Wunsch an- oder abwählen
+5. Optional: „Welche Piloten“ und „Welche Lotsen“ auf „Nur bestimmte“ stellen und auswählen
+6. **Speichern**. Erst damit gelten die Schalter und die Auswahl; vorher zeigen die Haken nur den Vorschlag.
 
 **Plattformen:**
 
@@ -721,7 +722,7 @@ Kniebrett, FriesenBrügge und das Widget im Forum sind davon nicht betroffen.
 
 **Herunterziehen zum Aktualisieren (installierte App, seit v14.20.0):** Am Seitenanfang nach unten ziehen frischt die Anzeige auf — Flugliste, Karte, Prefiles, TeamSpeak, Bummel und Kutter, dazu die Live-Verbindung, falls sie abgerissen war. Ein Balken am oberen Rand wächst mit dem Finger mit und bleibt stehen, bis die Daten da sind. Die Seite wird dabei **nicht** neu geladen: Kartenausschnitt und offener Tab bleiben, wie sie waren. Die Geste gibt es nur in der installierten App — im Browser-Tab macht Safari das selbst, im MSFS-Kniebrett gibt es sie nicht. Auf der Karte und in den eigenen Scroll-Listen bleibt Ziehen das, was es dort war (Ausschnitt verschieben bzw. scrollen).
 
-> **Hinweis bei „Nur bestimmte Piloten":** Neue Mitglieder der FriesenFlieger werden nicht automatisch in die Auswahl aufgenommen. Nach einem Neuzugang einmal das Panel öffnen, den neuen Piloten anhaken und erneut speichern.
+> **Hinweis bei „Nur bestimmte“:** Neue Mitglieder und neue Lotsen werden nicht automatisch in deine Auswahl aufgenommen. Wer dazukommen soll, den einmal anhaken und erneut speichern.
 
 **„Push zurücksetzen"-Button** (kleiner Link unterhalb des Panels): Falls Benachrichtigungen nicht ankommen, obwohl sie aktiviert sind — dieser Button deregistriert den Service Worker und erzwingt eine frische Registrierung beim Push-Dienst. Danach einmal neu abonnieren.
 
@@ -743,7 +744,7 @@ Alle `TS_POLL_INTERVAL` Sekunden (Default: 30 s) fragt FriesenRadar den TeamSpea
 
 Die frühere Admin-Steuerung über die Tabelle `ts_consent` und das CLI `manage_ts_consent.py` ist entfernt — sie wurde seit dem Subjekt-Sichtbarkeits-Release ohnehin nicht mehr ausgewertet. Bestehende Datenbanken behalten die tote Tabelle; kein Code liest sie noch.
 
-**Empfänger-Auswahl (eine für alles):** Die Piloten-Auswahl im Benachrichtigungs-Panel („Alle Friesen" / „Nur bestimmte Piloten") gilt für **Online, Flugplan UND TeamSpeak** gemeinsam. Beim Umschalten auf „Nur bestimmte" sind zunächst alle angehakt — du entfernst die Haken bei denen, die du *nicht* willst (auch bei dir selbst → kein Selbst-Ping, für alle drei Typen). Die Checkbox „🎧 Bei TeamSpeak-Beitritt benachrichtigen" steuert separat, ob TS-Pings überhaupt erwünscht sind. TS-Beitritte werden über das VATSIM-Callsign (= FRS-Nummer) der CID zugeordnet und gegen dieselbe Auswahl geprüft.
+**Empfänger-Auswahl:** TeamSpeak folgt der Auswahl „Welche Piloten“ im Benachrichtigungs-Panel („Alle Piloten“ / „Nur bestimmte Piloten“), zusammen mit „Pilot geht online“ und „Flugplan eingereicht“. Lotsen haben seit 16.8.0 eine eigene Auswahl (siehe [Benachrichtigungen](#-benachrichtigungen-push-notifications)). Wer sich selbst abhakt, bekommt keinen Ping über sich selbst. Die Checkbox „🎧 Bei TeamSpeak-Beitritt benachrichtigen" steuert separat, ob TS-Pings überhaupt erwünscht sind. TS-Beitritte werden über das VATSIM-Callsign (= FRS-Nummer) der CID zugeordnet und gegen die Pilotenauswahl geprüft.
 
 Hinweis: Im Modus „Nur bestimmte" bekommen reine TS-Leute **ohne** VATSIM-Flug keinen Ping (nicht in der Liste). Im Modus „Alle" schon.
 

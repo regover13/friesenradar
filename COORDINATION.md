@@ -6,6 +6,16 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-14 — 16.8.0 ist vergeben: eigene Lotsenauswahl in den Benachrichtigungen
+
+Neue Spalte `push_subscriptions.lotse_filter` (beim Anlegen einmalig aus `pilot_filter`
+kopiert), neue Tabelle `lotsen_gesehen`, Endpunkt `GET /api/lotsen/auswahl`.
+`upsert_push_subscription` hat das Schlüsselwort `lotse_filter` mit dem Platzhalter
+`KEINE_ANGABE` („Feld fehlt“, anders als `None` = alle). `_abos_fuer` nimmt die Spalte als
+viertes Argument. **Der Deichkontrolle-Zweig nimmt beim Rebase die nächste freie Nummer.**
+
+---
+
 ## 2026-10-14 — 16.6.0 ist vergeben: getrennte Benachrichtigungen für Piloten und Lotsen
 
 Neue Spalten `notify_online_piloten`, `notify_online_lotsen`, `notify_lotsenschicht` in

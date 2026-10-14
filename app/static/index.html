@@ -14,7 +14,7 @@
     var UMZUG_NEU = 'radar.friesenflieger.de';
     var UMZUG_SPEICHER = ['notif_prefiles', 'notif_ts', 'notif_events',
                           'notif_online_piloten', 'notif_online_lotsen', 'notif_lotsenschicht',
-                          'notif_pilot_filter', 'fs_changelog_seen'];
+                          'notif_pilot_filter', 'notif_lotse_filter', 'fs_changelog_seen'];
 
     /** 'umleiten' | 'hinweis' (App vom Startbildschirm: sie haengt an ihrer Adresse) | 'bleiben' */
     function _umzugEntscheid(u) {
@@ -3929,7 +3929,7 @@
       margin-bottom: 8px;
     }
     .notif-radio-row label { cursor: pointer; display: flex; align-items: center; gap: 6px; }
-    #notif-pilot-list, #visibility-pilot-list {
+    #notif-pilot-list, #notif-lotse-list, #visibility-pilot-list {
       max-height: 150px;
       overflow-y: auto;
       margin: 6px 0 8px;
@@ -3941,12 +3941,14 @@
     }
     /* [hidden] muss die display:flex-Regel oben schlagen (sonst bleibt die Liste bei
        „Alle"/„Keiner" sichtbar UND anklickbar). ID+Attribut > reine ID. */
-    #notif-pilot-list[hidden], #visibility-pilot-list[hidden] { display: none; }
-    #notif-pilot-list::-webkit-scrollbar, #visibility-pilot-list::-webkit-scrollbar { width: 8px; }
-    #notif-pilot-list::-webkit-scrollbar-thumb,
+    #notif-pilot-list[hidden], #notif-lotse-list[hidden], #visibility-pilot-list[hidden] { display: none; }
+    #notif-pilot-list::-webkit-scrollbar, #notif-lotse-list::-webkit-scrollbar,
+    #visibility-pilot-list::-webkit-scrollbar { width: 8px; }
+    #notif-pilot-list::-webkit-scrollbar-thumb, #notif-lotse-list::-webkit-scrollbar-thumb,
     #visibility-pilot-list::-webkit-scrollbar-thumb { background: var(--green-dim); border-radius: 4px; }
     .notif-pilot-cb { display: flex; align-items: center; gap: 6px; cursor: pointer; }
     .notif-pilot-cb:has(input:disabled) { opacity: 0.55; cursor: default; }
+    .notif-lotse-leer { font-size: 0.75rem; color: var(--text-label); }
     .notif-save-btn {
       background: var(--green-dim);
       border: 1px solid var(--green-dim);
@@ -5064,12 +5066,18 @@
       <label class="notif-toggle-row" style="margin-top:8px;">
         <input type="checkbox" id="notif-events"> <svg class="icon"><use href="#icon-calendar" xlink:href="#icon-calendar"/></svg> Events (Erinnerung ~1 h vorher + Bummel-Start/Ergebnis)
       </label>
-      <div class="notif-filter-title" style="margin-top:12px;">Benachrichtigen wenn (gilt für Piloten, Lotsen &amp; TeamSpeak):</div>
+      <div class="notif-filter-title" style="margin-top:12px;">Welche Piloten (gilt auch für TeamSpeak):</div>
       <div class="notif-radio-row">
-        <label><input type="radio" name="notif-filter-mode" value="all" checked> Alle Friesen</label>
+        <label><input type="radio" name="notif-filter-mode" value="all" checked> Alle Piloten</label>
         <label><input type="radio" name="notif-filter-mode" value="select"> Nur bestimmte Piloten</label>
       </div>
       <div id="notif-pilot-list" hidden></div>
+      <div class="notif-filter-title" style="margin-top:12px;">Welche Lotsen:</div>
+      <div class="notif-radio-row">
+        <label><input type="radio" name="notif-lotse-mode" value="all" checked> Alle Lotsen</label>
+        <label><input type="radio" name="notif-lotse-mode" value="select"> Nur bestimmte Lotsen</label>
+      </div>
+      <div id="notif-lotse-list" hidden></div>
       <button class="notif-save-btn" id="notif-save-btn">Speichern</button>
     </div>
     <div id="visibility-section" hidden
@@ -9038,6 +9046,83 @@ async function _loadNotifPilotList() {
   _applyNotifPilotListState();
 }
 
+// LOTSENAUSWAHL-ANFANG
+// Eigene Lotsenauswahl seit 16.8.0. Ohne eigenen Eintrag gilt die Pilotenauswahl -- genau die
+// hat der Server beim Update für jedes Abo übernommen. „Alle“ steht als 'null' im Speicher.
+let _notifLotseMerk = null;   // wie _notifCustomFilter: überlebt den Wechsel auf „Alle“
+
+function _notifLotseGespeichert() {
+  const roh = localStorage.getItem('notif_lotse_filter');
+  try {
+    return JSON.parse(roh === null ? (localStorage.getItem('notif_pilot_filter') || 'null') : roh);
+  } catch (e) { return null; }
+}
+
+function _notifLotseModus() {
+  return (document.querySelector('input[name="notif-lotse-mode"]:checked') || {}).value || 'all';
+}
+
+function _notifLotseListeHtml(lotsen) {
+  if (!lotsen.length) {
+    return '<div class="notif-lotse-leer">Noch keine Lotsen bekannt. Wer als Friese lotst ' +
+           'oder eine Schicht bucht, erscheint hier.</div>';
+  }
+  return lotsen.map(l => '<label class="notif-pilot-cb"><input type="checkbox" data-cid="' +
+    Number(l.cid) + '"> ' + escHtml(l.name || String(l.cid)) + '</label>').join('');
+}
+
+function _applyNotifLotseListState() {
+  const box = document.getElementById('notif-lotse-list');
+  if (!box || !box.dataset.geladen) return;
+  box.hidden = false;
+  const alle = _notifLotseModus() === 'all';
+  box.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = alle || !_notifLotseMerk || _notifLotseMerk.includes(Number(cb.dataset.cid));
+    cb.disabled = alle;
+  });
+}
+
+async function _loadNotifLotseList() {
+  const box = document.getElementById('notif-lotse-list');
+  if (!box) return;
+  if (!box.dataset.geladen) {
+    const gespeichert = _notifLotseGespeichert();
+    _notifLotseMerk = gespeichert;
+    const radio = document.querySelector(
+      'input[name="notif-lotse-mode"][value="' + (gespeichert ? 'select' : 'all') + '"]');
+    if (radio) radio.checked = true;
+    try {
+      // Die gespeicherten mitschicken: Sie bleiben in der Liste, auch wenn sie noch nie
+      // als Lotse gesehen wurden (übernommene Pilotenauswahl).
+      const res = await fetch('/api/lotsen/auswahl?dazu=' +
+                              encodeURIComponent((gespeichert || []).join(',')));
+      const data = await res.json();
+      box.innerHTML = _notifLotseListeHtml(data.lotsen || []);
+      box.dataset.geladen = '1';
+    } catch (e) {}
+  }
+  _applyNotifLotseListState();
+}
+
+// Was beim Speichern an den Server geht: null = alle Lotsen.
+function _notifLotseAuswahl() {
+  if (_notifLotseModus() === 'all') return null;
+  const box = document.getElementById('notif-lotse-list');
+  // Liste nicht geladen: lieber das Gespeicherte behalten als „niemand“ schicken.
+  if (!box || !box.dataset.geladen) return _notifLotseMerk;
+  return [...box.querySelectorAll('input[type=checkbox]:checked')].map(cb => Number(cb.dataset.cid));
+}
+
+function _notifLotseModusGewechselt(wert) {
+  const box = document.getElementById('notif-lotse-list');
+  if (wert === 'all' && box && box.dataset.geladen) {
+    const cbs = box.querySelectorAll('input[type=checkbox]');
+    if (cbs.length) _notifLotseMerk = [...cbs].filter(cb => cb.checked).map(cb => Number(cb.dataset.cid));
+  }
+  _applyNotifLotseListState();
+}
+// LOTSENAUSWAHL-ENDE
+
 async function _subscribePush(pilotFilter = null) {
   if (!_swRegistration || !_vapidPublicKey) return;
   try {
@@ -9090,6 +9175,9 @@ async function _saveNotifFilter() {
     _notifCustomFilter = null;
     localStorage.removeItem('notif_pilot_filter');
   }
+  const lotseFilter = _notifLotseAuswahl();
+  _notifLotseMerk = lotseFilter;
+  localStorage.setItem('notif_lotse_filter', JSON.stringify(lotseFilter));
   const notifyPrefiles = (document.getElementById('notif-prefiles') || {}).checked || false;
   localStorage.setItem('notif_prefiles', notifyPrefiles ? '1' : '0');
   const notifyTs = (document.getElementById('notif-ts') || {}).checked || false;
@@ -9110,6 +9198,7 @@ async function _saveNotifFilter() {
       p256dh:   _bufToBase64(_pushSubscription.getKey('p256dh')),
       auth:     _bufToBase64(_pushSubscription.getKey('auth')),
       pilot_filter: pilotFilter,
+      lotse_filter: lotseFilter,
       notify_prefiles: notifyPrefiles,
       notify_ts: notifyTs,
       notify_events: notifyEvents,
@@ -9295,6 +9384,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!notifPanel.hidden) {
       _showNotifPanelContent();
       _loadNotifPilotList();
+      _loadNotifLotseList();
     }
   });
 
@@ -9321,6 +9411,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       _applyNotifPilotListState();
     });
+  });
+
+  document.querySelectorAll('input[name="notif-lotse-mode"]').forEach(r => {
+    r.addEventListener('change', () => _notifLotseModusGewechselt(r.value));
   });
 
   _on(saveBtn, 'click', _saveNotifFilter);

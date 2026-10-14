@@ -256,6 +256,11 @@ CREATE TABLE IF NOT EXISTS lotsen_name (
     gesehen_am TEXT
 );
 
+CREATE TABLE IF NOT EXISTS lotsen_gesehen (
+    cid      INTEGER PRIMARY KEY,       -- Friese, der als Lotse online war oder eine Schicht gebucht hat
+    erstmals TEXT                       -- für die Lotsenauswahl der Benachrichtigungen (16.8.0)
+);
+
 CREATE TABLE IF NOT EXISTS paket_hinweis (
     cid          INTEGER PRIMARY KEY,   -- Hinweis auf fehlendes/altes Paket (app/paket_hinweis.py)
     weg_flug_id  INTEGER,               -- Banner weggeklickt bis einschließlich dieses Flugs
@@ -1549,6 +1554,12 @@ def init_db(db_path: str) -> None:
                 conn.execute(stmt)
             except sqlite3.OperationalError:
                 pass
+        # Eigene Lotsenauswahl (16.8.0). Bis dahin galt die Pilotenauswahl auch für Lotsen;
+        # beim Anlegen der Spalte übernimmt jedes Abo sie einmalig, damit sich nichts ändert.
+        spalten = {r[1] for r in conn.execute("PRAGMA table_info(push_subscriptions)")}
+        if "lotse_filter" not in spalten:
+            conn.execute("ALTER TABLE push_subscriptions ADD COLUMN lotse_filter TEXT DEFAULT NULL")
+            conn.execute("UPDATE push_subscriptions SET lotse_filter = pilot_filter")
         for stmt in _PANEL_DIAG_MIGRATIONS:
             try:
                 conn.execute(stmt)
@@ -6551,7 +6562,7 @@ def record_push_delivery(
 def get_push_overview(conn: sqlite3.Connection) -> list[dict]:
     """Alle Abos mit ihrer Auswahl + Zustellungs-Diagnose (für die Admin-Push-Übersicht)."""
     rows = conn.execute(
-        "SELECT endpoint, owner_cid, pilot_filter, notify_prefiles, notify_ts, "
+        "SELECT endpoint, owner_cid, pilot_filter, lotse_filter, notify_prefiles, notify_ts, "
         "notify_events, created_at, last_ok_at, last_fail_at, last_status, "
         "COALESCE(notify_online_piloten, 1) AS notify_online_piloten, "
         "COALESCE(notify_online_lotsen, 1) AS notify_online_lotsen, "
@@ -7176,6 +7187,10 @@ def alte_adress_abos_entfernen(
     return len(weg)
 
 
+#: Steht für „Feld nicht mitgeschickt“ -- anders als ``None``, das „alle“ heißt.
+KEINE_ANGABE = object()
+
+
 def upsert_push_subscription(
     conn: sqlite3.Connection,
     endpoint: str,
@@ -7190,8 +7205,13 @@ def upsert_push_subscription(
     notify_online_piloten: bool | None = None,
     notify_online_lotsen: bool | None = None,
     notify_lotsenschicht: bool | None = None,
+    lotse_filter: list[int] | None | object = KEINE_ANGABE,
 ) -> None:
     """Browser-Push-Subscription speichern oder aktualisieren.
+
+    ``lotse_filter`` (seit 16.8.0) ist wie ``pilot_filter`` eine Liste von CIDs, ``None`` heißt
+    alle. Schickt eine ältere Seite das Feld nicht mit (``KEINE_ANGABE``), bleibt die
+    gespeicherte Auswahl; ein neues Abo bekommt dann alle Lotsen.
 
     Die drei getrennten Schalter (seit 16.6.0) heißen ``None``, wenn die Seite sie nicht
     mitschickt -- das tut eine noch geladene ältere Fassung. Dann bleibt der gespeicherte
@@ -7211,8 +7231,8 @@ def upsert_push_subscription(
         """INSERT INTO push_subscriptions
                (endpoint, p256dh, auth, pilot_filter, notify_prefiles,
                 notify_ts, notify_events, owner_cid, herkunft, created_at,
-                notify_online_piloten, notify_online_lotsen, notify_lotsenschicht)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 1), COALESCE(?, 1), ?)
+                notify_online_piloten, notify_online_lotsen, notify_lotsenschicht, lotse_filter)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 1), COALESCE(?, 1), ?, ?)
            ON CONFLICT(endpoint) DO UPDATE SET
                p256dh=excluded.p256dh,
                auth=excluded.auth,
@@ -7228,7 +7248,9 @@ def upsert_push_subscription(
                notify_online_lotsen=CASE WHEN ? IS NULL
                    THEN push_subscriptions.notify_online_lotsen ELSE excluded.notify_online_lotsen END,
                notify_lotsenschicht=CASE WHEN ? IS NULL
-                   THEN push_subscriptions.notify_lotsenschicht ELSE excluded.notify_lotsenschicht END""",
+                   THEN push_subscriptions.notify_lotsenschicht ELSE excluded.notify_lotsenschicht END,
+               lotse_filter=CASE WHEN ? THEN push_subscriptions.lotse_filter
+                   ELSE excluded.lotse_filter END""",
         (
             endpoint, p256dh, auth,
             json.dumps(pilot_filter) if pilot_filter is not None else None,
@@ -7238,8 +7260,12 @@ def upsert_push_subscription(
             owner_cid,
             herkunft,
             _now_utc(),
-            *(_schalter(notify_online_piloten), _schalter(notify_online_lotsen),
-              _schalter(notify_lotsenschicht)) * 2,
+            _schalter(notify_online_piloten), _schalter(notify_online_lotsen),
+            _schalter(notify_lotsenschicht),
+            None if lotse_filter is KEINE_ANGABE or lotse_filter is None else json.dumps(lotse_filter),
+            _schalter(notify_online_piloten), _schalter(notify_online_lotsen),
+            _schalter(notify_lotsenschicht),
+            1 if lotse_filter is KEINE_ANGABE else 0,
         ),
     )
 
@@ -11992,10 +12018,15 @@ def apply_bummel_overrides(standings: dict, overrides: list[dict]) -> dict:
 _ABO_LOTSENSCHICHT = "COALESCE(notify_lotsenschicht, notify_prefiles, 0) = 1"
 
 
-def _abos_fuer(conn: sqlite3.Connection, cid: int, bedingung: str) -> list[dict]:
-    """Abos, deren Schalter ``bedingung`` erfüllt und deren Pilotenauswahl ``cid`` einschließt."""
+def _abos_fuer(conn: sqlite3.Connection, cid: int, bedingung: str,
+               auswahl: str = "pilot_filter") -> list[dict]:
+    """Abos, deren Schalter ``bedingung`` erfüllt und deren Auswahl ``cid`` einschließt.
+
+    ``auswahl`` ist die Spalte mit der Personenliste: ``pilot_filter`` für Piloten (und
+    TeamSpeak), ``lotse_filter`` für Lotsen (seit 16.8.0)."""
+    assert auswahl in ("pilot_filter", "lotse_filter")
     rows = conn.execute(
-        "SELECT endpoint, p256dh, auth, pilot_filter, notify_prefiles, owner_cid "
+        f"SELECT endpoint, p256dh, auth, {auswahl} AS pilot_filter, notify_prefiles, owner_cid "
         f"FROM push_subscriptions WHERE {bedingung}"
     ).fetchall()
     return _nach_pilotenauswahl(rows, cid)
@@ -12003,12 +12034,12 @@ def _abos_fuer(conn: sqlite3.Connection, cid: int, bedingung: str) -> list[dict]
 
 def get_push_subscriptions_fuer_lotse_online(conn: sqlite3.Connection, cid: int) -> list[dict]:
     """Abos, die wissen wollen, wenn dieser Friese als Lotse online geht."""
-    return _abos_fuer(conn, cid, "COALESCE(notify_online_lotsen, 1) = 1")
+    return _abos_fuer(conn, cid, "COALESCE(notify_online_lotsen, 1) = 1", "lotse_filter")
 
 
 def get_push_subscriptions_fuer_lotsenschicht(conn: sqlite3.Connection, cid: int) -> list[dict]:
     """Abos für gebuchte Schichten dieses Lotsen (Morgenmeldung und späte Buchung)."""
-    return _abos_fuer(conn, cid, _ABO_LOTSENSCHICHT)
+    return _abos_fuer(conn, cid, _ABO_LOTSENSCHICHT, "lotse_filter")
 
 
 def get_push_subscriptions_for_pilot(
@@ -12238,6 +12269,35 @@ def lotsen_namen_aufraeumen(conn: sqlite3.Connection, ts: str) -> int:
     if conn.execute(f"SELECT 1 FROM lotsen_name WHERE {bedingung} LIMIT 1", (ts,)).fetchone() is None:
         return 0
     return conn.execute(f"DELETE FROM lotsen_name WHERE {bedingung}", (ts,)).rowcount
+
+
+def lotsen_gesehen_merken(conn: sqlite3.Connection, cids, ts: str) -> int:
+    """Friesen vormerken, die als Lotse online waren oder eine Schicht gebucht haben (kein
+    commit). Daraus entsteht die Lotsenliste der Benachrichtigungen. Gibt zurück, wie viele
+    neu dazukamen."""
+    neu = 0
+    for cid in cids:
+        neu += conn.execute(
+            "INSERT OR IGNORE INTO lotsen_gesehen (cid, erstmals) VALUES (?, ?)",
+            (int(cid), ts)).rowcount
+    return neu
+
+
+def lotsen_zur_auswahl(conn: sqlite3.Connection, dazu=()) -> list[dict]:
+    """Lotsen für die Auswahl der Benachrichtigungen, nach Namen sortiert.
+
+    Alle vorgemerkten (``lotsen_gesehen``) und dazu ``dazu`` -- die CIDs einer schon
+    gespeicherten Auswahl, damit sie sichtbar bleiben. Es erscheint nur, wer als Friese
+    erkannt wird (``lotsen_bekannte``); Abgeschaltete fallen dort schon heraus."""
+    bekannte = lotsen_bekannte(conn)
+    cids = {r[0] for r in conn.execute("SELECT cid FROM lotsen_gesehen")}
+    for c in dazu:
+        try:
+            cids.add(int(c))
+        except (TypeError, ValueError):
+            pass
+    liste = [{"cid": c, "name": bekannte[c]} for c in cids if c in bekannte]
+    return sorted(liste, key=lambda e: (e["name"].casefold(), e["cid"]))
 
 
 def lotsen_gemeldete(conn: sqlite3.Connection) -> set[int]:

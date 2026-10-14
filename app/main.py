@@ -168,6 +168,8 @@ from app.database import (
     statsim_track_leer_merken,
     save_statsim_positions,
     upsert_push_subscription,
+    KEINE_ANGABE,
+    lotsen_zur_auswahl,
     push_abo_bekannt,
     alte_adress_abos_entfernen,
     upsert_statsim_flights,
@@ -3418,6 +3420,7 @@ async def push_subscribe(request: Request):
             notify_online_piloten=_schalter_aus_body(body, "notify_online_piloten"),
             notify_online_lotsen=_schalter_aus_body(body, "notify_online_lotsen"),
             notify_lotsenschicht=_schalter_aus_body(body, "notify_lotsenschicht"),
+            lotse_filter=body["lotse_filter"] if "lotse_filter" in body else KEINE_ANGABE,
         )
         # Nur beim ERSTEN Einschalten aufraeumen: Die Seite schickt ihr Abo bei jedem Laden
         # erneut, und ein Rechner, der bei der alten Adresse bleibt, verloere seines sonst
@@ -4399,6 +4402,19 @@ async def get_lotsen(request: Request):
     # die Seite diese Antwort ohnehin jede Minute holt.
     return {"online": online, "geplant": geplant,
             "ersatzweg": bool(getattr(poller, "ersatzweg_aktiv", False))}
+
+
+@app.get("/api/lotsen/auswahl")
+async def get_lotsen_auswahl(dazu: str = ""):
+    """Lotsen für die Auswahl der Benachrichtigungen: wer als Friese gelotst oder eine Schicht
+    gebucht hat (seit 16.8.0 vorgemerkt). ``dazu`` sind die CIDs einer schon gespeicherten
+    Auswahl (kommagetrennt), damit sie in der Liste bleiben."""
+    extra = [t for t in dazu.split(",") if t.strip().isdigit()][:200]
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        return {"lotsen": lotsen_zur_auswahl(conn, extra)}
+    finally:
+        conn.close()
 
 
 @app.get("/api/teamspeak")
@@ -6150,14 +6166,15 @@ function render(d){
   if(!d.subscriptions.length){h+='<div class="empty">Keine Abos.</div>';}
   else{
     h+='<div class="table-scroll"><table><thead><tr>'+
-      '<th>Status</th><th>Wer</th><th>Plattform</th><th>Piloten</th>'+
+      '<th>Status</th><th>Wer</th><th>Plattform</th><th>Welche Piloten</th><th>Welche Lotsen</th>'+
       '<th>Piloten</th><th>Flugpläne</th><th>Lotsen</th><th>Schichten</th><th>TS</th><th>Events</th>'+
       '<th>angelegt</th><th>letzte OK</th><th>letzter Fehler</th></tr></thead><tbody>';
     for(const s of d.subscriptions){
       const who=s.owner_name?esc(s.owner_name):'<span class="muted">anonym</span>';
       const flt=s.pilot_filter.length?esc(s.pilot_filter.join(', ')):'<span class="muted">alle</span>';
+      const fltL=s.lotse_filter.length?esc(s.lotse_filter.join(', ')):'<span class="muted">alle</span>';
       const fail=s.last_fail_at?ago(s.last_fail_at)+(s.last_status?' ('+esc(s.last_status)+')':''):'';
-      h+=`<tr><td>${health(s.health)}</td><td>${who}</td><td>${esc(s.platform)}</td><td>${flt}</td>`+
+      h+=`<tr><td>${health(s.health)}</td><td>${who}</td><td>${esc(s.platform)}</td><td>${flt}</td><td>${fltL}</td>`+
          `<td>${b(s.notify_online_piloten)}</td><td>${b(s.notify_prefiles)}</td><td>${b(s.notify_online_lotsen)}</td>`+
          `<td>${b(s.notify_lotsenschicht)}</td><td>${b(s.notify_ts)}</td><td>${b(s.notify_events)}</td>`+
          `<td class="muted">${ago(s.created_at)}</td>`+
@@ -6265,6 +6282,7 @@ async def admin_push_overview(request: Request):
             "owner_name": _name(oc) if oc is not None else None,
             "platform": _push_platform(s.get("endpoint", "")),
             "pilot_filter": _filter_names(s.get("pilot_filter")),
+            "lotse_filter": _filter_names(s.get("lotse_filter")),
             "notify_prefiles": bool(s.get("notify_prefiles")),
             "notify_ts": bool(s.get("notify_ts")),
             "notify_events": bool(s.get("notify_events")),

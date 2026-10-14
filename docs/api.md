@@ -1082,6 +1082,18 @@ Die Seite enthält `<meta http-equiv="refresh" content="60">` (60-Sekunden-Auto-
 
 ---
 
+## GET /api/lotsen/auswahl
+
+Seit 16.8.0. Lotsen für die Auswahl „Welche Lotsen“ in den Benachrichtigungen: alle Friesen, die schon als Lotse online waren oder eine Schicht gebucht haben (Tabelle `lotsen_gesehen`, vom Poller aus Feed und Buchungsliste gefüllt), nach Namen sortiert. Abgeschaltete und nicht als Friese erkannte Nummern fehlen (`lotsen_bekannte`).
+
+| Query | Beschreibung |
+|---|---|
+| `dazu` | Kommagetrennte CIDs einer schon gespeicherten Auswahl; sie stehen dann auch in der Liste, wenn sie noch nie als Lotse gesehen wurden (höchstens 200). |
+
+**Response** `{"lotsen": [{"cid": 1000002, "name": "Erika Muster"}]}`
+
+---
+
 ## POST /api/push/subscribe
 
 Browser-Push-Subscription speichern oder aktualisieren.
@@ -1093,8 +1105,12 @@ Browser-Push-Subscription speichern oder aktualisieren.
 | `endpoint` | string | ✓ | Push-Endpoint-URL des Browsers |
 | `p256dh` | string | ✓ | ECDH-Schlüssel (base64url) |
 | `auth` | string | ✓ | Auth-Secret (base64url) |
-| `pilot_filter` | int[] \| null | — | CID-Liste der zu benachrichtigenden Piloten; `null` = alle. Gilt für **alle drei** Benachrichtigungstypen (Online, Flugplan, TS). Selbst-Ausschluss = eigenen CID weglassen. |
-| `notify_prefiles` | bool | — | Auch bei eingereichten oder geänderten Flugplänen benachrichtigen — feuert bei neuem Prefile oder Änderung von Abflugzeit, Abflug- oder Zielflughafen; wird unterdrückt wenn der Pilot bereits online ist (default: true) |
+| `pilot_filter` | int[] \| null | — | CID-Liste der zu benachrichtigenden Piloten; `null` = alle. Gilt für Pilot online, Flugplan und TS. Selbst-Ausschluss = eigenen CID weglassen. |
+| `lotse_filter` | int[] \| null | — | Seit 16.8.0: CID-Liste für Lotse online und Lotsenschichten; `null` = alle, `[]` = niemand. **Fehlt das Feld** (ältere Seite), bleibt die gespeicherte Auswahl; ein neues Abo bekommt dann alle. Beim Update auf 16.8.0 hat jedes Abo einmalig seinen `pilot_filter` übernommen. |
+| `notify_online_piloten` | bool | — | Seit 16.6.0: Pilot geht online. Fehlt das Feld, bleibt der gespeicherte Wert (neues Abo: an). |
+| `notify_online_lotsen` | bool | — | Seit 16.6.0: Lotse geht online. Fehlt das Feld, bleibt der gespeicherte Wert (neues Abo: an). |
+| `notify_lotsenschicht` | bool | — | Seit 16.6.0: gebuchte Lotsenschichten (7 Uhr und späte Buchung). Fehlt das Feld, bleibt der gespeicherte Wert; ohne je gesetzten Wert folgt es `notify_prefiles`. |
+| `notify_prefiles` | bool | — | Auch bei eingereichten oder geänderten Flugplänen benachrichtigen — feuert bei neuem Prefile oder Änderung von Abflugzeit, Abflug- oder Zielflughafen; wird unterdrückt wenn der Pilot bereits online ist (default: false, wenn das Feld fehlt) |
 | `notify_ts` | bool | — | TS-Login-Benachrichtigungen für diesen Subscriber aktivieren (default: false) |
 | `notify_events` | bool | — | Event-Erinnerungen (~1 h vor Beginn jedes FriesenEvents) und Bummel-Start/Ergebnis-Push aktivieren (default: false) |
 
@@ -2102,10 +2118,12 @@ Die Daten dahinter. Admin-Cookie **und** Header `X-Overview-Pass` erforderlich.
   "vapid_configured": true,
   "totals": {"abos": 3, "personen": 1, "eingeloggt": 1, "anonym": 2,
              "will_prefiles": 2, "will_ts": 2, "will_events": 2,
+             "will_online_piloten": 3, "will_online_lotsen": 3, "will_lotsenschicht": 2,
              "health_ok": 1, "health_fail": 1, "health_unknown": 1},
   "subscriptions": [
     {"owner_cid": 1602713, "owner_name": "Tobias EDKB", "platform": "Chrome / Android",
-     "pilot_filter": ["Anna"], "notify_prefiles": true, "notify_ts": false,
+     "pilot_filter": ["Anna"], "lotse_filter": [], "notify_prefiles": true, "notify_ts": false,
+     "notify_online_piloten": true, "notify_online_lotsen": true, "notify_lotsenschicht": true,
      "notify_events": true, "created_at": "2026-07-15T05:54:36Z",
      "last_ok_at": "2026-07-15T05:54:36Z", "last_fail_at": null, "last_status": null,
      "health": "ok"}
@@ -2118,7 +2136,7 @@ Die Daten dahinter. Admin-Cookie **und** Header `X-Overview-Pass` erforderlich.
 }
 ```
 
-`owner_cid`/`owner_name` = `null` → anonymes Abo (kein Forum-Login). `pilot_filter` = `[]` → keine Einschränkung („alle"); CIDs werden zu Namen aufgelöst. `platform` wird aus dem Host des Push-Endpoints abgeleitet (kein Tracking). `suppressed_pilots`/`suppressed_ts` listen nur Einträge mit `mode`/`visibility` ≠ `everyone`.
+`owner_cid`/`owner_name` = `null` → anonymes Abo (kein Forum-Login). `pilot_filter`/`lotse_filter` = `[]` → keine Einschränkung („alle"); CIDs werden zu Namen aufgelöst. (Eine gespeicherte leere Auswahl, also „niemand“, erscheint hier ebenfalls als `[]`.) `platform` wird aus dem Host des Push-Endpoints abgeleitet (kein Tracking). `suppressed_pilots`/`suppressed_ts` listen nur Einträge mit `mode`/`visibility` ≠ `everyone`.
 
 **`health` je Abo** — aus `last_ok_at`/`last_fail_at` (bei jedem Versand in `send_web_push` via `record_push_delivery` fortgeschrieben):
 

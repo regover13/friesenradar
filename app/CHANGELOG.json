@@ -1,5 +1,17 @@
 [
   {
+    "version": "16.8.0",
+    "date": "2026-10-14",
+    "highlight": false,
+    "title": "Eigene Auswahl für Lotsen in den Benachrichtigungen",
+    "items": [
+      "🔔 In den Benachrichtigungen wählst du Piloten und Lotsen jetzt getrennt aus: zum Beispiel nur bestimmte Piloten, aber alle Lotsen, oder umgekehrt.",
+      "🔔 „Welche Piloten“ gilt für Pilot online, Flugpläne und TeamSpeak, „Welche Lotsen“ für Lotse online und gebuchte Schichten.",
+      "🔔 In der Lotsenliste stehen auch Friesen, die nur lotsen und nie geflogen sind. Sie füllt sich, sobald jemand lotst oder eine Schicht bucht.",
+      "🔔 Wer schon eine Pilotenauswahl gespeichert hatte, findet sie auch bei den Lotsen wieder. Es ändert sich also nichts, bis du dort etwas anderes speicherst."
+    ]
+  },
+  {
     "version": "16.7.0",
     "date": "2026-10-14",
     "highlight": false,

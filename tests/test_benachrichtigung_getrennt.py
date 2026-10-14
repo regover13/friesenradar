@@ -103,13 +103,14 @@ def test_flugplaene_ja_lotsenschichten_nein(pfad):
     assert db.get_push_subscriptions_fuer_lotsenschicht(c, PILOT) == []
 
 
-def test_die_pilotenauswahl_gilt_auch_fuer_die_lotsen(pfad):
+def test_die_pilotenauswahl_gilt_nicht_mehr_fuer_die_lotsen(pfad):
+    """Bis 16.7.0 galt sie auch für Lotsen; seit 16.8.0 haben sie eine eigene Auswahl
+    (tests/test_lotsenauswahl.py)."""
     c = get_connection(pfad)
     _abo(c, pilot_filter=[1000002], notify_prefiles=True)
     for abfrage in (db.get_push_subscriptions_fuer_lotse_online,
                     db.get_push_subscriptions_fuer_lotsenschicht):
-        assert abfrage(c, PILOT) == []
-        assert len(abfrage(c, 1000002)) == 1
+        assert len(abfrage(c, PILOT)) == 1
 
 
 def test_eine_alte_seite_ohne_die_neuen_angaben_setzt_nichts_zurueck(pfad):

@@ -30,6 +30,7 @@ from app.database import (
     lotsen_bekannte,
     lotsen_gemeldete,
     lotsen_mit_pilotenname,
+    lotsen_gesehen_merken,
     lotsen_name_merken,
     lotsen_name_vergessen,
     lotsen_namen_aufraeumen,
@@ -553,6 +554,8 @@ class VatsimPoller:
         self.lotsen_buchungen: list[dict] = []
         self._lotsen_buchungen_da = False            # erster Abruf gelungen?
         self._lotsen_bekannt: set[int] | None = None  # None = erster Durchlauf, nur Stand setzen
+        # Schon in ``lotsen_gesehen`` vorgemerkt -- spart die Schreibsperre im 15-s-Takt.
+        self._lotsen_vorgemerkt: set[int] = set()
         self._lotsen_last_notified: dict[int, datetime] = {}
         # Ersatzweg bei stehendem Hauptfeed (#63): Friesen aus der Funkliste, Flugplan aus
         # der Statusabfrage, Lotsen aus der Lotsenliste. Alles nur im Speicher.
@@ -2169,6 +2172,8 @@ class VatsimPoller:
                         lotsen_name_merken(conn, l["cid"], name, jetzt.strftime("%Y-%m-%dT%H:%M:%SZ"))
                         bekannte[l["cid"]] = name
                         geschrieben = True
+                if self._lotsen_vormerken(conn, (l["cid"] for l in liste), jetzt):
+                    geschrieben = True
                 if geschrieben:
                     conn.commit()
                 if neu_lesen:
@@ -2198,6 +2203,16 @@ class VatsimPoller:
             # der längst nicht mehr lotst oder dessen Name inzwischen gelöscht ist.
             self.lotsen_online = []
             logger.exception("Fehler beim Auslesen der Lotsen")
+
+    def _lotsen_vormerken(self, conn, cids, jetzt: datetime) -> bool:
+        """Lotsen für die Auswahl der Benachrichtigungen vormerken (kein commit).
+        ``True``, wenn etwas geschrieben wurde."""
+        neu = set(cids) - self._lotsen_vorgemerkt
+        if not neu:
+            return False
+        lotsen_gesehen_merken(conn, neu, jetzt.strftime("%Y-%m-%dT%H:%M:%SZ"))
+        self._lotsen_vorgemerkt |= neu
+        return True
 
     def lotsen_mit_namen(self, eintraege: list[dict]) -> list[dict]:
         """Kopien der Einträge mit dem Namen, wie er JETZT in der Datenbank steht.
@@ -2243,6 +2258,13 @@ class VatsimPoller:
             buchungen = lotsen.buchungen_filtern(roh, set(bekannte), self._now())
             for b in buchungen:
                 b["name"] = bekannte.get(b["cid"], "")
+            if {b["cid"] for b in buchungen} - self._lotsen_vorgemerkt:
+                conn = get_connection(self.db_path)
+                try:
+                    if self._lotsen_vormerken(conn, (b["cid"] for b in buchungen), self._now()):
+                        conn.commit()
+                finally:
+                    conn.close()
             self.lotsen_buchungen = buchungen
             self._lotsen_buchungen_da = True
         except Exception as exc:

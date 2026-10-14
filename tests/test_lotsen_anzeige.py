@@ -125,7 +125,8 @@ def test_karte_zeichnet_lotsen_und_raeumt_sie_wieder_weg():
 def test_schalter_in_den_einstellungen_nennen_auch_die_lotsen():
     """Nutzer 09.10.2026: Die Schalter melden seit 16.2.0 auch Lotsen, das muss dranstehen.
     Seit 16.6.0 haben Lotsen eigene Schalter (tests/test_benachrichtigung_getrennt.py)."""
-    assert "Benachrichtigen wenn (gilt für Piloten, Lotsen &amp; TeamSpeak):" in INDEX
+    assert "Welche Piloten (gilt auch für TeamSpeak):" in INDEX
+    assert "Welche Lotsen:" in INDEX
     assert "Auch bei eingereichten Flugplänen" not in INDEX
 
 
