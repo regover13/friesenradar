@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.7.0",
+    "date": "2026-10-14",
+    "highlight": false,
+    "title": "Bilanz in der Pilotenansicht",
+    "items": [
+      "📊 Über der Flugliste eines Piloten steht jetzt eine Bilanz für den gewählten Zeitraum: Flüge, Flugzeit, Blockzeit, Strecke, Schnitt je Flug, längster Flug, angeflogene Plätze und meistgeflogenes Muster.",
+      "📊 Am Handy stehen die Werte in zwei kurzen Reihen, am großen Bildschirm in einer Zeile."
+    ]
+  },
+  {
     "version": "16.6.0",
     "date": "2026-10-14",
     "highlight": false,

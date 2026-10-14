@@ -219,6 +219,7 @@ Interaktive Karte mit allen aktuell fliegenden Friesen. Sie geht über Wangeroog
 
 **Was du tun kannst:**
 - **Pilot anklicken** → klappt die Einzelflug-Liste für diesen Piloten auf; Daten kommen sofort aus dem lokalen Cache, ein Update von StatSim läuft automatisch im Hintergrund
+- **Bilanz** über der Flugliste: Anzahl Flüge, Flugzeit, Blockzeit, Strecke, Schnitt je Flug, längster Flug mit Start und Ziel, Zahl der angeflogenen Plätze und das meistgeflogene Muster, alles für den oben gewählten Zeitraum. Gezählt wird wie in der übrigen Statistik, also ohne Flüge unter fremdem Rufzeichen und ohne den Flug, der gerade läuft; deshalb kann die Zahl kleiner sein als die über der Liste. Flüge ohne aufgezeichnete Spur haben noch keine Strecke, ihre Zahl steht dann unter der Summe. Nach „Alle Flüge laden“ rechnet die Bilanz mit.
 - **Orden** unter dem Namen des Piloten: Für jeden FriesenBummel, FriesenKutter und jede FriesenReddung, bei denen er ein Badge fürs Forum bekommen hat, hängt dort ein kleiner Orden am Band, der neueste links. Es zählt derselbe Zeitraum wie oben (30, 90 oder 365 Tage). Das Band verrät die Art: orange für den Bummel, hellblau für den Kutter, orange-weiß gestreift für die Reddung, rot für einen Bummel-Sieg. Ein Tipp auf den Orden öffnet das Badge in voller Größe
 - **„Alle Flüge laden (letztes Jahr)"** → erzwingt einen vollständigen 365-Tage-Refresh von StatSim für diesen Piloten (dauert etwas länger)
 - **◎** neben einem Einzelflug → öffnet den GPS-Track dieses Fluges in einem eigenen Fenster (mit **⛶ Vollbild**)

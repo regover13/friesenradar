@@ -4052,6 +4052,35 @@
     .orden-band-sieger { background: linear-gradient(90deg, #8A1B1B 0 38%, #D75F28 38% 62%, #8A1B1B 62%); }
     .orden-band-reddung { background: repeating-linear-gradient(135deg, #D75F28 0 3px, #EEF4FD 3px 6px); }
     .orden:hover img { transform: scale(1.08); }
+    /* Bilanz ueber der Flugliste eines Piloten (14.10.2026). Acht kleine Felder: am Handy zwei
+       Reihen zu vier, breit eine Reihe. Bewusst kleiner als die KPI-Box oben -- das hier ist
+       die persoenliche Zusammenfassung, nicht die Hauptzahl der Seite. */
+    .piloten-bilanz {
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin: 0 0 12px;
+      /* Linien als Rahmen, nicht ueber `gap`: Coherent GT kennt `gap` nicht
+         (docs/efb-panel-debugging.md), im Kniebrett fielen sie sonst weg. */
+      border-top: 1px solid rgba(var(--green-rgb), 0.15);
+      border-left: 1px solid rgba(var(--green-rgb), 0.15);
+    }
+    @media (min-width: 900px) { .piloten-bilanz { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+    .piloten-bilanz-feld {
+      padding: 6px 8px; min-width: 0;
+      border-right: 1px solid rgba(var(--green-rgb), 0.15);
+      border-bottom: 1px solid rgba(var(--green-rgb), 0.15);
+    }
+    .piloten-bilanz-titel {
+      font-family: var(--text-display); font-size: 0.62rem; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-label); white-space: nowrap;
+    }
+    .piloten-bilanz-wert {
+      font-family: var(--text-mono); font-size: 0.85rem; color: var(--text-bright);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .piloten-bilanz-zusatz {
+      font-family: var(--text-mono); font-size: 0.65rem; color: var(--text-label);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
     .flights-panel-count {
       font-family: var(--text-display);
       font-size: 0.72rem;
@@ -12497,6 +12526,7 @@ function renderFlightsList(cid, pilotName, flights, statsimStatus) {
   if (flights.length === 0) {
     html += `<div class="empty-state"><div class="empty-state-text">Keine Flüge gefunden</div></div>`;
   } else {
+    html += _pilotBilanzHtml(_pilotBilanz(flights));
     html += `<div class="live-table-wrap"><table>
       <thead><tr>
         <th>Callsign</th><th>Aircraft</th><th>Strecke</th><th>Flugplan</th><th>Datum</th><th>Flugzeit</th><th>Block</th><th>Distanz</th><th>Track</th><th>Quelle</th>
@@ -12522,6 +12552,67 @@ function renderFlightsList(cid, pilotName, flights, statsimStatus) {
   // den Flugplan, Track öffnet den GPS-Track. Kein Zeilen-Klick. #v8.1.0 / UI-Feedback 07-04
   _wireFlightRowClicks(container);
 }
+
+// PILOTEN-BILANZ-ANFANG
+// Zusammenfassung ueber der Flugliste (Wunsch aus der Gruppe, 14.10.2026). Gerechnet aus genau
+// der Liste darunter, damit beides immer zusammenpasst. Gezaehlt wird wie in der Statistik:
+// kein fremdes Rufzeichen, kein laufender Flug, kein Geisterflug (s. _flightRowHtml).
+function _pilotBilanz(flights) {
+  const gezaehlt = (flights || []).filter(f => {
+    const cs = String(f.callsign || '').toUpperCase();
+    if (cs && !cs.startsWith(_callsignPrefix)) return false;
+    if (_isLiveLeg(f)) return false;
+    const nm = f.distance_nm != null ? Math.round(f.distance_nm) : 0;
+    return !((f.duration_min || 0) === 0 && nm <= 1);
+  });
+  const b = { fluege: gezaehlt.length, flugzeit: 0, blockzeit: 0, strecke: 0, ohne_strecke: 0,
+              schnitt: 0, laengster: null, plaetze: 0, muster: null };
+  const plaetze = new Set();
+  const muster = {};
+  for (const f of gezaehlt) {
+    const min = f.duration_min || 0;
+    b.flugzeit += min;
+    if (f.block_min != null) b.blockzeit += f.block_min;
+    const nm = f.distance_nm != null ? Math.round(f.distance_nm) : 0;
+    if (nm > 0) b.strecke += nm; else b.ohne_strecke += 1;
+    if (!b.laengster || min > b.laengster.min) {
+      b.laengster = { min: min, von: f.gps_departure || '', nach: f.gps_arrival || '' };
+    }
+    if (f.gps_departure) plaetze.add(f.gps_departure);
+    if (f.gps_arrival) plaetze.add(f.gps_arrival);
+    const code = f.aircraft_icao || f.aircraft || '';
+    if (code) muster[code] = (muster[code] || 0) + 1;
+  }
+  b.plaetze = plaetze.size;
+  b.schnitt = b.fluege ? Math.round(b.flugzeit / b.fluege) : 0;
+  for (const code in muster) {
+    if (!b.muster || muster[code] > b.muster.anzahl) b.muster = { code: code, anzahl: muster[code] };
+  }
+  return b;
+}
+
+function _pilotBilanzHtml(b) {
+  if (!b || !b.fluege) return '';
+  const zeit = m => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} h`;
+  const feld = (titel, wert, zusatz) => '<div class="piloten-bilanz-feld">'
+    + `<div class="piloten-bilanz-titel">${titel}</div>`
+    + `<div class="piloten-bilanz-wert">${wert}</div>`
+    + (zusatz ? `<div class="piloten-bilanz-zusatz">${zusatz}</div>` : '') + '</div>';
+  const l = b.laengster;
+  const strecke = l && (l.von || l.nach) ? escHtml(`${l.von || '—'}–${l.nach || '—'}`) : '';
+  return '<div class="piloten-bilanz">'
+    + feld('Flüge', String(b.fluege))
+    + feld('Flugzeit', zeit(b.flugzeit))
+    + feld('Blockzeit', zeit(b.blockzeit))
+    + feld('Strecke', `${b.strecke} nm`, b.ohne_strecke ? `${b.ohne_strecke} ohne Strecke` : '')
+    // „Schnitt“ statt „Ø Flug“: In der Schrift der Ueberschriften sieht das Ø wie ein O aus.
+    + feld('Schnitt', zeit(b.schnitt), 'je Flug')
+    + feld('Längster', l ? zeit(l.min) : '—', strecke)
+    + feld('Plätze', String(b.plaetze))
+    + feld('Muster', b.muster ? escHtml(b.muster.code) : '—', b.muster ? `${b.muster.anzahl}×` : '')
+    + '</div>';
+}
+// PILOTEN-BILANZ-ENDE
 
 // Ordensleiste: je Spezial-Event mit Forum-Badge ein kleiner Orden am Band, in der Reihenfolge
 // des Servers (neueste zuerst). Ein Tipp oeffnet das Badge in voller Groesse. Ohne Orden
