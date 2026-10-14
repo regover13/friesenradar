@@ -3948,7 +3948,7 @@
     #visibility-pilot-list::-webkit-scrollbar-thumb { background: var(--green-dim); border-radius: 4px; }
     .notif-pilot-cb { display: flex; align-items: center; gap: 6px; cursor: pointer; }
     .notif-pilot-cb:has(input:disabled) { opacity: 0.55; cursor: default; }
-    .notif-lotse-leer { font-size: 0.75rem; color: var(--text-label); }
+    .notif-lotse-strich { flex: none; border-top: 1px solid var(--green-dim); margin: 3px 0; }
     .notif-save-btn {
       background: var(--green-dim);
       border: 1px solid var(--green-dim);
@@ -9062,13 +9062,15 @@ function _notifLotseModus() {
   return (document.querySelector('input[name="notif-lotse-mode"]:checked') || {}).value || 'all';
 }
 
+// Oben, wer schon gelotst hat, dann ein schmaler Strich, darunter alle übrigen Friesen
+// (Wunsch des Nutzers 14.10.2026: einen Verlauf gibt es erst seit 16.8.0).
 function _notifLotseListeHtml(lotsen) {
-  if (!lotsen.length) {
-    return '<div class="notif-lotse-leer">Noch keine Lotsen bekannt. Wer als Friese lotst ' +
-           'oder eine Schicht bucht, erscheint hier.</div>';
-  }
-  return lotsen.map(l => '<label class="notif-pilot-cb"><input type="checkbox" data-cid="' +
-    Number(l.cid) + '"> ' + escHtml(l.name || String(l.cid)) + '</label>').join('');
+  const zeile = l => '<label class="notif-pilot-cb"><input type="checkbox" data-cid="' +
+    Number(l.cid) + '"> ' + escHtml(l.name || 'Ein Friese') + '</label>';
+  const oben = lotsen.filter(l => l.gelotst), unten = lotsen.filter(l => !l.gelotst);
+  return oben.map(zeile).join('') +
+    (oben.length && unten.length ? '<div class="notif-lotse-strich"></div>' : '') +
+    unten.map(zeile).join('');
 }
 
 function _applyNotifLotseListState() {
@@ -9092,10 +9094,7 @@ async function _loadNotifLotseList() {
       'input[name="notif-lotse-mode"][value="' + (gespeichert ? 'select' : 'all') + '"]');
     if (radio) radio.checked = true;
     try {
-      // Die gespeicherten mitschicken: Sie bleiben in der Liste, auch wenn sie noch nie
-      // als Lotse gesehen wurden (übernommene Pilotenauswahl).
-      const res = await fetch('/api/lotsen/auswahl?dazu=' +
-                              encodeURIComponent((gespeichert || []).join(',')));
+      const res = await fetch('/api/lotsen/auswahl');
       const data = await res.json();
       box.innerHTML = _notifLotseListeHtml(data.lotsen || []);
       box.dataset.geladen = '1';

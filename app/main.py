@@ -170,6 +170,7 @@ from app.database import (
     upsert_push_subscription,
     KEINE_ANGABE,
     lotsen_zur_auswahl,
+    forum_name_merken,
     push_abo_bekannt,
     alte_adress_abos_entfernen,
     upsert_statsim_flights,
@@ -4405,14 +4406,12 @@ async def get_lotsen(request: Request):
 
 
 @app.get("/api/lotsen/auswahl")
-async def get_lotsen_auswahl(dazu: str = ""):
-    """Lotsen für die Auswahl der Benachrichtigungen: wer als Friese gelotst oder eine Schicht
-    gebucht hat (seit 16.8.0 vorgemerkt). ``dazu`` sind die CIDs einer schon gespeicherten
-    Auswahl (kommagetrennt), damit sie in der Liste bleiben."""
-    extra = [t for t in dazu.split(",") if t.strip().isdigit()][:200]
+async def get_lotsen_auswahl():
+    """Friesen für die Lotsenauswahl der Benachrichtigungen: oben, wer schon gelotst oder eine
+    Schicht gebucht hat (``gelotst``), darunter alle übrigen (16.8.1)."""
     conn = get_connection(get_settings().DB_PATH)
     try:
-        return {"lotsen": lotsen_zur_auswahl(conn, extra)}
+        return {"lotsen": lotsen_zur_auswahl(conn)}
     finally:
         conn.close()
 
@@ -5699,6 +5698,19 @@ async def forum_callback(request: Request):
         str(claims.get("cid", "")), bool(claims.get("is_admin")), exp,
         abmelden=claims.get("abm") is True,   # die Bruecke kuendigt an, dass sie abmelden kann
     )
+    # Benutzername aus dem Forum: Rückfall für Friesen, die ihren Namen bei VATSIM verbergen
+    # (Lotsenanzeige, 16.8.1). Wie die Rufzeichen darf ein Fehler den Login nicht aufhalten.
+    if str(claims.get("cid", "")).strip().isdigit():
+        try:
+            conn = get_connection(settings.DB_PATH)
+            try:
+                forum_name_merken(conn, int(str(claims.get("cid")).strip()),
+                                  str(claims.get("name", "")))
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception:
+            _logger.warning("forum_name nicht gespeichert (Login läuft weiter)", exc_info=True)
     # Autoritative Callsign→CID-Map aus dem Forum-Profil (Token v2, Feld `cs`) pflegen —
     # defensiv (nur Liste, nur String-Einträge, plausible Länge) + eigene Alt-Zeilen bereinigen.
     raw_cid = str(claims.get("cid", "")).strip()

@@ -194,32 +194,96 @@ def test_der_abo_endpunkt_nimmt_die_lotsenauswahl_an(pfad, main_mit_db):
 
 # --- Die Liste zur Auswahl ------------------------------------------------------------------
 
-def test_in_der_liste_steht_wer_gelotst_oder_gebucht_hat(pfad):
+def test_oben_wer_gelotst_hat_darunter_alle_uebrigen(pfad):
+    """Wunsch des Nutzers 14.10.2026: einen Verlauf gibt es erst seit 16.8.0, deshalb stehen
+    alle Friesen drin -- wer schon gelotst hat, oben."""
     c = get_connection(pfad)
-    assert db.lotsen_zur_auswahl(c) == []
-    db.lotsen_gesehen_merken(c, [LOTSE, PILOT], "2026-10-14T10:00:00Z")
+    db.lotsen_gesehen_merken(c, [LOTSE], "2026-10-14T10:00:00Z")
     c.commit()
-    assert db.lotsen_zur_auswahl(c) == [{"cid": PILOT, "name": "Erika Muster"},
-                                        {"cid": LOTSE, "name": "FRS12"}]
+    assert db.lotsen_zur_auswahl(c) == [
+        {"cid": LOTSE, "name": "FRS12", "gelotst": True},
+        {"cid": PILOT, "name": "Erika Muster", "gelotst": False},
+        {"cid": ANDERE, "name": "FRS77", "gelotst": False}]
 
 
-def test_eine_gespeicherte_auswahl_bleibt_in_der_liste(pfad):
+def test_wer_vor_dem_update_gelotst_hat_steht_auch_oben(pfad):
+    """Ein gemerkter Lotsenname heißt: hat schon gelotst (der Fall vom 10.10.2026)."""
     c = get_connection(pfad)
-    assert [e["cid"] for e in db.lotsen_zur_auswahl(c, ["1000004", "kaputt"])] == [ANDERE]
+    db.lotsen_name_merken(c, ANDERE, "Simon Beispiel", "2026-10-10T13:38:03Z")
+    c.commit()
+    assert db.lotsen_zur_auswahl(c)[0] == {"cid": ANDERE, "name": "Simon Beispiel", "gelotst": True}
 
 
 def test_abgeschaltete_und_fremde_stehen_nicht_in_der_liste(pfad):
     c = get_connection(pfad)
     db.lotsen_gesehen_merken(c, [1000003, 9999999], "2026-10-14T10:00:00Z")
-    assert db.lotsen_zur_auswahl(c, [1000003, 9999999]) == []
+    cids = {e["cid"] for e in db.lotsen_zur_auswahl(c)}
+    assert 1000003 not in cids and 9999999 not in cids
 
 
 def test_der_endpunkt_liefert_die_liste(pfad, main_mit_db):
-    c = get_connection(pfad)
-    db.lotsen_gesehen_merken(c, [LOTSE], "2026-10-14T10:00:00Z")
+    antwort = asyncio.run(main_mit_db.get_lotsen_auswahl())
+    assert {e["cid"] for e in antwort["lotsen"]} == {PILOT, LOTSE, ANDERE}
+
+
+# --- Namen: nie die Nummer ------------------------------------------------------------------
+
+@pytest.mark.parametrize("name, verborgen", [
+    ("1948215", True), ("1948215 ETNW", True), ("", True), (None, True),
+    ("Erika Muster", False), ("Erika 1948215", False), ("19482150 Muster", False)])
+def test_eine_nummer_ist_kein_name(name, verborgen):
+    assert db.name_verborgen(1948215, name) is verborgen
+
+
+def _verborgener_pilot(c, cid=1948215, flug="FRS331N"):
+    c.execute("INSERT INTO pilots (cid, name, added_at, active) VALUES (?, ?, '2026-01-01', 1)",
+              (cid, f"{cid} ETNW"))
+    if flug:
+        c.execute("INSERT INTO flights (cid, callsign, logon_time) VALUES (?, ?, '2026-10-04T18:08:10Z')",
+                  (cid, flug))
     c.commit()
-    antwort = asyncio.run(main_mit_db.get_lotsen_auswahl(dazu="1000004,abc"))
-    assert [e["cid"] for e in antwort["lotsen"]] == [LOTSE, ANDERE]
+
+
+def test_verborgener_name_wird_zum_zuletzt_geflogenen_rufzeichen(pfad):
+    c = get_connection(pfad)
+    _verborgener_pilot(c)
+    assert db.lotsen_bekannte(c)[1948215] == "FRS331N"
+
+
+def test_das_forum_rufzeichen_geht_dem_geflogenen_vor(pfad):
+    c = get_connection(pfad)
+    _verborgener_pilot(c)
+    c.execute("INSERT INTO forum_callsign (callsign, cid, updated_at) VALUES ('FRS331', 1948215, '2026-01-01')")
+    assert db.lotsen_bekannte(c)[1948215] == "FRS331"
+
+
+def test_der_forumsname_geht_dem_rufzeichen_vor(pfad):
+    c = get_connection(pfad)
+    _verborgener_pilot(c)
+    db.forum_name_merken(c, 1948215, "Hein Mück")
+    assert db.lotsen_bekannte(c)[1948215] == "Hein Mück"
+    db.forum_name_merken(c, 1948215, "")
+    assert db.lotsen_bekannte(c)[1948215] == "FRS331N"
+
+
+def test_ein_echter_vatsim_name_geht_allem_vor(pfad):
+    c = get_connection(pfad)
+    db.forum_name_merken(c, PILOT, "erika_forum")
+    assert db.lotsen_bekannte(c)[PILOT] == "Erika Muster"
+
+
+def test_ohne_jede_quelle_heisst_er_ein_friese(pfad):
+    c = get_connection(pfad)
+    _verborgener_pilot(c, flug=None)
+    assert db.lotsen_bekannte(c)[1948215] == "Ein Friese"
+
+
+def test_der_login_merkt_sich_den_forumsnamen():
+    import pathlib
+    quelle = pathlib.Path(__file__).resolve().parents[1].joinpath("app/main.py").read_text("utf-8")
+    rumpf = quelle[quelle.index("    # Benutzername aus dem Forum: Rückfall"):]
+    rumpf = rumpf[:rumpf.index("    # Autoritative Callsign")]
+    assert 'forum_name_merken(conn, int(str(claims.get("cid")).strip()),' in rumpf
 
 
 def _poller(pfad):
@@ -284,6 +348,13 @@ def test_die_website_hat_zwei_auswahlen():
     assert '<div id="notif-lotse-list" hidden></div>' in INDEX
 
 
+@pytest.mark.skipif(_NODE is None, reason="node fehlt")
+def test_zwischen_den_gruppen_steht_ein_strich():
+    html = _js({}, "_notifLotseListeHtml([{cid:1,name:'A',gelotst:true},{cid:2,name:'B',gelotst:false}])")
+    assert html.index('data-cid="1"') < html.index('notif-lotse-strich') < html.index('data-cid="2"')
+    assert 'notif-lotse-strich' not in _js({}, "_notifLotseListeHtml([{cid:2,name:'B',gelotst:false}])")
+
+
 def test_speichern_schickt_die_lotsenauswahl_mit():
     start = INDEX.index("async function _saveNotifFilter")
     rumpf = INDEX[start:INDEX.index("\n}\n", start)]
@@ -303,6 +374,7 @@ def _js(speicher: dict, ausdruck: str):
     js = ("const speicher = " + json.dumps(speicher) + ";\n"
           "global.localStorage = { getItem: (k) => k in speicher ? speicher[k] : null };\n"
           "global.document = { getElementById: () => null, querySelector: () => null };\n"
+          "global.escHtml = (t) => String(t);\n"
           + INDEX[start:ende] + "\nconsole.log(JSON.stringify(" + ausdruck + "));")
     p = subprocess.run([_NODE, "-e", js], capture_output=True, text=True, timeout=20)
     assert p.returncode == 0, p.stderr

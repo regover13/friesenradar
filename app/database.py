@@ -256,6 +256,12 @@ CREATE TABLE IF NOT EXISTS lotsen_name (
     gesehen_am TEXT
 );
 
+CREATE TABLE IF NOT EXISTS forum_name (
+    cid        INTEGER PRIMARY KEY,     -- Benutzername aus dem Forum-Login (16.8.1), nur als
+    name       TEXT NOT NULL,           -- Rückfall für Friesen, die ihren Namen bei VATSIM verbergen
+    updated_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS lotsen_gesehen (
     cid      INTEGER PRIMARY KEY,       -- Friese, der als Lotse online war oder eine Schicht gebucht hat
     erstmals TEXT                       -- für die Lotsenauswahl der Benachrichtigungen (16.8.0)
@@ -12199,36 +12205,68 @@ def ersatzweg_merken(conn: sqlite3.Connection, von: str, bis: str) -> None:
     )
 
 
+def name_verborgen(cid, name) -> bool:
+    """Steht in ``name`` kein echter Name? Wer seinen Namen bei VATSIM verbirgt, steht dort mit
+    seiner Nummer, oft mit dem Heimatplatz dahinter („1948215 ETNW“) -- das ist kein Name."""
+    n = (name or "").strip()
+    return not n or n.isdigit() or n.split()[0] == str(cid)
+
+
 def lotsen_bekannte(conn: sqlite3.Connection) -> dict[int, str]:
     """VATSIM-Nummer -> Anzeigename aller Friesen, die als Lotse erkannt werden sollen.
 
     Lotsen tragen kein FRS-Rufzeichen; erkannt wird über die Nummer. Quellen: die aktive
     Pilotenliste und die Rufzeichen aus der Forum-Anmeldung. Abgeschaltete Piloten fehlen.
 
-    Der Name kommt aus der Pilotenliste. Wer nie geflogen ist, steht dort nicht; für ihn gilt
-    der Name, den der VATSIM-Feed beim Lotsen genannt hat (``lotsen_name``), und bis dahin
-    sein Rufzeichen."""
+    Der Name, in dieser Reihenfolge: der VATSIM-Name aus der Pilotenliste, der Name, den der
+    VATSIM-Feed beim Lotsen genannt hat (``lotsen_name``), der Benutzername aus dem
+    Forum-Login (``forum_name``), das Rufzeichen aus dem Forum, das zuletzt geflogene
+    FRS-Rufzeichen und erst dann „Ein Friese“. Eine Nummer wird nie als Name gezeigt
+    (``name_verborgen``)."""
     aus = {r["cid"] for r in conn.execute("SELECT cid FROM pilots WHERE active = 0")}
-    bekannt: dict[int, str] = {}
+    rufzeichen: dict[int, str] = {}
     for r in conn.execute("SELECT cid, callsign FROM forum_callsign ORDER BY callsign"):
         if r["cid"] not in aus:
-            bekannt.setdefault(r["cid"], r["callsign"])
-    for r in conn.execute("SELECT cid, name FROM lotsen_name"):
-        if r["cid"] in bekannt:
-            bekannt[r["cid"]] = r["name"]
-    for r in conn.execute("SELECT cid, name FROM pilots WHERE active = 1"):
-        name = (r["name"] or "").strip()
-        if name and not name.isdigit():
-            bekannt[r["cid"]] = name
+            rufzeichen.setdefault(r["cid"], r["callsign"])
+    piloten = {r["cid"]: r["name"] for r in conn.execute("SELECT cid, name FROM pilots WHERE active = 1")}
+    alle = set(rufzeichen) | set(piloten)
+    ohne_rufzeichen = [c for c in piloten if c not in rufzeichen]
+    if ohne_rufzeichen:
+        # Zuletzt geflogenes FRS-Rufzeichen -- nur für die wenigen ohne Forum-Rufzeichen.
+        platz = ",".join("?" * len(ohne_rufzeichen))
+        for r in conn.execute(
+                f"SELECT cid, UPPER(callsign) AS cs FROM flights WHERE cid IN ({platz}) "
+                "AND UPPER(callsign) LIKE 'FRS%' ORDER BY logon_time DESC", ohne_rufzeichen):
+            rufzeichen.setdefault(r["cid"], r["cs"])
+    forum = {r["cid"]: r["name"] for r in conn.execute("SELECT cid, name FROM forum_name")}
+    feed = {r["cid"]: r["name"] for r in conn.execute("SELECT cid, name FROM lotsen_name")}
+    bekannt: dict[int, str] = {}
+    for cid in alle:
+        for kandidat in (piloten.get(cid), feed.get(cid), forum.get(cid), rufzeichen.get(cid)):
+            if not name_verborgen(cid, kandidat):
+                bekannt[cid] = kandidat.strip()
+                break
         else:
-            bekannt.setdefault(r["cid"], "Ein Friese")
+            bekannt[cid] = "Ein Friese"
     return bekannt
 
 
 def lotsen_mit_pilotenname(conn: sqlite3.Connection) -> set[int]:
     """Nummern, deren Name aus der Pilotenliste kommt -- der geht jedem anderen vor."""
     return {r["cid"] for r in conn.execute("SELECT cid, name FROM pilots WHERE active = 1")
-            if (r["name"] or "").strip() and not (r["name"] or "").strip().isdigit()}
+            if not name_verborgen(r["cid"], r["name"])}
+
+
+def forum_name_merken(conn: sqlite3.Connection, cid: int, name: str) -> None:
+    """Benutzernamen aus dem Forum-Login festhalten (kein commit). Leer = vergessen."""
+    name = (name or "").strip()[:80]
+    if not name:
+        conn.execute("DELETE FROM forum_name WHERE cid = ?", (int(cid),))
+        return
+    conn.execute(
+        "INSERT INTO forum_name (cid, name, updated_at) VALUES (?, ?, ?) "
+        "ON CONFLICT(cid) DO UPDATE SET name = excluded.name, updated_at = excluded.updated_at",
+        (int(cid), name, _now_utc()))
 
 
 def lotsen_name_merken(conn: sqlite3.Connection, cid: int, name: str, ts: str) -> None:
@@ -12262,7 +12300,9 @@ def lotsen_namen_aufraeumen(conn: sqlite3.Connection, ts: str) -> int:
         # dieselbe Schranke wie in lotsen_bekannte: Abgeschaltete tauchen nicht auf
         "OR cid IN (SELECT cid FROM pilots WHERE active = 0) "
         "OR cid IN (SELECT cid FROM pilots WHERE TRIM(COALESCE(name, '')) != '' "
-        "           AND TRIM(name) GLOB '*[^0-9]*') "
+        "           AND TRIM(name) GLOB '*[^0-9]*' "
+        # ein mit der eigenen Nummer beginnender Name ist verborgen (name_verborgen)
+        "           AND TRIM(name) || ' ' NOT LIKE CAST(cid AS TEXT) || ' %') "
         "OR gesehen_am < date(?, '-365 days')"
     )
     # Erst lesen, aus demselben Grund wie oben: meist gibt es nichts zu löschen.
@@ -12283,21 +12323,18 @@ def lotsen_gesehen_merken(conn: sqlite3.Connection, cids, ts: str) -> int:
     return neu
 
 
-def lotsen_zur_auswahl(conn: sqlite3.Connection, dazu=()) -> list[dict]:
-    """Lotsen für die Auswahl der Benachrichtigungen, nach Namen sortiert.
+def lotsen_zur_auswahl(conn: sqlite3.Connection) -> list[dict]:
+    """Alle Friesen für die Lotsenauswahl der Benachrichtigungen.
 
-    Alle vorgemerkten (``lotsen_gesehen``) und dazu ``dazu`` -- die CIDs einer schon
-    gespeicherten Auswahl, damit sie sichtbar bleiben. Es erscheint nur, wer als Friese
-    erkannt wird (``lotsen_bekannte``); Abgeschaltete fallen dort schon heraus."""
+    Oben, wer schon als Lotse gesehen wurde (``lotsen_gesehen`` und alle mit gemerktem
+    Lotsennamen, die gab es schon vor 16.8.0), mit ``gelotst = True``; darunter alle übrigen.
+    Je Gruppe nach Namen. Wer als Friese erkannt wird, bestimmt ``lotsen_bekannte``;
+    Abgeschaltete fallen dort schon heraus."""
     bekannte = lotsen_bekannte(conn)
-    cids = {r[0] for r in conn.execute("SELECT cid FROM lotsen_gesehen")}
-    for c in dazu:
-        try:
-            cids.add(int(c))
-        except (TypeError, ValueError):
-            pass
-    liste = [{"cid": c, "name": bekannte[c]} for c in cids if c in bekannte]
-    return sorted(liste, key=lambda e: (e["name"].casefold(), e["cid"]))
+    gelotst = {r[0] for r in conn.execute(
+        "SELECT cid FROM lotsen_gesehen UNION SELECT cid FROM lotsen_name")}
+    liste = [{"cid": c, "name": n, "gelotst": c in gelotst} for c, n in bekannte.items()]
+    return sorted(liste, key=lambda e: (not e["gelotst"], e["name"].casefold(), e["cid"]))
 
 
 def lotsen_gemeldete(conn: sqlite3.Connection) -> set[int]:

@@ -1084,13 +1084,9 @@ Die Seite enthält `<meta http-equiv="refresh" content="60">` (60-Sekunden-Auto-
 
 ## GET /api/lotsen/auswahl
 
-Seit 16.8.0. Lotsen für die Auswahl „Welche Lotsen“ in den Benachrichtigungen: alle Friesen, die schon als Lotse online waren oder eine Schicht gebucht haben (Tabelle `lotsen_gesehen`, vom Poller aus Feed und Buchungsliste gefüllt), nach Namen sortiert. Abgeschaltete und nicht als Friese erkannte Nummern fehlen (`lotsen_bekannte`).
+Seit 16.8.0. Alle Friesen für die Auswahl „Welche Lotsen“ in den Benachrichtigungen (seit 16.8.1 alle, nicht nur die schon gesehenen). Zuerst, wer schon als Lotse online war oder eine Schicht gebucht hat (`gelotst: true`; Tabelle `lotsen_gesehen`, vom Poller aus Feed und Buchungsliste gefüllt, dazu alle mit gemerktem Lotsennamen in `lotsen_name`), dann alle übrigen, je Gruppe nach Namen. Abgeschaltete fehlen (`lotsen_bekannte`). Namen nach `lotsen_bekannte`: nie eine Nummer (`name_verborgen`).
 
-| Query | Beschreibung |
-|---|---|
-| `dazu` | Kommagetrennte CIDs einer schon gespeicherten Auswahl; sie stehen dann auch in der Liste, wenn sie noch nie als Lotse gesehen wurden (höchstens 200). |
-
-**Response** `{"lotsen": [{"cid": 1000002, "name": "Erika Muster"}]}`
+**Response** `{"lotsen": [{"cid": 1000002, "name": "Erika Muster", "gelotst": true}]}`
 
 ---
 

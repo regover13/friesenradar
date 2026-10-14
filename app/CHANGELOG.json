@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.8.1",
+    "date": "2026-10-14",
+    "highlight": false,
+    "title": "Lotsenliste vollständig, Lotsen nie mehr nur mit Nummer",
+    "items": [
+      "🔔 In der Lotsenauswahl der Benachrichtigungen stehen jetzt alle Friesen: oben, wer schon gelotst hat, darunter durch einen Strich getrennt alle übrigen. Bisher fehlte, wer seit dem Update noch nicht gelotst hatte.",
+      "🎧 Wer seinen Namen bei VATSIM verbirgt, erscheint als Lotse nicht mehr mit seiner Nummer, sondern mit seinem Namen aus dem Forum oder seinem Rufzeichen."
+    ]
+  },
+  {
     "version": "16.8.0",
     "date": "2026-10-14",
     "highlight": false,
