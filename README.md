@@ -16,16 +16,19 @@ VATSIM Live-Tracker für die FriesenFlieger Virtual Airline. Zeigt wer von der G
   - [📊 Statistiken](#-statistiken)
   - [🔍 Event-Suche](#-event-suche)
   - [Muster-Fenster (überall anklickbar)](#muster-fenster-überall-anklickbar)
+  - [Piloten-Namen (überall anklickbar)](#piloten-namen-überall-anklickbar)
 - [🏁 FriesenBummel](#-friesenbummel)
   - [Badge fürs Forum](#badge-fürs-forum)
 - [🦐 FriesenKutter (Transportflüge)](#-friesenkutter-transportflüge)
 - [🚨 FriesenReddung (Suchen und Retten)](#-friesenreddung-suchen-und-retten)
 - [🔧 Verwaltung (Admin)](#-verwaltung-admin)
+  - [Wie die Seite aufgeteilt ist](#wie-die-seite-aufgeteilt-ist)
   - [Board-Login (Forum-SSO, optional)](#board-login-forum-sso-optional)
   - [Rund um den FriesenBummel](#rund-um-den-friesenbummel)
   - [Rund um die FriesenReddung](#rund-um-die-friesenreddung)
   - [Flugbetrieb und Daten](#flugbetrieb-und-daten)
-  - [Kniebrett](#kniebrett)
+  - [Mitteilungen und Stammdaten](#mitteilungen-und-stammdaten)
+  - [Betrieb](#betrieb)
   - [Diagnose](#diagnose)
 - [👤 Dein Konto und Abmelden](#-dein-konto-und-abmelden)
 - [🌗 Helles Design](#-helles-design)
@@ -130,7 +133,7 @@ also enthalten). StatSim-Tracks zeigten das Rollen schon immer.
 
 ### ✈ Live
 
-Zeigt alle Friesen, die gerade auf VATSIM fliegen — in Echtzeit, ohne Neuladen der Seite. Darunter erscheinen **eingereichte Flugpläne (Prefiles)**: Piloten, die bereits einen Plan aufgegeben haben, aber noch nicht verbunden sind. Die Prefile-Liste aktualisiert sich etwa jede Minute automatisch (das TeamSpeak-Panel alle 30 Sekunden); die Live-Positionen darüber laufen in Echtzeit per Server-Sent-Events.
+Zeigt alle Friesen, die gerade auf VATSIM fliegen — in Echtzeit, ohne Neuladen der Seite. Darunter steht **Geplant**: eingereichte Flugpläne (Prefiles) von Piloten, die noch nicht verbunden sind, und gebuchte Lotsenschichten. Diese Liste aktualisiert sich etwa jede Minute automatisch (das TeamSpeak-Panel alle 30 Sekunden); die Live-Positionen darüber laufen in Echtzeit per Server-Sent-Events.
 
 **Was du siehst:**
 - Callsign, Abflug- und Zielflughafen, Flugzeugtyp
@@ -146,7 +149,7 @@ Zeigt alle Friesen, die gerade auf VATSIM fliegen — in Echtzeit, ohne Neuladen
 - **Flugplan (DEP→ARR) anklicken** → öffnet das Flugplan-Modal mit allen Details (Route, Reiseflughöhe, Bemerkungen, TAS, Flight Rules usw.)
 - **◎ anklicken** → springt direkt auf den Karte-Tab und zentriert die Karte auf diesen Piloten
 - **⎘ anklicken** → kopiert einen direkten Link zu diesem Flugplan in die Zwischenablage — zum Teilen
-- **🔊 anklicken** (hinter jedem Callsign, in der Tabelle wie im Karten-Popup) → öffnet [listen.vatsim.net](https://listen.vatsim.net) und schaltet auf die Frequenz, auf der dieser Pilot gerade ist. Dafür ist einmal eine Anmeldung mit der eigenen VATSIM-CID nötig; der Wunsch überlebt die Anmeldung, danach läuft der richtige Pilot. Zu hören ist, was gerade gesprochen wird — steht kein Lotse auf der Frequenz oder redet niemand, bleibt es still. Im Kniebrett erscheint das Symbol bewusst nicht (dort gibt es keinen Browser, in dem sich der Link öffnen ließe)
+- **🔊 anklicken** (hinter jedem Callsign, in der Tabelle wie im Karten-Popup, auch in der Zeile eines Lotsen) → öffnet [listen.vatsim.net](https://listen.vatsim.net) und schaltet auf die Frequenz, auf der dieser Pilot oder Lotse gerade ist. Dafür ist einmal eine Anmeldung mit der eigenen VATSIM-CID nötig; der Wunsch überlebt die Anmeldung, danach läuft der richtige Pilot. Zu hören ist, was gerade gesprochen wird — steht kein Lotse auf der Frequenz oder redet niemand, bleibt es still. Im Kniebrett erscheint das Symbol bewusst nicht (dort gibt es keinen Browser, in dem sich der Link öffnen ließe)
 - **Flugzeugtyp anklicken** → öffnet das [Muster-Fenster](#muster-fenster-überall-anklickbar)
 
 Die Liste aktualisiert sich über eine permanente Server-Verbindung (Server-Sent Events) live im Hintergrund — du siehst neue Positionen, ohne die Seite neu laden zu müssen. Steht die Verbindung, zeigt die Kopfzeile nichts an; reißt sie ab, erscheint dort rot **„GETRENNT“**. Ein Klick auf das Logo in der Kopfzeile führt zur Homepage der FriesenFlieger.
@@ -212,9 +215,9 @@ Interaktive Karte mit allen aktuell fliegenden Friesen. Sie geht über Wangeroog
 > **Datenschutz:** In der Pilotenliste wird der vollständige VATSIM-Name angezeigt. Alle dort sichtbaren Namen sind öffentlich im VATSIM-Datenfeed (`data.vatsim.net`) — FriesenRadar zeigt keine zusätzlichen privaten Daten.
 
 **Was du siehst:**
-- **KPI-Box** oben: Gesamtanzahl aktiver Piloten, Flüge, Flugstunden, Durchschnitt pro Tag, aktivster Pilot und durchschnittliche Flugdauer im gewählten Zeitraum
+- **KPI-Box** oben: Piloten, Flüge, Flugstunden, Blockzeit, Ø Flüge und Flugstunden pro Tag, Ø Flugzeit, aktivster Pilot und häufigstes Muster im gewählten Zeitraum. Ein Klick auf **Häufigstes Muster** öffnet die Liste aller geflogenen Muster, mit eigenem Zeitraum und ⎘ zum Teilen
 - **Spezial-Events** über dem Liniendiagramm: je eine Zeile für FriesenKutter, FriesenBummel und FriesenReddung, nur für Abende, die im gewählten Zeitraum zu Ende gingen. Bei der FriesenReddung: Anzahl der Abende, Teilnahmen, wie lange die Suche im Mittel vom Eventbeginn bis zum Fund dauerte, die insgesamt abgesuchte Fläche und die mittlere Dauer vom Fund bis zur Einlieferung
-- **Liniendiagramm**: Flugaktivität über Zeit — umschaltbar zwischen Piloten, Flügen, Stunden und Ø Flugdauer; wählbare Zeiträume: 30 Tage, 90 Tage (beide mit Wochentag-Labels) und 365 Tage (monatlich)
+- **Liniendiagramm**: Flugaktivität über Zeit — Piloten, Flüge, Flugstunden und Ø Flugzeit als vier Linien; ein Klick auf die Legende blendet eine aus; wählbare Zeiträume: 30 Tage, 90 Tage (beide mit Wochentag-Labels) und 365 Tage (monatlich)
 - **Pilotenliste**: alle Piloten mit Anzahl geloggter Flüge und letztem Flugdatum — sortierbar nach Flügen, Flugzeit oder Datum (Klick auf Spaltenheader)
 
 **Was du tun kannst:**
@@ -295,7 +298,7 @@ Der **FriesenBummel** ist ein besonderer Event-Typ — ein „Schätzweltmeister
 **Wertung (bewusst robust):**
 - **Teilnahme ohne Anmeldung** — jeder Friese, der die Strecke im Zeitfenster fliegt, ist automatisch dabei.
 - **Reihenfolge und Richtung egal:** Die Strecke `A–B–C` darf in beliebiger Richtung und Reihenfolge geflogen werden (auch alternative Routings wie `A→C→B`). Gewertet wird, wer **alle Flugplätze** der Strecke besucht hat.
-- **Zwischenlandungen sind erlaubt (Bummel = gemütlich):** Wer mit Zwischenstopp fliegt (z.B. `A→X→B`), kommt trotzdem in die Wertung. Gezählt wird die **Tour** vom ersten Start an einem Streckenflugplatz bis zur letzten Landung an einem Streckenflugplatz; die **Standzeit der Zwischenstopps zählt nicht mit** (nur die reine Flugzeit der Legs).
+- **Zwischenlandungen sind erlaubt (Bummel = gemütlich):** Wer mit Zwischenstopp fliegt (z.B. `A→X→B`), kommt trotzdem in die Wertung. Gezählt wird die **Tour** vom ersten Start an einem Streckenflugplatz bis zur letzten Landung an einem Streckenflugplatz; die **Standzeit der Zwischenstopps zählt nicht mit** (gewertet wird die Blockzeit der einzelnen Legs).
 - **Frühstarter zählen mit:** Wer schon vor dem offiziellen Event-Start losfliegt, aber währenddessen unterwegs ist, wird mit seiner **vollen Blockzeit** gewertet.
 - **Gewertete Zeit** = Summe der Blockzeiten der Tour-Legs (*off blocks* bis *on blocks*, Taxi und Halte unterwegs eingeschlossen; die Standzeit an Zwischenstopps zählt nicht — egal wie lange sie dauert). Tatsächlich geflogene Meilen, Warteschleifen und Umwege spielen keine Rolle.
 - **Niemand fällt still raus:** Piloten, die noch nicht alle Etappen geflogen haben, werden separat als „unvollständig" aufgelistet — mit den fehlenden Etappen, benannt in der Richtung, in der die Strecke sie nennt (`EDTD - EDSR`).
@@ -482,7 +485,7 @@ nicht gewertet" mit dem Grund.
 
 ## 🔧 Verwaltung (Admin)
 
-Die Admin-Seite ist unter `/admin` erreichbar und passwortgeschützt. Das Passwort wird über `ADMIN_PASSWORD` in `config.env` gesetzt (leer = Admin-Bereich deaktiviert; niemals in git). Der Login setzt ein signiertes httponly-Cookie (`fs_admin`), das für die Browsersitzung gültig bleibt — ein Passwort- oder Key-Wechsel invalidiert alle bestehenden Cookies sofort.
+Die Admin-Seite ist unter `/admin` erreichbar und passwortgeschützt. Das Passwort wird über `ADMIN_PASSWORD` in `config.env` gesetzt (leer = Admin-Bereich deaktiviert; niemals in git). Der Login setzt ein signiertes httponly-Cookie (`fs_admin`), das 24 Stunden gültig bleibt — ein Passwort- oder Key-Wechsel invalidiert alle bestehenden Cookies sofort.
 
 ### Wie die Seite aufgeteilt ist
 
@@ -503,17 +506,18 @@ nicht auf VATSIM. Wird eine FriesenBrügge seit Minuten abgelehnt, weil sie an e
 gebunden ist, aber zu einem anderen passt, erscheint darüber ein Hinweis. Mit **„vergessen“**
 löschst du ihre Bindung; sie wird dann neu zugeordnet.
 
-**Jeder Bereich holt seine Daten erst, wenn du ihn zum ersten Mal öffnest.** Das Anmelden geht
-dadurch spürbar schneller. Die beiden Bereiche, die sich laufend selbst auffrischen — Brügge und
-Kniebrett — tun das nur, solange sie zu sehen sind.
+**Ein Klick auf einen Bereich oder Event-Typ lädt seine Daten neu.** Nur Betrieb und Mitteilungen
+laden einmal je Seitenaufruf, damit halb getippte Eingaben nicht verloren gehen. Brügge und
+Betrieb (dort „Kniebrett meldet Positionen“) frischen sich selbst auf, solange sie zu sehen sind,
+die Reddung-Liste alle 30 Sekunden, solange ein Event läuft.
 
 ### Board-Login (Forum-SSO, optional)
 
 Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, Standard AUS), ist die gesamte App nur für eingeloggte Forum-Mitglieder (`board.friesenflieger.de`, phpBB) sichtbar. Der Login läuft im Forum — das Passwort erreicht FriesenRadar nie: eine kleine Bridge-Datei `sso.php` (aus `deploy/forum/`, neben phpBB kopiert) liefert per Redirect ein kurzlebiges, HMAC-signiertes Token mit Benutzername, VATSIM-CID (aus dem Forum-Profil) und Admin-Flag (Forum-Gruppe „Events“). FriesenRadar prüft es (`SSO_SECRET`, Frische ≤ 60 s, Einmal-Nonce, `state`) und legt eine eigene kurze Session (`fs_user`) an. Das `ADMIN_PASSWORD` bleibt als Break-glass-Zugang erhalten. Details: `docs/superpowers/specs/2026-07-13-forum-sso-design.md` und `deploy/forum/README.md`.
 
 ### Rund um den FriesenBummel
-- **Rennen manuell anlegen** — auch ohne Kalender-Termin, mit frei wählbarer Strecke, Start- und (optionalem) Endtermin sowie Anwesenheitsradius. Ein fehlendes `dtend` wird auf Mitternacht UTC des Starttags gesetzt.
-- **Rennen bearbeiten und löschen** — nachträgliche Korrekturen an Name, Strecke, Termin oder Radius; Löschen entfernt das Rennen dauerhaft. **Was du hier änderst, bleibt geändert:** Jedes Feld zeigt, woher sein Wert kommt — *aus dem Kalender* oder *von Hand*. Von Hand gesetzte Felder rührt der Kalender-Abgleich nicht mehr an; die übrigen bleiben ihm überlassen. Vertan? Der Pfeil **↺** neben dem Feld holt den Kalenderstand sofort zurück.
+- **Rennen manuell anlegen** — auch ohne Kalender-Termin, mit frei wählbarer Strecke, Start- und (optionalem) Endtermin. Ein fehlendes `dtend` wird auf Mitternacht UTC des Starttags gesetzt.
+- **Rennen bearbeiten und löschen** — nachträgliche Korrekturen an Name, Strecke oder Termin; Löschen entfernt das Rennen dauerhaft. **Was du hier änderst, bleibt geändert:** Jedes Feld zeigt, woher sein Wert kommt — *aus dem Kalender* oder *von Hand*. Von Hand gesetzte Felder rührt der Kalender-Abgleich nicht mehr an; die übrigen bleiben ihm überlassen. Vertan? Der Pfeil **↺** neben dem Feld holt den Kalenderstand sofort zurück.
 - **Kalendertermin verknüpfen** — beim Anlegen und beim Bearbeiten wählst du aus einer Liste den Termin, zu dem dieses Rennen gehört (oder lässt das Feld leer). Verknüpft heißt: Rennen und Termin **sind dasselbe Ereignis** — der Termin steht dann nicht mehr zusätzlich in den Events und erinnert nicht doppelt. FriesenRadar schlägt einen passenden Termin vor (gleicher Tag, ähnlicher Titel), entscheidet aber nichts von allein: Bestätigt wird mit dem Speichern. Termine, an denen schon ein Event hängt, sind ausgegraut. **Beim Kutter genauso** (dort zusätzlich das Ziel, das nie aus dem Kalender kommt).
 
   Warum von Hand und nicht automatisch nach Datum? Weil zwei Ereignisse am selben Abend zwei Ereignisse sein dürfen. Am 4. September liefen „FFFreitag – Ausmotten" und ein Kutter parallel — bewusst als zwei Themen mit zwei Benachrichtigungen. Ob etwas zusammengehört, ist eine Absicht und keine Eigenschaft der Daten.
@@ -522,9 +526,11 @@ Ist der **Board-Login** aktiv (Admin → „Betrieb“ → „Board-Login“, St
 - **Push-Benachrichtigungen je Rennen** — Start- und Enthüllungs-Push für ein einzelnes Rennen an- oder abschalten.
 - **Vorschau** — vollständige Wertung mit Zeiten und Ranking einsehen, solange das Rennen noch läuft — ohne die öffentliche Sicht zu enthüllen.
 - **Badge-Vorschau** — in der Renn-Vorschau je Teilnehmer **🎖 Badge** (öffnet das Badge-PNG, auch schon **vor** der Enthüllung) und **📋 Forum** (kopiert den öffentlichen `[img]…[/img]`-BBCode).
-- **Hinweis-Banner steuern** — bestimmen, welcher Changelog-Eintrag als Startseiten-Banner erscheint: `auto` (neuester Highlight-Eintrag), `off` (kein Banner) oder eine konkrete Version.
-- **Push-Test & Broadcast** — eine Test-Benachrichtigung nur ans eigene Gerät senden oder eine freie Nachricht (Titel + Text) an alle Abonnenten bzw. nur Events-Abonnenten.
-- **Piloten-Verwaltung** — bekannte Piloten auflisten, manuell anlegen oder umbenennen und löschen (Namenspflege; **keine** Mitglieder-Allowlist — Friesen werden weiter über das Callsign-Präfix `FRS` erkannt).
+
+### Mitteilungen und Stammdaten
+- **Hinweis-Banner steuern** (Mitteilungen) — bestimmen, welcher Changelog-Eintrag als Startseiten-Banner erscheint: `auto` (neuester Highlight-Eintrag), `off` (kein Banner) oder eine konkrete Version.
+- **Push-Test & Broadcast** (Mitteilungen) — eine Test-Benachrichtigung nur ans eigene Gerät senden oder eine freie Nachricht (Titel + Text) an alle Abonnenten bzw. nur Events-Abonnenten. Daneben schickt **Test-Meldung ins Kniebrett** dieselbe Nachricht ins eigene Kniebrett, über die Live-Verbindung statt über Web-Push.
+- **Piloten-Verwaltung** (Stammdaten) — bekannte Piloten auflisten, manuell anlegen oder umbenennen und löschen (Namenspflege; **keine** Mitglieder-Allowlist — Friesen werden weiter über das Callsign-Präfix `FRS` erkannt). Wer den Haken **„Aktiv“** abwählt, nimmt eine CID trotz FRS-Rufzeichen aus der Friesen-Erkennung heraus, etwa eine Gast-CID.
 
 ### Rund um die FriesenReddung
 - **Lage** — ein Textfeld für die Geschichte des Abends: was gesucht wird und was man darüber
@@ -616,7 +622,7 @@ VATSIM weiterhin die Sekunden, in denen sie schweigt.
 - **Erkennungslücken** — Flüge, bei denen trotz bekanntem Flugplan kein GPS-Start oder keine GPS-Landung erkannt wurde. Das sind die Kandidaten für einen fehlenden oder falsch verorteten Flugplatz. Ein Fall, der keiner ist (Absturz, Aufzeichnungslücke), lässt sich dauerhaft abhaken. Zur Diagnose einzelner Fälle gibt es den Skill `track-diagnose`.
 - **Flugplätze** — eigene Einträge und Überschreibungen (`custom_airports`): Koordinaten korrigieren, Radius und Grund hinterlegen, Plätze ergänzen, die `airportsdata` nicht kennt. Dazu die **Kartenlinks** je Platz.
 - **Flugzeugmuster** — Liste aller Muster mit MTOW, Leergewicht und Zuladung; einzeln bearbeiten, per KI-Vorschlag nachschlagen (Web-Recherche) oder Beschreibung und Foto neu holen.
-- **StatSim-Nachlauf** — einen vollständigen Abgleich mit StatSim anstoßen und seinen Fortschritt verfolgen.
+- **StatSim-GPS-Track-Nachladen** (Betrieb) — fehlende GPS-Tracks von StatSim-Flügen am Stück nachladen statt alle zehn Minuten häppchenweise, mit Fortschrittsanzeige.
 - **FriesenKutter** — Events, Frachtmanifest, Frachtart-Katalog und Standard-Zuladung pflegen, Push je Event schalten, KI-Sprüche an- oder abschalten und für ein Event neu erzeugen lassen. Siehe [FriesenKutter](#-friesenkutter-transportflüge).
   **Ein abgeschlossener Kutter bleibt so gewertet, wie er war.** Änderungen an Zuladungen wirken sofort auf laufende Events, rühren fertige aber nicht mehr an. Soll ein fertiges Event die neuen Werte bekommen, tippst du es an und speicherst es — das ist der bewusste Neuberechnungs-Hebel.
 
@@ -624,14 +630,8 @@ VATSIM weiterhin die Sekunden, in denen sie schweigt.
 
 - **Board-Login** — schaltet die Anmeldung über das Forum ein oder aus (siehe oben).
 - **Messeverkehr** — füllt die Live-Karte für einen Messestand: FriesenRadar spielt echte, abgeschlossene Flüge der Gruppe unter erfundenen Rufzeichen noch einmal ab, zeitlich auf jetzt verschoben. Zu sehen ist das **nur für die Mitglieder, die du dort einträgst** (etwa das Gerät am Stand); alle anderen sehen die Karte wie immer. Einstellbar sind die Zahl der gleichzeitigen Flüge, der Abstand zwischen den Starts und Rufzeichen, die nie erscheinen sollen.
-- **Testinstanz** — startet für begrenzte Zeit eine zweite, getrennte Fassung von FriesenRadar mit einer Kopie der Daten, um einen neuen Stand anzusehen, bevor er für alle gilt. Sie beendet sich von selbst.
-
-### Kniebrett
-
-- **Geräteübersicht** — welche Kniebretter angemeldet sind und welches Paket sie fahren; eine Verknüpfung lässt sich hier auch wieder lösen.
-- **Selbstdiagnose** — was die Panels von sich aus zurückmelden (technische Messwerte, u. a. der tatsächlich verfügbare Platz im Tablet); löschbar.
-- **Test-Meldung ins eigene Kniebrett** — geht über die Live-Verbindung, nicht über Web-Push.
-- **Positionen melden** — ob ein offenes Kniebrett zurückmeldet, welche Flugzeuge es erkannt hat. Drei Stufen: *aus*, *nur die eigene Position*, *alle erkannten Friesen* (der Simulator sieht sie bis rund 90 km weit). Einstellbar global und für einzelne Piloten; der globale Wert ist dabei die Obergrenze. **Vorgabe ist „aus".** Die Umstellung wirkt binnen zehn Sekunden, ohne dass jemand etwas neu installieren muss. Daneben steht, wer gerade wen versorgt — auf der Karte sieht man sonst nur den Punkt, nicht seine Quelle.
+- **Testinstanz** — startet eine zweite, getrennte Fassung von FriesenRadar mit einer Kopie der Daten, um einen neuen Stand anzusehen, bevor er für alle gilt. Sie verschickt keine Benachrichtigungen und beendet sich nach 2 Stunden von selbst. Solange sie läuft, gibt es direkte Links in vier Varianten: Normal, TV-Modus, TV-Modus mit Rundflug und Kniebrett-Ansicht.
+- **Kniebrett meldet Positionen** — ob ein offenes Kniebrett zurückmeldet, welche Flugzeuge es erkannt hat. Vier Stufen: *aus*, *nur die eigene Position*, *alle erkannten Friesen* (der Simulator sieht sie bis rund 90 km weit), *auch Fremdverkehr*. Dazu ein Takt von 1 bis 5 Sekunden als Drossel bei Last. Einstellbar global und für einzelne Piloten; der globale Wert ist dabei die Obergrenze. **Vorgabe ist „aus".** Die Umstellung wirkt binnen zehn Sekunden, ohne dass jemand etwas neu installieren muss. Daneben steht, wer gerade wen versorgt — auf der Karte sieht man sonst nur den Punkt, nicht seine Quelle.
 
 ### Diagnose
 
@@ -776,17 +776,17 @@ TS_REJOIN_DEBOUNCE_SEC=900   # Default: 900 s (15 min)
 
 ## 🗺️ Karten-Layer
 
-Alle Karten in FriesenRadar (Live-Tab, Track-Ansicht, Event-Suche) verwenden dieselbe Layer-Auswahl. Deine Wahl wird im Browser gespeichert und beim nächsten Besuch automatisch wiederhergestellt.
+Die Grundkarten und OpenAIP gibt es auf allen Karten (Live-Tab, Track-Ansicht, Event-Suche); die übrigen Ebenen nur auf der Live-Karte. Deine Wahl wird im Browser gespeichert und beim nächsten Besuch automatisch wiederhergestellt.
 
 **Basis-Layer (einer ist immer aktiv):**
 
 | Layer | Am besten für |
 |-------|---------------|
 | **OpenFlightMap (VFR)** | Luftfahrtkarte mit Lufträumen, Funkfeuern, Platzrunden — schaltet sich automatisch bei Zoom 7–12 ein |
-| **OpenTopoMap** | Gelände und Höhenlinien |
-| **ESRI Satellit** | Satellitenbilder — schaltet sich automatisch außerhalb des OFM-Bereichs ein (Zoom ≤ 6 oder ≥ 13) |
-| **Light CARTO** | Heller, neutraler Straßenatlas |
-| **Dark CARTO** | Dunkle Variante, passend zum Interface |
+| **OpenTopo** | Gelände und Höhenlinien |
+| **Satellit** (ESRI) | Satellitenbilder — schaltet sich automatisch außerhalb des OFM-Bereichs ein (Zoom ≤ 6 oder ≥ 13) |
+| **Light** (CARTO) | Heller, neutraler Straßenatlas |
+| **Dark** (CARTO) | Dunkle Variante, passend zum Interface |
 
 **OpenAIP-Overlay** (zusätzliche Checkbox): Legt Lufträume, Flugplätze und Navaids aus der OpenAIP-Datenbank über den gewählten Basis-Layer. Besonders nützlich in Kombination mit Satellit oder CARTO. Ist nur verfügbar, wenn auf dem Server ein OpenAIP API-Key konfiguriert ist.
 
@@ -820,7 +820,7 @@ Das **Kniebrett** ist FriesenRadar als eigene App im EFB-Tablet des **Microsoft 
 
 **Paket 3.0.0 und der neue Ordner:** Seit 3.0.0 heißt das Kniebrett auch im Tablet FriesenRadar, und der Paketordner heißt **`friesenkniebrett`**. Wer von einer Fassung vor 3.0.0 kommt, **löscht den alten Ordner friesenflieger-friesenspy-efb** aus dem Community-Ordner und heftet die App im Tablet neu an — sonst stehen dort zwei Apps nebeneinander. Liegen beide Ordner da, zeigt das neue Kniebrett dazu einen Hinweis, der sich nicht wegklicken lässt. Die Anmeldung des Tablets bleibt beim Wechsel erhalten.
 
-**Paketversion:** Aktuell ist **3.0.0**. Erforderlich ist mindestens **2.0.0** — ältere Pakete zeigen statt der App nur noch den Hinweis, wo die neue Fassung liegt (sie können sich den Simulator nicht merken, jeder Start begänne mit einer Anmeldung). Die **Windanzeige** braucht **2.1.0**; mit einem älteren Paket bleibt sie einfach aus. Welche Version wo läuft, steht in der Geräteübersicht im Admin.
+**Paketversion:** Aktuell ist **3.0.0**. Erforderlich ist mindestens **2.0.0** — ältere Pakete zeigen statt der App nur noch den Hinweis, wo die neue Fassung liegt (sie können sich den Simulator nicht merken, jeder Start begänne mit einer Anmeldung). Die **Windanzeige** braucht **2.1.0**; mit einem älteren Paket bleibt sie einfach aus.
 
 **Fehlende und veraltete Pakete melden sich nach dem Flug.** Nach jedem Flug prüft FriesenRadar, ob währenddessen eine FriesenBrügge gemeldet hat und mit welcher Fassung, und welche Fassung dein zuletzt benutztes Kniebrett hat. Fehlt die FriesenBrügge oder ist eines der beiden älter als das, was zum Herunterladen bereitliegt, erscheint unten rechts ein Hinweis mit der Adresse zum Herunterladen, auf der Website und im Tablet. Auf der Website führt ein Klick darauf zur Download-Seite. Das Kniebrett wird nur beurteilt, wenn deine FriesenBrügge MSFS 2024 gemeldet hat oder keine lief, denn nur dort gibt es das Tablet. Als fehlend gilt es, wenn du in MSFS 2024 fliegst und noch nie eines angemeldet hast. Ein Klick auf das × legt den Hinweis weg, auf allen deinen Geräten; nach dem nächsten Flug mit demselben Mangel steht er wieder da. Ist ein Paket veraltet, bekommst du zusätzlich rund eine Viertelstunde nach der Landung eine Benachrichtigung, sofern du Benachrichtigungen eingeschaltet hast. Fehlt ein Paket ganz, bleibt es beim Hinweis auf der Seite. Hat eine FriesenBrügge noch nie gesagt, welche Fassung sie fährt, wird sie nicht verdächtigt.
 
@@ -828,8 +828,8 @@ Das **Kniebrett** ist FriesenRadar als eigene App im EFB-Tablet des **Microsoft 
 - **Verkehr aus dem Simulator** — auf der Karte kommt der fremde Verkehr direkt aus dem Sim: **jede Sekunde gemessen** statt zwischen zwei VATSIM-Meldungen geschätzt, und auch **ohne VATSIM-Verbindung**. Geparkte Maschinen bleiben weg, rollende sind ausdrücklich dabei. Details zur Zusammenführung beider Quellen stehen oben im [Karte-Tab](#️-karte).
 - **Eigenes Flugzeug ohne VATSIM** — Kompass und Moving Map funktionieren allein aus dem Simulator; es genügt zu fliegen.
 - **Windpfeil** (oben links über den Zoomknöpfen, im Vollbild an derselben Stelle) — der Pfeil zeigt, wohin der Wind weht, die Zahl daneben nennt wie üblich die Richtung, aus der er kommt (`270° 15 kt`). Bei gedrehter Karte dreht er mit, bei Windstille steht dort „still". Den Wind kennt nur der Simulator — auf der Website gibt es die Anzeige nicht.
-- **Meldungen im Tablet** — Online-gehen, Flugplan, TeamSpeak und Events meldet das Tablet selbst, ohne Web-Push; die Meldung bleibt danach auf der Benachrichtigungs-Seite stehen. Wer unter „Wer darf über mich benachrichtigt werden?" jemanden ausgeschlossen hat, bleibt auch hier ausgeschlossen — diese Entscheidung fällt auf dem Server.
-- **Einstellungen (⚙ oben rechts)** — **Anzeige** (Größe in Zehnerschritten nachjustieren, „Automatisch" setzt zurück; die Grenzen greifen auch gegen die Handeinstellung, unbedienbar stellen geht nicht — dazu die Kartenhelligkeit, siehe nächster Punkt) und **Benachrichtigungen** (die vier Sorten einzeln an/aus). Die **Farbe des Zahnrads** zeigt den Verbindungszustand: in der Farbe der Tabs daneben = verbunden, rot = getrennt.
+- **Meldungen im Tablet** — Piloten (online, Flugplan), Lotsen (online, gebuchte Schichten), TeamSpeak und Events meldet das Tablet selbst, ohne Web-Push; die Meldung bleibt danach auf der Benachrichtigungs-Seite stehen. Wer unter „Wer darf über mich benachrichtigt werden?" jemanden ausgeschlossen hat, bleibt auch hier ausgeschlossen — diese Entscheidung fällt auf dem Server.
+- **Einstellungen (⚙ oben rechts)** — **Anzeige** (Größe in Zehnerschritten nachjustieren, „Automatisch" setzt zurück; die Grenzen greifen auch gegen die Handeinstellung, unbedienbar stellen geht nicht — dazu die Kartenhelligkeit, siehe nächster Punkt) und **Benachrichtigungen** (die sechs Schalter einzeln an/aus). Die **Farbe des Zahnrads** zeigt den Verbindungszustand: in der Farbe der Tabs daneben = verbunden, rot = getrennt.
 - **Kartenhelligkeit** (⚙ → Anzeige) — nimmt **nur das Kartenbild** zurück: Grundkarten und die aufgelegten Blätter (Sichtflug-, Flugplatz- und Rollkarte), nicht Schrift und Bedienelemente. Nachts ist das der ganze Unterschied: Der Helligkeitsregler des Simulators dimmt das gesamte Tablet und kann deshalb nicht gleichzeitig die blendende Karte bändigen und die Schrift lesbar halten — dreh ihn so weit herunter, dass die Karte erträglich ist, ist tagsüber alles zu dunkel. Mit „−" nimmst du die Karten stufenweise zurück, mit „+" wieder hoch — die oberste Stufe heißt „Aus" und ist der Ursprungszustand. Eingestellt wird dabei eine **Zielhelligkeit**: Jede Karte wird so weit abgesenkt, dass sie so hell ist wie die anderen — die Sichtflug- und Flugplatzblätter am stärksten, denn weißes Kartenpapier ist das Hellste, was im Cockpit auf dem Schirm liegt. Deshalb genügt ein Regler für alle — und deshalb springt die Helligkeit auch beim Wechsel zwischen OpenTopoMap und Satellit nicht mehr, was bisher nachts geblendet hat. Danach hat der Regler des Simulators wieder Spielraum für Tag und Nacht. Das Kniebrett merkt sich die Einstellung; auf der Website ändert sie nichts.
 - **Kartenvollbild** — zeigt nur noch die Karte, auch die obere Leiste verschwindet; der Ausgang „Vollbild verlassen" steht unten links. Die Karteneinstellungen (Ebenen, Zoom) bleiben über das Zuklappen hinweg erhalten.
 - **ICAO-Suche** (Lupe auf der Karte) — springt einen Platz nach Kennung an.
@@ -1018,7 +1018,7 @@ EFB_PACKAGE_PATH=                           # Optional: eigener Ort des Kniebret
 SSO_SECRET=                                 # GETEILT mit sso.php auf dem Forum; niemals in git
 FORUM_SSO_URL=                              # z.B. https://board.friesenflieger.de/sso.php
 FORUM_SSO_CALLBACK=                         # z.B. https://friesenradar.devprops.de/auth/forum/callback
-USER_SESSION_MAX_AGE_SEC=3600              # kurze FriesenRadar-Session (spiegelt Forum-Logout verzögert)
+USER_SESSION_MAX_AGE_SEC=1200              # Default: 1200 (20 min) — kurze FriesenRadar-Session (spiegelt Forum-Logout verzögert)
 # TeamSpeak-Login-Benachrichtigung (alle optional, Default: deaktiviert)
 TS_NOTIFY_ENABLED=false
 TS_HOST=127.0.0.1
@@ -1119,6 +1119,9 @@ FriesenRadar/
 │   ├── badge.py       # Badge-Rendering mit Pillow (Sieger-Badge + Medaille, data/badges/-Cache)
 │   ├── calendar_sync.py # FriesenFlieger Google-Kalender (iCal-Parser, alle 6h via Poller)
 │   ├── teamspeak.py   # TeamSpeak-ServerQuery-Client (FRS-Parsing, fetch_channel_clients)
+│   ├── lotsen.py      # Friesen als Lotsen: wer lotst, gebuchte Schichten, Meldungen
+│   ├── ersatzweg.py   # Ersatzweg bei stehendem VATSIM-Datenstand (Funkliste + Statusabfrage)
+│   ├── paket_hinweis.py    # Hinweis nach dem Flug bei fehlendem oder veraltetem Paket
 │   ├── poller.py      # APScheduler, Flug-State-Machine, Kalender-Sync, SSE-Fan-out
 │   ├── version.py     # liest CHANGELOG.json → VERSION + CHANGELOG
 │   ├── CHANGELOG.json # Versionsverlauf (Quelle für die Version in der Fußleiste, Banner, Verlauf)
@@ -1127,6 +1130,7 @@ FriesenRadar/
 │       ├── admin.html # Admin-Verwaltung (passwortgeschützt)
 │       ├── efb.html   # Downloadseite für Kniebrett + FriesenBrügge (/download, hinter dem Gate; alte URL /efb bleibt)
 │       ├── sw.js      # Service Worker (Web-Push + PWA)
+│       ├── impressum.html / datenschutz.html
 │       ├── manifest.webmanifest # PWA-Manifest (installierbar)
 │       ├── icon-192.png / icon-512.png / icon-maskable-512.png / apple-touch-icon.png
 │       └── favicon.ico
@@ -1138,6 +1142,7 @@ FriesenRadar/
 ├── deploy/            # deploy.sh (liegt auf dem Server), Forum-Brücke sso.php, Teststufe
 ├── nginx/             # nginx-Konfiguration für friesenradar.devprops.de
 ├── .github/workflows/ # CI/CD: Build → GHCR → SSH-Deploy
+├── requirements-test.txt # zusätzliche Pakete nur für die Tests
 ├── Dockerfile
 └── docker-compose.yml
 ```
