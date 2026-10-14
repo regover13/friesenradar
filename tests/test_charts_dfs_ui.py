@@ -635,3 +635,10 @@ def test_neu_passen_im_pruefdialog_hat_eine_klickbehandlung():
     anfang = ADMIN_RUMPF.rindex("document.getElementById('dfs-seiten').addEventListener", 0, stelle)
     block = ADMIN_RUMPF[anfang:stelle]
     assert "button[data-dfs-passen]" in block and "dfsPassenStarten(icao, sorte)" in block
+
+
+def test_der_pruefdialog_zeigt_die_vorschau_ueber_dem_luftbild():
+    stelle = ADMIN_RUMPF.index("async function dfsPruefenZeigen(")
+    block = ADMIN_RUMPF[stelle:ADMIN_RUMPF.index("function _dfsPruefenMarken")]
+    assert "_dfsPruefKarteZeigen(icao, sorte);" in block
+    assert "'/pruef-vorschau'" in block and "L.imageOverlay(v.bild" in block

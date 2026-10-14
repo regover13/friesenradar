@@ -632,3 +632,63 @@ def test_der_pruefdialog_adressiert_die_route_richtig():
     assert ".roh.png" not in rumpf
     assert "'.png?neu=1&t='" in rumpf
     assert "_dfsPruefenMarken(img, zeile)" in rumpf
+
+
+# ------------------------------------------------- Vorschau im Prüfdialog (14.10.2026)
+def _gepasst_dann_neues_blatt(c, db, tmp):
+    """Echte Handpassung auf dem alten Blatt, danach findet der Wochenlauf ein neues."""
+    _rohblatt(tmp / "aip_dfs" / "EDDL.flugplatzkarte.roh.png", 2200, 1000)
+    assert c.post("/api/admin/aip-charts-dfs/EDDL/flugplatzkarte", json={
+        "p1_x": 200, "p1_y": 500, "p1_lat": S_05R[0], "p1_lon": S_05R[1],
+        "p2_x": 1970, "p2_y": 500, "p2_lat": S_23L[0], "p2_lon": S_23L[1],
+    }).status_code == 200
+    _rohblatt(tmp / "aip_dfs" / f"EDDL.flugplatzkarte.neu.{'n' * 12}.png", 2200, 1000)
+    conn = get_connection(db)
+    try:
+        upsert_chart_dfs(conn, "EDDL", "flugplatzkarte", status="pruefen",
+                         status_vorher="gepasst", gesehener_hash="n" * 64)
+        conn.commit()
+        return get_chart_dfs(conn, "EDDL", "flugplatzkarte")
+    finally:
+        conn.close()
+
+
+def test_die_pruef_vorschau_legt_das_neue_blatt_mit_der_alten_passung(client):
+    c, db, tmp = client
+    alt = _gepasst_dann_neues_blatt(c, db, tmp)
+    v = c.get("/api/admin/aip-charts-dfs/EDDL/flugplatzkarte/pruef-vorschau").json()
+    # Gleich großes Blatt, gleiche Passung: dieselben Grenzen wie die gespeicherte Karte.
+    for k in ("nord", "sued", "west", "ost"):
+        assert v[k] == pytest.approx(alt[k], abs=1e-6)
+    assert v["p1"] == [pytest.approx(S_05R[0]), pytest.approx(S_05R[1])]
+    assert c.get(v["bild"]).status_code == 200
+    # Gespeichert wird dabei nichts.
+    conn = get_connection(db)
+    try:
+        assert get_chart_dfs(conn, "EDDL", "flugplatzkarte")["status"] == "pruefen"
+    finally:
+        conn.close()
+
+
+def test_die_pruef_vorschau_gibt_es_nur_in_pruefung(client):
+    c, db, tmp = client
+    _karte(db, "EDDL", "flugplatzkarte")
+    assert c.get("/api/admin/aip-charts-dfs/EDDL/flugplatzkarte/pruef-vorschau").status_code == 404
+
+
+def test_die_pruef_vorschau_braucht_anmeldung(client):
+    c, db, tmp = client
+    _gepasst_dann_neues_blatt(c, db, tmp)
+    c.cookies.clear()
+    assert c.get("/api/admin/aip-charts-dfs/EDDL/flugplatzkarte/pruef-vorschau").status_code in (401, 403)
+
+
+@pytest.mark.parametrize("weg", ["uebernehmen", "verwerfen"])
+def test_die_pruef_vorschau_geht_mit_der_entscheidung(client, weg):
+    c, db, tmp = client
+    _gepasst_dann_neues_blatt(c, db, tmp)
+    c.get("/api/admin/aip-charts-dfs/EDDL/flugplatzkarte/pruef-vorschau")
+    vorschau = tmp / "aip_dfs" / f"EDDL.flugplatzkarte.neu.{'n' * 12}.vorschau.png"
+    assert vorschau.exists()
+    assert c.post(f"/api/admin/aip-charts-dfs/EDDL/flugplatzkarte/{weg}").status_code == 200
+    assert not vorschau.exists()

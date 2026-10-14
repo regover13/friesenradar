@@ -8664,6 +8664,7 @@ async def admin_dfs_passen(icao: str, sorte: str, request: Request):
         if neu_pfad is not None:
             aip_charts.blatt_schreiben(roh_pfad, roh)   # das neue Blatt ist jetzt das gueltige
             neu_pfad.unlink(missing_ok=True)
+            Path(str(neu_pfad)[:-len(".png")] + ".vorschau.png").unlink(missing_ok=True)
         conn = get_connection(einst.DB_PATH)
         try:
             upsert_chart_dfs(
@@ -8710,6 +8711,70 @@ def _passung_aus_zeile(z: dict) -> "ground_charts.GroundPassung | None":
     return p
 
 
+def _dfs_pruef_vorschau_pfad(db_path: str, code: str, sorte: str, z: dict) -> Path:
+    return _dfs_blatt_pfad(db_path, code, sorte,
+                           f"neu.{(z['gesehener_hash'] or '')[:12]}.vorschau")
+
+
+@app.get("/api/admin/aip-charts-dfs/{icao}/{sorte}/pruef-vorschau")
+async def admin_dfs_pruef_vorschau(icao: str, sorte: str, request: Request):
+    """Das NEUE Blatt einer Karte in Prüfung, gedreht und gelegt mit der ALTEN Passung --
+    ohne etwas zu speichern. So sieht der Prüfdialog vor dem Übernehmen über dem Luftbild,
+    ob die alte Passung auf dem neuen Blatt noch stimmt (Wunsch des Nutzers 14.10.2026).
+
+    Das gedrehte Bild landet neben dem neuen Blatt (``….neu.<hash>.vorschau.png``) und geht
+    mit ihm: Übernehmen, Verwerfen und Passen räumen es weg."""
+    require_admin(request)
+    code = _dfs_blatt_normalisieren(icao, sorte)
+    einst = get_settings()
+    conn = get_connection(einst.DB_PATH)
+    try:
+        z = get_chart_dfs(conn, code, sorte)
+    finally:
+        conn.close()
+    if z is None or z["status"] != "pruefen":
+        raise HTTPException(status_code=404, detail="keine offene Pruefung")
+    neu_pfad = _dfs_blatt_pfad(einst.DB_PATH, code, sorte,
+                               f"neu.{(z['gesehener_hash'] or '')[:12]}")
+    p = _passung_aus_zeile(z)
+    if p is None or not neu_pfad.is_file():
+        raise HTTPException(status_code=409, detail="keine Passung oder kein neues Blatt")
+
+    def arbeit():
+        genordet = ground_charts.norden(neu_pfad.read_bytes(), p, sorte)
+        if genordet is None:
+            return None
+        bild, g = genordet
+        aip_charts.blatt_schreiben(_dfs_pruef_vorschau_pfad(einst.DB_PATH, code, sorte, z), bild)
+        return g
+
+    g = await asyncio.to_thread(arbeit)
+    if g is None:
+        raise HTTPException(status_code=422, detail="Blatt liess sich nicht drehen")
+    return {"nord": g["nord"], "sued": g["sued"], "west": g["west"], "ost": g["ost"],
+            "p1": [z["p1_lat"], z["p1_lon"]], "p2": [z["p2_lat"], z["p2_lon"]],
+            "bild": (f"/api/admin/aip-charts-dfs/{code}/{sorte}/pruef-vorschau.png"
+                     f"?h={(z['gesehener_hash'] or '')[:12]}")}
+
+
+@app.get("/api/admin/aip-charts-dfs/{icao}/{sorte}/pruef-vorschau.png", include_in_schema=False)
+async def admin_dfs_pruef_vorschau_bild(icao: str, sorte: str, request: Request):
+    require_admin(request)
+    code = _dfs_blatt_normalisieren(icao, sorte)
+    einst = get_settings()
+    conn = get_connection(einst.DB_PATH)
+    try:
+        z = get_chart_dfs(conn, code, sorte)
+    finally:
+        conn.close()
+    if z is None or z["status"] != "pruefen":
+        raise HTTPException(status_code=404, detail="keine offene Pruefung")
+    pfad = _dfs_pruef_vorschau_pfad(einst.DB_PATH, code, sorte, z)
+    if not pfad.is_file():
+        raise HTTPException(status_code=404, detail="Vorschau noch nicht berechnet")
+    return FileResponse(pfad, media_type="image/png", headers={"Cache-Control": "private, no-cache"})
+
+
 @app.post("/api/admin/aip-charts-dfs/{icao}/{sorte}/uebernehmen")
 async def admin_dfs_uebernehmen(icao: str, sorte: str, request: Request):
     """Ein neues DFS-Blatt wird das gueltige. Die Passung selbst bleibt unangetastet.
@@ -8741,6 +8806,7 @@ async def admin_dfs_uebernehmen(icao: str, sorte: str, request: Request):
             aip_charts.blatt_schreiben(_dfs_blatt_pfad(einst.DB_PATH, code, sorte, "roh"),
                                        roh_bytes)
             neu_pfad.unlink(missing_ok=True)
+            _dfs_pruef_vorschau_pfad(einst.DB_PATH, code, sorte, z).unlink(missing_ok=True)
 
         if neu_pfad.is_file():
             await asyncio.to_thread(arbeit)
@@ -8783,6 +8849,7 @@ async def admin_dfs_verwerfen(icao: str, sorte: str, request: Request):
         neu_pfad = _dfs_blatt_pfad(einst.DB_PATH, code, sorte,
                                    f"neu.{(z['gesehener_hash'] or '')[:12]}")
         neu_pfad.unlink(missing_ok=True)
+        _dfs_pruef_vorschau_pfad(einst.DB_PATH, code, sorte, z).unlink(missing_ok=True)
         upsert_chart_dfs(conn, code, sorte, status=z["status_vorher"] or "offen")
         conn.commit()
     finally:

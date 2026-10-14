@@ -257,6 +257,12 @@ Zeichenlast.
 
 ---
 
+## GET /api/admin/aip-charts-dfs/{icao}/{sorte}/pruef-vorschau
+
+Seit 16.9.0, nur Admin. Für eine Karte im Status `pruefen`: das neue DFS-Blatt, gedreht und gelegt mit der **bestehenden** Passung, ohne etwas zu speichern. Antwort `{"nord", "sued", "west", "ost", "p1": [lat, lon], "p2": [lat, lon], "bild"}`; `bild` zeigt auf `…/pruef-vorschau.png`. Das Bild liegt als `<ICAO>.<sorte>.neu.<hash12>.vorschau.png` neben dem neuen Blatt und wird von Übernehmen, Verwerfen und Passen weggeräumt. 404 ohne offene Prüfung, 409 ohne gespeicherte Passpunkte.
+
+---
+
 ## GET /api/aip-charts-dfs
 
 Metadaten aller gepassten DFS-Kartenblätter, beide Sorten. Speist die Ebenen

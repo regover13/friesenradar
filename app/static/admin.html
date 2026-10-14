@@ -6787,12 +6787,54 @@
         + '<button class="btn btn-sm" data-dfs-passen="' + escA(icao) + '|' + escA(sorte) + '">Neu passen</button> '
         + '<button class="btn btn-sm" id="dfs-verwerfen-btn">Verwerfen — altes Blatt bleibt</button>'
         + '</p>';
+      // Vorschau: das neue Blatt mit der ALTEN Passung über dem Luftbild, noch ohne zu
+      // speichern. Deckt es sich mit dem Luftbild, genügt Übernehmen.
+      box.insertAdjacentHTML('beforeend',
+        '<p style="margin:12px 0 4px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">'
+        + '<b>Neues Blatt mit der bisherigen Passung über dem Luftbild</b>'
+        + '<label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#8aa0b8;">Deckkraft '
+        + '<input type="range" id="dfs-pruef-deckkraft" min="0" max="100" value="65" style="width:120px;"></label></p>'
+        + '<p id="dfs-pruef-karte-hinweis" style="color:#8aa0b8;font-size:0.78rem;margin:0 0 6px;">'
+        + 'Liegen die Bahnen auf den Bahnen im Luftbild und die roten Marken auf den Passpunkten, '
+        + 'stimmt die Passung auch auf dem neuen Blatt.</p>'
+        + '<div id="dfs-pruef-karte" style="height:560px;max-width:900px;border:1px solid var(--green-grid);"></div>');
+      _dfsPruefKarteZeigen(icao, sorte);
       const img = document.getElementById('dfs-pruefen-blatt');
       img.onload = function () { _dfsPruefenMarken(img, zeile); };
       img.onerror = function () {
         img.replaceWith(Object.assign(document.createElement('p'),
           { textContent: 'Das neue Blatt fehlt auf dem Server.', style: 'color:#e07070;' }));
       };
+    }
+
+    let _dfsPruefKarte = null;
+    async function _dfsPruefKarteZeigen(icao, sorte) {
+      if (_dfsPruefKarte) { _dfsPruefKarte.remove(); _dfsPruefKarte = null; }
+      const hinweis = document.getElementById('dfs-pruef-karte-hinweis');
+      const res = await api('GET', '/api/admin/aip-charts-dfs/' + encodeURIComponent(icao)
+        + '/' + encodeURIComponent(sorte) + '/pruef-vorschau');
+      if (!res || !res.ok) {
+        if (hinweis) hinweis.textContent = 'Für dieses Blatt lässt sich keine Vorschau rechnen '
+          + '(keine gespeicherten Passpunkte). Hier hilft nur „Neu passen“.';
+        document.getElementById('dfs-pruef-karte').style.display = 'none';
+        return;
+      }
+      const v = await res.json();
+      const karte = L.map('dfs-pruef-karte', { zoomControl: true });
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 19, attribution: 'Tiles &copy; Esri' }).addTo(karte);
+      const grenzen = [[v.sued, v.west], [v.nord, v.ost]];
+      const regler = document.getElementById('dfs-pruef-deckkraft');
+      const blatt = L.imageOverlay(v.bild, grenzen, { opacity: regler.value / 100 }).addTo(karte);
+      regler.addEventListener('input', () => blatt.setOpacity(regler.value / 100));
+      [v.p1, v.p2].forEach(function (p, i) {
+        if (!p || p[0] == null) return;
+        L.circleMarker(p, { radius: 7, color: '#ff3b30', weight: 2, fillColor: '#ff3b30', fillOpacity: 0.35 })
+          .bindTooltip('Punkt ' + (i + 1), { permanent: true, direction: 'right' }).addTo(karte);
+      });
+      karte.fitBounds(grenzen, { padding: [20, 20] });
+      setTimeout(() => karte.invalidateSize(), 60);
+      _dfsPruefKarte = karte;
     }
 
     // Die bisherigen Klickpunkte als Kreuze aufs neue Blatt -- in Pixeln des Rohblatts,
