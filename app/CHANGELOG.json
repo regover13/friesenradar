@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.8.2",
+    "date": "2026-10-14",
+    "highlight": false,
+    "title": "Neu passen im Prüfdialog",
+    "items": [
+      "🗺️ Verwaltung: „Neu passen“ im Prüfdialog für neue DFS-Blätter öffnet jetzt die Passen-Maske mit dem neuen Blatt. Bisher tat der Knopf nichts."
+    ]
+  },
+  {
     "version": "16.8.1",
     "date": "2026-10-14",
     "highlight": false,

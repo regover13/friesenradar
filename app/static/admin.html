@@ -6814,6 +6814,14 @@
     }
 
     document.getElementById('dfs-seiten').addEventListener('click', async function (e) {
+      // „Neu passen“ im Prüfdialog: Der Dialog liegt außerhalb von #dfs-charts, dessen
+      // Klickbehandlung die Passen-Knöpfe der Liste bedient -- bis 16.8.2 blieb er stumm.
+      const passen = e.target.closest && e.target.closest('button[data-dfs-passen]');
+      if (passen) {
+        const [icao, sorte] = passen.getAttribute('data-dfs-passen').split('|');
+        dfsPassenStarten(icao, sorte);
+        return;
+      }
       const b = e.target.closest && (e.target.closest('button#dfs-uebernehmen-btn')
         || e.target.closest('button#dfs-verwerfen-btn'));
       if (!b || !_dfsPruefenZeile) return;

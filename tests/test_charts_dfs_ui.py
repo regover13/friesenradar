@@ -626,3 +626,12 @@ def test_das_speichern_bietet_das_ergebnis_zum_korrigieren_an():
     stelle = ADMIN_RUMPF.index("document.getElementById('dfs-save-btn')")
     block = ADMIN_RUMPF[stelle:ADMIN_RUMPF.index("dfs-abbrechen-btn", stelle)]
     assert "dfs-drehung').value = erg.drehung" in block
+
+
+def test_neu_passen_im_pruefdialog_hat_eine_klickbehandlung():
+    """Der Nutzer, 14.10.2026: „Neu passen“ im Prüfdialog tat nichts. Der Knopf liegt in
+    #dfs-seiten, die Passen-Knöpfe wurden nur in #dfs-charts behandelt."""
+    stelle = ADMIN_RUMPF.index("button#dfs-uebernehmen-btn")
+    anfang = ADMIN_RUMPF.rindex("document.getElementById('dfs-seiten').addEventListener", 0, stelle)
+    block = ADMIN_RUMPF[anfang:stelle]
+    assert "button[data-dfs-passen]" in block and "dfsPassenStarten(icao, sorte)" in block
