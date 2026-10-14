@@ -642,3 +642,12 @@ def test_der_pruefdialog_zeigt_die_vorschau_ueber_dem_luftbild():
     block = ADMIN_RUMPF[stelle:ADMIN_RUMPF.index("function _dfsPruefenMarken")]
     assert "_dfsPruefKarteZeigen(icao, sorte);" in block
     assert "'/pruef-vorschau'" in block and "L.imageOverlay(v.bild" in block
+
+
+def test_neu_passen_auf_neuem_blatt_leert_die_alten_bildpunkte():
+    """EDVK, 14.10.2026: alte Bildpunkte und alte Hand-Drehung blieben beim Passen des
+    neuen Blatts stehen, die Karte lag danach falsch."""
+    stelle = ADMIN_RUMPF.index("async function dfsPassenStarten(")
+    block = ADMIN_RUMPF[stelle:ADMIN_RUMPF.index("_dfsKarteFuellen(icao, sorte, hilfe.mitte);", stelle)]
+    assert "if (eintrag.status === 'pruefen') {" in block
+    assert "['p1-x', 'p1-y', 'p2-x', 'p2-y', 'dfs-drehung']" in block

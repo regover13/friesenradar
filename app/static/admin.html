@@ -6467,6 +6467,18 @@
       // Vorbelegt wird nur, was wirklich eine ueberschriebene Drehung IST.
       document.getElementById('dfs-drehung').value =
         _dfsIstUeberschrieben(eintrag.drehung) ? eintrag.drehung.toFixed(1) : '';
+      // Neu passen auf einem NEUEN Blatt (Karte in Prüfung): Die gespeicherten Bildpunkte
+      // gehören zum alten Blatt und dürfen nicht stehen bleiben. EDVK, 14.10.2026: Das neue
+      // Blatt kam hochkant statt quer, ein nicht neu geklickter Punkt behielt x = 1133 auf
+      // einem 875 px breiten Blatt, dazu eine alte Hand-Drehung -- die Karte lag danach
+      // falsch. Die Koordinaten bleiben vorbelegt, die Rahmenecken liegen meist gleich.
+      if (eintrag.status === 'pruefen') {
+        ['p1-x', 'p1-y', 'p2-x', 'p2-y', 'dfs-drehung'].forEach(id => {
+          document.getElementById(id).value = '';
+        });
+        _dfsKopfSetzen(icao, sorte, 'neues Blatt — beide Bildpunkte neu anklicken, '
+          + 'die Koordinaten stammen vom alten Blatt und sind zu prüfen');
+      }
 
       _dfsKarteFuellen(icao, sorte, hilfe.mitte);
       _dfsDrehungAnzeigen();

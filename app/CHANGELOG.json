@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.9.1",
+    "date": "2026-10-14",
+    "highlight": false,
+    "title": "Neu passen leert die Bildpunkte des alten Blatts",
+    "items": [
+      "🗺️ Verwaltung: „Neu passen“ auf einem neuen DFS-Blatt übernimmt die Bildpunkte und die Drehung des alten Blatts nicht mehr. Beide Punkte werden neu angeklickt, die Koordinaten bleiben als Vorschlag stehen."
+    ]
+  },
+  {
     "version": "16.9.0",
     "date": "2026-10-14",
     "highlight": false,
