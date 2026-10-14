@@ -264,7 +264,7 @@ Metadaten aller gepassten DFS-Kartenblätter, beide Sorten. Speist die Ebenen
 wie bei Meldepunkten und Platzrunden. Keine Query-Parameter: Die Liste ist klein genug, um
 ganz zu kommen, und ein Nachladen mitten im Anflug wäre der falsche Zeitpunkt.
 
-Enthalten sind nur Blätter mit Status `gepasst` oder `auto` — eine Karte ohne Passung hat
+Enthalten sind nur Blätter mit Status `gepasst`, `auto` oder `pruefen` (seit 16.8.1; bis zur Entscheidung gelten altes Blatt und alte Passung, das neue liegt daneben) — eine Karte ohne Passung hat
 nichts zum Anzeigen.
 
 **Response**

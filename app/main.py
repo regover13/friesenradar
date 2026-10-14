@@ -623,7 +623,10 @@ async def aip_charts_dfs_liste():
     """Metadaten aller gepassten Karten, beider Sorten -- einmal beim Einschalten der
     Ebenen geladen, dasselbe Muster wie bei Meldepunkten und Platzrunden.
 
-    Nur ``gepasst`` und ``auto``: eine Karte ohne Passung hat nichts zum Anzeigen. Zwei
+    Nur ``gepasst``, ``auto`` und ``pruefen``: eine Karte ohne Passung hat nichts zum Anzeigen.
+    ``pruefen`` heißt nur, dass die DFS ein neues Blatt hat; bis jemand entscheidet, gelten das
+    alte Blatt und seine Passung weiter (Ralf, 14.10.2026: EDDW war zwei Wochen verschwunden,
+    zehn Blätter insgesamt). Das neue liegt daneben, ``bild_hash`` zeigt aufs alte. Zwei
     Rechtecke gehen je Karte mit -- die Blattgrenzen (danach wird das Overlay platziert)
     und die Feldgrenzen (danach schaltet die Ebene).
 
@@ -639,7 +642,7 @@ async def aip_charts_dfs_liste():
     einst = get_settings()
     conn = get_connection(einst.DB_PATH)
     try:
-        karten = get_charts_dfs(conn, status=["gepasst", "auto"])
+        karten = get_charts_dfs(conn, status=["gepasst", "auto", "pruefen"])
         ebene_an = _platzkarten_ebene_an(conn)
     finally:
         conn.close()

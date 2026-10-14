@@ -96,6 +96,25 @@ def test_liste_liefert_die_platzhoehe(client):
     assert karten and karten[0]["elev_ft"] == 640.0
 
 
+def test_eine_karte_in_pruefung_bleibt_mit_dem_alten_blatt_sichtbar(client):
+    """Ralf, 14.10.2026: Die Sichtflugkarte von EDDW war gepasst und trotzdem nicht auf der
+    Karte. Der Wochenlauf hatte am 01.10. ein neues DFS-Blatt gefunden und sie auf 'pruefen'
+    gesetzt -- und 'pruefen' wurde nicht ausgeliefert. Bis zur Entscheidung gilt das alte
+    Blatt mit seiner Passung; das neue liegt nur daneben."""
+    c, db, _tmp = client
+    conn = get_connection(db)
+    try:
+        upsert_chart_dfs(conn, "EDDW", "sichtflug", status="gepasst", bild_hash="a" * 64, **LAGE)
+        upsert_chart_dfs(conn, "EDDW", "sichtflug", status="pruefen",
+                         status_vorher="gepasst", gesehener_hash="n" * 64)
+        conn.commit()
+    finally:
+        conn.close()
+    karten = c.get("/api/aip-charts-dfs").json()["charts"]
+    assert [k["icao"] for k in karten] == ["EDDW"]
+    assert karten[0]["bild"] == "/aip-chart-dfs/EDDW/sichtflug.png?h=" + "a" * 12
+
+
 def test_offene_karte_erscheint_nicht_in_der_oeffentlichen_liste(client):
     """Eine Karte, die falsch liegt, ist schlimmer als gar keine."""
     c, db, _tmp = client
