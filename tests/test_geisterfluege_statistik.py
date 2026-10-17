@@ -190,3 +190,38 @@ def test_die_kopfzeile_zaehlt_wie_die_bilanz():
     rumpf = INDEX[s:s + 1200]
     assert "const gezaehlt = _pilotGezaehlt(flights);" in rumpf
     assert "${gezaehlt.length} Flüge" in rumpf
+
+
+def test_der_flugspeicher_rechnet_mit_allen_rufzeichen_und_filtert_danach(conn, monkeypatch):
+    """FRS61, 11.02.2026: erst GAM61, dann FRS61. Mit Präfix gerechnet fehlte der Start in
+    ETHF (27 statt 32 Minuten); die Pilotenansicht rechnet ohne Präfix."""
+    aufrufe = []
+
+    def canon(c, **kw):
+        aufrufe.append(kw.get("callsign_prefix"))
+        return [_flug(_vor(300), 46, 50, cs="GAM61"), _flug(_vor(200), 32, 30, cs="FRS61")]
+
+    monkeypatch.setattr(db, "canonicalize_legs", canon)
+    db.rebuild_flight_cache(conn, full=True)
+    assert aufrufe == [""]
+    assert [r[0] for r in conn.execute("SELECT callsign FROM flight_cache")] == ["FRS61"]
+
+
+def test_aus_einer_anfrage_heraus_kein_vorgemerkter_vollaufbau(conn, monkeypatch):
+    _speicher(conn, [_flug(_vor(300), 45, 60)])
+    conn.execute("UPDATE flight_cache SET computed_at = '2020-01-01T00:00:00Z'")
+    db.flight_cache_voll_vormerken(conn)
+    conn.commit()
+    gerufen = []
+    monkeypatch.setattr(db, "canonicalize_legs", lambda c, **kw: gerufen.append(kw.get("start")) or [])
+    db.get_cached_flights(conn, start=_vor(60 * 24))
+    assert gerufen and gerufen[0] is not None      # nur der kurze Lauf mit Fenster
+    assert _vorgemerkt(conn)                         # bleibt für den Hintergrundjob stehen
+
+
+def test_die_tabelle_zeigt_genau_die_gezaehlten_fluege():
+    s = INDEX.index("function renderFlightsList(")
+    rumpf = INDEX[s:INDEX.index("// PILOTEN-BILANZ-ANFANG", s)]
+    assert "for (const f of gezaehlt) {" in rumpf
+    assert '<details class="nicht-gezaehlt">' in rumpf
+    assert "for (const f of flights) {" not in rumpf

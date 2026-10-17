@@ -4067,6 +4067,10 @@
     }
     @media (min-width: 900px) { .piloten-bilanz { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
     .piloten-bilanz-klick { cursor: pointer; }
+    details.nicht-gezaehlt { margin-top: 10px; }
+    details.nicht-gezaehlt > summary {
+      cursor: pointer; font-size: 0.8rem; color: var(--text-label); padding: 4px 0;
+    }
     .piloten-bilanz-klick:hover { background: rgba(var(--green-rgb), 0.08); }
     .piloten-bilanz-feld {
       padding: 6px 8px; min-width: 0;
@@ -12625,15 +12629,26 @@ function renderFlightsList(cid, pilotName, flights, statsimStatus) {
     html += `<div class="empty-state"><div class="empty-state-text">Keine Flüge gefunden</div></div>`;
   } else {
     html += _pilotBilanzHtml(_pilotBilanz(flights), cid, pilotName);
-    html += `<div class="live-table-wrap"><table>
-      <thead><tr>
+    const kopf = `<thead><tr>
         <th>Callsign</th><th>Aircraft</th><th>Strecke</th><th>Flugplan</th><th>Datum</th><th>Flugzeit</th><th>Block</th><th>Distanz</th><th>Track</th><th>Quelle</th>
-      </tr></thead><tbody>`;
-
-    for (const f of flights) {
+      </tr></thead>`;
+    // Die Tabelle zeigt GENAU die gezählten Flüge (Nutzer 17.10.2026: „es müssen auch gleich
+    // viele Zeilen darunter angezeigt werden“) -- wer sie herauskopiert und nachrechnet,
+    // kommt auf Bilanz und Gesamtstatistik. Was nicht zählt, steht zugeklappt darunter.
+    const zaehlt = new Set(gezaehlt);
+    const nichtGezaehlt = flights.filter(f => !zaehlt.has(f) && _flightRowHtml(f, '') !== '');
+    html += `<div class="live-table-wrap"><table>${kopf}<tbody>`;
+    for (const f of gezaehlt) {
       html += _flightRowHtml(f, 'class="flight-row"');
     }
     html += `</tbody></table></div>`;
+    if (nichtGezaehlt.length) {
+      html += `<details class="nicht-gezaehlt"><summary>Nicht mitgezählt: ${nichtGezaehlt.length} `
+        + `${nichtGezaehlt.length === 1 ? 'Flug' : 'Flüge'} (fremdes Rufzeichen oder gerade in der Luft)</summary>`
+        + `<div class="live-table-wrap"><table>${kopf}<tbody>`;
+      for (const f of nichtGezaehlt) html += _flightRowHtml(f, 'class="flight-row"');
+      html += `</tbody></table></div></details>`;
+    }
     const btnUpdating = statsimStatus === 'updating';
     html += `
   <div style="text-align:center; padding:10px 0 4px;">
@@ -12660,7 +12675,8 @@ function renderFlightsList(cid, pilotName, flights, statsimStatus) {
 function _pilotGezaehlt(flights) {
   return (flights || []).filter(f => {
     const cs = String(f.callsign || '').toUpperCase();
-    if (cs && !cs.startsWith(_callsignPrefix)) return false;
+    // Ohne Rufzeichen zählt der Flug nicht -- wie auf dem Server (callsign LIKE 'FRS%').
+    if (!cs.startsWith(_callsignPrefix)) return false;
     if (_isLiveLeg(f)) return false;
     const nm = f.distance_nm != null ? Math.round(f.distance_nm) : 0;
     return !((f.duration_min || 0) === 0 && nm <= 1);

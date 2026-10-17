@@ -1,5 +1,16 @@
 [
   {
+    "version": "16.9.3",
+    "date": "2026-10-17",
+    "highlight": false,
+    "title": "Flugliste zeigt genau die gezählten Flüge",
+    "items": [
+      "📊 Die Flugliste eines Piloten zeigt genau die Flüge, die in Bilanz und Statistik zählen. Anzahl, Flugzeit und Blockzeit lassen sich aus der Tabelle nachrechnen.",
+      "📊 Flüge unter fremdem Rufzeichen und der Flug, der gerade läuft, stehen zugeklappt darunter unter „Nicht mitgezählt“.",
+      "📊 Wechselt jemand zwischen zwei Flügen das Rufzeichen, rechnet die Gesamtstatistik den zweiten Flug jetzt genauso wie die Pilotenansicht, mit Startplatz und voller Flugzeit."
+    ]
+  },
+  {
     "version": "16.9.2",
     "date": "2026-10-17",
     "highlight": false,

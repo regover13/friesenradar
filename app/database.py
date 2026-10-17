@@ -6170,7 +6170,8 @@ def _write_flight_cache_rows(
         conn.execute(sql, row)
 
 
-def rebuild_flight_cache(conn: sqlite3.Connection, *, full: bool = False) -> int:
+def rebuild_flight_cache(conn: sqlite3.Connection, *, full: bool = False,
+                         vormerkung_beachten: bool = True) -> int:
     """Materialisiert :func:`canonicalize_legs`-Ergebnisse in ``flight_cache``.
 
     ``full=True`` ODER der Cache ist leer: kompletter Rebuild — ``flight_cache`` wird geleert
@@ -6185,7 +6186,7 @@ def rebuild_flight_cache(conn: sqlite3.Connection, *, full: bool = False) -> int
     """
     is_empty = conn.execute("SELECT COUNT(*) FROM flight_cache").fetchone()[0] == 0
     computed_at = _now_utc()
-    if not full and get_app_setting(conn, _FLIGHT_CACHE_VOLL_KEY) == "1":
+    if not full and vormerkung_beachten and get_app_setting(conn, _FLIGHT_CACHE_VOLL_KEY) == "1":
         full = True   # ältere Flüge haben sich geändert (flight_cache_voll_vormerken)
     if full:
         set_app_setting(conn, _FLIGHT_CACHE_VOLL_KEY, "0")
@@ -6194,15 +6195,23 @@ def rebuild_flight_cache(conn: sqlite3.Connection, *, full: bool = False) -> int
     # Schreib-Transaktion (und damit der Write-Lock) soll nur die kurze DB-Schreibphase
     # umfassen, nicht die gesamte Berechnung (Deploy-Risiko "database is locked"). Semantisch
     # identisch zu "DELETE zuerst": derselbe canonicalize_legs-Snapshot landet im Cache.
+    # Gerechnet wird mit ALLEN Rufzeichen, gefiltert erst danach -- genau wie die
+    # Pilotenansicht (/api/pilots/{cid}/flights, callsign_prefix=""). Mit Präfix gerechnet
+    # fehlen der Erkennung die Positionen eines direkt davor unter anderem Rufzeichen
+    # aufgezeichneten Datensatzes: FRS61 am 11.02.2026, erst GAM61, dann FRS61 -- den Start in
+    # ETHF hatte StatSim noch im GAM61-Datensatz, der Speicher kam auf 27 statt 32 Minuten und
+    # keinen Startplatz (16.9.3). Der Speicher bleibt trotzdem auf FRS beschränkt, darauf
+    # verlassen sich die Muster-Abfragen.
     if full or is_empty:
-        flights = canonicalize_legs(conn)
+        flights = canonicalize_legs(conn, callsign_prefix="")
         conn.execute("DELETE FROM flight_cache")
     else:
         cutoff = (
             datetime.now(timezone.utc) - timedelta(days=_FLIGHT_CACHE_INCREMENTAL_DAYS)
         ).strftime("%Y-%m-%dT%H:%M:%SZ")
-        flights = canonicalize_legs(conn, start=cutoff)
+        flights = canonicalize_legs(conn, start=cutoff, callsign_prefix="")
         conn.execute("DELETE FROM flight_cache WHERE logon_time >= ?", (cutoff,))
+    flights = [f for f in flights if str(f.get("callsign") or "").upper().startswith("FRS")]
 
     _write_flight_cache_rows(conn, flights, computed_at)
     conn.commit()
@@ -6235,7 +6244,9 @@ def get_cached_flights(
         else:
             age_sec = (datetime.now(timezone.utc) - _parse_iso(max_computed)).total_seconds()
             if age_sec > _FLIGHT_CACHE_MAX_AGE_SEC:
-                rebuild_flight_cache(conn, full=False)
+                # Aus einer Anfrage heraus nur den kurzen Lauf: Der vorgemerkte volle (bis zu
+                # einer halben Minute) bleibt dem Hintergrundjob, sonst wartet die Seite.
+                rebuild_flight_cache(conn, full=False, vormerkung_beachten=False)
 
     where = ["callsign LIKE ?"]
     params: list = [callsign_prefix + "%"]
