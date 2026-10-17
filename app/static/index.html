@@ -4066,6 +4066,8 @@
       border-left: 1px solid rgba(var(--green-rgb), 0.15);
     }
     @media (min-width: 900px) { .piloten-bilanz { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+    .piloten-bilanz-klick { cursor: pointer; }
+    .piloten-bilanz-klick:hover { background: rgba(var(--green-rgb), 0.08); }
     .piloten-bilanz-feld {
       padding: 6px 8px; min-width: 0;
       border-right: 1px solid rgba(var(--green-rgb), 0.15);
@@ -5547,7 +5549,7 @@
 <div id="types-modal" class="fp-modal-overlay hidden">
   <div class="fp-modal-box" onclick="event.stopPropagation()">
     <div class="fp-modal-header">
-      <span class="fp-callsign-title">Alle Muster</span>
+      <span class="fp-callsign-title" id="types-modal-title">Alle Muster</span>
       <button class="btn-share" style="margin-left:auto; margin-right:12px;" onclick="copyTypesShareUrl(this)">⎘ Teilen</button>
       <button class="fp-close-btn" onclick="closeTypesModal()"><svg class="icon"><use href="#icon-x" xlink:href="#icon-x"/></svg></button>
     </div>
@@ -12597,14 +12599,17 @@ function _wireFlightRowClicks(container) {
 
 function renderFlightsList(cid, pilotName, flights, statsimStatus) {
   const container = document.getElementById('stats-content');
-  const fsCount = flights.filter(f => f.source === 'friesenspy').length;
-  const stCount = flights.filter(f => f.source === 'statsim').length;
+  // Dieselbe Zählung wie die Bilanz darunter und die Gesamtstatistik. Bis 16.9.1 standen hier
+  // alle Zeilen, auch fremde Rufzeichen und Geisterflüge (FRS61, 365 Tage: 311 statt 275).
+  const gezaehlt = _pilotGezaehlt(flights);
+  const fsCount = gezaehlt.filter(f => f.source === 'friesenspy').length;
+  const stCount = gezaehlt.filter(f => f.source === 'statsim').length;
 
   let html = `
     <div class="flights-panel-header">
       <button class="btn" onclick="closePilotFlights()">${icon('arrow-left')} Zurück</button>
       <span class="flights-panel-title">${escHtml(pilotName || String(cid))}</span>
-      <span class="flights-panel-count">${flights.length} Flüge`;
+      <span class="flights-panel-count">${gezaehlt.length} Flüge`;
   if (stCount > 0) html += ` <span class="text-label">(${fsCount} FriesenRadar · ${stCount} StatSim)</span>`;
   html += `</span>
       <button class="btn-share" style="margin-left:auto;" onclick="copyShareUrl(this)">⎘ Teilen</button>
@@ -12619,7 +12624,7 @@ function renderFlightsList(cid, pilotName, flights, statsimStatus) {
   if (flights.length === 0) {
     html += `<div class="empty-state"><div class="empty-state-text">Keine Flüge gefunden</div></div>`;
   } else {
-    html += _pilotBilanzHtml(_pilotBilanz(flights));
+    html += _pilotBilanzHtml(_pilotBilanz(flights), cid, pilotName);
     html += `<div class="live-table-wrap"><table>
       <thead><tr>
         <th>Callsign</th><th>Aircraft</th><th>Strecke</th><th>Flugplan</th><th>Datum</th><th>Flugzeit</th><th>Block</th><th>Distanz</th><th>Track</th><th>Quelle</th>
@@ -12649,15 +12654,21 @@ function renderFlightsList(cid, pilotName, flights, statsimStatus) {
 // PILOTEN-BILANZ-ANFANG
 // Zusammenfassung ueber der Flugliste (Wunsch aus der Gruppe, 14.10.2026). Gerechnet aus genau
 // der Liste darunter, damit beides immer zusammenpasst. Gezaehlt wird wie in der Statistik:
-// kein fremdes Rufzeichen, kein laufender Flug, kein Geisterflug (s. _flightRowHtml).
-function _pilotBilanz(flights) {
-  const gezaehlt = (flights || []).filter(f => {
+// kein fremdes Rufzeichen, kein laufender Flug, kein Geisterflug (s. _flightRowHtml). Die
+// Gesamtstatistik zählt seit 16.9.2 genauso: Der Server nimmt Geisterflüge gar nicht erst in
+// den Flugspeicher (database.ist_geisterflug, gleiche Regel).
+function _pilotGezaehlt(flights) {
+  return (flights || []).filter(f => {
     const cs = String(f.callsign || '').toUpperCase();
     if (cs && !cs.startsWith(_callsignPrefix)) return false;
     if (_isLiveLeg(f)) return false;
     const nm = f.distance_nm != null ? Math.round(f.distance_nm) : 0;
     return !((f.duration_min || 0) === 0 && nm <= 1);
   });
+}
+
+function _pilotBilanz(flights) {
+  const gezaehlt = _pilotGezaehlt(flights);
   const b = { fluege: gezaehlt.length, flugzeit: 0, blockzeit: 0, strecke: 0, ohne_strecke: 0,
               schnitt: 0, laengster: null, plaetze: 0, muster: null };
   const plaetze = new Set();
@@ -12684,7 +12695,8 @@ function _pilotBilanz(flights) {
   return b;
 }
 
-function _pilotBilanzHtml(b) {
+// `cid`/`name`: Ein Klick auf „Muster“ öffnet die Musterliste dieses Piloten.
+function _pilotBilanzHtml(b, cid, name) {
   if (!b || !b.fluege) return '';
   const zeit = m => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} h`;
   const feld = (titel, wert, zusatz) => '<div class="piloten-bilanz-feld">'
@@ -12702,7 +12714,13 @@ function _pilotBilanzHtml(b) {
     + feld('Schnitt', zeit(b.schnitt), 'je Flug')
     + feld('Längster', l ? zeit(l.min) : '—', strecke)
     + feld('Plätze', String(b.plaetze))
-    + feld('Muster', b.muster ? escHtml(b.muster.code) : '—', b.muster ? `${b.muster.anzahl}×` : '')
+    + (b.muster && cid != null
+        ? `<div class="piloten-bilanz-feld piloten-bilanz-klick" title="Alle Muster dieses Piloten" `
+          + `onclick="openTypesModal(_statsDays(), ${Number(cid)}, ${escHtml(JSON.stringify(String(name || '')))})">`
+          + `<div class="piloten-bilanz-titel">Muster ${icon('caret-right')}</div>`
+          + `<div class="piloten-bilanz-wert">${escHtml(b.muster.code)}</div>`
+          + `<div class="piloten-bilanz-zusatz">${b.muster.anzahl}×</div></div>`
+        : feld('Muster', b.muster ? escHtml(b.muster.code) : '—', b.muster ? `${b.muster.anzahl}×` : ''))
     + '</div>';
 }
 // PILOTEN-BILANZ-ENDE
@@ -16013,6 +16031,10 @@ function renderStatsSummary(stats, days) {
 let _typeStats     = null;   // Antwort des zuletzt geladenen /stats?days=... -- fuer BEIDE:
                               // Kachel nimmt Zeile 0, Liste zeigt alle Zeilen.
 let _typesModalDays = 30;
+// Musterliste eines einzelnen Piloten (16.9.2): aus der Bilanz der Pilotenansicht geöffnet.
+// null = alle Friesen wie bisher.
+let _typesModalCid  = null;
+let _typesModalName = '';
 let _typesSortBy   = 'fluege';
 let _typesSortDir  = 'desc';
 
@@ -16077,12 +16099,14 @@ function renderTypesModalBody() {
   const rows  = _typeStats.slice().sort((a, b) => field === 'name'
     ? dir * String(a.name || a.code).localeCompare(String(b.name || b.code))
     : dir * ((a[field] || 0) - (b[field] || 0)));
+  // Beim einzelnen Piloten ist die Spalte „Piloten“ immer 1 -- sie entfällt.
+  const mitPiloten = _typesModalCid == null;
   let h = `<div class="table-scroll"><table><thead><tr>
     <th style="cursor:pointer;" onclick="_typesSortClick('name')">Muster${_typesSortIndicator('name')}</th>
     <th style="cursor:pointer;" onclick="_typesSortClick('fluege')">Flüge${_typesSortIndicator('fluege')}</th>
     <th style="cursor:pointer;" onclick="_typesSortClick('stunden')">Stunden${_typesSortIndicator('stunden')}</th>
     <th style="cursor:pointer;" onclick="_typesSortClick('nm')">nm${_typesSortIndicator('nm')}</th>
-    <th style="cursor:pointer;" onclick="_typesSortClick('piloten')">Piloten${_typesSortIndicator('piloten')}</th>
+    ${mitPiloten ? `<th style="cursor:pointer;" onclick="_typesSortClick('piloten')">Piloten${_typesSortIndicator('piloten')}</th>` : ''}
   </tr></thead><tbody>`;
   rows.forEach(t => {
     h += `<tr>
@@ -16090,7 +16114,7 @@ function renderTypesModalBody() {
       <td class="mono">${t.fluege}</td>
       <td class="mono">${t.stunden}</td>
       <td class="mono">${Math.round(t.nm)}</td>
-      <td class="mono">${t.piloten}</td>
+      ${mitPiloten ? `<td class="mono">${t.piloten}</td>` : ''}
     </tr>`;
   });
   h += '</tbody></table></div>';
@@ -16102,7 +16126,8 @@ async function fetchTypesModalList(days) {
   const body = document.getElementById('types-modal-body');
   body.innerHTML = '<div class="empty-hint">Lade…</div>';
   try {
-    const res = await fetch(`/api/aircraft-types/stats?days=${days}`);
+    const nurPilot = _typesModalCid != null ? `&cid=${encodeURIComponent(_typesModalCid)}` : '';
+    const res = await fetch(`/api/aircraft-types/stats?days=${days}${nurPilot}`);
     _typeStats = res.ok ? await res.json() : [];
   } catch (e) {
     body.innerHTML = '<div class="empty-hint">Konnte nicht geladen werden.</div>';
@@ -16117,12 +16142,19 @@ async function fetchTypesModalList(days) {
 // Klick ausgeloest hat. Immer ein frischer Fetch, kein Cache-Wiederverwenden: anders als
 // beim alten "immer gesamt"-Stand koennte ein stehen gelassener Zwischenspeicher hier
 // einen falschen Zeitraum zeigen.
-async function openTypesModal(days) {
+// `cid`/`name` optional: die Muster eines einzelnen Piloten (Feld „Muster“ in der Bilanz der
+// Pilotenansicht, Wunsch des Nutzers 17.10.2026). Ohne cid wie bisher alle Friesen.
+async function openTypesModal(days, cid, name) {
   const el = document.getElementById('types-modal');
   el.classList.remove('hidden');
   document.addEventListener('keydown', _typesEscHandler);
+  _typesModalCid  = cid != null && cid !== '' ? Number(cid) : null;
+  _typesModalName = name || '';
+  document.getElementById('types-modal-title').textContent = _typesModalCid == null
+    ? 'Alle Muster' : 'Muster von ' + (_typesModalName || 'diesem Piloten');
   const daysSel = document.getElementById('types-modal-days');
-  const wunsch  = String(days || (document.getElementById('stats-days') || {}).value || '30');
+  let wunsch = String(days || (document.getElementById('stats-days') || {}).value || '30');
+  if (wunsch === '0') wunsch = '365';   // „letztes Jahr“ der Pilotenansicht
   daysSel.value = [...daysSel.options].some(o => o.value === wunsch) ? wunsch : '30';
   await fetchTypesModalList(Number(daysSel.value));
 }
@@ -16147,7 +16179,9 @@ document.getElementById('types-modal-days').addEventListener('change', (e) => {
 // GERADE zeigt (kann vom Zeitraum der Statistiken-Uebersicht abweichen, wenn der Selector
 // im Modal umgestellt wurde).
 function copyTypesShareUrl(btn) {
-  const url = `${_teilenUrsprung()}${location.pathname}#types=1&days=${_typesModalDays}`;
+  const pilot = _typesModalCid == null ? ''
+    : `&cid=${_typesModalCid}&name=${encodeURIComponent(_typesModalName)}`;
+  const url = `${_teilenUrsprung()}${location.pathname}#types=1&days=${_typesModalDays}${pilot}`;
   _copyText(url, btn);
 }
 
@@ -17642,7 +17676,7 @@ async function initFromUrl() {
   // await: openTypesModal() holt sich seine Daten bei Bedarf selbst (kein vorheriger
   // Tab-Aufbau noetig). Muss ebenfalls VOR dem `if (!tab) return` stehen. `days` ist
   // optional -- ohne Angabe uebernimmt openTypesModal() den Zeitraum aus #stats-days.
-  if (p.get('types')) openTypesModal(p.get('days'));
+  if (p.get('types')) openTypesModal(p.get('days'), p.get('cid'), p.get('name'));
 
   // Ohne Angabe in der Adresse: der zuletzt benutzte Tab. Die Adresse hat Vorrang -- ein
   // geteilter Link (#tab=events&bummel=…) muss dort landen, wo er hinzeigt, nicht dort, wo

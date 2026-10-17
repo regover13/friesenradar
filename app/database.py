@@ -1560,6 +1560,13 @@ def init_db(db_path: str) -> None:
                 conn.execute(stmt)
             except sqlite3.OperationalError:
                 pass
+        # Geisterflüge (16.9.2) kommen nicht mehr in den Flugspeicher; die schon drin stehen,
+        # einmal entfernen. Der Speicher ist abgeleitet (aus canonicalize_legs), es geht nichts
+        # verloren -- und ältere Zeilen schreibt der inkrementelle Lauf nie neu.
+        try:
+            conn.execute(f"DELETE FROM flight_cache WHERE {_GEISTERFLUG_SQL}")
+        except sqlite3.OperationalError:
+            pass
         # Eigene Lotsenauswahl (16.8.0). Bis dahin galt die Pilotenauswahl auch für Lotsen;
         # beim Anlegen der Spalte übernimmt jedes Abo sie einmalig, damit sich nichts ändert.
         spalten = {r[1] for r in conn.execute("PRAGMA table_info(push_subscriptions)")}
@@ -4418,18 +4425,19 @@ def get_stats(
     Alle Werte werden auf den gewählten Zeitraum (days) und den konfigurierten
     Callsign-Prefix begrenzt. Aggregiert über get_cached_flights (GPS-Wahrheit,
     canonicalize_legs materialisiert) — dieselbe Wahrheit wie alle anderen Views unter
-    GPS-only Phase 2 (#23). Ein Flug, der GERADE fliegt (kein Landepunkt erkannt UND die
-    Connection noch offen), wird NICHT gezählt — er ist noch nicht gewertet.
+    GPS-only Phase 2 (#23). Ein Flug, der GERADE fliegt, wird NICHT gezählt — er ist noch nicht
+    gewertet (``laufende_fluege``). Geisterflüge stehen gar nicht erst im Flugspeicher.
     """
     prefix_pat = callsign_prefix + "%"
     start = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     flights = get_cached_flights(conn, start=start, callsign_prefix=callsign_prefix)
+    laufend = laufende_fluege(conn, flights)
 
     agg: dict[int, dict] = {}
-    for f in flights:
-        if f.get("logoff_time") is None and not f.get("connection_closed"):
-            continue  # in-progress: kein Landepunkt, Connection offen — noch nicht gewertet
+    for i, f in enumerate(flights):
+        if i in laufend:
+            continue  # läuft gerade: noch nicht gewertet
         cid = f["cid"]
         a = agg.setdefault(cid, {"fs": 0, "st": 0, "dur": 0, "block": 0, "last": None, "last_cs": ""})
         if f.get("source") == "statsim":
@@ -4490,6 +4498,7 @@ def get_stats_activity(
     # Merge-/Dedup-Code mehr). In-progress-Flüge (kein Landepunkt, Connection offen) werden
     # wie in get_stats nicht gezählt — noch nicht gewertet.
     flights = get_cached_flights(conn, start=start, callsign_prefix=callsign_prefix)
+    laufend = laufende_fluege(conn, flights)
 
     def _period(lt: str) -> str:
         return lt[:10] if grouping == "day" else lt[:7]
@@ -4497,9 +4506,9 @@ def get_stats_activity(
     counts: dict[str, int] = {}
     durs: dict[str, int] = {}
     pilots_by_period: dict[str, set] = {}
-    for f in flights:
-        if f.get("logoff_time") is None and not f.get("connection_closed"):
-            continue  # in-progress: kein Landepunkt, Connection offen — noch nicht gewertet
+    for i, f in enumerate(flights):
+        if i in laufend:
+            continue  # läuft gerade: noch nicht gewertet (wie in get_stats)
         lt = f.get("logon_time") or ""
         if not lt:
             continue
@@ -6097,6 +6106,47 @@ _FLIGHT_CACHE_INCREMENTAL_DAYS = 7
 _FLIGHT_CACHE_MAX_AGE_SEC = 600
 
 
+def ist_geisterflug(f: dict) -> bool:
+    """Abgeschlossener Flug mit 0 Minuten und höchstens 1 nm -- kein Flug, sondern ein
+    abgerissener Start oder ein Sprung im Simulator.
+
+    Dieselbe Regel wie ``_flightRowHtml`` in der Flugliste (dort ausgeblendet, 16.9.x). Bis
+    16.9.1 zählte die Gesamtstatistik sie trotzdem mit: FRS61 hatte dort 83 Flüge, in seiner
+    eigenen Ansicht 80 (Nutzer 17.10.2026). Ein Flug in seiner ersten Minute fällt ebenfalls
+    darunter; gezählt würde er ohnehin noch nicht, und der nächste Lauf des Flugspeichers
+    (alle zehn Minuten) nimmt ihn auf, sobald er Minuten hat. Gerundet wird wie
+    ``Math.round`` in der Seite."""
+    nm = math.floor((f.get("distance_nm") or 0) + 0.5)
+    return (f.get("duration_min") or 0) == 0 and nm <= 1
+
+
+#: Dasselbe als SQL, für das einmalige Aufräumen des Bestands in ``init_db``.
+_GEISTERFLUG_SQL = "COALESCE(duration_min, 0) = 0 AND COALESCE(distance_nm, 0) < 1.5"
+
+
+def laufende_fluege(conn: sqlite3.Connection, flights: list[dict]) -> set[int]:
+    """Indizes (in ``flights``) der Flüge, die gerade laufen und deshalb noch nicht zählen:
+    je Pilot, der jetzt online ist, sein jüngster Flug ohne Landung.
+
+    Bis 16.9.1 galt jeder Flug ohne Abmeldung und ohne ``connection_closed`` als laufend.
+    Ein Flug ohne Flugplan, der nicht auf einem Platz endet (Außenlandung, Abmelden in der
+    Luft), hat ``connection_closed`` aber nie -- er galt für immer als laufend und fehlte in
+    der Gesamtstatistik, während die Pilotenansicht ihn zählte (FRS49: 84 Minuten am
+    12.09.2026). Jetzt dieselbe Bedeutung wie ``_isLiveLeg`` in der Seite: gerade online."""
+    # Online heißt: Position im Live-Bestand oder eine noch offene Verbindung in ``flights``.
+    online = {r[0] for r in conn.execute(
+        "SELECT cid FROM live_positions UNION "
+        "SELECT cid FROM flights WHERE logoff_time IS NULL AND superseded_by IS NULL")}
+    juengster: dict[int, int] = {}
+    for i, f in enumerate(flights):
+        cid = f.get("cid")
+        if cid not in online or f.get("gps_arrival") or f.get("logoff_time"):
+            continue
+        if cid not in juengster or (f.get("logon_time") or "") > (flights[juengster[cid]].get("logon_time") or ""):
+            juengster[cid] = i
+    return set(juengster.values())
+
+
 def _write_flight_cache_rows(
     conn: sqlite3.Connection, flights: list[dict], computed_at: str
 ) -> None:
@@ -6110,6 +6160,10 @@ def _write_flight_cache_rows(
         f"({','.join(':' + c for c in cols)})"
     )
     for f in flights:
+        # Geisterflüge kommen gar nicht erst hinein: Alle Statistiken lesen von hier
+        # (get_stats, Aktivität, Muster), so gilt die Regel an einer Stelle für alle.
+        if ist_geisterflug(f):
+            continue
         row = {c: f.get(c) for c in _FLIGHT_CACHE_COLUMNS}
         row["connection_closed"] = 1 if row.get("connection_closed") else 0
         row["computed_at"] = computed_at
@@ -6131,6 +6185,10 @@ def rebuild_flight_cache(conn: sqlite3.Connection, *, full: bool = False) -> int
     """
     is_empty = conn.execute("SELECT COUNT(*) FROM flight_cache").fetchone()[0] == 0
     computed_at = _now_utc()
+    if not full and get_app_setting(conn, _FLIGHT_CACHE_VOLL_KEY) == "1":
+        full = True   # ältere Flüge haben sich geändert (flight_cache_voll_vormerken)
+    if full:
+        set_app_setting(conn, _FLIGHT_CACHE_VOLL_KEY, "0")
 
     # Erst rechnen (canonicalize_legs, ~5,5 s bei großem Bestand), DANN DELETE+INSERT — die
     # Schreib-Transaktion (und damit der Write-Lock) soll nur die kurze DB-Schreibphase
@@ -6953,9 +7011,40 @@ def get_all_position_history(
     return [_row_to_dict(r) for r in rows]
 
 
+_FLIGHT_CACHE_VOLL_KEY = "flight_cache_voll_noetig"
+
+
+def flight_cache_voll_vormerken(conn: sqlite3.Connection) -> None:
+    """Den nächsten Lauf des Flugspeichers voll statt nur über die letzten Tage laufen lassen
+    (kein commit). Nötig, wenn ältere Flüge dazukommen oder sich ändern: Der inkrementelle Lauf
+    sieht nur ``_FLIGHT_CACHE_INCREMENTAL_DAYS``. Bis 16.9.1 kam so alles, was StatSim
+    nachträglich lieferte, erst mit dem nächsten Deploy in die Gesamtstatistik -- die
+    Pilotenansicht rechnet frisch und zeigte es sofort (FRS61 über 365 Tage, 17.10.2026)."""
+    set_app_setting(conn, _FLIGHT_CACHE_VOLL_KEY, "1")
+
+
+def _aelter_als_inkrementell(ts: str | None) -> bool:
+    cutoff = (datetime.now(timezone.utc)
+              - timedelta(days=_FLIGHT_CACHE_INCREMENTAL_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return bool(ts) and str(ts)[:19] < cutoff[:19]
+
+
 def upsert_statsim_flights(conn: sqlite3.Connection, flights: list[dict]) -> None:
-    """StatSim-Flüge in Cache schreiben (INSERT OR REPLACE)."""
+    """StatSim-Flüge in Cache schreiben (INSERT OR REPLACE).
+
+    Kommt ein bisher unbekannter älterer Flug dazu, wird der volle Lauf des Flugspeichers
+    vorgemerkt (``flight_cache_voll_vormerken``)."""
     now = _now_utc()
+    ids = [f.get("statsim_id") for f in flights if f.get("statsim_id") is not None]
+    bekannt: set = set()
+    for i in range(0, len(ids), 500):
+        teil = ids[i:i + 500]
+        bekannt |= {r[0] for r in conn.execute(
+            f"SELECT statsim_id FROM statsim_cache WHERE statsim_id IN ({','.join('?' * len(teil))})",
+            teil)}
+    if any(f.get("statsim_id") not in bekannt and _aelter_als_inkrementell(f.get("logon_time"))
+           for f in flights):
+        flight_cache_voll_vormerken(conn)
     for f in flights:
         conn.execute(
             """
@@ -7010,6 +7099,9 @@ def save_statsim_positions(
     ).fetchone()
     if exists:
         return
+    # Ein nachgeladener Track ändert die Etappen eines älteren Flugs (GPS-Wahrheit).
+    if any(_aelter_als_inkrementell(p.get("ts")) for p in positions[:1]):
+        flight_cache_voll_vormerken(conn)
     conn.executemany(
         """INSERT INTO statsim_position_history
            (statsim_id, latitude, longitude, altitude, groundspeed, heading, ts)
@@ -8074,7 +8166,8 @@ def flight_type_codes(conn: sqlite3.Connection) -> set[str]:
     return {r["code"] for r in rows if r["code"]}
 
 
-def all_type_stats_for_days(conn: sqlite3.Connection, days: int) -> list[dict]:
+def all_type_stats_for_days(conn: sqlite3.Connection, days: int,
+                            cid: int | None = None) -> list[dict]:
     """Friesen-Zahlen jedes im gewaehlten Zeitraum geflogenen Musters, meistgeflogenes
     zuerst -- gemeinsame Grundlage der Top-Muster-KPI-Kachel (nimmt Zeile 0) UND der vollen
     Musterliste im Statistiken-Tab. Beide teilen sich denselben Zeitraum-Filter wie die
@@ -8095,6 +8188,8 @@ def all_type_stats_for_days(conn: sqlite3.Connection, days: int) -> list[dict]:
     einen strengeren Abschluss-Begriff verwendet).
     """
     start = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # ``cid``: nur die Muster eines Piloten (Musterliste in der Pilotenansicht, 16.9.2).
+    nur_pilot = " AND cid = ?" if cid is not None else ""
     rows = conn.execute(
         f"""SELECT {FLIGHT_TYPE_CODE_SQL} AS code, cid,
                    COALESCE(duration_min, 0) AS duration_min,
@@ -8102,8 +8197,8 @@ def all_type_stats_for_days(conn: sqlite3.Connection, days: int) -> list[dict]:
               FROM flight_cache
              WHERE logon_time >= ?
                AND COALESCE(NULLIF(aircraft_icao, ''), aircraft) IS NOT NULL
-               AND COALESCE(NULLIF(aircraft_icao, ''), aircraft) != ''""",
-        (start,),
+               AND COALESCE(NULLIF(aircraft_icao, ''), aircraft) != ''{nur_pilot}""",
+        (start,) + ((int(cid),) if cid is not None else ()),
     ).fetchall()
     agg: dict[str, dict] = {}
     for r in rows:

@@ -1,5 +1,17 @@
 [
   {
+    "version": "16.9.2",
+    "date": "2026-10-17",
+    "highlight": false,
+    "title": "Statistik zählt überall gleich, Musterliste je Pilot",
+    "items": [
+      "📊 Gesamtstatistik, Pilotenansicht und Bilanz zeigen jetzt dieselbe Flugzahl. Geisterflüge mit 0 Minuten zählen nirgends mehr, Flüge ohne Flugplan mit Außenlandung zählen überall, und ein Flug gehört in den Zeitraum, in dem er gestartet ist.",
+      "📊 Was StatSim nachträglich an älteren Flügen liefert, erscheint jetzt binnen zehn Minuten auch in der Jahresstatistik, nicht erst nach dem nächsten Update.",
+      "📊 Die Zahl über der Flugliste eines Piloten ist dieselbe wie in seiner Bilanz. Bisher standen dort alle Zeilen, auch Flüge unter fremdem Rufzeichen.",
+      "✈️ Ein Klick auf „Muster“ in der Bilanz öffnet die Liste aller Muster, die der Pilot im Zeitraum geflogen ist."
+    ]
+  },
+  {
     "version": "16.9.1",
     "date": "2026-10-14",
     "highlight": false,

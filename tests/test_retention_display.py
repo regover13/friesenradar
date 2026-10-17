@@ -112,7 +112,7 @@ def test_pilot_flights_days0_uses_retention_window(monkeypatch, tmp_path):
 
     def fake_canon(conn, cids, callsign_prefix, start):
         captured["start"] = start
-        return {"pilots": []}
+        return []  # wie canonicalize_legs: eine Liste
 
     monkeypatch.setattr(main, "canonicalize_legs", fake_canon)
     _patch_settings(monkeypatch, tmp_path, STATSIM_API_KEY="")
@@ -127,7 +127,7 @@ def test_pilot_flights_caps_large_days(monkeypatch, tmp_path):
 
     def fake_canon(conn, cids, callsign_prefix, start):
         captured["start"] = start
-        return {"pilots": []}
+        return []  # wie canonicalize_legs: eine Liste
 
     monkeypatch.setattr(main, "canonicalize_legs", fake_canon)
     _patch_settings(monkeypatch, tmp_path, STATSIM_API_KEY="")

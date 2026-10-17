@@ -119,7 +119,7 @@ def test_types_deeplink_wird_vor_dem_tab_abbruch_ausgewertet():
     assert m, "initFromUrl nicht gefunden"
     quelle = m.group(1)
     m_types  = re.search(
-        r"^\s*if \(p\.get\('types'\)\) openTypesModal\(p\.get\('days'\)\);", quelle, re.M
+        r"^\s*if \(p\.get\('types'\)\) openTypesModal\(p\.get\('days'\)[,)]", quelle, re.M
     )
     m_return = re.search(r"^\s*if \(!tab\) return", quelle, re.M)
     assert m_types, "types-Deep-Link fehlt in initFromUrl oder reicht 'days' nicht durch"

@@ -369,6 +369,20 @@ Letzter Flug und Fluganzahl pro Pilot. Kombiniert FriesenRadar-Aufzeichnungen un
 
 `flight_count` = `fs_count` + `st_count`. StatSim-Daten sind nur vorhanden wenn der Pilot zuvor im Statistiken-Tab angeklickt wurde (lazy cache). Zählung und Dauer kommen aus `get_cached_flights` (`flight_cache`, materialisierte `canonicalize_legs`-Ergebnisse — GPS-only Phase 2, #23), identisch zu `/api/stats/activity`; die Piloten-Detailansicht (`/api/pilots/{cid}/flights`) ruft `canonicalize_legs` für ihren einen Piloten live (ungecacht) auf — gleiche Wahrheit, nur ohne den globalen Cache.
 
+**Zählregeln seit 16.9.2** (überall gleich, nachgeprüft für alle Piloten über 30/90/365 Tage):
+- **Geisterflüge** (0 min, höchstens 1 nm, `ist_geisterflug`) kommen gar nicht erst in `flight_cache`; beim Start räumt `init_db` die vorhandenen weg. Die Flugliste blendet sie ebenso aus.
+- **Laufend** ist nur der jüngste Flug ohne Landung eines Piloten, der gerade online ist (`laufende_fluege`: `live_positions` oder offene `flights`-Zeile). Bis 16.9.1 galt jeder Flug ohne `connection_closed` als laufend; Flüge ohne Flugplan, die nicht auf einem Platz enden, fehlten dadurch für immer.
+- **Zeitraum** = Start im Fenster. `/api/pilots/{cid}/flights` filtert deshalb auf `logon_time >= start`; `canonicalize_legs` lieferte auch Legs, die davor starteten.
+- **Vollaufbau des Flugspeichers**: Der Zehn-Minuten-Lauf fasst nur die letzten 7 Tage an. Schreibt StatSim einen bisher unbekannten älteren Flug oder einen älteren Track, merkt `flight_cache_voll_vormerken` (App-Einstellung `flight_cache_voll_noetig`) für den nächsten Lauf einen Vollaufbau vor. Vorher kam nachgelieferte StatSim-Historie erst mit dem nächsten Deploy in die Statistik.
+
+---
+
+## GET /api/aircraft-types/stats
+
+Friesen-Zahlen je Muster im Zeitraum, meistgeflogenes zuerst: Grundlage der Kachel „Häufigstes Muster“ und der Musterliste. Query `days` (30/90/365, geklemmt) und seit 16.9.2 optional `cid`: nur die Muster dieses Piloten (Musterliste aus der Bilanz der Pilotenansicht; die Spalte „Piloten“ blendet die Seite dann aus). Flüge ohne Muster fehlen, deshalb kann die Summe kleiner sein als die Flugzahl.
+
+**Response** `[{"code": "A139", "name": "Leonardo/AgustaWestland AW139", "fluege": 73, "stunden": 36.0, "nm": 5431.0, "piloten": 1}]`
+
 ---
 
 ## GET /api/stats/special-events

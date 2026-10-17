@@ -4109,8 +4109,20 @@ def get_pilot_flights(cid: int, days: int = 90, background_tasks: BackgroundTask
         )
     finally:
         conn.close()
+    # Ein Flug gehört in den Zeitraum, in dem er gestartet ist -- wie in der Gesamtstatistik
+    # (get_stats liest ``logon_time >= start``). canonicalize_legs nimmt auch Legs mit, die
+    # vor dem Beginn starten und danach landen; die zählten bis 16.9.1 nur hier (FRS131,
+    # 90 Tage: 33 gegen 32).
+    result = [f for f in result
+              if not f.get("logon_time") or _iso_sekunden(f["logon_time"]) >= start[:19]]
 
     return JSONResponse(content=result, headers={"X-StatSim-Status": statsim_status})
+
+
+def _iso_sekunden(ts) -> str:
+    """Zeitstempel auf ``JJJJ-MM-TTTHH:MM:SS`` gekürzt -- die Quellen schreiben ``Z``,
+    ``+00:00`` oder Nachkommastellen, verglichen wird nur bis zur Sekunde."""
+    return str(ts)[:19]
 
 
 @app.get("/api/pilots/{cid}/live-track")
@@ -9020,7 +9032,7 @@ def _photo_dir() -> Path:
 
 
 @app.get("/api/aircraft-types/stats")
-async def aircraft_type_stats_endpoint(days: int = 30):
+async def aircraft_type_stats_endpoint(days: int = 30, cid: int | None = None):
     """Friesen-Zahlen aller im gewaehlten Zeitraum geflogenen Muster, meistgeflogenes
     zuerst — gemeinsame Grundlage der Top-Muster-KPI-Kachel (nimmt Zeile 0) UND der vollen
     Musterliste im Statistiken-Tab, beide an denselben days-Filter gebunden wie die uebrigen
@@ -9030,7 +9042,7 @@ async def aircraft_type_stats_endpoint(days: int = 30):
     days = _clamp_retention_days(days)  # #67: nie über die globale 365-Tage-Anzeigegrenze
     conn = get_connection(get_settings().DB_PATH)
     try:
-        return all_type_stats_for_days(conn, days)
+        return all_type_stats_for_days(conn, days, cid)
     finally:
         conn.close()
 

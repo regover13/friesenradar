@@ -94,7 +94,7 @@ def test_ohne_gezaehlte_fluege_keine_bilanz():
 
 def test_die_bilanz_steht_ueber_der_liste():
     rumpf = INDEX[INDEX.index("function renderFlightsList"):INDEX.index("function _ordenHtml")]
-    assert rumpf.index("_pilotBilanzHtml(_pilotBilanz(flights))") < rumpf.index("<table>")
+    assert rumpf.index("_pilotBilanzHtml(_pilotBilanz(flights), cid, pilotName)") < rumpf.index("<table>")
 
 
 def test_alle_acht_werte_stehen_im_kasten():
