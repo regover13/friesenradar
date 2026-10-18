@@ -209,3 +209,15 @@ def test_nicht_gewertet_steht_in_einer_eigenen_spalte_vor_der_quelle():
     rumpf = INDEX[s:INDEX.index("</tr>`;", s)]
     assert "<td>${trackCell}</td>\n    <td>${unscoredBadge}</td>\n    <td>${sourceTag}</td>" in rumpf
     assert "${unscoredBadge}</td>" not in rumpf.split("<td class=\"mono\">${escHtml(f.callsign")[1][:60]
+
+
+def test_der_volle_aufbau_haelt_waehrend_der_rechnung_keine_schreibsperre(conn, monkeypatch):
+    """Deploy 18.10.2026: Das Zurücksetzen der Vormerkung VOR der Rechnung öffnete die
+    Transaktion, die Datenbank war rund 40 s für alle anderen gesperrt."""
+    db.flight_cache_voll_vormerken(conn)
+    conn.commit()
+    gesehen = []
+    monkeypatch.setattr(db, "canonicalize_legs", lambda c, **kw: gesehen.append(c.in_transaction) or [])
+    db.rebuild_flight_cache(conn, full=False)
+    assert gesehen == [False]
+    assert not _vorgemerkt(conn)

@@ -393,3 +393,33 @@ def test_alle_lotsen_ist_ein_eigener_eintrag():
     assert _js({"notif_pilot_filter": "[1,2]", "notif_lotse_filter": "null"},
                "_notifLotseGespeichert()") is None
     assert _js({"notif_lotse_filter": "[3]"}, "_notifLotseGespeichert()") == [3]
+
+
+def test_eine_gesperrte_datenbank_verwirft_die_buchungen_nicht(pfad, monkeypatch):
+    """Deploy 18.10.2026: „database is locked“ beim Vormerken -- „Geplant“ blieb leer."""
+    import sqlite3 as _sq
+    from app import poller as poller_mod
+    p = _poller(pfad)
+    p._now = lambda: datetime(2026, 10, 14, 8, 0, tzinfo=timezone.utc)
+
+    class _Antwort:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return [{"id": 1, "cid": ANDERE, "callsign": "EDDH_TWR", "type": "booking",
+                     "start": "2026-10-14 17:00:00", "end": "2026-10-14 19:00:00"}]
+
+    class _Client:
+        async def get(self, *a, **kw):
+            return _Antwort()
+
+    p._http_client = _Client()
+
+    def gesperrt(*a, **kw):
+        raise _sq.OperationalError("database is locked")
+
+    monkeypatch.setattr(poller_mod, "lotsen_gesehen_merken", gesperrt)
+    asyncio.run(p._lotsen_buchungen_holen())
+    assert [b["cid"] for b in p.lotsen_buchungen] == [ANDERE]
+    assert ANDERE not in p._lotsen_vorgemerkt   # wird beim nächsten Lauf erneut versucht

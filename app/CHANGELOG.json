@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.9.6",
+    "date": "2026-10-18",
+    "highlight": false,
+    "title": "Geplante Lotsen nach einem Update sofort da",
+    "items": [
+      "🎧 Nach einem Update fehlten unter „Geplant“ für bis zu zehn Minuten die gebuchten Lotsenschichten. Jetzt stehen sie sofort wieder da.",
+      "🔧 Der Neuaufbau der Flugstatistik nach einem Update sperrt die Datenbank nicht mehr eine halbe Minute lang für alles andere."
+    ]
+  },
+  {
     "version": "16.9.5",
     "date": "2026-10-18",
     "highlight": false,

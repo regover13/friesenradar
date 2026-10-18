@@ -6188,8 +6188,10 @@ def rebuild_flight_cache(conn: sqlite3.Connection, *, full: bool = False,
     computed_at = _now_utc()
     if not full and vormerkung_beachten and get_app_setting(conn, _FLIGHT_CACHE_VOLL_KEY) == "1":
         full = True   # ältere Flüge haben sich geändert (flight_cache_voll_vormerken)
-    if full:
-        set_app_setting(conn, _FLIGHT_CACHE_VOLL_KEY, "0")
+    # Die Vormerkung wird erst in der Schreibphase unten zurückgesetzt. In 16.9.2 stand das
+    # hier, VOR der Rechnung: Das Schreiben öffnet die Transaktion, und die Schreibsperre hielt
+    # dann die ganze Rechnung lang (Deploy 18.10.2026: rund 40 s, Lotsenbuchungen, Kalender
+    # und Poll scheiterten an „database is locked“).
 
     # Erst rechnen (canonicalize_legs, ~5,5 s bei großem Bestand), DANN DELETE+INSERT — die
     # Schreib-Transaktion (und damit der Write-Lock) soll nur die kurze DB-Schreibphase
@@ -6204,6 +6206,7 @@ def rebuild_flight_cache(conn: sqlite3.Connection, *, full: bool = False,
     # verlassen sich die Muster-Abfragen.
     if full or is_empty:
         flights = canonicalize_legs(conn, callsign_prefix="")
+        set_app_setting(conn, _FLIGHT_CACHE_VOLL_KEY, "0")
         conn.execute("DELETE FROM flight_cache")
     else:
         cutoff = (

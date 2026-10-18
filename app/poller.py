@@ -2247,9 +2247,6 @@ class VatsimPoller:
                 raise ValueError("Buchungsliste ist keine Liste")
             conn = get_connection(self.db_path)
             try:
-                # Alle zehn Minuten nebenbei: gemerkte Namen, die niemand mehr braucht, löschen.
-                if lotsen_namen_aufraeumen(conn, self._now().strftime("%Y-%m-%dT%H:%M:%SZ")):
-                    conn.commit()
                 bekannte = lotsen_bekannte(conn)
                 for cid in get_inactive_cids(conn):
                     bekannte.pop(cid, None)
@@ -2258,17 +2255,28 @@ class VatsimPoller:
             buchungen = lotsen.buchungen_filtern(roh, set(bekannte), self._now())
             for b in buchungen:
                 b["name"] = bekannte.get(b["cid"], "")
-            if {b["cid"] for b in buchungen} - self._lotsen_vorgemerkt:
-                conn = get_connection(self.db_path)
-                try:
-                    if self._lotsen_vormerken(conn, (b["cid"] for b in buchungen), self._now()):
-                        conn.commit()
-                finally:
-                    conn.close()
+            # Erst übernehmen, dann schreiben: Die Liste ist da, auch wenn die Datenbank gerade
+            # gesperrt ist. Bis 16.9.5 verwarf ein gescheitertes Schreiben die ganze Liste, und
+            # „Geplant“ blieb nach dem Deploy zehn Minuten ohne Lotsen (18.10.2026).
             self.lotsen_buchungen = buchungen
             self._lotsen_buchungen_da = True
         except Exception as exc:
             logger.warning("Lotsen-Buchungen nicht geholt: %r", exc)
+            return
+        # Nebenbei, beides darf scheitern und kommt beim nächsten Lauf wieder:
+        # gemerkte Namen aufräumen, die niemand mehr braucht, und Lotsen für die Auswahl vormerken.
+        try:
+            conn = get_connection(self.db_path)
+            try:
+                if lotsen_namen_aufraeumen(conn, self._now().strftime("%Y-%m-%dT%H:%M:%SZ")):
+                    conn.commit()
+                if self._lotsen_vormerken(conn, (b["cid"] for b in buchungen), self._now()):
+                    conn.commit()
+            finally:
+                conn.close()
+        except Exception as exc:
+            self._lotsen_vorgemerkt -= {b["cid"] for b in buchungen}   # nächstes Mal erneut
+            logger.warning("Lotsen-Buchungen: Nebenarbeit nicht geschrieben: %r", exc)
 
     async def _lotsen_melden(self, jetzt: datetime | None = None) -> None:
         """Sammelmeldung um 7 Uhr deutscher Zeit und späte Buchungen für denselben Tag.
