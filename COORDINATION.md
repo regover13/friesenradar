@@ -6,6 +6,20 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-18 — 16.8.1 bis 16.9.7 sind vergeben: Lotsennamen, Kartenprüfung, einheitliche Zählung
+
+- `lotsen_bekannte` nimmt keinen Namen mehr, der mit der eigenen CID beginnt (`name_verborgen`);
+  neue Tabelle `forum_name` (beim SSO-Rückruf gefüllt).
+- `/api/aip-charts-dfs` liefert auch `pruefen`; neuer Admin-Endpunkt `…/pruef-vorschau`.
+- Statistik: `ist_geisterflug` (nicht im `flight_cache`), `laufende_fluege` statt
+  `connection_closed`, `flight_cache_voll_vormerken`, Speicher rechnet mit `callsign_prefix=""`
+  und filtert danach. `rebuild_flight_cache` darf vor `canonicalize_legs` NICHTS schreiben, sonst
+  hält es die Schreibsperre die ganze Rechnung lang (16.9.6).
+- `all_type_stats_for_days(conn, days, cid=None)`, Endpunkt `?cid=`.
+**Der Deichkontrolle-Zweig nimmt beim Rebase die nächste freie Nummer.**
+
+---
+
 ## 2026-10-14 — 16.8.0 ist vergeben: eigene Lotsenauswahl in den Benachrichtigungen
 
 Neue Spalte `push_subscriptions.lotse_filter` (beim Anlegen einmalig aus `pilot_filter`
