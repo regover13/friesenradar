@@ -200,3 +200,12 @@ def test_eine_chronologische_tabelle_mit_allen_fluegen():
     rumpf = INDEX[s:INDEX.index("// PILOTEN-BILANZ-ANFANG", s)]
     assert "for (const f of flights) {" in rumpf
     assert "nicht-gezaehlt" not in rumpf and "<details" not in rumpf
+
+
+def test_nicht_gewertet_steht_in_einer_eigenen_spalte_vor_der_quelle():
+    """Nutzer 18.10.2026: als eigene Spalte nach hinten, vor „Quelle“."""
+    assert INDEX.count("<th>Track</th><th>Wertung</th><th>Quelle</th>") == 2
+    s = INDEX.index("function _flightRowHtml(")
+    rumpf = INDEX[s:INDEX.index("</tr>`;", s)]
+    assert "<td>${trackCell}</td>\n    <td>${unscoredBadge}</td>\n    <td>${sourceTag}</td>" in rumpf
+    assert "${unscoredBadge}</td>" not in rumpf.split("<td class=\"mono\">${escHtml(f.callsign")[1][:60]

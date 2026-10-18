@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.9.5",
+    "date": "2026-10-18",
+    "highlight": false,
+    "title": "Spalte „Wertung“ in der Flugliste",
+    "items": [
+      "📊 Der Hinweis „nicht gewertet“ steht in der Flugliste jetzt in einer eigenen Spalte vor der Quelle, nicht mehr neben dem Rufzeichen."
+    ]
+  },
+  {
     "version": "16.9.4",
     "date": "2026-10-18",
     "highlight": false,

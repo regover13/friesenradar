@@ -12505,7 +12505,7 @@ function _flightRowHtml(f, rowAttrs) {
   // Ohne Rufzeichen zählt der Flug ebenfalls nicht (wie _pilotGezaehlt und der Server).
   const unscored = !csUpper.startsWith(_callsignPrefix);
   const unscoredBadge = unscored
-    ? ` <span class="badge-unscored" title="Kein ${escHtml(_callsignPrefix)}-Callsign — zählt nicht in Statistik/Bummel/Kutter">nicht gewertet</span>`
+    ? `<span class="badge-unscored" title="Kein ${escHtml(_callsignPrefix)}-Callsign — zählt nicht in Statistik/Bummel/Kutter">nicht gewertet</span>`
     : '';
   // Track IMMER über GPS ladbar (GPS-only): StatSim -> statsim_id; FS mit Flugplan-id ->
   // flights-Endpoint; FS ohne id -> cid-Fenster-Endpoint ('pilot'). Obergrenze ist block_end
@@ -12558,7 +12558,7 @@ function _flightRowHtml(f, rowAttrs) {
       data-route="${escHtml(f.route || '')}"
       data-remarks="${escHtml(f.remarks || '')}"
       data-src="${f.source === 'friesenspy' ? 'FriesenRadar' : 'StatSim'}">
-    <td class="mono">${escHtml(f.callsign || '—')}${unscoredBadge}</td>
+    <td class="mono">${escHtml(f.callsign || '—')}</td>
     <td class="mono text-label">${acLink(f.aircraft)}</td>
     <td class="mono td-gps-link text-green" style="cursor:pointer;" title="GPS-Erfassung öffnen">${routeCell}</td>
     ${planCell}
@@ -12567,6 +12567,7 @@ function _flightRowHtml(f, rowAttrs) {
     <td class="mono">${blk}</td>
     <td class="mono">${dist}</td>
     <td>${trackCell}</td>
+    <td>${unscoredBadge}</td>
     <td>${sourceTag}</td>
   </tr>`;
 }
@@ -12630,7 +12631,7 @@ function renderFlightsList(cid, pilotName, flights, statsimStatus) {
       + (nichtGezaehlt > 0 ? ` · ${nichtGezaehlt} nicht gezählt` : '') + `</div>`;
     html += _pilotBilanzHtml(_pilotBilanz(flights), cid, pilotName);
     const kopf = `<thead><tr>
-        <th>Callsign</th><th>Aircraft</th><th>Strecke</th><th>Flugplan</th><th>Datum</th><th>Flugzeit</th><th>Block</th><th>Distanz</th><th>Track</th><th>Quelle</th>
+        <th>Callsign</th><th>Aircraft</th><th>Strecke</th><th>Flugplan</th><th>Datum</th><th>Flugzeit</th><th>Block</th><th>Distanz</th><th>Track</th><th>Wertung</th><th>Quelle</th>
       </tr></thead>`;
     // EINE chronologische Tabelle mit allen Flügen (Nutzer 18.10.2026: „In jedem Fall alle!!“
     // -- die 16.9.3 zugeklappten Flüge brachen die Reihenfolge). Nur Geisterflüge fehlen,
@@ -16373,7 +16374,7 @@ function renderEventsResults(data, icaoStr, radiusKm, startVal, endVal) {
         </div>
         ${flightRows ? `<div class="live-table-wrap" style="width:100%;"><table style="font-size:0.8rem;">
           <thead><tr>
-            <th>Callsign</th><th>Aircraft</th><th>Strecke</th><th>Flugplan</th><th>Datum</th><th>Flugzeit</th><th>Block</th><th>Distanz</th><th>Track</th><th>Quelle</th>
+            <th>Callsign</th><th>Aircraft</th><th>Strecke</th><th>Flugplan</th><th>Datum</th><th>Flugzeit</th><th>Block</th><th>Distanz</th><th>Track</th><th>Wertung</th><th>Quelle</th>
           </tr></thead>
           <tbody>${flightRows}</tbody>
         </table></div>` : ''}
