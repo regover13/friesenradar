@@ -4127,6 +4127,10 @@
       padding: 2px 6px;
       white-space: nowrap;
     }
+    .badge-unscored.badge-friese {
+      color: var(--green);
+      border-color: rgba(var(--green-rgb), 0.45);
+    }
 
     /* =====================================================================
        ACTIVITY CHART
@@ -12506,7 +12510,8 @@ function _flightRowHtml(f, rowAttrs) {
   const unscored = !csUpper.startsWith(_callsignPrefix);
   const unscoredBadge = unscored
     ? `<span class="badge-unscored" title="Kein ${escHtml(_callsignPrefix)}-Callsign — zählt nicht in Statistik/Bummel/Kutter">nicht gewertet</span>`
-    : '';
+    // Gewertete Flüge sagen es auch (Nutzer 18.10.2026: „Die Wertung-Spalte ist so leer“).
+    : `<span class="badge-unscored badge-friese" title="${escHtml(_callsignPrefix)}-Callsign — zählt in Statistik/Bummel/Kutter">Friese</span>`;
   // Track IMMER über GPS ladbar (GPS-only): StatSim -> statsim_id; FS mit Flugplan-id ->
   // flights-Endpoint; FS ohne id -> cid-Fenster-Endpoint ('pilot'). Obergrenze ist block_end
   // (Rollen zum Abstellplatz nach der Landung, s. _extend_block_end/database.py) — für

@@ -221,3 +221,8 @@ def test_der_volle_aufbau_haelt_waehrend_der_rechnung_keine_schreibsperre(conn, 
     db.rebuild_flight_cache(conn, full=False)
     assert gesehen == [False]
     assert not _vorgemerkt(conn)
+
+
+def test_gewertete_fluege_heissen_in_der_spalte_friese():
+    s = INDEX.index("const unscoredBadge = unscored")
+    assert ">Friese</span>`;" in INDEX[s:s + 500]
