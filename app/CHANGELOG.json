@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.9.4",
+    "date": "2026-10-18",
+    "highlight": false,
+    "title": "Flugliste wieder vollständig und chronologisch",
+    "items": [
+      "📊 Die Flugliste eines Piloten zeigt wieder alle Flüge in einer Tabelle, in zeitlicher Reihenfolge, auch die unter anderem Rufzeichen.",
+      "📊 Über der Bilanz steht, wie viele Flüge die Liste zeigt und wie viele davon mit FRS-Kennzeichen gezählt sind. Nicht gezählte Zeilen tragen einen kleinen Hinweis."
+    ]
+  },
+  {
     "version": "16.9.3",
     "date": "2026-10-17",
     "highlight": false,

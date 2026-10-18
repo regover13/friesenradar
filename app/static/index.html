@@ -4066,11 +4066,8 @@
       border-left: 1px solid rgba(var(--green-rgb), 0.15);
     }
     @media (min-width: 900px) { .piloten-bilanz { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+    .piloten-zaehlung { font-size: 0.78rem; color: var(--text-label); margin: 8px 0 4px; }
     .piloten-bilanz-klick { cursor: pointer; }
-    details.nicht-gezaehlt { margin-top: 10px; }
-    details.nicht-gezaehlt > summary {
-      cursor: pointer; font-size: 0.8rem; color: var(--text-label); padding: 4px 0;
-    }
     .piloten-bilanz-klick:hover { background: rgba(var(--green-rgb), 0.08); }
     .piloten-bilanz-feld {
       padding: 6px 8px; min-width: 0;
@@ -12505,7 +12502,8 @@ function _flightRowHtml(f, rowAttrs) {
   // Phase 2b: renderFlightsList zeigt (callsign_prefix='') auch Fremd-Callsigns — die
   // zählen ohnehin nicht in Statistik/Bummel/Kutter (die filtern auf CALLSIGN_PREFIX).
   const csUpper = (f.callsign || '').toUpperCase();
-  const unscored = csUpper && !csUpper.startsWith(_callsignPrefix);
+  // Ohne Rufzeichen zählt der Flug ebenfalls nicht (wie _pilotGezaehlt und der Server).
+  const unscored = !csUpper.startsWith(_callsignPrefix);
   const unscoredBadge = unscored
     ? ` <span class="badge-unscored" title="Kein ${escHtml(_callsignPrefix)}-Callsign — zählt nicht in Statistik/Bummel/Kutter">nicht gewertet</span>`
     : '';
@@ -12603,19 +12601,18 @@ function _wireFlightRowClicks(container) {
 
 function renderFlightsList(cid, pilotName, flights, statsimStatus) {
   const container = document.getElementById('stats-content');
-  // Dieselbe Zählung wie die Bilanz darunter und die Gesamtstatistik. Bis 16.9.1 standen hier
-  // alle Zeilen, auch fremde Rufzeichen und Geisterflüge (FRS61, 365 Tage: 311 statt 275).
+  // Die Tabelle zeigt alle Flüge außer Geisterflügen; gezählt (Bilanz, Gesamtstatistik) werden
+  // nur die mit FRS-Kennzeichen, die nicht gerade laufen. Die Zeile über der Bilanz nennt beides
+  // (Nutzer 18.10.2026: „311 Flüge und dann … 276 gezählt, 30 nicht gezählt“).
   const gezaehlt = _pilotGezaehlt(flights);
-  const fsCount = gezaehlt.filter(f => f.source === 'friesenspy').length;
-  const stCount = gezaehlt.filter(f => f.source === 'statsim').length;
+  const zaehlt = new Set(gezaehlt);
+  const angezeigt = flights.filter(f => _flightRowHtml(f, '') !== '').length;
+  const nichtGezaehlt = angezeigt - gezaehlt.length;
 
   let html = `
     <div class="flights-panel-header">
       <button class="btn" onclick="closePilotFlights()">${icon('arrow-left')} Zurück</button>
       <span class="flights-panel-title">${escHtml(pilotName || String(cid))}</span>
-      <span class="flights-panel-count">${gezaehlt.length} Flüge`;
-  if (stCount > 0) html += ` <span class="text-label">(${fsCount} FriesenRadar · ${stCount} StatSim)</span>`;
-  html += `</span>
       <button class="btn-share" style="margin-left:auto;" onclick="copyShareUrl(this)">⎘ Teilen</button>
     </div>`;
   const ordenKey = `${cid}|${_statsDays()}`;
@@ -12628,27 +12625,21 @@ function renderFlightsList(cid, pilotName, flights, statsimStatus) {
   if (flights.length === 0) {
     html += `<div class="empty-state"><div class="empty-state-text">Keine Flüge gefunden</div></div>`;
   } else {
+    html += `<div class="piloten-zaehlung">${angezeigt} ${angezeigt === 1 ? 'Flug' : 'Flüge'}`
+      + ` · ${gezaehlt.length} mit ${escHtml(_callsignPrefix)}-Kennzeichen gezählt`
+      + (nichtGezaehlt > 0 ? ` · ${nichtGezaehlt} nicht gezählt` : '') + `</div>`;
     html += _pilotBilanzHtml(_pilotBilanz(flights), cid, pilotName);
     const kopf = `<thead><tr>
         <th>Callsign</th><th>Aircraft</th><th>Strecke</th><th>Flugplan</th><th>Datum</th><th>Flugzeit</th><th>Block</th><th>Distanz</th><th>Track</th><th>Quelle</th>
       </tr></thead>`;
-    // Die Tabelle zeigt GENAU die gezählten Flüge (Nutzer 17.10.2026: „es müssen auch gleich
-    // viele Zeilen darunter angezeigt werden“) -- wer sie herauskopiert und nachrechnet,
-    // kommt auf Bilanz und Gesamtstatistik. Was nicht zählt, steht zugeklappt darunter.
-    const zaehlt = new Set(gezaehlt);
-    const nichtGezaehlt = flights.filter(f => !zaehlt.has(f) && _flightRowHtml(f, '') !== '');
+    // EINE chronologische Tabelle mit allen Flügen (Nutzer 18.10.2026: „In jedem Fall alle!!“
+    // -- die 16.9.3 zugeklappten Flüge brachen die Reihenfolge). Nur Geisterflüge fehlen,
+    // _flightRowHtml liefert für sie ''. Die Kopfzeile nennt, wie viele davon nicht zählen.
     html += `<div class="live-table-wrap"><table>${kopf}<tbody>`;
-    for (const f of gezaehlt) {
+    for (const f of flights) {
       html += _flightRowHtml(f, 'class="flight-row"');
     }
     html += `</tbody></table></div>`;
-    if (nichtGezaehlt.length) {
-      html += `<details class="nicht-gezaehlt"><summary>Nicht mitgezählt: ${nichtGezaehlt.length} `
-        + `${nichtGezaehlt.length === 1 ? 'Flug' : 'Flüge'} (fremdes Rufzeichen oder gerade in der Luft)</summary>`
-        + `<div class="live-table-wrap"><table>${kopf}<tbody>`;
-      for (const f of nichtGezaehlt) html += _flightRowHtml(f, 'class="flight-row"');
-      html += `</tbody></table></div></details>`;
-    }
     const btnUpdating = statsimStatus === 'updating';
     html += `
   <div style="text-align:center; padding:10px 0 4px;">
