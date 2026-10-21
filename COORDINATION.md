@@ -6,6 +6,17 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-21 — 16.9.8 ist vergeben: Sicherheitsupdate Pillow 13 und certifi
+
+- `requirements.txt`: `pillow>=13.0.0`, neu ausdrücklich `certifi>=2026.10.19` (vorher nur
+  indirekt über httpx). Kein Anwendungscode geändert; Pillow 13 entfernt nichts, was die App
+  nutzt. `bild_hash` der Bodenkarten kann sich durch das neue Resampling ändern — harmlos,
+  er ist kein Änderungsdetektor (`database.py`).
+- `Image.getdata()` ist seit Pillow 12.1 veraltet und fällt mit 14 weg; im Test ersetzt,
+  in `friesenbruegge/` (paket_bauen.py, xplane/rauch_bauen.py) noch vorhanden.
+
+---
+
 ## 2026-10-18 — 16.8.1 bis 16.9.7 sind vergeben: Lotsennamen, Kartenprüfung, einheitliche Zählung
 
 - `lotsen_bekannte` nimmt keinen Namen mehr, der mit der eigenen CID beginnt (`name_verborgen`);

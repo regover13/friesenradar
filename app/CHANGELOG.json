@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.9.8",
+    "date": "2026-10-21",
+    "highlight": false,
+    "title": "Sicherheitsupdate",
+    "items": [
+      "🔧 Sicherheitsupdate der Bildverarbeitung und der Zertifikatsliste für verschlüsselte Verbindungen. Für Mitglieder ändert sich nichts."
+    ]
+  },
+  {
     "version": "16.9.7",
     "date": "2026-10-18",
     "highlight": false,

@@ -329,7 +329,7 @@ def test_die_viertelwendung_dreht_in_dieselbe_richtung_wie_der_allgemeine_weg():
         gedreht, tatsaechlich = _drehen(im, float(grad))
         assert tatsaechlich == float(grad)
         soll = im.rotate(-grad, expand=True)
-        assert list(gedreht.convert("L").getdata()) == list(soll.convert("L").getdata()), \
+        assert gedreht.convert("L").tobytes() == soll.convert("L").tobytes(), \
             f"Viertelwendung um {grad} Grad dreht anders als rotate(-{grad})"
 
 

@@ -11,6 +11,8 @@ pywebpush>=2.0
 icalendar>=6.0
 recurring-ical-events>=3.0
 ts3>=1.0.11
-pillow>=10.0
+pillow>=13.0.0
+# certifi kommt sonst nur indirekt (httpx); Untergrenze wegen GHSA-6q48-6c7w-9gw2
+certifi>=2026.10.19
 anthropic>=0.40
 python-multipart>=0.0.9
