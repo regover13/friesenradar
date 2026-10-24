@@ -351,6 +351,42 @@ class TestEventTimeGuards:
         assert by["Fisch"] == START                          # bestehend → added_at unverändert
         assert by["Krabbe"] == "2026-07-01T12:00:00Z"        # neu → default_added_at (Mid-Event = jetzt)
 
+    def test_verschobener_start_nimmt_die_ware_mit(self):
+        # 24.10.2026: Kutter mit Start 21:00 angelegt, eine halbe Minute später auf 19:00
+        # korrigiert -- die Ware blieb auf 21:00 und war bis zum Event-Ende nicht ladbar.
+        from app.database import (create_transport_event, get_transport_cargo,
+                                  set_transport_cargo, update_transport_event)
+        conn = _make_conn()
+        spaet = "2026-07-01T11:00:00Z"
+        eid = create_transport_event(
+            conn, name="X", destination="EDXH", dtstart=spaet, dtend="2026-07-01T13:00:00Z",
+            cargo=[{"name": "Fisch", "target_kg": 100, "departure": "EDWG"}])
+        set_transport_cargo(conn, eid, [
+            {"name": "Fisch", "target_kg": 100, "departure": "EDWG"},
+            {"name": "Krabbe", "target_kg": 80, "departure": "EDWZ"},
+        ], destination="EDXH", default_added_at="2026-07-01T11:30:00Z")
+        # Wie der Admin: Zeit und Manifest in EINEM Aufruf.
+        update_transport_event(conn, eid, dtstart=START, cargo=[
+            {"name": "Fisch", "target_kg": 100, "departure": "EDWG"},
+            {"name": "Krabbe", "target_kg": 80, "departure": "EDWZ"},
+        ])
+        conn.commit()
+        by = {c["name"]: c["added_at"] for c in get_transport_cargo(conn, eid)}
+        assert by["Fisch"] == START                    # lag „ab Start“ bereit → wandert mit
+        assert by["Krabbe"] == "2026-07-01T11:30:00Z"  # später nachgetragen → bleibt
+
+    def test_verschobener_start_ohne_manifest(self):
+        from app.database import (create_transport_event, get_transport_cargo,
+                                  update_transport_event)
+        conn = _make_conn()
+        eid = create_transport_event(
+            conn, name="X", destination="EDXH", dtstart="2026-07-01T11:00:00Z",
+            dtend="2026-07-01T13:00:00Z",
+            cargo=[{"name": "Fisch", "target_kg": 100, "departure": "EDWG"}])
+        update_transport_event(conn, eid, dtstart=START)
+        conn.commit()
+        assert get_transport_cargo(conn, eid)[0]["added_at"] == START
+
     def test_clear_transport_summarized_thaws_event(self):
         from app.database import (create_transport_event, set_transport_summarized,
                                   clear_transport_summarized, get_transport_event)

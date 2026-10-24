@@ -8600,6 +8600,15 @@ def update_transport_event(conn: sqlite3.Connection, event_id: int, **fields: ob
             if current is not None:
                 new_start = str(valid.get("dtstart", current["dtstart"]))
                 valid["dtend"] = _effective_dtend(new_start, valid.get("dtend"))  # type: ignore[arg-type]
+                # Ware, die „ab Event-Start“ bereitliegt (added_at = alter Start), zieht mit.
+                # Sonst bleibt sie nach einer Korrektur der Startzeit auf dem alten Wert stehen
+                # (24.10.2026: Start 21:00 → 19:00 korrigiert, Ware bis Event-Ende nicht ladbar).
+                # Mitten im Event Nachgetragenes trägt ein anderes added_at und bleibt.
+                if new_start != current["dtstart"]:
+                    conn.execute(
+                        "UPDATE transport_cargo SET added_at = ? WHERE event_id = ? AND added_at = ?",
+                        (new_start, event_id, current["dtstart"]),
+                    )
         set_clause = ", ".join(f"{k} = ?" for k in valid)
         conn.execute(
             f"UPDATE transport_events SET {set_clause} WHERE id = ?",
