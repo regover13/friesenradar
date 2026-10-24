@@ -11996,11 +11996,18 @@ async function fetchKutterActive() {
   }
 }
 
+// Nach dem Ende steht der Kasten nur noch für Nachzügler mit Ware (_kutterImLiveTab). „läuft
+// gerade" stimmt dann nicht mehr, „abgeschlossen" auch nicht -- die Wertung wartet auf sie.
+function _kutterTitelZustand(d, now) {
+  return (d.dtend && now > d.dtend) ? '· Zeit um, Nachzügler unterwegs' : 'läuft gerade';
+}
+
 // Rendert den Live-Banner-Block EINES laufenden Kutters; fetchKutterActive stapelt mehrere.
 function _kutterBannerBlock(d) {
     // Exakte Bummel-Banner-Parität: kein Teilen hier — das gibt es rechts oben in der
     // Events-Ansicht (Nutzer-Entscheidung 02.07.).
-    let html = `<div class="kutter-live-block"><div class="bb-title">${emoji('shrimp')} ${escHtml(d.name || 'FriesenKutter')} läuft gerade</div>`;
+    const _jetzt = new Date().toISOString().slice(0, 19) + 'Z';
+    let html = `<div class="kutter-live-block"><div class="bb-title">${emoji('shrimp')} ${escHtml(d.name || 'FriesenKutter')} ${_kutterTitelZustand(d, _jetzt)}</div>`;
     // Kein Strecken-Kettentext mehr (verwirrte im Live-Test — war weder geflogene Strecke noch
     // Flugplan, sondern die Aneinanderreihung der Ladeplätze). Stattdessen prominent NUR das Ziel,
     // wohin alle Fracht soll; die Reise je Fracht (Ladeplatz -> Ziel) steht in der Tabelle unten.

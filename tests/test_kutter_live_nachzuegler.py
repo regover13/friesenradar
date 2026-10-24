@@ -39,3 +39,22 @@ def test_der_live_tab_nutzt_die_regel():
     start = INDEX.index("async function fetchKutterActive")
     rumpf = INDEX[start:INDEX.index("\n}\n", start)]
     assert ".filter(k => _kutterImLiveTab(k, now))" in rumpf
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node fehlt")
+@pytest.mark.parametrize("dtend, text", [
+    ("2026-10-24T21:00:00Z", "läuft gerade"),
+    ("2026-10-24T20:00:00Z", "· Zeit um, Nachzügler unterwegs"),
+])
+def test_ueberschrift_nach_dem_ende(dtend, text):
+    # Nach dem Ende steht der Kasten nur noch für Nachzügler mit Ware; „läuft gerade" stimmte
+    # dann nicht mehr, „abgeschlossen" auch nicht -- die Wertung wartet (Nutzer 24.10.2026).
+    js = _funktion("_kutterTitelZustand") + (
+        f"\nconsole.log(JSON.stringify(_kutterTitelZustand({{dtend: '{dtend}'}}, '2026-10-24T20:30:00Z')));")
+    out = subprocess.run(["node", "-e", js], capture_output=True, text=True, check=True).stdout
+    assert json.loads(out) == text
+
+
+def test_der_kasten_nutzt_den_zustand():
+    start = INDEX.index("function _kutterBannerBlock")
+    assert "_kutterTitelZustand(d, " in INDEX[start:start + 800]
