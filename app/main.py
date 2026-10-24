@@ -3827,21 +3827,26 @@ def get_events(
     # position_history haben (z.B. FriesenRadar war nicht aktiv) — nur zur cid-Ermittlung; die
     # Flug-Dicts selbst liefert canonicalize_legs (deckt StatSim intern mit ab).
     if global_search or icao_list:
+        # Dieselbe Regel wie die Flugerfassung (16.9.9): StatSim-Zeilen ohne Landezeit zählen,
+        # sonst fiel ein Pilot, den nur eine solche Zeile belegt, hier schon vor der Rechnung heraus.
+        from app.database import (_PLAN_ROWS_LOOKBACK_H, _STATSIM_OFFEN_LOOKBACK_H,
+                                  _STATSIM_ZEILE_VERWERTBAR, _shift_iso)
+        offen_ab = (_shift_iso(start, hours=-(_PLAN_ROWS_LOOKBACK_H + _STATSIM_OFFEN_LOOKBACK_H))
+                    if start else "0000-01-01")
         conn3 = get_connection(settings.DB_PATH)
         try:
             if global_search:
                 statsim_rows = conn3.execute(
-                    """
+                    f"""
                     SELECT DISTINCT sc.cid, sc.callsign
                     FROM statsim_cache sc
                     WHERE sc.logon_time != ''
-                      AND sc.logoff_time IS NOT NULL
-                      AND sc.duration_min > 5
+                      AND {_STATSIM_ZEILE_VERWERTBAR}
                       AND sc.logon_time <= ?
-                      AND sc.logoff_time >= ?
+                      AND (sc.logoff_time >= ? OR (sc.logoff_time IS NULL AND sc.logon_time >= ?))
                       AND sc.callsign LIKE ?
                     """,
-                    (end or "9999-12-31", start or "0000-01-01",
+                    (end or "9999-12-31", start or "0000-01-01", offen_ab,
                      settings.CALLSIGN_PREFIX + "%"),
                 ).fetchall()
             else:
@@ -3852,14 +3857,13 @@ def get_events(
                     FROM statsim_cache sc
                     WHERE (sc.departure IN ({placeholders}) OR sc.arrival IN ({placeholders}))
                       AND sc.logon_time != ''
-                      AND sc.logoff_time IS NOT NULL
-                      AND sc.duration_min > 5
+                      AND {_STATSIM_ZEILE_VERWERTBAR}
                       AND sc.logon_time <= ?
-                      AND sc.logoff_time >= ?
+                      AND (sc.logoff_time >= ? OR (sc.logoff_time IS NULL AND sc.logon_time >= ?))
                       AND sc.callsign LIKE ?
                     """,
                     (*icao_list, *icao_list, end or "9999-12-31", start or "0000-01-01",
-                     settings.CALLSIGN_PREFIX + "%"),
+                     offen_ab, settings.CALLSIGN_PREFIX + "%"),
                 ).fetchall()
         finally:
             conn3.close()

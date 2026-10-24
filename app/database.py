@@ -1567,6 +1567,17 @@ def init_db(db_path: str) -> None:
             conn.execute(f"DELETE FROM flight_cache WHERE {_GEISTERFLUG_SQL}")
         except sqlite3.OperationalError:
             pass
+        # Platzhalter-Positionen bei 0/0 (16.9.9) werden nicht mehr gespeichert; die schon da
+        # sind, einmal entfernen (24.10.2026: 5 eigene, 4 von StatSim). Sie machten Phantomflüge
+        # und zogen die Spur auf der Karte in den Golf von Guinea. Danach einmal voll rechnen.
+        try:
+            weg = conn.execute(f"DELETE FROM position_history WHERE NOT ({_KEIN_PLATZHALTER_SQL})").rowcount
+            weg += conn.execute(
+                f"DELETE FROM statsim_position_history WHERE NOT ({_KEIN_PLATZHALTER_SQL})").rowcount
+            if weg:
+                flight_cache_voll_vormerken(conn)
+        except sqlite3.OperationalError:
+            pass
         # Eigene Lotsenauswahl (16.8.0). Bis dahin galt die Pilotenauswahl auch für Lotsen;
         # beim Anlegen der Spalte übernimmt jedes Abo sie einmalig, damit sich nichts ändert.
         spalten = {r[1] for r in conn.execute("PRAGMA table_info(push_subscriptions)")}
@@ -3010,6 +3021,22 @@ def remove_live_position(conn: sqlite3.Connection, cid: int) -> None:
     conn.execute("DELETE FROM live_positions WHERE cid = ?", (cid,))
 
 
+# Simulatoren melden beim Neuladen eine Position bei 0/0 -- nicht immer exakt: FRS102 am
+# 24.10.2026 in EDWG mit 0,0 / 0,00001 und 53.808 ft. Daraus wurde ein Zwei-Minuten-Flug
+# EDWG→EDWG. Ein Rechteck von gut einem Kilometer um 0/0; dort liegt kein Flugplatz.
+_PLATZHALTER_GRAD = 0.01
+_KEIN_PLATZHALTER_SQL = (
+    f"NOT (abs(latitude) < {_PLATZHALTER_GRAD} AND abs(longitude) < {_PLATZHALTER_GRAD})"
+)
+
+
+def ist_platzhalter_position(lat, lon) -> bool:
+    try:
+        return abs(float(lat)) < _PLATZHALTER_GRAD and abs(float(lon)) < _PLATZHALTER_GRAD
+    except (TypeError, ValueError):
+        return False
+
+
 def save_position_history(
     conn: sqlite3.Connection,
     cid: int,
@@ -3020,7 +3047,9 @@ def save_position_history(
     groundspeed: int,
     heading: int,
 ) -> None:
-    """Positions-Snapshot speichern, ts = jetzt UTC."""
+    """Positions-Snapshot speichern, ts = jetzt UTC. Platzhalter bei 0/0 werden verworfen."""
+    if ist_platzhalter_position(latitude, longitude):
+        return
     conn.execute(
         """
         INSERT INTO position_history
@@ -5009,7 +5038,7 @@ def _positions_for_cid(
     """
     sql = (
         "SELECT latitude, longitude, altitude, groundspeed, ts, callsign "
-        "FROM position_history WHERE cid = ?"
+        "FROM position_history WHERE cid = ? AND " + _KEIN_PLATZHALTER_SQL
     )
     params: list = [cid]
     if start:
@@ -5795,6 +5824,16 @@ def canonicalize_legs(
     st_flights: list[dict] = []
     for cid, rows in sc_by_cid.items():
         row_positions = [get_statsim_positions(conn, r["statsim_id"]) for r in rows]
+        # Zeilen ohne Landezeit UND ohne Spur ergeben nichts (kein Rückfall, s. unten) -- sie
+        # dürfen aber auch nicht zwischen zwei Hälften eines in der Luft geteilten Fluges
+        # stehen und dessen Zusammenführung verhindern. StatSim liefert für rund jede vierte
+        # solche Zeile keine Spur (Stichprobe 24.10.2026: 14 von 60).
+        behalten = [i for i, r in enumerate(rows) if r.get("logoff_time") or row_positions[i]]
+        if len(behalten) < len(rows):
+            rows = [rows[i] for i in behalten]
+            row_positions = [row_positions[i] for i in behalten]
+        if not rows:
+            continue
         clusters: list[list[int]] = []
         current = [0]
         for i in range(1, len(rows)):
@@ -7174,6 +7213,7 @@ def save_statsim_positions(
                 p.get("ts", ""),
             )
             for p in positions
+            if not ist_platzhalter_position(p.get("latitude"), p.get("longitude"))
         ],
     )
 
@@ -7185,7 +7225,7 @@ def get_statsim_positions(
     rows = conn.execute(
         """SELECT latitude, longitude, altitude, groundspeed, heading, ts
            FROM statsim_position_history
-           WHERE statsim_id = ?
+           WHERE statsim_id = ? AND """ + _KEIN_PLATZHALTER_SQL + """
            ORDER BY ts""",
         (statsim_id,),
     ).fetchall()
@@ -11859,8 +11899,13 @@ def compute_transport_progress(
             # Am Boden ist `where` gesetzt (der Ladeplatz); last_ground als Rückfall (GPS-Faktum,
             # kein Flugplan-Vertrauen, #23). Ziel = Event-Ziel → z. B. „EDWZ → EDWS".
             where = r["position"].get(cid)
+            # Zeit = letzte Landung dieser Verbindung (dort hat er zuletzt geladen); erst ohne
+            # Flug die Anmeldung. Mit der Anmeldezeit stand die Zeile nach Hin- und Rückflug in
+            # derselben Verbindung mitten in der Liste, als sei die Ladung nie angekommen
+            # (FRS174N, 24.10.2026: angemeldet 19:40, wieder beladen nach 20:40).
+            _landungen = [g["logoff_time"] for g in own if g.get("logoff_time")]
             network.append({
-                "dep_time": s.get("logon_time") or "", "cid": cid,
+                "dep_time": max(_landungen, default=None) or s.get("logon_time") or "", "cid": cid,
                 "callsign": s.get("callsign") or "", "name": names.get(cid, ""),
                 "aircraft": s.get("aircraft") or type_code,
                 "dep": where or r["last_ground"].get(cid) or "", "arr": dest,

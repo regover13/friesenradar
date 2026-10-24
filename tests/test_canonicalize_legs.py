@@ -1836,3 +1836,89 @@ class TestStatsimOhneLandezeit:
         conn.close()
         assert [f for f in spaeter if f["cid"] == 5807] == []
         assert [f for f in ohne_ende if f["cid"] == 5807] == []
+
+    def test_zeile_ohne_spur_trennt_eine_geteilte_aufzeichnung_nicht(self):
+        # StatSim liefert für rund jede vierte Zeile ohne Landezeit keine Spur (Stichprobe
+        # 24.10.2026: 14 von 60). Liegt eine solche Zeile zwischen den beiden Hälften eines in
+        # der Luft geteilten Fluges, darf sie die Zusammenführung nicht verhindern.
+        conn = _make_conn()
+        cid = 5808
+        _insert_statsim(conn, 9811, cid=cid, callsign="FRS60", departure="EDDK", arrival="EDDL",
+                        logon_time="2026-07-02T09:58:00Z", logoff_time="2026-07-02T10:15:00Z",
+                        duration_min=17, aircraft="C172")
+        _insert_statsim_pos(conn, 9811, "2026-07-02T10:00:00Z", *EDDK, 302, 0)
+        _insert_statsim_pos(conn, 9811, "2026-07-02T10:01:00Z", *EDDK, 302, 15)
+        _insert_statsim_pos(conn, 9811, "2026-07-02T10:03:00Z", *EDDK, 1200, 80)
+        _insert_statsim_pos(conn, 9811, "2026-07-02T10:10:00Z", 51.0, 7.0, 5000, 120)
+        _insert_statsim_pos(conn, 9811, "2026-07-02T10:15:00Z", 51.1, 6.9, 5000, 120)
+        # Zeile ohne Landezeit und ohne Spur, zeitlich dazwischen.
+        _insert_statsim(conn, 9812, cid=cid, callsign="FRS60", departure="EDDK", arrival="EDDL",
+                        logon_time="2026-07-02T10:13:00Z", logoff_time=None, duration_min=None)
+        _insert_statsim(conn, 9813, cid=cid, callsign="FRS60", departure="EDDK", arrival="EDDL",
+                        logon_time="2026-07-02T10:14:00Z", logoff_time="2026-07-02T10:25:00Z",
+                        duration_min=11, aircraft="C172")
+        _insert_statsim_pos(conn, 9813, "2026-07-02T10:16:00Z", 51.12, 6.88, 5000, 120)
+        _insert_statsim_pos(conn, 9813, "2026-07-02T10:20:00Z", 51.2, 6.82, 2000, 100)
+        _insert_statsim_pos(conn, 9813, "2026-07-02T10:23:00Z", 51.27, 6.78, 500, 60)
+        _insert_statsim_pos(conn, 9813, "2026-07-02T10:25:00Z", *EDDL, 150, 0)
+        conn.commit()
+        st = [f for f in canonicalize_legs(conn, callsign_prefix="", **WINDOW) if f["cid"] == cid]
+        conn.close()
+        assert len(st) == 1
+        assert st[0]["gps_departure"] == "EDDK" and st[0]["gps_arrival"] == "EDDL"
+
+
+class TestPlatzhalterPosition:
+    """Ein Simulator meldet beim Neuladen eine Position bei 0/0 (24.10.2026, FRS102 in EDWG:
+    0,0 / 0,00001 mit 53.808 ft). Der Feed-Filter verwarf nur exakt 0/0; die Erkennung machte
+    aus dem Ausreißer einen Zwei-Minuten-Flug EDWG→EDWG mit 0 nm."""
+
+    def test_ausreisser_bei_null_ergibt_keinen_flug(self):
+        conn = _make_conn()
+        cid = 5901
+        _insert_flight(conn, cid=cid, callsign="FRS102", departure="EDDK", arrival="EDDK",
+                       logon_time="2026-07-02T09:55:00Z", logoff_time="2026-07-02T10:20:00Z")
+        for m in range(0, 20):
+            if m == 10:
+                _insert_pos(conn, cid, "2026-07-02T10:10:00Z", 0.0, 0.00001, 53808, 0, "FRS102")
+            else:
+                _insert_pos(conn, cid, f"2026-07-02T10:{m:02d}:00Z", *EDDK, 302, 0, "FRS102")
+        conn.commit()
+        legs = [f for f in canonicalize_legs(conn, callsign_prefix="", **WINDOW)
+                if f["cid"] == cid and "block_start" in f]
+        conn.close()
+        assert legs == []
+
+    def test_ausreisser_wird_gar_nicht_erst_gespeichert(self):
+        from app.database import save_position_history
+        conn = _make_conn()
+        ensure_pilot(conn, 5902, "Pilot 5902")
+        save_position_history(conn, 5902, "FRS102", 0.0, 0.00001, 53808, 0, 0)
+        save_position_history(conn, 5902, "FRS102", *EDDK, 302, 0, 0)
+        n = conn.execute("SELECT COUNT(*) FROM position_history WHERE cid = 5902").fetchone()[0]
+        conn.close()
+        assert n == 1
+
+    def test_statsim_platzhalter_wird_nicht_gespeichert_und_altbestand_geraeumt(self, tmp_path):
+        from app.database import save_statsim_positions, get_app_setting
+        p = str(tmp_path / "t.db")
+        init_db(p)
+        conn = get_connection(p)
+        save_statsim_positions(conn, 9901, [
+            {"latitude": 0.0, "longitude": 0.00001, "altitude": 0, "groundspeed": 0, "heading": 0,
+             "ts": "2026-07-02T10:00:00+00:00"},
+            {"latitude": EDDK[0], "longitude": EDDK[1], "altitude": 302, "groundspeed": 0,
+             "heading": 0, "ts": "2026-07-02T10:01:00+00:00"},
+        ])
+        ensure_pilot(conn, 5903, "Pilot 5903")
+        conn.execute("INSERT INTO position_history (cid,callsign,latitude,longitude,altitude,"
+                     "groundspeed,heading,ts) VALUES (5903,'FRS1',0.0,0.00001,53808,0,0,'2026-07-02T10:00:00Z')")
+        conn.execute("UPDATE app_settings SET value='0' WHERE key='flight_cache_voll_noetig'")
+        conn.commit()
+        assert conn.execute("SELECT COUNT(*) FROM statsim_position_history").fetchone()[0] == 1
+        conn.close()
+        init_db(p)
+        conn = get_connection(p)
+        assert conn.execute("SELECT COUNT(*) FROM position_history WHERE cid=5903").fetchone()[0] == 0
+        assert get_app_setting(conn, "flight_cache_voll_noetig") == "1"
+        conn.close()

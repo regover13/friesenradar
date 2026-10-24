@@ -14,8 +14,15 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 - Der Nachlader holt dadurch einmalig rund 1600 weitere Spuren; jede Spur eines älteren Fluges
   merkt den vollen Neuaufbau vor. Seit derselben Version läuft er höchstens stündlich
   (`_voll_lauf_faellig`, Einstellung `flight_cache_voll_zuletzt`).
-- Offen aus den Reviews: Zeitstempel der StatSim-Spuren tragen `+00:00`, alles andere `Z`
-  (Textvergleiche); die Teilnehmersuche in `/api/events` verlangt weiter eine Landezeit.
+- `/api/events`-Teilnehmersuche nutzt `_STATSIM_ZEILE_VERWERTBAR` mit derselben Untergrenze.
+- StatSim-Zeilen ohne Landezeit und ohne Spur werden vor dem Clustern aussortiert (sonst
+  trennten sie einen in der Luft geteilten Flug; StatSim liefert für ~1/4 keine Spur).
+- `ist_platzhalter_position`/`_KEIN_PLATZHALTER_SQL`: Positionen im Rechteck ±0,01° um 0/0
+  werden beim Speichern (eigene und StatSim) verworfen, beim Lesen für die Erkennung gefiltert,
+  der Altbestand einmal in `init_db` gelöscht (danach voller Lauf vorgemerkt).
+- Kutter-Feed: die synthetische Zeile „beladen am Boden“ trägt als `dep_time` die letzte
+  Landung der Verbindung statt deren Anmeldung (`flight_key` unverändert).
+- Offen: Zeitstempel der StatSim-Spuren tragen `+00:00`, alles andere `Z` (Textvergleiche).
 - `update_transport_event`: verschobener `dtstart` zieht Ware mit `added_at` = alter Start mit.
 - `html.hell #bummel-banner, #kutter-banner, #reddung-banner` bekommen `--bg-panel`.
 

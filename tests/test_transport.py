@@ -975,6 +975,37 @@ class TestReservation:
         assert f["airborne"] is False                           # aber NICHT „unterwegs"
         assert f["reserved_kg"] == 292.0
 
+    def test_wieder_beladen_am_ladeplatz_steht_zur_zeit_der_letzten_landung(self):
+        """24.10.2026: Ein Pilot flog ohne Trennung der Verbindung hin, lieferte ab, flog zurück
+        und lud erneut. Die Zeile „lädt" trug die Anmeldezeit der Verbindung (19:40) und stand
+        mitten in der Liste, als sei die Ladung nie angekommen. Richtig ist die letzte Landung."""
+        conn = _make_conn()
+        upsert_payload(conn, "C172", mtow_kg=1157, empty_kg=680, fuel_kg=100, crew_kg=85)
+        ev = _event(conn, cargo=[{"name": "Inselpost", "target_kg": 2000.0, "departure": "EDWG"}])
+        from app.geo import icao_to_coords, airport_elevation_ft
+        g_la, g_lo = icao_to_coords("EDWG")
+        h_la, h_lo = icao_to_coords("EDXH")
+        g_el = airport_elevation_ft("EDWG") or 0
+        h_el = airport_elevation_ft("EDXH") or 0
+        t0 = "2026-07-01T18:05:00Z"
+        _add_open_flight(conn, 212, "EDWG", "EDXH", "C172", t0)
+        spur = [
+            (0, g_la, g_lo, 0, g_el), (1, g_la, g_lo, 12, g_el), (4, g_la, g_lo, 80, g_el + 1200),
+            (20, (g_la + h_la) / 2, (g_lo + h_lo) / 2, 100, 2500),
+            (36, h_la, h_lo, 60, h_el + 300), (38, h_la, h_lo, 10, h_el), (45, h_la, h_lo, 0, h_el),
+            (50, h_la, h_lo, 12, h_el), (53, h_la, h_lo, 80, h_el + 1200),
+            (70, (g_la + h_la) / 2, (g_lo + h_lo) / 2, 100, 2500),
+            (86, g_la, g_lo, 60, g_el + 300), (88, g_la, g_lo, 10, g_el), (95, g_la, g_lo, 0, g_el),
+            (100, g_la, g_lo, 0, g_el),
+        ]
+        for m, la, lo, gs, alt in spur:
+            _add_pos(conn, 212, _shift(t0, m), la, lo, gs, alt=alt, callsign="FRS212")
+        _set_live_pos(conn, 212, g_la, g_lo, 0)
+        p = compute_transport_progress(conn, ev, _shift(t0, 101))
+        laedt = [x for x in p["flights"] if x["cid"] == 212 and x["in_air"]]
+        assert len(laedt) == 1 and laedt[0]["airborne"] is False
+        assert laedt[0]["dep_time"] > _shift(t0, 80)     # nach der Rücklandung, nicht 18:05
+
     def test_open_flight_airborne_after_takeoff(self):
         """Gegenprobe: sobald der GPS-Leg-Detektor ein offenes (abgehobenes) Leg erkennt, ist der
         Flug „unterwegs" → `airborne` True. Er hat beim Login am Ladeplatz geladen und trägt die

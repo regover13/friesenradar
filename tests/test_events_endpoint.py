@@ -151,6 +151,34 @@ class TestEventsEndpoint:
         assert data["pilots"][0]["cid"] == 4402
         assert data["pilots"][0]["flights"][0]["source"] == "statsim"
 
+    def _statsim_ohne_landezeit(self, db, cid):
+        conn = get_connection(db)
+        upsert_pilot(conn, cid, "StatSim ohne Landezeit")
+        conn.execute(
+            "INSERT INTO statsim_cache (statsim_id,cid,callsign,departure,arrival,aircraft,"
+            "logon_time,logoff_time,duration_min,fetched_at) VALUES "
+            "(9005,?,'FRS78','EDDK','EDDW','C172','2026-07-02T09:55:00Z',NULL,NULL,'x')", (cid,))
+        for ts, (lat, lon), alt, gs in [
+            ("2026-07-02T10:00:00Z", EDDK, 302, 0), ("2026-07-02T10:01:00Z", EDDK, 302, 15),
+            ("2026-07-02T10:03:00Z", EDDK, 1200, 80), ("2026-07-02T10:20:00Z", (52.0, 8.0), 5000, 120),
+            ("2026-07-02T10:40:00Z", (52.95, 8.7), 800, 70), ("2026-07-02T10:44:00Z", EDDW, 14, 0),
+        ]:
+            conn.execute(
+                "INSERT INTO statsim_position_history (statsim_id,latitude,longitude,altitude,"
+                "groundspeed,heading,ts) VALUES (9005,?,?,?,?,0,?)", (lat, lon, alt, gs, ts))
+        conn.commit()
+        conn.close()
+
+    def test_statsim_pilot_ohne_landezeit_wird_gefunden(self, tmp_path, monkeypatch):
+        # 16.9.9: Die Flugerfassung nimmt StatSim-Zeilen ohne Landezeit über ihre Spur auf; die
+        # Teilnehmersuche verlangte weiter eine Landezeit und ließ den Piloten vorher fallen.
+        client, db = self._app(tmp_path, monkeypatch)
+        self._statsim_ohne_landezeit(db, 4406)
+        for params in ({"icao": "EDDK", "radius": 50}, {"icao": "global"}):
+            res = client.get("/api/events", params={**params, **WINDOW})
+            assert res.status_code == 200
+            assert [p["cid"] for p in res.json()["pilots"]] == [4406], params
+
     def test_foreign_callsign_flight_excluded_two_class_rule(self, tmp_path, monkeypatch):
         # 2-Klassen-Regel: ein StatSim-Flug mit fremdem Callsign eines bekannten Piloten
         # erscheint NICHT in der Event-Analyse (nur in der Piloten-Statistik, callsign_prefix="").

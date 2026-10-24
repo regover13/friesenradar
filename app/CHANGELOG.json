@@ -3,10 +3,13 @@
     "version": "16.9.9",
     "date": "2026-10-24",
     "highlight": false,
-    "title": "Fehlende Flüge, Kutter-Startzeit, helles Design",
+    "title": "Fehlende Flüge, Kutter, Phantomflüge, helles Design",
     "items": [
       "🐛 In der Flugliste eines Piloten fehlten Flüge aus StatSim, für die StatSim keine Landung kennt, etwa nach einem Abbruch in der Luft. Betroffen waren vor allem Flüge unter fremden Rufzeichen. Sie erscheinen jetzt, sobald ihr Track nachgeladen ist, frühestens einen Tag nach dem Flug. Mit FRS-Kennzeichen zählen sie auch in der Bilanz und der Statistik mit.",
       "🐛 Wurde die Startzeit eines Kutters nach dem Anlegen geändert, blieb die Ware auf der alten Zeit stehen und war bis dahin nicht ladbar. Die Ware zieht jetzt mit.",
+      "🐛 Lädt ein Pilot nach Hin- und Rückflug in derselben Verbindung erneut, stand die Zeile „lädt“ im Kutter mit der Uhrzeit seiner Anmeldung mitten in der Liste, als sei die Ladung nie angekommen. Sie trägt jetzt die Zeit der letzten Landung.",
+      "🐛 Meldete ein Simulator beim Neuladen eine Position bei 0° Breite und 0° Länge, entstand daraus ein Phantomflug von zwei Minuten, und die Spur auf der Karte zog nach Afrika. Solche Positionen werden jetzt verworfen.",
+      "🐛 In der Event-Suche fehlten Piloten, die nur ein StatSim-Flug ohne erkannte Landung belegt.",
       "🐛 Im hellen Design schien hinter dem laufenden Kutter, Bummel und der Reddung das Blau und das Gitter des Hintergrunds durch. Die Kästen liegen jetzt weiß wie alle anderen."
     ]
   },
