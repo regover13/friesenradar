@@ -100,6 +100,13 @@ def test_kopfzeile_hat_im_hellen_eine_flaeche():
     assert re.search(r"html\.hell header,\s*html\.hell \.tab-nav \{[^}]*background: var\(--bg-panel\)", INDEX)
 
 
+def test_event_kaesten_haben_im_hellen_eine_flaeche():
+    # Bummel-, Kutter- und Reddungs-Kasten tragen nur einen fast durchsichtigen Verlauf; im
+    # Hellen schienen Himmelblau und Gitter durch (Kutter am 24.10.2026).
+    assert re.search(r"html\.hell #bummel-banner,\s*html\.hell #kutter-banner,\s*"
+                     r"html\.hell #reddung-banner \{[^}]*background-color: var\(--bg-panel\)", INDEX)
+
+
 # Helle Schriftfarben, die nur auf dunklem Grund lesbar sind. Steht eine davon in einer
 # Oberflaechen-Regel (nicht Karte), braucht dieselbe Regel eine html.hell-Fassung -- sonst
 # steht im Hellen hellgelber oder hellblauer Text auf Weiss (Kutter-Feed, ICAO-Feld ...).

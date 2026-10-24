@@ -4468,6 +4468,11 @@
        dem Himmelblau (--text-label 3,4:1). Das Forum legt seine Navigation ebenso auf #fbfbfb. */
     html.hell header,
     html.hell .tab-nav { background: var(--bg-panel); border-bottom: 1px solid #CADCEB; }
+    /* Event-Kaesten (Bummel, Kutter, Reddung) tragen nur einen fast durchsichtigen Verlauf;
+       im Hellen schienen Himmelblau und Gitter durch. Der Verlauf bleibt, darunter die Flaeche. */
+    html.hell #bummel-banner,
+    html.hell #kutter-banner,
+    html.hell #reddung-banner { background-color: var(--bg-panel); }
     /* Beschriftungen im Einstellungsmenue (Design, Groesse, Kartenhelligkeit) stehen dunkel in
        --green-dim (0,3 Deckkraft); im Hellen waeren sie unlesbar blass. Dunkel bleibt. */
     html.hell .panel-einst-name { color: var(--text-label); }
