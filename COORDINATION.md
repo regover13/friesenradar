@@ -6,6 +6,18 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-24 — 16.9.10 ist vergeben: Kutter-Nachzügler-Überschrift, StatSim-Zeiten auf Z
+
+- `_kutterTitelZustand` (index.html): nach `dtend` „· Zeit um, Nachzügler unterwegs“.
+- `_statsim_zeiten_auf_z` (database.py): StatSim-Flüge aus `canonicalize_legs` tragen
+  `logon_time`, `logoff_time`, `block_start`, `block_end`, `last_pos_ts` mit `Z`. Die Spuren in
+  `statsim_position_history` bleiben `+00:00` (wer dort per Text gegen Flugzeiten vergleicht,
+  muss das wissen). `init_db` schreibt `gps_detection_dismissals.logon_time` und den
+  Flugspeicher einmal um. Vergleich auf Produktionskopie: alle 5958 Flüge gleich bis auf die
+  Schreibweise (4378 umgestellt).
+
+---
+
 ## 2026-10-24 — 16.9.9 ist vergeben: StatSim ohne Landezeit, Kutter-Start, Event-Kästen hell
 
 - `_STATSIM_ZEILE_VERWERTBAR` (database.py) ersetzt `logoff_time IS NOT NULL AND duration_min > 5`
@@ -24,7 +36,7 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
   Landung der Verbindung statt deren Anmeldung (`flight_key` unverändert).
 - Live-Tab: `_kutterImLiveTab` (index.html) zeigt einen Kutter nach `dtend` weiter, solange
   `reserved_total_kg > 0` (Nachzügler mit Ware; die Wertung wartet ebenso).
-- Offen: Zeitstempel der StatSim-Spuren tragen `+00:00`, alles andere `Z` (Textvergleiche).
+- Zeitstempel der StatSim-Flüge: erledigt in 16.9.10.
 - `update_transport_event`: verschobener `dtstart` zieht Ware mit `added_at` = alter Start mit.
 - `html.hell #bummel-banner, #kutter-banner, #reddung-banner` bekommen `--bg-panel`.
 

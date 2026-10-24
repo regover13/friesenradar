@@ -1567,6 +1567,20 @@ def init_db(db_path: str) -> None:
             conn.execute(f"DELETE FROM flight_cache WHERE {_GEISTERFLUG_SQL}")
         except sqlite3.OperationalError:
             pass
+        # Gespeicherte Zeiten von StatSim-Flügen in Z-Schreibweise (16.9.10, s. _ts_auf_z): die
+        # Prüfmarken der Lücken-Liste hängen an logon_time, der Flugspeicher wird ohnehin neu
+        # gerechnet. Einmalig; danach entsteht nichts mehr mit ``+00:00``.
+        try:
+            conn.execute("UPDATE gps_detection_dismissals SET logon_time = substr(logon_time, 1, "
+                         "length(logon_time) - 6) || 'Z' WHERE logon_time LIKE '%+00:00'")
+            alt = conn.execute("UPDATE flight_cache SET "
+                               "logon_time = CASE WHEN logon_time LIKE '%+00:00' THEN substr(logon_time, 1, length(logon_time) - 6) || 'Z' ELSE logon_time END, "
+                               "logoff_time = CASE WHEN logoff_time LIKE '%+00:00' THEN substr(logoff_time, 1, length(logoff_time) - 6) || 'Z' ELSE logoff_time END "
+                               "WHERE logon_time LIKE '%+00:00' OR logoff_time LIKE '%+00:00'").rowcount
+            if alt:
+                flight_cache_voll_vormerken(conn)
+        except sqlite3.OperationalError:
+            pass
         # Platzhalter-Positionen bei 0/0 (16.9.9) werden nicht mehr gespeichert; die schon da
         # sind, einmal entfernen (24.10.2026: 5 eigene, 4 von StatSim). Sie machten Phantomflüge
         # und zogen die Spur auf der Karte in den Golf von Guinea. Danach einmal voll rechnen.
@@ -5615,6 +5629,24 @@ def _overlaps_any(
 # entscheidet ihre Spur; nur Zeilen jünger als ein Tag bleiben außen vor, sie können noch laufen.
 # ``duration_min > 5`` (Geisterverbindungen) gilt weiter für Zeilen MIT Landezeit -- ohne sie
 # gibt es keine Dauer, die kommt dann aus der Spur.
+# StatSim-Spuren tragen ``+00:00``, alles andere ``Z``, und verglichen wird als Text
+# ('…:39+00:00' < '…:39Z'). Die Flüge aus StatSim-Spuren bekommen deshalb seit 16.9.10 dieselbe
+# Schreibweise wie eigene; die Spuren selbst bleiben, wie StatSim sie liefert (1,1 Mio. Zeilen).
+_STATSIM_ZEITFELDER = ("logon_time", "logoff_time", "block_start", "block_end", "_coverage_end")
+
+
+def _ts_auf_z(ts):
+    if isinstance(ts, str) and ts.endswith("+00:00"):
+        return ts[:-6] + "Z"
+    return ts
+
+
+def _statsim_zeiten_auf_z(f: dict) -> None:
+    for feld in _STATSIM_ZEITFELDER:
+        if feld in f:
+            f[feld] = _ts_auf_z(f[feld])
+
+
 # Wie weit eine Sitzung ohne Landezeit vor dem Fensterbeginn angemeldet sein darf, um noch
 # hineinzureichen (StatSims logon_time ist die Sitzungsanmeldung, nicht der Start).
 _STATSIM_OFFEN_LOOKBACK_H = 48
@@ -5854,6 +5886,7 @@ def canonicalize_legs(
             if gps_flights:
                 for f in gps_flights:
                     f["cid"] = cid
+                    _statsim_zeiten_auf_z(f)
                     # Vor _in_window, wie im FriesenRadar-Zweig: ohne erkannte Landung ist die
                     # letzte Position das Ende. Kam sie erst danach, galt ein in der Luft
                     # beendeter Flug in jedem späteren Fenster als "im Fenster" (Reviews 24.10.).

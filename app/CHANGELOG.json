@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.9.10",
+    "date": "2026-10-24",
+    "highlight": false,
+    "title": "Kutter-Nachzügler, einheitliche Zeiten",
+    "items": [
+      "✨ Steht der Kutter-Kasten nach dem geplanten Ende noch im Live-Tab, weil Piloten mit Ware unterwegs sind, sagt die Überschrift jetzt „Zeit um, Nachzügler unterwegs“ statt „läuft gerade“.",
+      "🔧 Flüge aus StatSim führen ihre Zeiten jetzt in derselben Schreibweise wie die eigenen. Für Mitglieder ändert sich nichts; es beseitigt eine Fehlerquelle beim Vergleichen."
+    ]
+  },
+  {
     "version": "16.9.9",
     "date": "2026-10-24",
     "highlight": false,

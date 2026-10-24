@@ -1922,3 +1922,48 @@ class TestPlatzhalterPosition:
         assert conn.execute("SELECT COUNT(*) FROM position_history WHERE cid=5903").fetchone()[0] == 0
         assert get_app_setting(conn, "flight_cache_voll_noetig") == "1"
         conn.close()
+
+
+class TestStatsimZeitenEinheitlich:
+    """StatSim-Spuren tragen ``+00:00``, alles andere ``Z``; verglichen wird als Text
+    X canonicalize_legs StatSim-Flüge in derselben
+    Schreibweise aus wie eigene -- die Spuren selbst bleiben, wie StatSim sie liefert."""
+
+    def test_statsim_flug_traegt_z_zeiten(self):
+        conn = _make_conn()
+        _insert_statsim(conn, 9951, cid=5951, callsign="FRS60", departure="EDDK", arrival="EDDL",
+                        logon_time="2026-07-02T09:58:00Z", logoff_time="2026-07-02T10:25:00Z",
+                        duration_min=27)
+        for ts, (la, lo), alt, gs in [
+            ("10:00:00", EDDK, 302, 0), ("10:01:00", EDDK, 302, 15), ("10:03:00", EDDK, 1200, 80),
+            ("10:10:00", (51.0, 7.0), 5000, 120), ("10:20:00", (51.2, 6.82), 2000, 100),
+            ("10:23:00", (51.27, 6.78), 500, 60), ("10:25:00", EDDL, 150, 0),
+        ]:
+            _insert_statsim_pos(conn, 9951, f"2026-07-02T{ts}+00:00", la, lo, alt, gs)
+        conn.commit()
+        st = [f for f in canonicalize_legs(conn, callsign_prefix="", **WINDOW) if f["cid"] == 5951]
+        conn.close()
+        assert len(st) == 1
+        for feld in ("logon_time", "logoff_time", "last_pos_ts", "block_start", "block_end"):
+            assert st[0][feld].endswith("Z") and "+" not in st[0][feld], (feld, st[0][feld])
+
+    def test_altbestand_wird_einmal_umgeschrieben(self, tmp_path):
+        from app.database import get_app_setting
+        p = str(tmp_path / "t.db")
+        init_db(p)
+        conn = get_connection(p)
+        conn.execute("INSERT INTO gps_detection_dismissals (cid, logon_time, dismissed_at) "
+                     "VALUES (1, '2026-07-02T10:03:00+00:00', 'x')")
+        conn.execute("INSERT INTO flight_cache (cid, callsign, logon_time, logoff_time, duration_min, "
+                     "distance_nm, source, computed_at) VALUES (1, 'FRS1', '2026-07-02T10:03:00+00:00', "
+                     "'2026-07-02T10:25:00+00:00', 22, 40, 'statsim', 'x')")
+        conn.execute("UPDATE app_settings SET value='0' WHERE key='flight_cache_voll_noetig'")
+        conn.commit()
+        conn.close()
+        init_db(p)
+        conn = get_connection(p)
+        assert conn.execute("SELECT logon_time FROM gps_detection_dismissals").fetchone()[0] == "2026-07-02T10:03:00Z"
+        assert conn.execute("SELECT logon_time, logoff_time FROM flight_cache").fetchone()[:] == \
+            ("2026-07-02T10:03:00Z", "2026-07-02T10:25:00Z")
+        assert get_app_setting(conn, "flight_cache_voll_noetig") == "1"
+        conn.close()
