@@ -12,7 +12,10 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
   in `canonicalize_legs` und `_STATSIM_UNCACHED_WHERE`. Die übrigen StatSim-Abfragen
   (Audit, Event-Suche in main.py) verlangen weiter eine Landezeit.
 - Der Nachlader holt dadurch einmalig rund 1600 weitere Spuren; jede Spur eines älteren Fluges
-  merkt den vollen Neuaufbau des Flugspeichers vor (gewollt, die Zahlen steigen leicht).
+  merkt den vollen Neuaufbau vor. Seit derselben Version läuft er höchstens stündlich
+  (`_voll_lauf_faellig`, Einstellung `flight_cache_voll_zuletzt`).
+- Offen aus den Reviews: Zeitstempel der StatSim-Spuren tragen `+00:00`, alles andere `Z`
+  (Textvergleiche); die Teilnehmersuche in `/api/events` verlangt weiter eine Landezeit.
 - `update_transport_event`: verschobener `dtstart` zieht Ware mit `added_at` = alter Start mit.
 - `html.hell #bummel-banner, #kutter-banner, #reddung-banner` bekommen `--bg-panel`.
 

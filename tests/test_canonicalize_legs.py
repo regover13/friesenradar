@@ -1817,3 +1817,22 @@ class TestStatsimOhneLandezeit:
         conn.close()
         assert 9805 in ids and 9806 not in ids
         assert n == 1
+
+    def test_in_der_luft_beendeter_flug_faellt_nicht_in_spaetere_fenster(self):
+        # Beide Reviews 24.10.2026: Ohne Landezeit passierte die Zeile jedes SQL-Fenster, und
+        # last_pos_ts kam erst nach der Fensterprüfung -- der Flug vom 02.07. stand in jedem
+        # späteren Zeitraum und entging dort der Entdopplung gegen FriesenRadar.
+        conn = _make_conn()
+        self._offen(conn, 9807, 5807, "2026-07-02T09:58:00Z")
+        _insert_statsim_pos(conn, 9807, "2026-07-02T10:00:00Z", *EDDK, 302, 0)
+        _insert_statsim_pos(conn, 9807, "2026-07-02T10:01:00Z", *EDDK, 302, 15)
+        _insert_statsim_pos(conn, 9807, "2026-07-02T10:03:00Z", *EDDK, 1200, 80)
+        _insert_statsim_pos(conn, 9807, "2026-07-02T10:10:00Z", 51.0, 7.0, 5000, 120)
+        _insert_statsim_pos(conn, 9807, "2026-07-02T10:15:00Z", 51.1, 6.9, 5000, 120)
+        conn.commit()
+        spaeter = canonicalize_legs(conn, callsign_prefix="", start="2026-07-20T00:00:00Z",
+                                    end="2026-07-21T00:00:00Z")
+        ohne_ende = canonicalize_legs(conn, callsign_prefix="", start="2026-07-20T00:00:00Z")
+        conn.close()
+        assert [f for f in spaeter if f["cid"] == 5807] == []
+        assert [f for f in ohne_ende if f["cid"] == 5807] == []

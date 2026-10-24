@@ -226,3 +226,25 @@ def test_der_volle_aufbau_haelt_waehrend_der_rechnung_keine_schreibsperre(conn, 
 def test_gewertete_fluege_heissen_in_der_spalte_friese():
     s = INDEX.index("const unscoredBadge = unscored")
     assert ">Friese</span>`;" in INDEX[s:s + 500]
+
+
+def test_vormerkungen_loesen_hoechstens_stuendlich_einen_vollen_lauf_aus(conn, monkeypatch):
+    # Der Nachlader holt nach 16.9.9 einmalig rund 1600 alte Spuren, jede merkt den vollen Lauf
+    # vor. Ohne Bremse liefe 13 Stunden lang alle 5 Minuten ein voller Neuaufbau (Reviews 24.10.).
+    laeufe = []
+    echt = db.canonicalize_legs
+
+    def zaehlend(c, **kw):
+        laeufe.append("voll" if "start" not in kw else "teil")
+        return echt(c, **kw)
+
+    monkeypatch.setattr(db, "canonicalize_legs", zaehlend)
+    db.rebuild_flight_cache(conn, full=True)
+    _speicher(conn, [_flug(_vor(30 * 24 * 60), 45, 60)])   # Speicher nicht leer, sonst immer voll
+    db.flight_cache_voll_vormerken(conn)
+    db.rebuild_flight_cache(conn)              # voller Lauf gerade gelaufen → nur Teil
+    db.set_app_setting(conn, db._FLIGHT_CACHE_VOLL_ZULETZT_KEY, _vor(61))
+    db.rebuild_flight_cache(conn)              # eine Stunde her → jetzt voll
+    _speicher(conn, [_flug(_vor(30 * 24 * 60), 45, 60)])
+    db.rebuild_flight_cache(conn)              # Vormerkung verbraucht → Teil
+    assert laeufe == ["voll", "teil", "voll", "teil"]

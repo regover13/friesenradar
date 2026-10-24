@@ -5586,6 +5586,10 @@ def _overlaps_any(
 # entscheidet ihre Spur; nur Zeilen jünger als ein Tag bleiben außen vor, sie können noch laufen.
 # ``duration_min > 5`` (Geisterverbindungen) gilt weiter für Zeilen MIT Landezeit -- ohne sie
 # gibt es keine Dauer, die kommt dann aus der Spur.
+# Wie weit eine Sitzung ohne Landezeit vor dem Fensterbeginn angemeldet sein darf, um noch
+# hineinzureichen (StatSims logon_time ist die Sitzungsanmeldung, nicht der Start).
+_STATSIM_OFFEN_LOOKBACK_H = 48
+
 _STATSIM_ZEILE_VERWERTBAR = (
     "((logoff_time IS NOT NULL AND duration_min > 5) OR "
     "(logoff_time IS NULL AND logon_time <= strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 day')))"
@@ -5756,8 +5760,11 @@ def canonicalize_legs(
         # Rändern wie bei fs_where — jede statsim_cache-Zeile ist ihr eigener Plan
         # (_statsim_plan), eine knapp vor `start` bzw. knapp nach `end` liegende Session soll
         # ebenfalls nicht herausfallen (die Leg-Auswahl erledigt _in_window).
-        sc_where.append("(logoff_time IS NULL OR logoff_time >= ?)")
-        sc_params.append(plan_lookback_start)
+        # Zeilen ohne Landezeit nur mit einer Untergrenze über die Anmeldung -- sonst kam jede
+        # davon in jedes Fenster, samt Spur durch den Detektor (Reviews 24.10.2026).
+        sc_where.append("(logoff_time >= ? OR (logoff_time IS NULL AND logon_time >= ?))")
+        sc_params += [plan_lookback_start,
+                      _shift_iso(plan_lookback_start, hours=-_STATSIM_OFFEN_LOOKBACK_H)]
     if plan_lookahead_end:
         sc_where.append("logon_time <= ?")
         sc_params.append(plan_lookahead_end)
@@ -5808,6 +5815,10 @@ def canonicalize_legs(
             if gps_flights:
                 for f in gps_flights:
                     f["cid"] = cid
+                    # Vor _in_window, wie im FriesenRadar-Zweig: ohne erkannte Landung ist die
+                    # letzte Position das Ende. Kam sie erst danach, galt ein in der Luft
+                    # beendeter Flug in jedem späteren Fenster als "im Fenster" (Reviews 24.10.).
+                    f["last_pos_ts"] = f.get("_coverage_end") or f.get("logoff_time")
                     if not f.get("aircraft"):
                         # Kein Plan-Match (GPS-only-Leg): die erste Zeile des Clusters kennt
                         # den Typ bereits (row.aircraft) -> kein Vermutungs-Fallback nötig (#52).
@@ -6200,7 +6211,8 @@ def rebuild_flight_cache(conn: sqlite3.Connection, *, full: bool = False,
     """
     is_empty = conn.execute("SELECT COUNT(*) FROM flight_cache").fetchone()[0] == 0
     computed_at = _now_utc()
-    if not full and vormerkung_beachten and get_app_setting(conn, _FLIGHT_CACHE_VOLL_KEY) == "1":
+    if (not full and vormerkung_beachten and get_app_setting(conn, _FLIGHT_CACHE_VOLL_KEY) == "1"
+            and _voll_lauf_faellig(conn)):
         full = True   # ältere Flüge haben sich geändert (flight_cache_voll_vormerken)
     # Die Vormerkung wird erst in der Schreibphase unten zurückgesetzt. In 16.9.2 stand das
     # hier, VOR der Rechnung: Das Schreiben öffnet die Transaktion, und die Schreibsperre hielt
@@ -6221,6 +6233,7 @@ def rebuild_flight_cache(conn: sqlite3.Connection, *, full: bool = False,
     if full or is_empty:
         flights = canonicalize_legs(conn, callsign_prefix="")
         set_app_setting(conn, _FLIGHT_CACHE_VOLL_KEY, "0")
+        set_app_setting(conn, _FLIGHT_CACHE_VOLL_ZULETZT_KEY, computed_at)
         conn.execute("DELETE FROM flight_cache")
     else:
         cutoff = (
@@ -7040,6 +7053,22 @@ def get_all_position_history(
 
 
 _FLIGHT_CACHE_VOLL_KEY = "flight_cache_voll_noetig"
+_FLIGHT_CACHE_VOLL_ZULETZT_KEY = "flight_cache_voll_zuletzt"
+# Eine Vormerkung löst höchstens so oft einen vollen Lauf aus. Der Nachlader holt nach 16.9.9
+# einmalig rund 1600 alte Spuren; jede merkt vor, und ohne Bremse liefe 13 Stunden lang alle
+# 5 Minuten ein voller Neuaufbau (Reviews 24.10.2026). Die Vormerkung bleibt stehen, bis er läuft.
+_FLIGHT_CACHE_VOLL_ABSTAND_MIN = 60
+
+
+def _voll_lauf_faellig(conn: sqlite3.Connection) -> bool:
+    zuletzt = get_app_setting(conn, _FLIGHT_CACHE_VOLL_ZULETZT_KEY)
+    if not zuletzt:
+        return True
+    try:
+        alter = datetime.now(timezone.utc) - _parse_iso(zuletzt)
+    except Exception:
+        return True
+    return alter >= timedelta(minutes=_FLIGHT_CACHE_VOLL_ABSTAND_MIN)
 
 
 def flight_cache_voll_vormerken(conn: sqlite3.Connection) -> None:
