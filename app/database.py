@@ -5579,6 +5579,19 @@ def _overlaps_any(
     return False
 
 
+# Welche statsim_cache-Zeilen ein Flug sein können. StatSim lässt ``arrived`` leer, wenn es keine
+# Landung am Plan-Ziel erkennt (Abbruch in der Luft, anderer Platz) -- bei rund jedem fünften
+# Flug, Abflug und Spur liefert es trotzdem. Bis 16.9.9 hieß es hier „Landezeit Pflicht“, und
+# solche Flüge fehlten ganz, vor allem die unter fremden Rufzeichen (24.10.2026). Jetzt
+# entscheidet ihre Spur; nur Zeilen jünger als ein Tag bleiben außen vor, sie können noch laufen.
+# ``duration_min > 5`` (Geisterverbindungen) gilt weiter für Zeilen MIT Landezeit -- ohne sie
+# gibt es keine Dauer, die kommt dann aus der Spur.
+_STATSIM_ZEILE_VERWERTBAR = (
+    "((logoff_time IS NOT NULL AND duration_min > 5) OR "
+    "(logoff_time IS NULL AND logon_time <= strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 day')))"
+)
+
+
 def canonicalize_legs(
     conn: sqlite3.Connection,
     *,
@@ -5732,16 +5745,14 @@ def canonicalize_legs(
     result: list[dict] = list(fs_flights)
 
     # --- StatSim ------------------------------------------------------------------------
-    sc_where = [
-        "logon_time != ''", "logoff_time IS NOT NULL", "duration_min > 5", "callsign LIKE ?",
-    ]
+    sc_where = ["logon_time != ''", _STATSIM_ZEILE_VERWERTBAR, "callsign LIKE ?"]
     sc_params: list = [prefix_pat]
     if cids:
         sc_where.append("cid IN (%s)" % ",".join("?" * len(cids)))
         sc_params += list(cids)
     if plan_lookback_start:
-        # Overlap-WHERE analog FS (StatSim hat logoff_time immer gesetzt — die
-        # IS-NULL-Klausel greift dort nie, ist aber harmlos). Derselbe Puffer an BEIDEN
+        # Overlap-WHERE analog FS (StatSim-Zeilen ohne Landezeit fängt die IS-NULL-Klausel,
+        # s. _STATSIM_ZEILE_VERWERTBAR). Derselbe Puffer an BEIDEN
         # Rändern wie bei fs_where — jede statsim_cache-Zeile ist ihr eigener Plan
         # (_statsim_plan), eine knapp vor `start` bzw. knapp nach `end` liegende Session soll
         # ebenfalls nicht herausfallen (die Leg-Auswahl erledigt _in_window).
@@ -5815,7 +5826,10 @@ def canonicalize_legs(
                     st_flights.append(f)
             else:
                 for row in cluster_rows:
-                    st_flights.append(_flightrow_as_flight(row, "statsim"))
+                    # Ohne Spur UND ohne Landezeit gibt es nur die nackte Zeile ohne Ende -- sie
+                    # sähe aus wie ein laufender Flug. Erst ihre Spur macht sie zum Flug.
+                    if row.get("logoff_time"):
+                        st_flights.append(_flightrow_as_flight(row, "statsim"))
 
     st_flights = [f for f in st_flights if _in_window(f)]
 
@@ -7150,7 +7164,7 @@ def get_statsim_positions(
 
 
 _STATSIM_UNCACHED_WHERE = (
-    "logon_time != '' AND logoff_time IS NOT NULL AND duration_min > 5 "
+    "logon_time != '' AND " + _STATSIM_ZEILE_VERWERTBAR + " "
     "AND callsign LIKE ? "
     "AND statsim_id NOT IN (SELECT DISTINCT statsim_id FROM statsim_position_history) "
     # Zurueckgestellt oder aufgegeben nach leeren Abrufen, s. statsim_track_leer_merken.

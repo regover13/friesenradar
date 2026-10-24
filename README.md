@@ -236,6 +236,8 @@ Einzelflüge können aus zwei Quellen stammen — erkennbar am Badge:
 - **Kein Badge** = FriesenRadar hat den Flug live aufgezeichnet → GPS-Track sofort verfügbar
 - **◌ StatSim** = Flug kommt aus der StatSim-Datenbank → GPS-Track wird im Hintergrund automatisch nachgeladen (kann etwas dauern); bis dahin nur Flugplan-Daten (Start, Ziel, Dauer)
 
+Manche Flüge kennt StatSim ohne Landung, etwa nach einem Abbruch in der Luft oder einer Landung auf einem anderen Platz als im Flugplan. Sie erscheinen, sobald ihr GPS-Track nachgeladen ist, frühestens einen Tag nach dem Flug; Start, Landung und Dauer kommen dann aus dem Track. Endet der Track in der Luft, steht der Flug ohne Ziel in der Liste.
+
 **GPS-Route und Flugplan getrennt (seit v8.0.0):** Die Einzelflug-Liste zeigt zwei eigene Spalten
 — die tatsächlich geflogene **GPS-Route** (woher/wohin die Landung wirklich erkannt wurde) und
 daneben den **eingereichten Flugplan** (DEP/ARR), falls vorhanden; beide können bei einer

@@ -6,6 +6,18 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-24 — 16.9.9 ist vergeben: StatSim ohne Landezeit, Kutter-Start, Event-Kästen hell
+
+- `_STATSIM_ZEILE_VERWERTBAR` (database.py) ersetzt `logoff_time IS NOT NULL AND duration_min > 5`
+  in `canonicalize_legs` und `_STATSIM_UNCACHED_WHERE`. Die übrigen StatSim-Abfragen
+  (Audit, Event-Suche in main.py) verlangen weiter eine Landezeit.
+- Der Nachlader holt dadurch einmalig rund 1600 weitere Spuren; jede Spur eines älteren Fluges
+  merkt den vollen Neuaufbau des Flugspeichers vor (gewollt, die Zahlen steigen leicht).
+- `update_transport_event`: verschobener `dtstart` zieht Ware mit `added_at` = alter Start mit.
+- `html.hell #bummel-banner, #kutter-banner, #reddung-banner` bekommen `--bg-panel`.
+
+---
+
 ## 2026-10-21 — 16.9.8 ist vergeben: Sicherheitsupdate Pillow 13 und certifi
 
 - `requirements.txt`: `pillow>=13.0.0`, neu ausdrücklich `certifi>=2026.10.19` (vorher nur

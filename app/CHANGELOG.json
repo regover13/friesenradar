@@ -3,8 +3,10 @@
     "version": "16.9.9",
     "date": "2026-10-24",
     "highlight": false,
-    "title": "Event-Kästen im hellen Design",
+    "title": "Fehlende Flüge, Kutter-Startzeit, helles Design",
     "items": [
+      "🐛 In der Flugliste eines Piloten fehlten Flüge aus StatSim, für die StatSim keine Landung kennt, etwa nach einem Abbruch in der Luft. Betroffen waren vor allem Flüge unter fremden Rufzeichen. Sie erscheinen jetzt, sobald ihr Track nachgeladen ist, frühestens einen Tag nach dem Flug. Mit FRS-Kennzeichen zählen sie auch in der Bilanz und der Statistik mit.",
+      "🐛 Wurde die Startzeit eines Kutters nach dem Anlegen geändert, blieb die Ware auf der alten Zeit stehen und war bis dahin nicht ladbar. Die Ware zieht jetzt mit.",
       "🐛 Im hellen Design schien hinter dem laufenden Kutter, Bummel und der Reddung das Blau und das Gitter des Hintergrunds durch. Die Kästen liegen jetzt weiß wie alle anderen."
     ]
   },

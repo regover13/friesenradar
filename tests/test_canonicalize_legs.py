@@ -1733,3 +1733,87 @@ class TestLegsAusserhalbDesFensters:
         )
         assert any((f.get("logon_time") or "") > "2026-09-04T17:00:00Z" for f in result), \
             "das echte Abend-Leg muss erhalten bleiben"
+
+
+class TestStatsimOhneLandezeit:
+    """StatSim meldet bei rund jedem fünften Flug kein ``arrived`` (keine Landung am Plan-Ziel
+    erkannt, Abbruch in der Luft) — Abflug und Spur liefert es trotzdem. Bis 16.9.9 fielen
+    solche Flüge ganz heraus, auch ihre Spur wurde nie geholt; in der Pilotenansicht fehlten
+    damit vor allem Flüge unter fremden Rufzeichen (24.10.2026). Jetzt entscheidet die Spur.
+    Zeilen, die jünger als ein Tag sind, können noch laufen und bleiben außen vor."""
+
+    def _offen(self, conn, sid, cid, logon, cs="DLH61"):
+        _insert_statsim(conn, sid, cid=cid, callsign=cs, departure="EDDK", arrival="EDDL",
+                        logon_time=logon, logoff_time=None, duration_min=None, aircraft="A319")
+
+    def test_offener_flug_mit_landung_in_der_spur_erscheint(self):
+        conn = _make_conn()
+        self._offen(conn, 9801, 5801, "2026-07-02T09:58:00Z")
+        _insert_statsim_pos(conn, 9801, "2026-07-02T10:00:00Z", *EDDK, 302, 0)
+        _insert_statsim_pos(conn, 9801, "2026-07-02T10:01:00Z", *EDDK, 302, 15)
+        _insert_statsim_pos(conn, 9801, "2026-07-02T10:03:00Z", *EDDK, 1200, 80)
+        _insert_statsim_pos(conn, 9801, "2026-07-02T10:10:00Z", 51.0, 7.0, 5000, 120)
+        _insert_statsim_pos(conn, 9801, "2026-07-02T10:20:00Z", 51.2, 6.82, 2000, 100)
+        _insert_statsim_pos(conn, 9801, "2026-07-02T10:23:00Z", 51.27, 6.78, 500, 60)
+        _insert_statsim_pos(conn, 9801, "2026-07-02T10:25:00Z", *EDDL, 150, 0)
+        conn.commit()
+        st = [f for f in canonicalize_legs(conn, callsign_prefix="", **WINDOW) if f["cid"] == 5801]
+        conn.close()
+        assert len(st) == 1
+        assert st[0]["callsign"] == "DLH61"
+        assert st[0]["gps_departure"] == "EDDK" and st[0]["gps_arrival"] == "EDDL"
+        assert st[0]["logoff_time"] and st[0]["duration_min"] > 0
+
+    def test_offener_flug_der_in_der_luft_endet_erscheint_ohne_ziel(self):
+        conn = _make_conn()
+        self._offen(conn, 9802, 5802, "2026-07-02T09:58:00Z")
+        _insert_statsim_pos(conn, 9802, "2026-07-02T10:00:00Z", *EDDK, 302, 0)
+        _insert_statsim_pos(conn, 9802, "2026-07-02T10:01:00Z", *EDDK, 302, 15)
+        _insert_statsim_pos(conn, 9802, "2026-07-02T10:03:00Z", *EDDK, 1200, 80)
+        _insert_statsim_pos(conn, 9802, "2026-07-02T10:10:00Z", 51.0, 7.0, 5000, 120)
+        _insert_statsim_pos(conn, 9802, "2026-07-02T10:15:00Z", 51.1, 6.9, 5000, 120)
+        conn.commit()
+        st = [f for f in canonicalize_legs(conn, callsign_prefix="", **WINDOW) if f["cid"] == 5802]
+        conn.close()
+        assert len(st) == 1
+        assert st[0]["gps_departure"] == "EDDK"
+        assert st[0]["gps_arrival"] is None
+
+    def test_offener_flug_ohne_spur_erscheint_nicht(self):
+        # Ohne Spur gäbe es nur die nackte Zeile ohne Ende -- sie sähe aus wie ein laufender Flug.
+        conn = _make_conn()
+        self._offen(conn, 9803, 5803, "2026-07-02T09:58:00Z")
+        conn.commit()
+        st = [f for f in canonicalize_legs(conn, callsign_prefix="", **WINDOW) if f["cid"] == 5803]
+        conn.close()
+        assert st == []
+
+    def test_offener_flug_juenger_als_ein_tag_bleibt_draussen(self):
+        from datetime import datetime, timedelta, timezone
+        conn = _make_conn()
+        t0 = datetime.now(timezone.utc) - timedelta(hours=3)
+        fmt = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ")
+        self._offen(conn, 9804, 5804, fmt(t0))
+        _insert_statsim_pos(conn, 9804, fmt(t0 + timedelta(minutes=2)), *EDDK, 302, 0)
+        _insert_statsim_pos(conn, 9804, fmt(t0 + timedelta(minutes=3)), *EDDK, 302, 15)
+        _insert_statsim_pos(conn, 9804, fmt(t0 + timedelta(minutes=5)), *EDDK, 1200, 80)
+        _insert_statsim_pos(conn, 9804, fmt(t0 + timedelta(minutes=12)), 51.0, 7.0, 5000, 120)
+        conn.commit()
+        st = [f for f in canonicalize_legs(conn, callsign_prefix="", start=fmt(t0 - timedelta(hours=1)))
+              if f["cid"] == 5804]
+        conn.close()
+        assert st == []
+
+    def test_spur_wird_fuer_alte_offene_fluege_geholt(self):
+        from datetime import datetime, timedelta, timezone
+        from app.database import get_uncached_statsim_ids, count_uncached_statsim
+        conn = _make_conn()
+        jung = (datetime.now(timezone.utc) - timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        self._offen(conn, 9805, 5805, "2026-07-02T09:58:00Z")
+        self._offen(conn, 9806, 5806, jung)
+        conn.commit()
+        ids = get_uncached_statsim_ids(conn, callsign_prefix="", limit=50)
+        n = count_uncached_statsim(conn, callsign_prefix="")
+        conn.close()
+        assert 9805 in ids and 9806 not in ids
+        assert n == 1
