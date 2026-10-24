@@ -3,8 +3,9 @@
     "version": "16.9.11",
     "date": "2026-10-25",
     "highlight": false,
-    "title": "Alter Test-Kutter im Live-Tab",
+    "title": "Start und Ende im Live-Tab",
     "items": [
+      "✨ Die Kästen von Kutter, Bummel und Reddung im Live-Tab zeigen jetzt Start und Ende des Events als eigene Zeile, etwa „24.10. 19:00z – 21:00z“. Bei der Reddung stand bisher nur das Ende in der Fortschrittszeile.",
       "🐛 Seit 16.9.9 stand ein längst abgeschlossener Test-Kutter aus dem Juli wieder im Live-Tab. Nach dem geplanten Ende zeigt der Live-Tab einen Kutter jetzt nur noch, solange er nicht abgeschlossen ist."
     ]
   },

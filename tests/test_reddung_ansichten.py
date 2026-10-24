@@ -248,7 +248,7 @@ def test_teilen_kopiert_den_link_wie_bei_bummel_und_kutter():
 
 @pytest.mark.skipif(not _NODE, reason="node fehlt")
 def test_fuer_forum_kopieren_steht_in_der_bilanz_auch_nach_dem_ende():
-    quelle = ("function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\nfunction _reddungLageHtml(){return '';}\nfunction _reddungHinweiseHtml(){return '';}\nfunction _reddungRegelnHtml(){return '';}\nfunction icon(){return '';}\n"
+    quelle = ("function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\nfunction _reddungLageHtml(){return '';}\nfunction _reddungHinweiseHtml(){return '';}\nfunction _reddungRegelnHtml(){return '';}\nfunction icon(){return '';}\nfunction _liveZeitfensterZeile(){return '';}\n"
               "function _fmtMin(m){return m+' min';}\n"
               + _funktion("_reddungZeitfenster") + _funktion("_reddungBalken")
               + _funktion("_reddungMarkenHtml") + _funktion("_reddungBilanzHtml"))
@@ -314,7 +314,7 @@ def test_nach_der_rettung_steht_nicht_mehr_laeuft_gerade():
     """Review W1 (Opus): Nach der Einlieferung stand bis dtend weiter „läuft gerade" --
     bei Event 2 am 20.09.2026 waeren das 93 Minuten gewesen. Der Server behandelt ein
     aufgeloestes Event laengst nicht mehr als laufend (/api/me/reddung)."""
-    quelle = ("function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\nfunction _reddungLageHtml(){return '';}\nfunction _reddungHinweiseHtml(){return '';}\nfunction _reddungRegelnHtml(){return '';}\nfunction icon(){return '';}\n"
+    quelle = ("function escHtml(s){return String(s);}\nfunction pilotLinkHtml(s){return String(s);}\nfunction _reddungLageHtml(){return '';}\nfunction _reddungHinweiseHtml(){return '';}\nfunction _reddungRegelnHtml(){return '';}\nfunction icon(){return '';}\nfunction _liveZeitfensterZeile(){return '';}\n"
               "var _reddungMeinStatus = null;\n"
               + _funktion("_reddungBalken") + _funktion("_reddungMarkenHtml")
               + _funktion("_reddungStatusZeile") + _funktion("_reddungBannerBlock"))
@@ -512,8 +512,9 @@ def test_das_zeitfenster_nennt_beginn_und_ende():
 def test_bilanz_live_block_und_teilen_text_nennen_das_ende():
     assert "_reddungZeitfenster(r)" in _funktion("_reddungBilanzHtml")
     assert "_reddungZeitfenster(r)" in _funktion("_reddungForumText")
+    # Seit 16.9.11 als eigene Zeile mit Start und Ende, wie bei Kutter und Bummel.
     block = _ohne_kommentare(_funktion("_reddungBannerBlock"))
-    assert "Ende ${" in block and "r.dtend" in block
+    assert "_liveZeitfensterZeile(r.dtstart, r.dtend)" in block
 
 
 # --- Eigener Stand: VATSIM und FriesenBruegge, dauerhaft sichtbar (25.09.2026) ------------

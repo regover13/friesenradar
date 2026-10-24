@@ -10,6 +10,8 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 - `_kutterImLiveTab` prüft nach `dtend` zuerst `summarized_at` (neu in `_transport_event_meta`).
   Eingefrorene Endabrechnungen können `reserved_total_kg > 0` tragen (Event 220, 19.07.2026).
+- `_liveZeitfensterZeile` (index.html, nutzt `_bummelZeitfenster`): Zeitfenster-Zeile in den
+  Live-Kästen von Kutter, Bummel und Reddung; bei der Reddung fällt „· Ende HH:MM UTC“ weg.
 
 ---
 

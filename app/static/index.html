@@ -11753,6 +11753,13 @@ function _bummelZeitfenster(dtstart, dtend) {
   return `${_bummelTagUndZeit(dtstart)} – ${_bummelTagUndZeit(dtend)}`;
 }
 
+// Zeitfenster als eigene Zeile in den Live-Kästen von Kutter, Bummel und Reddung (Wunsch
+// 24.10.2026: bis dahin zeigte nur die Reddung das Ende, keiner den Start).
+function _liveZeitfensterZeile(dtstart, dtend) {
+  const txt = _bummelZeitfenster(dtstart, dtend);
+  return txt ? `<div class="bb-sub">${icon('calendar')} ${escHtml(txt)}</div>` : '';
+}
+
 function renderBummelParticipants(view) {
   const route = (view.route || []).join(' - ');
   // scheduled = Start liegt noch in der Zukunft; NICHT als „läuft" beschriften (sonst wirkt ein
@@ -11947,6 +11954,7 @@ async function fetchBummelActive() {
       ? `${emoji('checkered-flag')} ${escHtml(v.name || 'FriesenBummel')} — wartet auf Nachzügler`
       : `${emoji('checkered-flag')} ${escHtml(v.name || 'FriesenBummel')} läuft gerade`;
     let html = `<div class="bb-title">${head}</div>`;
+    html += _liveZeitfensterZeile(v.dtstart, v.dtend);
     html += `<div class="bb-sub">Strecke: ${escHtml((v.route || []).join(' - '))}</div>`;
     html += `<div class="bb-sub">${v.participant_count} Teilnehmer · ${icon('lock')} Ergebnisse nach Renn-Ende</div>`;
     if (v.in_progress && v.in_progress.length) {
@@ -12015,6 +12023,7 @@ function _kutterBannerBlock(d) {
     // Flugplan, sondern die Aneinanderreihung der Ladeplätze). Stattdessen prominent NUR das Ziel,
     // wohin alle Fracht soll; die Reise je Fracht (Ladeplatz -> Ziel) steht in der Tabelle unten.
     html += `<div class="bb-sub" style="font-weight:600;font-size:1.05em;">${icon('target')} Ziel: ${escHtml(d.destination || '—')}</div>`;
+    html += _liveZeitfensterZeile(d.dtstart, d.dtend);
     html += _kutterBarAndTotals(d, false);  // Live: nur Gesamtbalken; Aufschlüsselung steckt im Detail
     // Aktive Piloten: das Modell sagt, wer sichtbar ist (Entscheidung 14 — letzter Bodenkontakt
     // an einem teilnehmenden Platz ODER Ladung an Bord). Kein Ziel unterstellt (#23).
@@ -17121,15 +17130,16 @@ function _reddungBannerBlock(r) {
   // „läuft gerade" darueber (Review 24.09.2026: bei Event 2 waeren das 93 Minuten gewesen).
   const fertig = !!st.aufgeloest;
   let html = `<div class="reddung-live-block"><div class="bb-title">🚨 ${escHtml(r.name || 'FriesenReddung')} ${fertig ? '— abgeschlossen' : 'läuft gerade'}</div>`;
+  html += _liveZeitfensterZeile(r.dtstart, r.dtend);
   // Was gesucht wird, solange gesucht wird -- danach steht das Ergebnis im Vordergrund.
   if (!fertig) html += _reddungLageHtml(r);
   if (!fertig) html += _reddungRegelnHtml(r);
   html += _reddungHinweiseHtml(r);
   html += _reddungBalken(pct);
-  const ende = (r.dtend || '').slice(11, 16);
+  // Das Ende steht seit 16.9.11 in der Zeitfenster-Zeile oben, nicht mehr hier.
   html += fertig
-    ? `<div class="bb-sub">${pct} % abgesucht · Ende ${ende} UTC</div>`
-    : `<div class="bb-sub">${pct} % abgesucht · noch offen: ${offenKm2} km² · Ende ${ende} UTC</div>`;
+    ? `<div class="bb-sub">${pct} % abgesucht</div>`
+    : `<div class="bb-sub">${pct} % abgesucht · noch offen: ${offenKm2} km²</div>`;
   html += _reddungMarkenHtml(st);
   if (!fertig) html += _reddungStatusZeile(_reddungMeinStatus);
   html += `<div style="margin-top:8px;"><button class="btn-share" onclick="reddungAufKarte(${Number(r.id)})">${icon('map')} Zur Karte</button></div></div>`;
