@@ -6,6 +6,13 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-25 — 16.9.11 ist vergeben: abgeschlossene Kutter nicht im Live-Tab
+
+- `_kutterImLiveTab` prüft nach `dtend` zuerst `summarized_at` (neu in `_transport_event_meta`).
+  Eingefrorene Endabrechnungen können `reserved_total_kg > 0` tragen (Event 220, 19.07.2026).
+
+---
+
 ## 2026-10-24 — 16.9.10 ist vergeben: Kutter-Nachzügler-Überschrift, StatSim-Zeiten auf Z
 
 - `_kutterTitelZustand` (index.html): nach `dtend` „· Zeit um, Nachzügler unterwegs“.

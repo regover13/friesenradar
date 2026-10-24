@@ -6832,6 +6832,9 @@ def _transport_event_meta(ev: dict, progress: dict) -> dict:
         "loaded_count": progress["loaded_count"], "cargo": progress["cargo"],
         "reserved_total_kg": progress.get("reserved_total_kg", 0.0),
         "lost_total_kg": progress.get("lost_total_kg", 0.0),
+        # Abgeschlossen (Feierabend-Bilanz erstellt)? Der Live-Tab zeigt einen Kutter nach dtend
+        # nur, solange er das NICHT ist (_kutterImLiveTab, 16.9.11).
+        "summarized_at": ev.get("summarized_at"),
     }
 
 

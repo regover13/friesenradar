@@ -27,6 +27,10 @@ def _funktion(name):
     ({"dtstart": "2026-10-24T18:00:00Z", "dtend": "2026-10-24T20:00:00Z", "reserved_total_kg": 273.5}, True),
     ({"dtstart": "2026-10-24T18:00:00Z", "dtend": "2026-10-24T20:00:00Z", "reserved_total_kg": 0}, False),
     ({"dtstart": "2026-10-24T21:00:00Z", "dtend": "2026-10-24T23:00:00Z", "reserved_total_kg": 0}, False),
+    # Abgeschlossen, aber die eingefrorene Endabrechnung führt noch Ware an Bord (Test-Kutter
+    # vom 19.07.2026, 150 kg bei FRS45) -- stand nach 16.9.9 im Live-Tab aller Mitglieder.
+    ({"dtstart": "2026-07-18T15:00:00Z", "dtend": "2026-07-19T18:15:00Z", "reserved_total_kg": 150,
+      "summarized_at": "2026-07-19T18:15:29Z"}, False),
 ])
 def test_kasten_bleibt_solange_ware_an_bord_ist(k, im_kasten):
     js = _funktion("_kutterImLiveTab") + (
@@ -58,3 +62,12 @@ def test_ueberschrift_nach_dem_ende(dtend, text):
 def test_der_kasten_nutzt_den_zustand():
     start = INDEX.index("function _kutterBannerBlock")
     assert "_kutterTitelZustand(d, " in INDEX[start:start + 800]
+
+
+def test_die_liste_liefert_den_abschluss_mit():
+    from app.main import _transport_event_meta
+    ev = {"id": 1, "name": "X", "route": "EDWG,EDWS", "dtstart": "a", "dtend": "b",
+          "summarized_at": "2026-07-19T18:15:29Z"}
+    pr = {"total_kg": 0, "target_kg": 0, "progress_pct": 0, "flight_count": 0, "loaded_count": 0,
+          "cargo": []}
+    assert _transport_event_meta(ev, pr)["summarized_at"] == "2026-07-19T18:15:29Z"

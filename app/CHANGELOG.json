@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.9.11",
+    "date": "2026-10-25",
+    "highlight": false,
+    "title": "Alter Test-Kutter im Live-Tab",
+    "items": [
+      "🐛 Seit 16.9.9 stand ein längst abgeschlossener Test-Kutter aus dem Juli wieder im Live-Tab. Nach dem geplanten Ende zeigt der Live-Tab einen Kutter jetzt nur noch, solange er nicht abgeschlossen ist."
+    ]
+  },
+  {
     "version": "16.9.10",
     "date": "2026-10-24",
     "highlight": false,

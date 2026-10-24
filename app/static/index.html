@@ -11972,6 +11972,9 @@ async function fetchBummelActive() {
 function _kutterImLiveTab(k, now) {
   if (!k.dtstart || k.dtstart > now) return false;
   if (now <= (k.dtend || '')) return true;
+  // Abgeschlossen ist abgeschlossen: Eine eingefrorene Endabrechnung kann noch Ware an Bord
+  // führen (Test-Kutter 19.07.2026) -- nach 16.9.9 stand er deshalb im Live-Tab aller Mitglieder.
+  if (k.summarized_at) return false;
   return (k.reserved_total_kg || 0) > 0;
 }
 
