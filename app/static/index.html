@@ -11965,6 +11965,16 @@ async function fetchBummelActive() {
 // --- Live-Tab-Block: läuft gerade ein FriesenKutter? (Analogie zum Bummel-Banner) ---
 // Zeigt Balken + Mengen + „wer ist gerade mit welcher Ladung unterwegs" (Callsign statt
 // Name, keine Bilanz — die steht im Flug-Feed der Events-Ansicht). Karten-Icon springt zur Karte.
+// Steht ein Kutter im Live-Tab? Während des Fensters immer; danach, solange noch Ware an Bord
+// ist -- die Wertung wartet auf Nachzügler (poller: transport_anyone_in_progress), also zeigt
+// die Seite sie auch. Bis 16.9.8 verschwand der Kasten um dtend, obwohl FRS174N noch mit
+// 273,5 kg flog (24.10.2026).
+function _kutterImLiveTab(k, now) {
+  if (!k.dtstart || k.dtstart > now) return false;
+  if (now <= (k.dtend || '')) return true;
+  return (k.reserved_total_kg || 0) > 0;
+}
+
 async function fetchKutterActive() {
   const banner = document.getElementById('kutter-banner');
   if (!banner) return;
@@ -11974,7 +11984,7 @@ async function fetchKutterActive() {
     const events = await res.json();
     const now = new Date().toISOString().slice(0, 19) + 'Z';
     // Alle GERADE laufenden Kutter stapeln (nicht nur der erste `.find`) — mehrere parallele Events.
-    const actives = (events || []).filter(k => k.dtstart <= now && now <= (k.dtend || ''));
+    const actives = (events || []).filter(k => _kutterImLiveTab(k, now));
     if (!actives.length) { banner.hidden = true; banner.innerHTML = ''; return; }
     const details = (await Promise.all(actives.map(v =>
       fetch('/api/transport/event/' + v.id).then(r => r.json()).catch(() => null)))).filter(Boolean);

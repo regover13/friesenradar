@@ -22,6 +22,8 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
   der Altbestand einmal in `init_db` gelöscht (danach voller Lauf vorgemerkt).
 - Kutter-Feed: die synthetische Zeile „beladen am Boden“ trägt als `dep_time` die letzte
   Landung der Verbindung statt deren Anmeldung (`flight_key` unverändert).
+- Live-Tab: `_kutterImLiveTab` (index.html) zeigt einen Kutter nach `dtend` weiter, solange
+  `reserved_total_kg > 0` (Nachzügler mit Ware; die Wertung wartet ebenso).
 - Offen: Zeitstempel der StatSim-Spuren tragen `+00:00`, alles andere `Z` (Textvergleiche).
 - `update_transport_event`: verschobener `dtstart` zieht Ware mit `added_at` = alter Start mit.
 - `html.hell #bummel-banner, #kutter-banner, #reddung-banner` bekommen `--bg-panel`.
