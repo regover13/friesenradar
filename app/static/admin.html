@@ -1142,7 +1142,8 @@
                   </div>
                   <div class="form-group" style="grid-column:1/-1;">
                     <label for="nr-badge-set">Badge-Set</label>
-                    <select id="nr-badge-set" data-badge-set><option value="">Standard</option></select>
+                    <select id="nr-badge-set" data-badge-set data-badge-vorschau="sieger" data-badge-art="bummel"><option value="">Standard</option></select>
+                    <div class="bs-vorschau"></div>
                     <p class="form-hint">Eigenes Motiv für die Badges dieses Events. Die Sets pflegst du unter „Badge-Sets“.</p>
                   </div>
                   <div class="form-group">
@@ -1207,7 +1208,8 @@
                   </div>
                   <div class="form-group" style="grid-column:1/-1;">
                     <label for="ke-badge-set">Badge-Set</label>
-                    <select id="ke-badge-set" data-badge-set><option value="">Standard</option></select>
+                    <select id="ke-badge-set" data-badge-set data-badge-vorschau data-badge-art="kutter"><option value="">Standard</option></select>
+                    <div class="bs-vorschau"></div>
                     <p class="form-hint">Eigenes Motiv für die Badges dieses Events. Die Sets pflegst du unter „Badge-Sets“.</p>
                   </div>
                   <div class="form-group">
@@ -1377,7 +1379,8 @@
                 </div>
                 <div class="form-group" style="grid-column:1/-1;">
                   <label for="rd-badge-set">Badge-Set</label>
-                  <select id="rd-badge-set" data-badge-set><option value="">Standard</option></select>
+                  <select id="rd-badge-set" data-badge-set data-badge-vorschau data-badge-art="reddung"><option value="">Standard</option></select>
+                  <div class="bs-vorschau"></div>
                 </div>
                 <p class="form-hint" style="grid-column:1/-1;margin:0;">Eigenes Motiv für die Badges dieses Events. Die Sets pflegst du unter „Badge-Sets“.</p>
                 <div class="form-group" style="grid-column:1/-1;">
@@ -4586,7 +4589,8 @@
             </div>
             <div class="form-group" style="grid-column:1/-1;">
               <label>Badge-Set</label>
-              <select id="edit-badge-set-${r.id}">${_badgeSetOptionen(r.badge_set_id)}</select>
+              <select id="edit-badge-set-${r.id}" data-badge-vorschau="sieger" data-badge-art="bummel">${_badgeSetOptionen(r.badge_set_id)}</select>
+              <div class="bs-vorschau">${_bsVorschauHtml(String(r.badge_set_id || ''), true, 'bummel')}</div>
             </div>
             <div class="form-group">
               <label>Start (UTC) ${feldMarke(r, 'dtstart')}</label>
@@ -5686,6 +5690,7 @@
       keBadgeFeld.placeholder = ev.name || 'leer = Name des Events';
       await ladeBadgeSets();
       document.getElementById('ke-badge-set').value = ev.badge_set_id || '';
+      _bsVorschauAlle();
       document.getElementById('ke-dtstart').value = isoToLocal(ev.dtstart);
       document.getElementById('ke-dtend').value = isoToLocal(ev.dtend);
       const rows = document.getElementById('ke-cargo-rows');
@@ -7718,6 +7723,7 @@
       };
       setz('rd-name', ev.name);
       setz('rd-badge-set', ev.badge_set_id);
+      _bsVorschauAlle();
       setz('rd-lagetext', ev.lagetext);
       setz('rd-dtstart', isoToLocal(ev.dtstart));
       setz('rd-dtend', isoToLocal(ev.dtend));
@@ -7783,6 +7789,49 @@
       }).join('');
     }
 
+    // Bilder als Paare aus Adresse und Beschriftung; ein Klick zeigt das Badge groß.
+    function _bsVorschauBilder(bilder) {
+      return '<div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">' + bilder.map(function (b) {
+        return '<a href="' + escH(b[0]) + '" target="_blank" rel="noopener" style="display:block;">'
+          + '<img src="' + escH(b[0]) + '" alt="" style="width:128px;height:128px;display:block;" />'
+          + '<span class="form-hint">' + b[1] + '</span></a>';
+      }).join('') + '</div>';
+    }
+
+    function _bsStandardBilder(art) {
+      const u = function (n) { return '/api/admin/badge-sets/standard/' + n + '.png'; };
+      return ({
+        bummel: [[u('bummel-teilnehmer'), 'Bummel Teilnehmer'], [u('bummel-sieger'), 'Bummel Sieger']],
+        kutter: [[u('kutter'), 'Kutter']],
+        reddung: [[u('reddung'), 'Reddung']],
+      })[art] || [];
+    }
+
+    // Das fertige Badge mit Beispielwerten unter der Auswahl, bei „Standard“ das des Event-Typs.
+    function _bsVorschauHtml(wert, mitSieger, art) {
+      const set = _badgeSets.find(function (s) { return String(s.id) === String(wert); });
+      if (!set) return (wert || !art) ? '' : _bsVorschauBilder(_bsStandardBilder(art));
+      if (!set.hat_teilnehmer) return '<p class="form-hint">Dieses Set hat noch kein Bild.</p>';
+      const rollen = mitSieger ? [['teilnehmer', 'Teilnehmer'], ['sieger', 'Sieger']]
+        : [['teilnehmer', 'Vorschau']];
+      return _bsVorschauBilder(rollen.map(function (r) {
+        return ['/api/admin/badge-sets/' + set.id + '/vorschau/' + r[0] + '.png?t=' + set.updated_at, r[1]];
+      }));
+    }
+
+    function _bsVorschauSetzen(sel) {
+      const ziel = sel.parentElement.querySelector('.bs-vorschau');
+      if (ziel) ziel.innerHTML = _bsVorschauHtml(sel.value, sel.dataset.badgeVorschau === 'sieger', sel.dataset.badgeArt);
+    }
+
+    function _bsVorschauAlle() {
+      document.querySelectorAll('select[data-badge-vorschau]').forEach(_bsVorschauSetzen);
+    }
+
+    document.addEventListener('change', function (e) {
+      if (e.target.matches && e.target.matches('select[data-badge-vorschau]')) _bsVorschauSetzen(e.target);
+    });
+
     async function ladeBadgeSets() {
       const res = await api('GET', '/api/admin/badge-sets');
       if (!res || !res.ok) return;
@@ -7793,14 +7842,16 @@
         el.innerHTML = _badgeSetOptionen(null);
         el.value = wert;
       });
+      _bsVorschauAlle();
       _badgeSetsZeigen();
     }
 
     function _bsBildHtml(s, rolle, titel, hat) {
       const t = Date.now();
       const bild = hat
-        ? '<img src="/api/admin/badge-sets/' + s.id + '/vorschau/' + rolle + '.png?t=' + t
-          + '" alt="" style="width:128px;height:128px;display:block;margin-bottom:6px;" />'
+        ? '<a href="/api/admin/badge-sets/' + s.id + '/vorschau/' + rolle + '.png?t=' + t
+          + '" target="_blank" rel="noopener"><img src="/api/admin/badge-sets/' + s.id + '/vorschau/' + rolle
+          + '.png?t=' + t + '" alt="" style="width:128px;height:128px;display:block;margin-bottom:6px;" /></a>'
         : '<div class="empty-hint" style="width:128px;height:128px;margin-bottom:6px;">'
           + (rolle === 'sieger' ? 'wie Teilnehmer' : 'kein Bild') + '</div>';
       return '<div><div class="form-hint" style="margin-bottom:4px;">' + titel + '</div>' + bild
@@ -7811,11 +7862,16 @@
     function _badgeSetsZeigen() {
       const liste = document.getElementById('bs-liste');
       if (!liste) return;
+      const standard = '<div class="race-card" style="margin-bottom:12px;">'
+        + '<div class="form-hint">Standard-Badges, wenn am Event kein Set gewählt ist</div>'
+        + _bsVorschauBilder(_bsStandardBilder('bummel').concat(_bsStandardBilder('kutter'),
+                                                                _bsStandardBilder('reddung')))
+        + '</div>';
       if (!_badgeSets.length) {
-        liste.innerHTML = '<div class="empty-hint">Noch kein Set angelegt.</div>';
+        liste.innerHTML = standard + '<div class="empty-hint">Noch kein Set angelegt.</div>';
         return;
       }
-      liste.innerHTML = _badgeSets.map(function (s) {
+      liste.innerHTML = standard + _badgeSets.map(function (s) {
         const benutzt = (s.verwendung || []).length
           ? 'Hängt an: ' + s.verwendung.map(escH).join(', ') : 'Hängt an keinem Event.';
         return '<div class="race-card" style="margin-bottom:12px;">'

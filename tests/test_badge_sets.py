@@ -295,3 +295,84 @@ def test_die_bummel_bearbeitung_hat_die_auswahl():
 
 def test_es_gibt_den_bereich_fuer_die_sets():
     assert 'data-typ="badges"' in ADMIN and 'id="typ-badges"' in ADMIN
+
+
+# --- Vorschau am Event ----------------------------------------------------------------------
+
+def _rumpf(name):
+    import re
+    m = re.search(r"\n\s*function " + name + r"\(.*?\n    }\n", ADMIN, re.S)
+    assert m, name
+    return m.group(0)
+
+
+@pytest.mark.parametrize("feld", ["nr-badge-set", "ke-badge-set", "rd-badge-set"])
+def test_unter_jeder_auswahl_steht_die_vorschau(feld):
+    import re
+    m = re.search(r'<select id="' + feld + r'"[^>]*>', ADMIN)
+    assert m and "data-badge-vorschau" in m.group(0)
+
+
+def test_die_bummel_bearbeitung_zeigt_die_vorschau_auch():
+    assert 'id="edit-badge-set-${r.id}" data-badge-vorschau' in ADMIN
+
+
+@pytest.mark.skipif(__import__("shutil").which("node") is None, reason="node fehlt")
+@pytest.mark.parametrize("wert, sieger, erwartet, fehlt", [
+    ("", False, [], ["<img"]),
+    ("1", False, ["/1/vorschau/teilnehmer.png"], ["sieger.png"]),
+    ("1", True, ["/1/vorschau/teilnehmer.png", "/1/vorschau/sieger.png"], []),
+    ("2", True, ["noch kein Bild"], ["<img"]),
+])
+def test_die_vorschau_zeigt_das_gewaehlte_set(wert, sieger, erwartet, fehlt):
+    import json
+    import subprocess
+    js = ("function escH(s){return s;}\nlet _badgeSets = [{id: 1, hat_teilnehmer: true}, {id: 2, hat_teilnehmer: false}];\n"
+          + _rumpf("_bsVorschauBilder") + _rumpf("_bsStandardBilder") + _rumpf("_bsVorschauHtml")
+          + f"\nconsole.log(JSON.stringify(_bsVorschauHtml({json.dumps(wert)}, {json.dumps(sieger)})));")
+    out = json.loads(subprocess.run(["node", "-e", js], capture_output=True, text=True, check=True).stdout)
+    for teil in erwartet:
+        assert teil in out
+    for teil in fehlt:
+        assert teil not in out
+
+
+# --- Standard-Badges ------------------------------------------------------------------------
+
+@pytest.mark.parametrize("art", ["kutter", "reddung", "bummel-teilnehmer", "bummel-sieger"])
+def test_die_standard_badges_gibt_es_als_vorschau(client, art):
+    r = client.get(f"/api/admin/badge-sets/standard/{art}.png")
+    assert r.status_code == 200 and _bild(r.content).size == (256, 256)
+
+
+def test_unbekannte_standard_art(client):
+    assert client.get("/api/admin/badge-sets/standard/quatsch.png").status_code == 404
+
+
+def test_die_standard_vorschau_verlangt_die_anmeldung(client):
+    client.cookies.clear()
+    assert client.get("/api/admin/badge-sets/standard/kutter.png").status_code == 401
+
+
+@pytest.mark.skipif(__import__("shutil").which("node") is None, reason="node fehlt")
+@pytest.mark.parametrize("art, erwartet", [
+    ("kutter", ["/standard/kutter.png"]), ("reddung", ["/standard/reddung.png"]),
+    ("bummel", ["/standard/bummel-teilnehmer.png", "/standard/bummel-sieger.png"]),
+])
+def test_standard_gewaehlt_zeigt_das_standard_badge(art, erwartet):
+    import json
+    import subprocess
+    js = ("function escH(s){return s;}\nlet _badgeSets = [];\n"
+          + _rumpf("_bsVorschauBilder") + _rumpf("_bsStandardBilder") + _rumpf("_bsVorschauHtml")
+          + f"\nconsole.log(JSON.stringify(_bsVorschauHtml('', false, {json.dumps(art)})));")
+    out = json.loads(subprocess.run(["node", "-e", js], capture_output=True, text=True, check=True).stdout)
+    for teil in erwartet:
+        assert teil in out
+
+
+@pytest.mark.parametrize("feld, art", [("nr-badge-set", "bummel"), ("ke-badge-set", "kutter"),
+                                       ("rd-badge-set", "reddung")])
+def test_jede_auswahl_kennt_ihre_standard_art(feld, art):
+    import re
+    m = re.search(r'<select id="' + feld + r'"[^>]*>', ADMIN)
+    assert m and f'data-badge-art="{art}"' in m.group(0)

@@ -965,6 +965,7 @@ Alle verlangen die Admin-Anmeldung, das Löschen zusätzlich die Passwortbestät
 | `POST /api/admin/badge-sets/{id}/bild/{rolle}` | Bild hochladen (`file`, höchstens 8 MB), `rolle` ist `teilnehmer` oder `sieger`; `400`, wenn es kein Bild ist |
 | `GET /api/admin/badge-sets/{id}/bild/{rolle}.png` | Das zugeschnittene Bild |
 | `GET /api/admin/badge-sets/{id}/vorschau/{rolle}.png` | Fertiges Badge mit Beispielwerten |
+| `GET /api/admin/badge-sets/standard/{art}.png` | Standard-Badge mit Beispielwerten; `art` ist `kutter`, `reddung`, `bummel-teilnehmer` oder `bummel-sieger` |
 
 Die Anlegen- und Ändern-Aufrufe von Bummel, Kutter und Reddung nehmen `badge_set_id` an: `null` ist der Standard, ein unbekanntes Set `400`.
 

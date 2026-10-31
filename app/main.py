@@ -7367,6 +7367,26 @@ async def admin_badge_bild(request: Request, set_id: int, rolle: str):
     return Response(content=png, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
+_BADGE_BEISPIEL = {"callsign": "FRS00", "name": "Beispiel", "aircraft": "C172", "total_min": 90,
+                   "delta_sec": 12, "complete": True, "team_total_kg": 1000, "team_target_kg": 1000,
+                   "zellen": 3, "rollen": ["gefunden"], "event": "Beispiel-Event",
+                   "date": "01.01.2027"}
+
+
+# Vor der Route mit {set_id}: FastAPI nimmt die erste passende, und „standard“ ist keine Zahl.
+@app.get("/api/admin/badge-sets/standard/{art}.png")
+async def admin_badge_standard(request: Request, art: str):
+    """Die Standard-Badges der Event-Typen mit Beispielwerten."""
+    require_admin(request)
+    from app.badge import render_kutter_badge, render_medal, render_reddung_badge, render_winner_badge
+    zeichnen = {"kutter": render_kutter_badge, "reddung": render_reddung_badge,
+                "bummel-teilnehmer": render_medal, "bummel-sieger": render_winner_badge}.get(art)
+    if not zeichnen:
+        raise HTTPException(status_code=404, detail="Unbekanntes Badge")
+    return Response(content=zeichnen(_BADGE_BEISPIEL), media_type="image/png",
+                    headers={"Cache-Control": "no-store"})
+
+
 @app.get("/api/admin/badge-sets/{set_id}/vorschau/{rolle}.png")
 async def admin_badge_vorschau(request: Request, set_id: int, rolle: str):
     """Fertiges Badge mit Beispielwerten: Teilnehmer als Kutter, Sieger als Bummel."""

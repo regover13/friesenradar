@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.10.1",
+    "date": "2026-10-31",
+    "highlight": false,
+    "title": "Vorschau beim Badge-Set",
+    "items": [
+      "✨ Wählt man im Admin ein Badge-Set am Event aus, steht das fertige Badge jetzt direkt unter der Auswahl. Ein Klick zeigt es groß.",
+      "✨ Auch die Standard-Badges von Bummel, Kutter und Reddung sind im Admin jetzt zu sehen."
+    ]
+  },
+  {
     "version": "16.10.0",
     "date": "2026-10-31",
     "highlight": false,
