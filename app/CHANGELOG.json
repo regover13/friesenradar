@@ -1,5 +1,16 @@
 [
   {
+    "version": "16.9.12",
+    "date": "2026-10-31",
+    "highlight": false,
+    "title": "Kutter-Mengen im Admin",
+    "items": [
+      "🐛 Im Admin ließen sich Frachtmengen nur in Zehnerschritten eingeben, und jede andere Menge blockierte das Speichern. Jetzt gehen beliebige Werte mit bis zu einer Nachkommastelle, mit Komma oder Punkt.",
+      "🐛 Beim Bearbeiten eines Kutters wurden Mengen gerundet, und Waren außerhalb des Katalogs verloren beim Speichern ihr Symbol. Beides bleibt jetzt erhalten.",
+      "🐛 Kleine Mengen unter 10 kg stehen im Kutter jetzt mit Nachkommastelle da, also 2,5 kg statt 3 kg."
+    ]
+  },
+  {
     "version": "16.9.11",
     "date": "2026-10-25",
     "highlight": false,

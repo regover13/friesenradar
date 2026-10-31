@@ -6,6 +6,16 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-31 — 16.9.12 ist vergeben: Frachtmengen im Admin
+
+- Mengenfeld `.ke-c-kg` ist `type="text"` mit `_keMenge`: Komma oder Punkt, eine Nachkommastelle.
+  **Nicht zurück auf `type="number"`:** Das verschluckt das Komma, wenn der Browser nicht auf
+  Deutsch läuft, aus 2,5 wurde in der Probe still 25.
+- `keEdit` übergibt die Zeile an `keCargoRow`; `_keZeilenBestand` behält Symbol und Max/Flug von
+  Waren außerhalb des Katalogs, solange der Name gleich bleibt.
+
+---
+
 ## 2026-10-25 — 16.9.11 ist vergeben: abgeschlossene Kutter nicht im Live-Tab
 
 - `_kutterImLiveTab` prüft nach `dtend` zuerst `summarized_at` (neu in `_transport_event_meta`).

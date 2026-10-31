@@ -16637,7 +16637,8 @@ function _kfmtT(kg) {
   kg = kg || 0;
   return (kg >= 10000)
     ? (kg / 1000).toFixed(kg % 1000 === 0 ? 0 : 1).replace('.', ',') + ' t'
-    : Math.round(kg) + ' kg';
+    // Unter 10 kg ist die Nachkommastelle die Menge selbst: 0,4 kg stünde sonst als 0 kg da.
+    : (kg < 10 && !Number.isInteger(kg) ? kg.toFixed(1).replace('.', ',') : Math.round(kg)) + ' kg';
 }
 
 function _kColor(i) {

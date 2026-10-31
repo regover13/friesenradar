@@ -5280,9 +5280,16 @@
     let _keEvents = [];
     let _keEditingId = null;
 
-    function keCargoRow(name, kg, departure) {
+    // ``bestand``: die gespeicherte Zeile beim Bearbeiten. Sie merkt sich Symbol und Max/Flug, damit
+    // eine Ware außerhalb des Katalogs sie beim Speichern nicht verliert (_keZeilenBestand).
+    function keCargoRow(name, kg, departure, bestand) {
       const div = document.createElement('div');
       div.className = 'ke-cargo-row';
+      if (bestand) {
+        div.dataset.origName = bestand.name || '';
+        div.dataset.origEmoji = bestand.emoji || '';
+        div.dataset.origMax = bestand.per_flight_max_kg != null ? String(bestand.per_flight_max_kg) : '';
+      }
       div.style.cssText = 'display:flex;gap:8px;margin-bottom:6px;align-items:flex-start;flex-wrap:wrap;';
       // #78: eigener Picker statt nativer datalist (mobil zuverlässig). Freitext bleibt erlaubt.
       div.innerHTML = '<div style="flex:2;min-width:140px;position:relative;display:flex;flex-direction:column;gap:2px;">'
@@ -5290,7 +5297,7 @@
         + '<div class="ke-c-picker"></div>'
         + '<span class="ke-c-hint" style="color:#8aa0b8;font-size:0.75rem;"></span>'
         + '</div>'
-        + '<input type="number" class="ke-c-kg" placeholder="kg" min="0" step="10" style="flex:1;min-width:70px;" />'
+        + '<input type="text" class="ke-c-kg" inputmode="decimal" placeholder="kg" pattern="\\s*[0-9]+([,.][0-9])?\\s*" title="Menge in kg, höchstens eine Nachkommastelle, zum Beispiel 24 oder 2,5" style="flex:1;min-width:70px;" />'
         + '<input type="text" class="ke-c-dep" placeholder="Start-ICAO, z.B. EDDW" '
         + 'title="Genau EIN Startplatz je Frachtart (Pflicht, ≠ Ziel). Für dieselbe Ware an mehreren Plätzen mehrere Zeilen anlegen." '
         + 'style="flex:1;min-width:120px;text-transform:uppercase;" />'
@@ -5298,7 +5305,7 @@
       const nameInput = div.querySelector('.ke-c-name');
       const hintSpan = div.querySelector('.ke-c-hint');
       nameInput.value = name || '';
-      if (kg != null && kg !== '') div.querySelector('.ke-c-kg').value = kg;
+      if (kg != null && kg !== '') div.querySelector('.ke-c-kg').value = String(kg).replace('.', ',');
       if (departure) div.querySelector('.ke-c-dep').value = departure;
       updateKeCargoHint(nameInput, hintSpan);
       wireCargoPicker(nameInput, div.querySelector('.ke-c-picker'), hintSpan);
@@ -5354,19 +5361,38 @@
       }
     }
 
+    // Menge aus dem Textfeld: Komma oder Punkt, höchstens eine Nachkommastelle, sonst null. Bewusst
+    // kein type="number": Das verschluckt das Komma, wenn der Browser nicht auf Deutsch läuft, und
+    // aus 2,5 wird still 25 (Probe 31.10.2026). Backend und Stapel rechnen auf eine Stelle genau.
+    function _keMenge(text) {
+      const t = String(text).trim();
+      if (!/^[0-9]+([,.][0-9])?$/.test(t)) return null;
+      return parseFloat(t.replace(',', '.'));
+    }
+
+    // Symbol und Max/Flug einer gespeicherten Zeile, solange ihr Name unverändert ist. Ein neuer
+    // Name ist eine andere Ware und bringt nichts mit.
+    function _keZeilenBestand(r, name) {
+      const orig = r.dataset.origName;
+      if (orig == null || orig.toLowerCase() !== name.toLowerCase()) return { emoji: null, max: null };
+      return { emoji: r.dataset.origEmoji || null,
+               max: r.dataset.origMax ? parseFloat(r.dataset.origMax) : null };
+    }
+
     function keCollectCargo() {
       const out = [];
       document.querySelectorAll('#ke-cargo-rows .ke-cargo-row').forEach(r => {
         const name = r.querySelector('.ke-c-name').value.trim();
-        const kg = parseFloat(r.querySelector('.ke-c-kg').value);
+        const kg = _keMenge(r.querySelector('.ke-c-kg').value);
         const dep = (r.querySelector('.ke-c-dep').value || '').trim().toUpperCase();
         if (name && kg > 0) {
-          // Emoji + Max/Flug aus dem Katalog übernehmen (Freitext → ohne).
+          // Emoji + Max/Flug aus dem Katalog übernehmen; Freitext behält, was die Zeile schon hatte.
           const cat = (_keCatalog || []).find(c => (c.name || '').toLowerCase() === name.toLowerCase());
+          const bestand = _keZeilenBestand(r, name);
           out.push({
             name, target_kg: kg,
-            emoji: cat ? cat.emoji : null,
-            per_flight_max_kg: cat ? cat.per_flight_max_kg : null,
+            emoji: cat ? cat.emoji : bestand.emoji,
+            per_flight_max_kg: cat ? cat.per_flight_max_kg : bestand.max,
             departure: dep || null,   // Startplatz-Bindung (Entscheidung 6: genau einer, Pflicht)
           });
         }
@@ -5550,7 +5576,7 @@
       const c = document.getElementById('ke-events-container');
       if (!_keEvents.length) { c.innerHTML = '<div class="empty-hint">Noch keine Events.</div>'; return; }
       c.innerHTML = _keEvents.map(ev => {
-        const cargo = (ev.cargo || []).map(x => escH(x.name) + ' ' + Math.round(x.target_kg) + 'kg'
+        const cargo = (ev.cargo || []).map(x => escH(x.name) + ' ' + String(x.target_kg).replace('.', ',') + 'kg'
           + (x.departure ? ' ‹' + escH(x.departure) + '›' : '')).join(', ') || '—';
         const statusBadge = '<span class="badge badge-' + (ev.status || 'scheduled') + '">'
           + (KE_STATUS_LABEL[ev.status] || ev.status || '—') + '</span> ';
@@ -5629,7 +5655,7 @@
       document.getElementById('ke-dtend').value = isoToLocal(ev.dtend);
       const rows = document.getElementById('ke-cargo-rows');
       rows.innerHTML = '';
-      (ev.cargo || []).forEach(c => rows.appendChild(keCargoRow(c.name, Math.round(c.target_kg), c.departure)));
+      (ev.cargo || []).forEach(c => rows.appendChild(keCargoRow(c.name, c.target_kg, c.departure, c)));
       if (!ev.cargo || !ev.cargo.length) rows.appendChild(keCargoRow('', ''));
       document.getElementById('ke-form').classList.remove('hidden');
       document.getElementById('ke-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
