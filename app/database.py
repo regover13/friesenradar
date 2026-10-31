@@ -146,6 +146,17 @@ CREATE TABLE IF NOT EXISTS messeverkehr_geplante_starts (
     ab   TEXT NOT NULL
 );
 
+-- Eigene Badge-Motive (31.10.2026): ein Set hat Namen und zwei Bilder. Die Bilder liegen als BLOB
+-- in der Datenbank wie die Musterfotos, das naechtliche Backup sichert nur die Datenbank.
+CREATE TABLE IF NOT EXISTS badge_sets (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    name             TEXT NOT NULL,
+    teilnehmer_bild  BLOB,
+    sieger_bild      BLOB,               -- leer = Teilnehmer-Bild
+    created_at       TEXT NOT NULL,
+    updated_at       TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS statsim_cache (
     statsim_id   INTEGER PRIMARY KEY,
     cid          INTEGER NOT NULL,
@@ -232,7 +243,8 @@ CREATE TABLE IF NOT EXISTS bummel_races (
     started_at     TEXT,                 -- Latch: gesetzt wenn erster Pilot losgeflogen ist
     reveal_suppressed INTEGER DEFAULT 0, -- 1 = manuell verborgen, übersteuert den Auto-Reveal
     manual_fields  TEXT,                 -- #19: CSV der im Admin von Hand gesetzten Felder
-    badge_name     TEXT                  -- Kurzname fuers Badge-PNG; leer = name
+    badge_name     TEXT,                 -- Kurzname fuers Badge-PNG; leer = name
+    badge_set_id   INTEGER               -- eigenes Motiv (badge_sets); leer = Standard
 );
 
 CREATE TABLE IF NOT EXISTS bummel_overrides (
@@ -300,7 +312,8 @@ CREATE TABLE IF NOT EXISTS transport_events (
     radius_km       REAL,                 -- Erkennungs-Umkreis km; NULL = Default 10
     created_at     TEXT,
     manual_fields  TEXT,                 -- #19: CSV der im Admin von Hand gesetzten Felder
-    badge_name     TEXT                  -- Kurzname fuers Badge-PNG; leer = name
+    badge_name     TEXT,                 -- Kurzname fuers Badge-PNG; leer = name
+    badge_set_id   INTEGER               -- eigenes Motiv (badge_sets); leer = Standard
 );
 
 CREATE TABLE IF NOT EXISTS transport_cargo (
@@ -428,6 +441,7 @@ CREATE TABLE IF NOT EXISTS reddung_events (
     calendar_uid    TEXT UNIQUE,
     push_enabled    INTEGER DEFAULT 1,
     badge_name      TEXT,
+    badge_set_id    INTEGER,
     manual_fields   TEXT,
     created_at      TEXT,
     -- Was gesucht wird: die Geschichte des Abends, Freitext vom Veranstalter (27.09.2026).
@@ -1385,6 +1399,10 @@ _BUMMEL_MIGRATIONS = [
     # Der Event-Name sprengt die runde Grafik ("Montagsfluege in Deutschland - Aach-Bummel").
     # Leer = weiter der Event-Name, damit eine spaetere Umbenennung im Badge ankommt.
     "ALTER TABLE bummel_races ADD COLUMN badge_name TEXT",
+    # badge_set_id: eigenes Motiv aus badge_sets, in allen drei Event-Tabellen; leer = Standard.
+    "ALTER TABLE bummel_races ADD COLUMN badge_set_id INTEGER",
+    "ALTER TABLE transport_events ADD COLUMN badge_set_id INTEGER",
+    "ALTER TABLE reddung_events ADD COLUMN badge_set_id INTEGER",
     """CREATE TABLE IF NOT EXISTS bummel_overrides (
         race_id          INTEGER,
         cid              INTEGER,
@@ -7696,7 +7714,7 @@ def list_bummel_races(conn: sqlite3.Connection, *, since: str | None = None) -> 
     sql = (
         "SELECT id, name, route, dtstart, dtend, radius_km, source, calendar_uid, "
         "revealed_at, created_at, push_enabled, started_at, reveal_suppressed, manual_fields, "
-        "badge_name "
+        "badge_name, badge_set_id "
         "FROM bummel_races"
     )
     if where:
@@ -7710,7 +7728,7 @@ def get_bummel_race(conn: sqlite3.Connection, race_id: int) -> dict | None:
     row = conn.execute(
         "SELECT id, name, route, dtstart, dtend, radius_km, source, calendar_uid, "
         "revealed_at, created_at, push_enabled, started_at, reveal_suppressed, manual_fields, "
-        "badge_name "
+        "badge_name, badge_set_id "
         "FROM bummel_races WHERE id = ?",
         (race_id,),
     ).fetchone()
@@ -7791,7 +7809,7 @@ def create_bummel_race(
 # calendar_uid ist seit #19 im Admin setzbar: die Verknüpfung Termin↔Objekt wird
 # ausgesprochen, nicht aus Datum und Stichwort erraten.
 _UPDATABLE_RACE_FIELDS = {"name", "route", "dtstart", "dtend", "radius_km", "calendar_uid",
-                          "badge_name"}
+                          "badge_name", "badge_set_id"}
 
 
 def update_bummel_race(conn: sqlite3.Connection, race_id: int, **fields: object) -> None:
@@ -8532,7 +8550,7 @@ def upsert_payload(
 _TRANSPORT_EVENT_COLS = (
     "id, name, route, destination, dtstart, dtend, source, calendar_uid, push_enabled, "
     "started_at, goal_reached_at, summarized_at, summary_quip, radius_km, created_at, "
-    "manual_fields, badge_name"
+    "manual_fields, badge_name, badge_set_id"
 )
 
 
@@ -8701,7 +8719,7 @@ def create_transport_event(
 # gecachtes altes admin.html die abgeleitete Route überschreiben).
 # calendar_uid: siehe _UPDATABLE_RACE_FIELDS (#19).
 _UPDATABLE_TRANSPORT_FIELDS = {"name", "destination", "dtstart", "dtend", "radius_km",
-                               "calendar_uid", "badge_name"}
+                               "calendar_uid", "badge_name", "badge_set_id"}
 
 
 def update_transport_event(conn: sqlite3.Connection, event_id: int, **fields: object) -> None:
@@ -10058,6 +10076,80 @@ def dismiss_gps_detection_gap(conn: sqlite3.Connection, cid: int, logon_time: st
     )
 
 
+# --- Badge-Sets ---
+
+_BADGE_ROLLEN = {"teilnehmer": "teilnehmer_bild", "sieger": "sieger_bild"}
+_BADGE_SET_TABELLEN = ("bummel_races", "transport_events", "reddung_events")
+
+
+def list_badge_sets(conn: sqlite3.Connection) -> list[dict]:
+    """Alle Sets, neueste zuerst, ohne Bilddaten."""
+    rows = conn.execute(
+        "SELECT id, name, created_at, updated_at, teilnehmer_bild IS NOT NULL AS hat_teilnehmer, "
+        "sieger_bild IS NOT NULL AS hat_sieger FROM badge_sets ORDER BY id DESC").fetchall()
+    return [{**dict(r), "hat_teilnehmer": bool(r["hat_teilnehmer"]),
+             "hat_sieger": bool(r["hat_sieger"])} for r in rows]
+
+
+def badge_set_gibt_es(conn: sqlite3.Connection, set_id) -> bool:
+    return conn.execute("SELECT 1 FROM badge_sets WHERE id = ?", (set_id,)).fetchone() is not None
+
+
+def create_badge_set(conn: sqlite3.Connection, name: str) -> int:
+    jetzt = _now_utc()
+    cur = conn.execute("INSERT INTO badge_sets (name, created_at, updated_at) VALUES (?, ?, ?)",
+                       (name, jetzt, jetzt))
+    return int(cur.lastrowid)  # type: ignore[arg-type]
+
+
+def rename_badge_set(conn: sqlite3.Connection, set_id: int, name: str) -> None:
+    conn.execute("UPDATE badge_sets SET name = ?, updated_at = ? WHERE id = ?",
+                 (name, _now_utc(), set_id))
+
+
+def set_badge_set_bild(conn: sqlite3.Connection, set_id: int, rolle: str, png: bytes | None) -> None:
+    conn.execute(f"UPDATE badge_sets SET {_BADGE_ROLLEN[rolle]} = ?, updated_at = ? WHERE id = ?",
+                 (png, _now_utc(), set_id))
+
+
+def badge_set_bild(conn: sqlite3.Connection, set_id, rolle: str = "teilnehmer") -> bytes | None:
+    """Das Bild für die Rolle. Ein Set ohne eigenes Sieger-Bild zeigt das Teilnehmer-Bild."""
+    row = conn.execute("SELECT teilnehmer_bild, sieger_bild FROM badge_sets WHERE id = ?",
+                       (set_id,)).fetchone()
+    if not row:
+        return None
+    if rolle == "sieger" and row["sieger_bild"]:
+        return bytes(row["sieger_bild"])
+    return bytes(row["teilnehmer_bild"]) if row["teilnehmer_bild"] else None
+
+
+def badge_motiv(conn: sqlite3.Connection, ev: dict, rolle: str = "teilnehmer") -> tuple[bytes | None, str]:
+    """Motiv eines Events und ein Schlüssel für Cache und ETag der fertigen Badges: Wechselt das
+    Bild, muss jedes schon gezeichnete Badge dieses Events neu entstehen."""
+    png = badge_set_bild(conn, ev.get("badge_set_id"), rolle) if ev.get("badge_set_id") else None
+    if not png:
+        return None, ""
+    import hashlib
+    return png, hashlib.md5(png).hexdigest()[:8]
+
+
+def badge_set_verwendung(conn: sqlite3.Connection, set_id: int) -> list[str]:
+    """Namen der Events, die dieses Set tragen."""
+    namen: list[str] = []
+    for tabelle in _BADGE_SET_TABELLEN:
+        namen += [r[0] for r in conn.execute(
+            f"SELECT name FROM {tabelle} WHERE badge_set_id = ?", (set_id,))]
+    return namen
+
+
+def delete_badge_set(conn: sqlite3.Connection, set_id: int) -> None:
+    """Löscht ein Set. Hängt es noch an einem Event, ``ValueError`` mit dessen Namen."""
+    benutzt = badge_set_verwendung(conn, set_id)
+    if benutzt:
+        raise ValueError("Das Set hängt noch an: " + ", ".join(benutzt))
+    conn.execute("DELETE FROM badge_sets WHERE id = ?", (set_id,))
+
+
 # --- Lustige KI-Sprüche (Phase 2): Cache je Flug + Tagesend-Zusammenfassung ---
 
 def transport_quips_enabled(conn: sqlite3.Connection) -> bool:
@@ -10277,7 +10369,7 @@ _REDDUNG_FELDER = {
     "hoehe_max_ft", "gs_max_kt", "gs_min_kt", "fund_radius_m", "fund_hoehe_ft",
     "havarist_lat", "havarist_lon", "havarist_art",
     "havarist_grund_ft", "havarist_grund_quelle", "aufnehmen_noetig", "landung_noetig",
-    "aufnahme_verfaellt", "source", "calendar_uid", "push_enabled", "badge_name",
+    "aufnahme_verfaellt", "source", "calendar_uid", "push_enabled", "badge_name", "badge_set_id",
     "manual_fields", "lagetext", "aufnahme_radius_m",
     "eng_sued", "eng_west", "eng_nord", "eng_ost", "signal_am", "signal_ab_start",
     "signal_bei_zelle",

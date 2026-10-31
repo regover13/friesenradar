@@ -6,6 +6,17 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-10-31 — 16.10.0 ist vergeben: Badge-Sets für alle Events
+
+- Tabelle `badge_sets`, Spalte `badge_set_id` an allen drei Event-Tabellen (auch im `_DDL`, die
+  Testhelfer legen die Tabellen ohne Migrationen an).
+- `d["motiv"]` (PNG-Bytes) schaltet jede `render_*`-Funktion auf `_motiv_spalte` um. Ein neuer
+  Event-Typ mit Badge braucht `badge_motiv(...)` im Endpunkt, den `motiv_key` im ETag und einen
+  Eintrag in `_BADGE_SET_TABELLEN`.
+- Die Sieger-Rolle gibt es nur beim Bummel (Nutzer 31.10.2026: die Reddung hat keinen Sieger).
+
+---
+
 ## 2026-10-31 — 16.9.12 ist vergeben: Frachtmengen im Admin
 
 - Mengenfeld `.ke-c-kg` ist `type="text"` mit `_keMenge`: Komma oder Punkt, eine Nachkommastelle.

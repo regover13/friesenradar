@@ -952,6 +952,22 @@ Aktuell laufendes oder wartendes FriesenBummel-Rennen als redigierte (öffentlic
 
 ---
 
+## Admin: Badge-Sets
+
+Alle verlangen die Admin-Anmeldung, das Löschen zusätzlich die Passwortbestätigung.
+
+| Aufruf | Zweck |
+|---|---|
+| `GET /api/admin/badge-sets` | Liste ohne Bilddaten: `id`, `name`, `hat_teilnehmer`, `hat_sieger`, `verwendung` (Event-Namen) |
+| `POST /api/admin/badge-sets` | Anlegen, Körper `{"name": …}`, Antwort `{"id": …}` |
+| `POST /api/admin/badge-sets/{id}` | Umbenennen |
+| `DELETE /api/admin/badge-sets/{id}` | Löschen; `409`, solange das Set an einem Event hängt |
+| `POST /api/admin/badge-sets/{id}/bild/{rolle}` | Bild hochladen (`file`, höchstens 8 MB), `rolle` ist `teilnehmer` oder `sieger`; `400`, wenn es kein Bild ist |
+| `GET /api/admin/badge-sets/{id}/bild/{rolle}.png` | Das zugeschnittene Bild |
+| `GET /api/admin/badge-sets/{id}/vorschau/{rolle}.png` | Fertiges Badge mit Beispielwerten |
+
+Die Anlegen- und Ändern-Aufrufe von Bummel, Kutter und Reddung nehmen `badge_set_id` an: `null` ist der Standard, ein unbekanntes Set `400`.
+
 ## GET /api/bummel/race/{race_id}/badge/{cid}.png
 
 Badge-PNG für die Forensignatur eines Bummel-Teilnehmers. Erst nach Enthüllung des Rennens verfügbar (kein Leak vor der Enthüllung).

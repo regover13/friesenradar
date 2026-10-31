@@ -19,7 +19,7 @@ SKRIPT = "\n".join(re.findall(r"<script>(.*?)</script>", ADMIN, re.S))
 GRUPPEN = ["events", "stammdaten", "karten", "mitteilungen", "bruegge", "betrieb"]
 #: Reihenfolge der Chips in der Typ-Leiste. Waechst mit jedem neuen Eventtyp --
 #: "reddung" kam am 20.09.2026 dazu (FriesenReddung, #21).
-TYPEN = ["bummel", "kutter", "reddung"]
+TYPEN = ["bummel", "kutter", "reddung", "badges"]
 
 
 def _rumpf(name: str) -> str:

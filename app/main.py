@@ -49,6 +49,15 @@ from app.forum_sso import (
 )
 from app import aip_charts, ground_charts, runway_ref
 from app.database import (
+    badge_motiv,
+    badge_set_bild,
+    badge_set_gibt_es,
+    badge_set_verwendung,
+    create_badge_set,
+    delete_badge_set,
+    list_badge_sets,
+    rename_badge_set,
+    set_badge_set_bild,
     _BUMMEL_AIRPORT_RADIUS_KM,
     _DATA_RETENTION_DAYS,
     aggregate_bummel_kpis,
@@ -4762,6 +4771,7 @@ async def get_bummel_badge(request: Request, race_id: int, cid: int):
         if not view.get("revealed"):
             raise HTTPException(status_code=404, detail="Ergebnisse noch nicht enthüllt")
         d, is_winner = _badge_entry_data(view, race, cid)
+        d["motiv"], motiv_key = badge_motiv(conn, race, "sieger" if is_winner else "teilnehmer")
     finally:
         conn.close()
 
@@ -4770,7 +4780,7 @@ async def get_bummel_badge(request: Request, race_id: int, cid: int):
     # sich der ETag → der Browser/das Forum holt ein frisches Bild statt eines veralteten.
     key = hashlib.md5(
         f"v{_BADGE_RENDER_VERSION}|{race.get('revealed_at')}|{is_winner}|{d['total_min']}|"
-        f"{d.get('delta_sec')}|{d['aircraft']}|{d['callsign']}|{d.get('event')}".encode()
+        f"{d.get('delta_sec')}|{d['aircraft']}|{d['callsign']}|{d.get('event')}|{motiv_key}".encode()
     ).hexdigest()[:10]
     etag = f'"{key}"'
     # no-cache erzwingt Revalidierung; passt der ETag noch, antwortet der Server mit 304 (kein
@@ -4807,6 +4817,7 @@ async def admin_bummel_badge(request: Request, race_id: int, cid: int):
             raise HTTPException(status_code=404, detail="Rennen nicht gefunden")
         view = _build_race_view(conn, race, _now_iso(), force_reveal=True)
         d, is_winner = _badge_entry_data(view, race, cid)
+        d["motiv"], _ = badge_motiv(conn, race, "sieger" if is_winner else "teilnehmer")
     finally:
         conn.close()
     png = _render_badge(d, is_winner)
@@ -6505,6 +6516,7 @@ async def admin_create_race(request: Request):
         badge_name = (str(body.get("badge_name") or "").strip()) or None
         if badge_name:
             update_bummel_race(conn, rid, badge_name=badge_name)
+        update_bummel_race(conn, rid, badge_set_id=_badge_set_aus(conn, body))
         if uid:
             update_bummel_race(conn, rid, calendar_uid=uid)
             # Von Hand angelegt heißt: alle Felder sind Menschenwerk und bleiben es.
@@ -6590,6 +6602,8 @@ async def admin_update_race(request: Request, race_id: int):
         cur = get_bummel_race(conn, race_id)
         if not cur:
             raise HTTPException(status_code=404, detail="Rennen nicht gefunden")
+        if "badge_set_id" in body:
+            fields["badge_set_id"] = _badge_set_aus(conn, body)
         if "calendar_uid" in body:
             uid = (str(body.get("calendar_uid") or "").strip()) or None
             _pruefe_kalender_verknuepfung(conn, uid, table="bummel_races", obj_id=race_id)
@@ -7041,13 +7055,14 @@ def get_reddung_badge(request: Request, event_id: int, cid: int):
         if not ev or not (ev.get("dtend") or "") < _now_iso():
             raise HTTPException(status_code=404, detail="Event noch nicht abgeschlossen")
         d = _reddung_badge_data(conn, ev, cid)
+        d["motiv"], motiv_key = badge_motiv(conn, ev)
         conn.commit()          # compute_reddung_stand kann den Snapshot ergaenzt haben
     finally:
         conn.close()
 
     key = hashlib.md5(
         f"v{_BADGE_RENDER_VERSION}|reddung|{d['zellen']}|{d['rollen']}|{d['icao']}|"
-        f"{d['aircraft']}|{d['callsign']}|{d['event']}|{d['date']}".encode()
+        f"{d['aircraft']}|{d['callsign']}|{d['event']}|{d['date']}|{motiv_key}".encode()
     ).hexdigest()[:10]
     etag = f'"{key}"'
     if request.headers.get("if-none-match") == etag:
@@ -7174,6 +7189,7 @@ def get_transport_badge(request: Request, event_id: int, cid: int):
             raise HTTPException(status_code=404, detail="Event noch nicht abgeschlossen")
         progress = _kutter_progress(conn, ev, _now_iso(), settings.CALLSIGN_PREFIX)
         d = _kutter_badge_data(progress, ev, cid)
+        d["motiv"], motiv_key = badge_motiv(conn, ev)
     finally:
         conn.close()
 
@@ -7181,7 +7197,7 @@ def get_transport_badge(request: Request, event_id: int, cid: int):
     # ETag (analog Bummel-Badge): ändert sich die Bilanz nachträglich, ändert sich der ETag.
     key = hashlib.md5(
         f"v{_BADGE_RENDER_VERSION}|{ev.get('summarized_at')}|{d['delivered_kg']}|{d['stolen_kg']}|"
-        f"{d['sunk_kg']}|{d['aircraft']}|{d['callsign']}|{d.get('event')}|{d['team_total_kg']}".encode()
+        f"{d['sunk_kg']}|{d['aircraft']}|{d['callsign']}|{d.get('event')}|{d['team_total_kg']}|{motiv_key}".encode()
     ).hexdigest()[:10]
     etag = f'"{key}"'
     if request.headers.get("if-none-match") == etag:
@@ -7217,11 +7233,162 @@ def admin_transport_badge(request: Request, event_id: int, cid: int):
             raise HTTPException(status_code=404, detail="Event nicht gefunden")
         progress = _kutter_progress(conn, ev, _now_iso(), settings.CALLSIGN_PREFIX)
         d = _kutter_badge_data(progress, ev, cid)
+        d["motiv"], _ = badge_motiv(conn, ev)
     finally:
         conn.close()
     png = _render_kutter_badge(d)
     return Response(content=png, media_type="image/png",
                     headers={"Cache-Control": "no-store"})
+
+
+# --- Badge-Sets -----------------------------------------------------------------------------
+
+def _badge_set_aus(conn, body: dict) -> int | None:
+    """``badge_set_id`` aus dem Formular: leer = Standard, unbekannt = 400."""
+    wert = body.get("badge_set_id")
+    if wert in (None, ""):
+        return None
+    try:
+        set_id = int(wert)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Unbekanntes Badge-Set") from None
+    if not badge_set_gibt_es(conn, set_id):
+        raise HTTPException(status_code=400, detail="Unbekanntes Badge-Set")
+    return set_id
+
+
+def _badge_set_name(body: dict) -> str:
+    name = str(body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name erforderlich")
+    return name
+
+
+def _badge_rolle(rolle: str) -> str:
+    if rolle not in ("teilnehmer", "sieger"):
+        raise HTTPException(status_code=404, detail="Unbekannte Rolle")
+    return rolle
+
+
+@app.get("/api/admin/badge-sets")
+async def admin_badge_sets(request: Request):
+    """Alle Sets, mit den Events, an denen sie hängen."""
+    require_admin(request)
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        return [{**s, "verwendung": badge_set_verwendung(conn, s["id"])}
+                for s in list_badge_sets(conn)]
+    finally:
+        conn.close()
+
+
+@app.post("/api/admin/badge-sets")
+async def admin_create_badge_set(request: Request):
+    require_admin(request)
+    name = _badge_set_name(await request.json())
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        sid = create_badge_set(conn, name)
+        conn.commit()
+        return {"status": "ok", "id": sid}
+    finally:
+        conn.close()
+
+
+@app.post("/api/admin/badge-sets/{set_id}")
+async def admin_rename_badge_set(request: Request, set_id: int):
+    require_admin(request)
+    name = _badge_set_name(await request.json())
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        if not badge_set_gibt_es(conn, set_id):
+            raise HTTPException(status_code=404, detail="Set nicht gefunden")
+        rename_badge_set(conn, set_id, name)
+        conn.commit()
+        return {"status": "ok"}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/admin/badge-sets/{set_id}")
+async def admin_delete_badge_set(request: Request, set_id: int):
+    """Löschen wie bei den Events mit Passwort; ein benutztes Set bleibt (409)."""
+    require_admin(request)
+    require_confirm(request)
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        try:
+            delete_badge_set(conn, set_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        conn.commit()
+        return {"status": "ok"}
+    finally:
+        conn.close()
+
+
+@app.post("/api/admin/badge-sets/{set_id}/bild/{rolle}")
+async def admin_upload_badge_bild(request: Request, set_id: int, rolle: str,
+                                  file: UploadFile = File(...)):
+    """Bild hochladen. Wie beim Musterfoto wird es dekodiert und neu geschrieben: Was Pillow nicht
+    öffnet, ist kein Bild, und EXIF fällt weg. Zugeschnitten wird es dabei auf den Kreis."""
+    require_admin(request)
+    _badge_rolle(rolle)
+    from app.badge import motiv_aufbereiten
+    daten = await file.read()
+    if len(daten) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Bild größer als 8 MB")
+    try:
+        png = await asyncio.to_thread(motiv_aufbereiten, daten)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Das ist kein Bild.") from exc
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        if not badge_set_gibt_es(conn, set_id):
+            raise HTTPException(status_code=404, detail="Set nicht gefunden")
+        set_badge_set_bild(conn, set_id, rolle, png)
+        conn.commit()
+        return {"status": "ok"}
+    finally:
+        conn.close()
+
+
+@app.get("/api/admin/badge-sets/{set_id}/bild/{rolle}.png")
+async def admin_badge_bild(request: Request, set_id: int, rolle: str):
+    require_admin(request)
+    _badge_rolle(rolle)
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        png = badge_set_bild(conn, set_id, rolle)
+    finally:
+        conn.close()
+    if not png:
+        raise HTTPException(status_code=404, detail="Kein Bild")
+    return Response(content=png, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/admin/badge-sets/{set_id}/vorschau/{rolle}.png")
+async def admin_badge_vorschau(request: Request, set_id: int, rolle: str):
+    """Fertiges Badge mit Beispielwerten: Teilnehmer als Kutter, Sieger als Bummel."""
+    require_admin(request)
+    _badge_rolle(rolle)
+    from app.badge import render_kutter_badge, render_winner_badge
+    conn = get_connection(get_settings().DB_PATH)
+    try:
+        png = badge_set_bild(conn, set_id, rolle)
+    finally:
+        conn.close()
+    if not png:
+        raise HTTPException(status_code=404, detail="Kein Bild")
+    if rolle == "sieger":
+        bild = render_winner_badge({"motiv": png, "callsign": "FRS00", "name": "Beispiel",
+                                    "aircraft": "C172", "total_min": 90, "delta_sec": 12,
+                                    "event": "Beispiel-Event", "date": "01.01.2027"})
+    else:
+        bild = render_kutter_badge({"motiv": png, "callsign": "FRS00", "aircraft": "C172",
+                                    "team_total_kg": 1000, "team_target_kg": 1000,
+                                    "event": "Beispiel-Event", "date": "01.01.2027"})
+    return Response(content=bild, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/admin/transport/events")
@@ -7318,6 +7485,7 @@ async def admin_create_transport_event(request: Request):
         badge_name = (str(body.get("badge_name") or "").strip()) or None
         if badge_name:
             update_transport_event(conn, eid, badge_name=badge_name)
+        update_transport_event(conn, eid, badge_set_id=_badge_set_aus(conn, body))
         if uid:
             update_transport_event(conn, eid, calendar_uid=uid)
             mark_manual_fields(conn, "transport_events", eid,
@@ -7349,6 +7517,8 @@ async def admin_update_transport_event(request: Request, event_id: int):
         cur = get_transport_event(conn, event_id)
         if not cur:
             raise HTTPException(status_code=404, detail="Event nicht gefunden")
+        if "badge_set_id" in body:
+            fields["badge_set_id"] = _badge_set_aus(conn, body)
         if "calendar_uid" in body:
             uid = (str(body.get("calendar_uid") or "").strip()) or None
             _pruefe_kalender_verknuepfung(conn, uid, table="transport_events", obj_id=event_id)
@@ -7554,7 +7724,8 @@ def _reddung_lage_putzen(body: dict) -> None:
 
 #: Felder, die in den fortgeschriebenen Stand NICHT eingehen. Aendert sich nur eines davon,
 #: bleibt der Stand stehen -- s. ``_reddung_rechnung_geaendert``.
-_REDDUNG_OHNE_RECHNUNG = {"name", "lagetext", "badge_name", "push_enabled", "manual_fields",
+_REDDUNG_OHNE_RECHNUNG = {"name", "lagetext", "badge_name", "badge_set_id", "push_enabled",
+                          "manual_fields",
                           "source", "calendar_uid", "aufnahme_radius_m",
                           # Die Eingrenzung ist eine Anzeige ueber dem Sektor, keine Rechnung --
                           # genau deshalb bleiben abgesuchte Zellen stehen (Nutzer, 28.09.2026).
@@ -7629,7 +7800,7 @@ _REDDUNG_KOERPER = (
     "fund_radius_m", "fund_hoehe_ft",
     "havarist_lat", "havarist_lon", "havarist_art", "havarist_grund_ft",
     "havarist_grund_quelle", "aufnehmen_noetig", "landung_noetig", "aufnahme_verfaellt",
-    "badge_name", "lagetext", "aufnahme_radius_m",
+    "badge_name", "badge_set_id", "lagetext", "aufnahme_radius_m",
     "eng_sued", "eng_west", "eng_nord", "eng_ost", "signal_ab_start", "signal_bei_zelle",
 )
 
@@ -7680,6 +7851,8 @@ async def admin_create_reddung_event(request: Request):
             felder["havarist_grund_quelle"] = "karte"
     conn = get_connection(get_settings().DB_PATH)
     try:
+        if "badge_set_id" in felder:
+            felder["badge_set_id"] = _badge_set_aus(conn, body)
         eid = create_reddung_event(
             conn, name=body.get("name") or "FriesenReddung", dtstart=body["dtstart"],
             dtend=body.get("dtend") or None,
@@ -7772,6 +7945,8 @@ async def admin_update_reddung_event(request: Request, event_id: int):
 
     conn = get_connection(get_settings().DB_PATH)
     try:
+        if "badge_set_id" in body:
+            body["badge_set_id"] = _badge_set_aus(conn, body)
         try:
             update_reddung_event(conn, event_id, **body)
         except ValueError as e:

@@ -1096,6 +1096,7 @@
             <button class="typ-btn active" data-typ="bummel">🏁 Bummel</button>
             <button class="typ-btn" data-typ="kutter">🦐 Kutter</button>
             <button class="typ-btn" data-typ="reddung">🚨 Reddung</button>
+            <button class="typ-btn" data-typ="badges">🏅 Badge-Sets</button>
           </div>
 
           <div class="typ-panel active" id="typ-bummel">
@@ -1138,6 +1139,11 @@
                     <label for="nr-badge-name">Name auf dem Badge (optional)</label>
                     <input type="text" id="nr-badge-name" placeholder="leer = Name des Events" />
                     <p class="form-hint">Der Name, den das Badge-PNG traegt. Leer lassen = Name des Events. Sinnvoll, wenn der volle Name fuer die runde Grafik zu lang ist.</p>
+                  </div>
+                  <div class="form-group" style="grid-column:1/-1;">
+                    <label for="nr-badge-set">Badge-Set</label>
+                    <select id="nr-badge-set" data-badge-set><option value="">Standard</option></select>
+                    <p class="form-hint">Eigenes Motiv für die Badges dieses Events. Die Sets pflegst du unter „Badge-Sets“.</p>
                   </div>
                   <div class="form-group">
                     <label for="nr-dtstart">Start (UTC)</label>
@@ -1198,6 +1204,11 @@
                     <label for="ke-badge-name">Name auf dem Badge (optional)</label>
                     <input type="text" id="ke-badge-name" placeholder="leer = Name des Events" />
                     <p class="form-hint">Der Name, den das Badge-PNG traegt. Leer lassen = Name des Events. Sinnvoll, wenn der volle Name fuer die runde Grafik zu lang ist.</p>
+                  </div>
+                  <div class="form-group" style="grid-column:1/-1;">
+                    <label for="ke-badge-set">Badge-Set</label>
+                    <select id="ke-badge-set" data-badge-set><option value="">Standard</option></select>
+                    <p class="form-hint">Eigenes Motiv für die Badges dieses Events. Die Sets pflegst du unter „Badge-Sets“.</p>
                   </div>
                   <div class="form-group">
                     <label for="ke-dtstart">Start (UTC) <span id="ke-marke-dtstart"></span></label>
@@ -1364,6 +1375,11 @@
                   <label for="rd-dtend">Ende (UTC, optional)</label>
                   <input type="datetime-local" id="rd-dtend" />
                 </div>
+                <div class="form-group" style="grid-column:1/-1;">
+                  <label for="rd-badge-set">Badge-Set</label>
+                  <select id="rd-badge-set" data-badge-set><option value="">Standard</option></select>
+                </div>
+                <p class="form-hint" style="grid-column:1/-1;margin:0;">Eigenes Motiv für die Badges dieses Events. Die Sets pflegst du unter „Badge-Sets“.</p>
                 <div class="form-group" style="grid-column:1/-1;">
                   <label for="rd-lagetext">Lage – was wird gesucht?</label>
                   <textarea id="rd-lagetext" rows="4" maxlength="2000" style="width:100%;"
@@ -1587,6 +1603,15 @@
           </div>
           <div id="rd-liste" class="scroll-list"><div class="empty-hint">Lade Events…</div></div>
         </div>
+          </div>
+          <div class="typ-panel" id="typ-badges">
+            <div class="form-section-title">Badge-Sets</div>
+            <p class="form-hint">Ein Set ist ein eigenes Motiv für die Badges eines Events: ein Bild für alle Teilnehmer und, wenn du magst, ein eigenes für den Sieger. Den Sieger gibt es nur beim Bummel; ohne eigenes Sieger-Bild bekommt er das Teilnehmer-Bild. Das Bild wird beim Hochladen auf den Kreis zugeschnitten. Die Vorschau zeigt das fertige Badge mit Beispielwerten. Am Event wählst du das Set im Formular aus.</p>
+            <div style="display:flex;gap:8px;margin:12px 0 18px;flex-wrap:wrap;">
+              <input type="text" id="bs-neu-name" placeholder="Name des Sets, z.B. Geburtstag 2026" style="flex:1;min-width:220px;" />
+              <button class="btn btn-primary" id="bs-neu-btn">Set anlegen</button>
+            </div>
+            <div id="bs-liste"><div class="empty-hint">Lade Sets…</div></div>
           </div>
         </div>
 
@@ -3089,6 +3114,7 @@
       if (dtend) body.dtend = localToIso(dtend);
       const nrBadge = document.getElementById('nr-badge-name').value.trim();
       if (nrBadge) body.badge_name = nrBadge;   // leer = Badge nimmt den Event-Namen
+      body.badge_set_id = document.getElementById('nr-badge-set').value || null;
       const nrUid = document.getElementById('nr-caluid').value;
       if (nrUid) body.calendar_uid = nrUid;   // #19: leer = kein Termin, nichts zu senden
       const res = await api('POST', '/api/admin/bummel/races', body);
@@ -4558,6 +4584,10 @@
                      placeholder="${escA(r.name)}" />
               <p class="form-hint">Der Name, den das Badge-PNG traegt. Leer lassen = Name des Events. Sinnvoll, wenn der volle Name fuer die runde Grafik zu lang ist.</p>
             </div>
+            <div class="form-group" style="grid-column:1/-1;">
+              <label>Badge-Set</label>
+              <select id="edit-badge-set-${r.id}">${_badgeSetOptionen(r.badge_set_id)}</select>
+            </div>
             <div class="form-group">
               <label>Start (UTC) ${feldMarke(r, 'dtstart')}</label>
               <input type="datetime-local" id="edit-dtstart-${r.id}" data-end="edit-dtend-${r.id}" value="${escA(isoToLocal(r.dtstart))}" />
@@ -4609,6 +4639,7 @@
       // #19: Termine für das Auswahlfeld holen — ±3 Tage um das Rennen herum reicht, ein
       // Kalendertermin und sein Event liegen nie weiter auseinander.
       const r = _races.find(x => x.id === id);
+      await ladeBadgeSets();
       await ladeTermine(r ? r.dtstart : '');
       if (_activePreviewId === id) closePreview();
       else renderRaces();
@@ -4642,6 +4673,7 @@
       if (dtend)        body.dtend      = localToIso(dtend);
       // Auch leer wird gesendet: das ist das Zurücknehmen auf den Event-Namen.
       body.badge_name = document.getElementById(`edit-badge-name-${id}`).value.trim();
+      body.badge_set_id = document.getElementById(`edit-badge-set-${id}`).value || null;
       // #19: Auch der LEERE Wert zählt — er löst eine bestehende Verknüpfung.
       const caluid = document.getElementById(`edit-caluid-${id}`);
       if (caluid) body.calendar_uid = caluid.value || null;
@@ -5548,6 +5580,7 @@
       // Beim Bearbeiten zählt auch leer (zurück zum Event-Namen); beim Anlegen gibt es
       // nichts zurückzunehmen.
       if (_keEditingId || keBadge) body.badge_name = keBadge;
+      body.badge_set_id = document.getElementById('ke-badge-set').value || null;
       if (_keEditingId) body.calendar_uid = keUid || null;
       else if (keUid) body.calendar_uid = keUid;
       const path = _keEditingId ? '/api/admin/transport/events/' + _keEditingId : '/api/admin/transport/events';
@@ -5651,6 +5684,8 @@
       const keBadgeFeld = document.getElementById('ke-badge-name');
       keBadgeFeld.value = ev.badge_name || '';
       keBadgeFeld.placeholder = ev.name || 'leer = Name des Events';
+      await ladeBadgeSets();
+      document.getElementById('ke-badge-set').value = ev.badge_set_id || '';
       document.getElementById('ke-dtstart').value = isoToLocal(ev.dtstart);
       document.getElementById('ke-dtend').value = isoToLocal(ev.dtend);
       const rows = document.getElementById('ke-cargo-rows');
@@ -7621,6 +7656,7 @@
         signal_bei_zelle: document.getElementById('rd-signal-bei-zelle').checked ? 1 : 0,
         // Leer schickt '' -- der Server macht daraus NULL, und eine alte Lage ist weg.
         lagetext: document.getElementById('rd-lagetext').value.trim(),
+        badge_set_id: document.getElementById('rd-badge-set').value || null,
       };
       const art = document.getElementById('rd-art').value;
       if (art) koerper.havarist_art = art;
@@ -7681,6 +7717,7 @@
         if (el) el.value = (wert === null || wert === undefined) ? '' : wert;
       };
       setz('rd-name', ev.name);
+      setz('rd-badge-set', ev.badge_set_id);
       setz('rd-lagetext', ev.lagetext);
       setz('rd-dtstart', isoToLocal(ev.dtstart));
       setz('rd-dtend', isoToLocal(ev.dtend));
@@ -7734,11 +7771,117 @@
       } catch { toast('Kopieren fehlgeschlagen — Link: ' + url, true); }
     }
 
+    // ====================================================================
+    // BADGE-SETS: eigene Motive für alle Event-Typen
+    // ====================================================================
+    let _badgeSets = [];
+
+    function _badgeSetOptionen(gewaehlt) {
+      return '<option value="">Standard</option>' + _badgeSets.map(function (s) {
+        return '<option value="' + s.id + '"' + (s.id === gewaehlt ? ' selected' : '') + '>'
+          + escH(s.name) + (s.hat_teilnehmer ? '' : ' (noch ohne Bild)') + '</option>';
+      }).join('');
+    }
+
+    async function ladeBadgeSets() {
+      const res = await api('GET', '/api/admin/badge-sets');
+      if (!res || !res.ok) return;
+      _badgeSets = await res.json();
+      // Die gewählten Werte in den Formularen bleiben stehen, wenn die Liste neu kommt.
+      document.querySelectorAll('select[data-badge-set]').forEach(function (el) {
+        const wert = el.value;
+        el.innerHTML = _badgeSetOptionen(null);
+        el.value = wert;
+      });
+      _badgeSetsZeigen();
+    }
+
+    function _bsBildHtml(s, rolle, titel, hat) {
+      const t = Date.now();
+      const bild = hat
+        ? '<img src="/api/admin/badge-sets/' + s.id + '/vorschau/' + rolle + '.png?t=' + t
+          + '" alt="" style="width:128px;height:128px;display:block;margin-bottom:6px;" />'
+        : '<div class="empty-hint" style="width:128px;height:128px;margin-bottom:6px;">'
+          + (rolle === 'sieger' ? 'wie Teilnehmer' : 'kein Bild') + '</div>';
+      return '<div><div class="form-hint" style="margin-bottom:4px;">' + titel + '</div>' + bild
+        + '<input type="file" accept="image/*" onchange="bsBildHochladen(' + s.id + ',\'' + rolle
+        + '\',this)" /></div>';
+    }
+
+    function _badgeSetsZeigen() {
+      const liste = document.getElementById('bs-liste');
+      if (!liste) return;
+      if (!_badgeSets.length) {
+        liste.innerHTML = '<div class="empty-hint">Noch kein Set angelegt.</div>';
+        return;
+      }
+      liste.innerHTML = _badgeSets.map(function (s) {
+        const benutzt = (s.verwendung || []).length
+          ? 'Hängt an: ' + s.verwendung.map(escH).join(', ') : 'Hängt an keinem Event.';
+        return '<div class="race-card" style="margin-bottom:12px;">'
+          + '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">'
+          + '<input type="text" id="bs-name-' + s.id + '" value="' + escA(s.name)
+          + '" style="flex:1;min-width:200px;" />'
+          + '<button class="btn btn-sm" onclick="bsUmbenennen(' + s.id + ')">Umbenennen</button>'
+          + '<button class="btn btn-sm btn-danger" onclick="bsLoeschen(' + s.id + ')">Löschen</button>'
+          + '</div>'
+          + '<div style="display:flex;gap:24px;flex-wrap:wrap;">'
+          + _bsBildHtml(s, 'teilnehmer', 'Teilnehmer', s.hat_teilnehmer)
+          + _bsBildHtml(s, 'sieger', 'Sieger (nur Bummel, optional)', s.hat_sieger)
+          + '</div>'
+          + '<p class="form-hint" style="margin-top:8px;">' + benutzt + '</p></div>';
+      }).join('');
+    }
+
+    async function bsAnlegen() {
+      const feld = document.getElementById('bs-neu-name');
+      const name = feld.value.trim();
+      if (!name) { toast('Name fehlt.', true); return; }
+      const res = await api('POST', '/api/admin/badge-sets', { name: name });
+      if (!res || !res.ok) { toast('Fehler beim Anlegen.', true); return; }
+      feld.value = '';
+      await ladeBadgeSets();
+    }
+
+    async function bsUmbenennen(id) {
+      const name = document.getElementById('bs-name-' + id).value.trim();
+      if (!name) { toast('Name fehlt.', true); return; }
+      const res = await api('POST', '/api/admin/badge-sets/' + id, { name: name });
+      if (res && res.ok) { toast('Gespeichert.'); await ladeBadgeSets(); }
+    }
+
+    async function bsBildHochladen(id, rolle, feld) {
+      const datei = feld.files[0];
+      if (!datei) return;
+      const fd = new FormData();
+      fd.append('file', datei);
+      const res = await apiForm('POST', '/api/admin/badge-sets/' + id + '/bild/' + rolle, fd);
+      if (!res || !res.ok) {
+        toast((res && (await res.json()).detail) || 'Fehler beim Hochladen.', true);
+        return;
+      }
+      toast('Bild gespeichert.');
+      await ladeBadgeSets();
+    }
+
+    async function bsLoeschen(id) {
+      const ok = await confirmCritical('Set löschen?', 'Beide Bilder gehen mit verloren.', 'Löschen', true);
+      if (!ok) return;
+      const res = await api('DELETE', '/api/admin/badge-sets/' + id);
+      if (!res) return;
+      if (!res.ok) { toast((await res.json()).detail || 'Fehler', true); return; }
+      toast('Gelöscht.');
+      await ladeBadgeSets();
+    }
+
+    document.getElementById('bs-neu-btn').addEventListener('click', bsAnlegen);
+
     function _typLader(typ) {
       return ({
         bummel: function () { loadRaces(); },
         kutter: function () { loadKutterAdmin(); },
         reddung: function () { loadReddung(); },
+        badges: function () { ladeBadgeSets(); },
       })[typ];
     }
 
@@ -7796,6 +7939,7 @@
       // umschaltete. Die Listen sind reine Anzeige; Formulare stehen ausserhalb.
       const holen = _typLader(typ);
       if (holen) holen();
+      if (typ !== 'badges') ladeBadgeSets();   // Die Auswahl im Formular braucht die Sets auch.
       _hashSchreiben();
     }
 

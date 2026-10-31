@@ -325,6 +325,7 @@ Nach der Enthüllung eines Bummels bekommt jeder Teilnehmer ein **Badge-PNG**, d
 - **Alle anderen Teilnehmer** (auch unvollständige): Medaille „Voll daneben!".
 - Beide Badges sind **rund (256 px)** mit transparenten Rändern im echten FriesenFlieger-Look (Flugzeug, ostfriesische Inselkette, Vereinsfarben) und tragen die Fußzeile **friesenflieger.de**.
 - **Eigener Name auf dem Badge:** Auf der runden Scheibe ist wenig Platz — ein Event wie „Montagsflüge in Deutschland — Aach-Bummel" schrumpft dort zur Unleserlichkeit. Im Admin steht deshalb bei jedem Rennen ein Feld **„Name auf dem Badge"**; trägst du dort „Aach-Bummel" ein, steht nur das auf der Grafik. Lässt du es leer, nimmt das Badge weiter den vollen Event-Namen (er steht als grauer Vorschlag im Feld). Überall sonst — Events-Liste, Ergebnistext fürs Forum, Benachrichtigungen — bleibt der volle Name stehen. Änderst du den Kurznamen nachträglich, holt sich das Forum von selbst die neue Grafik.
+- **Eigenes Motiv (Badge-Set):** Für besondere Abende kann ein Event statt des Standardbilds ein eigenes Motiv tragen. Das gilt für Bummel, Kutter und Reddung. Im Admin legst du unter **Events → Badge-Sets** ein Set an und lädst ein Bild für die Teilnehmer hoch, wenn du magst auch ein eigenes für den Sieger (den gibt es nur beim Bummel). Das Bild wird auf den Kreis zugeschnitten, die Vorschau zeigt das fertige Badge. Beim Event wählst du das Set im Feld **Badge-Set** aus. Die Schrift steht auf einem Motiv dunkelblau mit weißem Rand. Ein Set, das noch an einem Event hängt, lässt sich nicht löschen. Wechselst du Set oder Bild nachträglich, holt sich das Forum von selbst die neue Grafik.
 
 Im enthüllten Ranking erscheinen je Pilot zwei Schaltflächen: **🎖 Badge** öffnet das PNG direkt; **📋 Forum** kopiert den fertigen BBCode `[img]…/badge/{cid}.png[/img]` in die Zwischenablage — zum direkten Einfügen in board.friesenflieger.de. Die Badges werden serverseitig mit Pillow gezeichnet und unter `data/badges/` gecacht. Vor der Enthüllung liefert der Endpoint 404.
 
@@ -499,7 +500,8 @@ Brügge · Betrieb**. Früher stand alles untereinander auf einer einzigen lange
 
 Im Bereich **Events** liegt darunter eine zweite Reihe — ein Knopf je Event-Typ, derzeit
 **🏁 Bummel**, **🦐 Kutter** und **🚨 Reddung**. Jeder weitere Typ bekommt dort seinen eigenen Knopf, und alles,
-was zu ihm gehört, steht dahinter beieinander.
+was zu ihm gehört, steht dahinter beieinander. Daneben steht **🏅 Badge-Sets**: Dort pflegst du die eigenen
+Badge-Motive, die du dann an jedem Event auswählen kannst (siehe [Badge fürs Forum](#badge-fürs-forum)).
 
 **Der offene Bereich steht in der Adresszeile.** Lädst du die Seite neu, landest du wieder dort,
 wo du warst, und du kannst dir eine Stelle als Link ablegen — `…/admin#tab=events&typ=kutter`

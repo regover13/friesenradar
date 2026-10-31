@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.10.0",
+    "date": "2026-10-31",
+    "highlight": false,
+    "title": "Badge-Sets",
+    "items": [
+      "🏅 Bummel, Kutter und Reddung können jetzt eigene Badge-Motive tragen. Im Admin legt man dafür ein Set an, mit einem Bild für die Teilnehmer und auf Wunsch einem eigenen für den Sieger, und wählt es am Event aus.",
+      "🎂 Der Kutter zum 20. FriesenFlieger-Geburtstag bekommt sein eigenes Motiv."
+    ]
+  },
+  {
     "version": "16.9.12",
     "date": "2026-10-31",
     "highlight": false,

@@ -12,6 +12,9 @@ zentriert in die ruhigen Zonen gelegt. Strikt die FriesenFlieger-Palette
     darunter die Rolle (GEFUNDEN!/GEBORGEN!) und die als Erster abgesuchten Zellen.
 Alle tragen die Fußzeile „friesenflieger.de".
 
+Trägt ``d["motiv"]`` ein Bild aus einem Badge-Set, zeichnet ``_motiv_spalte`` statt des
+Standard-Layouts: Ein Bild hat keine ruhige Fläche, die Schrift steht dunkelblau mit weißem Rand.
+
 Fehlt ein Hintergrund-PNG, wird auf eine schlichte gezeichnete Scheibe
 zurückgefallen (Tests/lokal ohne Assets bleiben grün).
 """
@@ -93,6 +96,82 @@ def _load_bg(name: str) -> Image.Image | None:
     return Image.open(path).convert("RGBA").resize((_S, _S), Image.LANCZOS)
 
 
+def motiv_aufbereiten(daten: bytes) -> bytes:
+    """Hochgeladenes Bild auf den Badge-Kreis zuschneiden (PNG, 768 × 768, ohne EXIF).
+
+    Ausschnitt ist, was das Bild tatsächlich zeigt: bei echter Transparenz der deckende Teil. Bei
+    grauen Ecken der farbige Teil, denn Bildgeneratoren brennen das Schachbrett gern ein (so das
+    Geburtstagsmotiv 2026). Sonst das mittlere Quadrat. ``ValueError``, wenn es kein Bild ist."""
+    try:
+        with Image.open(BytesIO(daten)) as roh:
+            img = roh.convert("RGBA")
+    except Exception as exc:
+        raise ValueError("kein Bild") from exc
+
+    box = None
+    alpha = img.getchannel("A")
+    if alpha.getextrema()[0] < 250:
+        box = alpha.point(lambda a: 255 if a > 10 else 0).getbbox()
+    else:
+        ecken = [img.getpixel(p)[:3] for p in ((1, 1), (img.width - 2, 1), (1, img.height - 2),
+                                               (img.width - 2, img.height - 2))]
+        if all(max(e) - min(e) < 10 for e in ecken):
+            satt = img.convert("RGB").convert("HSV").getchannel("S")
+            box = satt.point(lambda v: 255 if v > 24 else 0).getbbox()
+    w, h = img.size
+    if box and (box[2] - box[0]) >= w / 2 and (box[3] - box[1]) >= h / 2:
+        img = img.crop(box)
+    w, h = img.size
+    if max(w, h) > min(w, h) * 1.1:         # Wenige Prozent darf das Bild gestaucht werden,
+        k = min(w, h)                       # mehr wird abgeschnitten.
+        img = img.crop(((w - k) // 2, (h - k) // 2, (w + k) // 2, (h + k) // 2))
+    buf = BytesIO()
+    img.resize((768, 768), Image.LANCZOS).save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+
+def _motiv(d: dict) -> Image.Image | None:
+    """Das Motiv aus ``d["motiv"]`` als Zeichenfläche. Kaputt zählt wie keins."""
+    daten = d.get("motiv")
+    if not daten:
+        return None
+    try:
+        with Image.open(BytesIO(daten)) as roh:
+            return roh.convert("RGBA").resize((_S, _S), Image.LANCZOS)
+    except Exception:
+        return None
+
+
+def _rand_text(dr, y_frac: float, text, size: int, fill, frac: float = 0.66):
+    """Zentrierter Text mit weißem Rand."""
+    text = _ascii(text)
+    if not text:
+        return
+    font = _fit_font(dr, text, int(_S * frac), size)
+    w = _text_w(dr, text, font)
+    dr.text(((_S - w) / 2, int(_S * y_frac)), text, font=font, fill=fill,
+            stroke_width=3, stroke_fill=(255, 255, 255))
+
+
+def _motiv_spalte(img: Image.Image, d: dict, titel: str, zeilen: list[tuple]) -> bytes:
+    """Gemeinsamer Aufbau aller Motiv-Badges: Spruch, Rufzeichen, ``zeilen`` als
+    ``(text, groesse, farbe)``, dann Event, Datum und Fußzeile. Die Spalte beginnt unter der
+    Bildmitte des oberen Drittels, dort sitzt auf dem Motiv das Flugzeug."""
+    dr = ImageDraw.Draw(img)
+    _rand_text(dr, 0.400, titel, 30, _ORANGE, 0.70)
+    _rand_text(dr, 0.455, d.get("callsign", ""), 52, _NAVY)
+    zeilen = [z for z in zeilen if z[0]]
+    y = 0.555
+    for text, groesse, farbe in zeilen:
+        _rand_text(dr, y, text, groesse, farbe, 0.74)
+        y += 0.045
+    eng = len(zeilen) > 2
+    _rand_text(dr, 0.685 if eng else 0.660, d.get("event") or "", 24 if eng else 28, _NAVY, 0.74)
+    _rand_text(dr, 0.735, d.get("date") or "", 17, _NAVY)
+    _rand_text(dr, 0.785, _BRAND, 20, _NAVY)
+    return _finish(img)
+
+
 def _fallback_disk(center_fill) -> Image.Image:
     """Schlichte runde Scheibe, falls kein Hintergrund-Asset vorhanden ist."""
     img = Image.new("RGBA", (_S, _S), (0, 0, 0, 0))
@@ -150,6 +229,13 @@ def _event_caption(dr, d, fill):
 
 def render_winner_badge(d: dict) -> bytes:
     """Sieger-Badge: helle Kuppel, dunkle Schrift (Navy/Rot)."""
+    motiv = _motiv(d)
+    if motiv is not None:
+        diff = _fmt_signed_delta(d.get("delta_sec"))
+        return _motiv_spalte(motiv, d, "ABSOLUTER DURCHSCHNITT!", [
+            (d.get("name"), 22, _RED),
+            (f"{d.get('aircraft') or 'k. A.'} · {_fmt_min(d.get('total_min'))} · {diff}", 19, _NAVY),
+        ])
     img = _load_bg("winner_bg.png") or _fallback_disk(_LBLUE)
     dr = ImageDraw.Draw(img)
 
@@ -239,9 +325,31 @@ def _fmt_team_kg(total_kg, target_kg) -> str:
     return f"{total} kg Team"
 
 
+def _render_kutter_motiv(d: dict, img: Image.Image) -> bytes:
+    stolen_kg = d.get("stolen_kg") or 0
+    sunk_kg = d.get("sunk_kg") or 0
+    label = _kutter_loss_label(stolen_kg, sunk_kg)
+    verlust = None
+    if label:
+        teile = []
+        if stolen_kg > 0:
+            teile.append(f"{int(round(stolen_kg))} kg geklaut")
+        if sunk_kg > 0:
+            teile.append(f"{int(round(sunk_kg))} kg versenkt")
+        verlust = f"{label} {', '.join(teile)}"
+    return _motiv_spalte(img, d, "VOLL BELADEN!", [
+        (d.get("aircraft") or "k. A.", 22, _NAVY),
+        (_fmt_team_kg(d.get("team_total_kg"), d.get("team_target_kg")), 19, _NAVY),
+        (verlust, 18, _ORANGE),
+    ])
+
+
 def render_kutter_badge(d: dict) -> bytes:
     """Kutter-Abschluss-Badge (FriesenKutter-Transportevent) — navy Kern wie ``render_medal``,
     zusätzlich ein Verlust-Abschnitt (geklaut/versenkt), falls die Fracht nicht ankam."""
+    motiv = _motiv(d)
+    if motiv is not None:
+        return _render_kutter_motiv(d, motiv)
     img = _load_bg("medal_bg.png") or _fallback_disk(_NAVY)
     dr = ImageDraw.Draw(img)
 
@@ -278,6 +386,13 @@ def render_kutter_badge(d: dict) -> bytes:
 
 def render_medal(d: dict) -> bytes:
     """Teilnahme-Medaille: navy Kern, helle Schrift (Hellblau/Orange)."""
+    motiv = _motiv(d)
+    if motiv is not None:
+        res = (_fmt_signed_delta(d["delta_sec"])
+               if d.get("complete") and d.get("delta_sec") is not None else "dabei gewesen")
+        return _motiv_spalte(motiv, d, "VOLL DANEBEN!", [
+            (d.get("name"), 22, _NAVY), (d.get("aircraft") or "k. A.", 20, _NAVY), (res, 19, _NAVY),
+        ])
     img = _load_bg("medal_bg.png") or _fallback_disk(_NAVY)
     dr = ImageDraw.Draw(img)
 
@@ -324,6 +439,12 @@ def render_reddung_badge(d: dict) -> bytes:
     """FriesenReddung-Badge: navy Kern im SAR-Ring. Der Kern ist oben schmaler als bei der
     Medaille (der Hubschrauber sitzt im Ring), deshalb die engeren Breiten. Event und Datum
     stehen unter der Inselkette."""
+    motiv = _motiv(d)
+    if motiv is not None:
+        ruf, beitrag = _reddung_zeilen(d)
+        return _motiv_spalte(motiv, d, "VOLL IM EINSATZ!", [
+            (d.get("aircraft") or "k. A.", 22, _NAVY), (ruf, 20, _ORANGE), (beitrag, 16, _NAVY),
+        ])
     img = _load_bg("reddung_bg.png") or _fallback_disk(_NAVY)
     dr = ImageDraw.Draw(img)
 
