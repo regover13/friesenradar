@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.10.2",
+    "date": "2026-11-02",
+    "highlight": false,
+    "title": "Maßstab in NM",
+    "items": [
+      "🗺️ Die Karten haben unten links jetzt einen Maßstab in nautischen Meilen, der sich beim Zoomen anpasst. Er erscheint beim Zoomen und Verschieben und blendet sich nach drei Sekunden wieder aus. Danke Michael für den Wunsch."
+    ]
+  },
+  {
     "version": "16.10.1",
     "date": "2026-10-31",
     "highlight": false,

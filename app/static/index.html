@@ -2228,6 +2228,12 @@
       cursor: pointer;
     }
     .leaflet-touch .map-fullscreen-btn { height: 30px; }
+    /* Maßstab in NM unten links: über dem Vollbild-Knopf, der dort absolut auf 10 px sitzt.
+       Er erscheint beim Zoomen und Verschieben und geht nach drei Sekunden Ruhe wieder aus
+       (Nutzer 02.11.2026: nicht dauerhaft über der Karte, vor allem im Kniebrett). */
+    .leaflet-bottom.leaflet-left .nm-massstab { margin-bottom: 48px; }
+    .nm-massstab { opacity: 0; transition: opacity 0.6s; pointer-events: none; }
+    .nm-massstab.nm-sichtbar { opacity: 1; transition: opacity 0.15s; }
     .map-fullscreen-btn .icon {
       width: 1.35em;
       height: 1.35em;
@@ -5714,6 +5720,43 @@ function _zoomSymbol(mitSenkrechte) {
 // Plusknopf traf die 13. Ausgerechnet die 13 ist die Stufe, auf der man die Platzrunde
 // anschaut. Steht genau einmal hier und gilt fuer alle drei Karten.
 const _RAD_PX_JE_ZOOMSTUFE = 120;
+
+// Maßstab in nautischen Meilen (Wunsch aus dem Forum, 02.11.2026). Leaflets eigener Maßstab kennt
+// nur km und Landmeilen. Der Balken nimmt den größten glatten Wert, der in ``maxPx`` passt.
+function _nmMassstabWert(meter, maxPx) {
+  const nm = meter / 1852;
+  const stufen = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+  let wert = stufen[0];
+  for (const s of stufen) { if (s <= nm) wert = s; }
+  return { nm: wert, px: Math.round(maxPx * wert / nm), text: String(wert).replace('.', ',') + ' NM' };
+}
+
+function _nmMassstab(map) {
+  const maxPx = 100;
+  const Massstab = L.Control.extend({
+    options: { position: 'bottomleft' },
+    onAdd: function (m) {
+      const box = L.DomUtil.create('div', 'leaflet-control-scale nm-massstab');
+      const linie = L.DomUtil.create('div', 'leaflet-control-scale-line', box);
+      this._neu = function () {
+        const y = m.getSize().y / 2;
+        const meter = m.distance(m.containerPointToLatLng([0, y]), m.containerPointToLatLng([maxPx, y]));
+        if (!(meter > 0)) return;
+        const w = _nmMassstabWert(meter, maxPx);
+        linie.style.width = w.px + 'px';
+        linie.textContent = w.text;
+        box.classList.add('nm-sichtbar');
+        clearTimeout(this._aus);
+        this._aus = setTimeout(function () { box.classList.remove('nm-sichtbar'); }, 3000);
+      }.bind(this);
+      m.on('move zoom resize rotate', this._neu);
+      this._neu();
+      return box;
+    },
+    onRemove: function (m) { m.off('move zoom resize rotate', this._neu); clearTimeout(this._aus); },
+  });
+  new Massstab().addTo(map);
+}
 
 function _fixLeafletZoomIcons(map) {
   const c = map.getContainer();
@@ -12834,6 +12877,7 @@ async function openTrackModal(source, id, callsign, dep, arr, logon, logoff, aut
         wheelPxPerZoomLevel: _RAD_PX_JE_ZOOMSTUFE,
                                                 fadeAnimation: _KARTE_EINBLENDEN });
         _fixLeafletZoomIcons(trackMap);
+        _nmMassstab(trackMap);
         const trackLayers = _makeTileLayers();
         _getPreferredLayer(trackLayers).addTo(trackMap);
         const trackAIP = _makeAIPOverlay();
@@ -15253,6 +15297,7 @@ async function initLiveMap() {
     shiftKeyRotate: false,
   });
   _fixLeafletZoomIcons(liveMap);
+  _nmMassstab(liveMap);
   _ausschnittBeobachten(liveMap);
 
   const liveLayers = _makeTileLayers();
@@ -16486,6 +16531,7 @@ async function renderEventsMap(pilots, icaoStr, radiusKm) {
         wheelPxPerZoomLevel: _RAD_PX_JE_ZOOMSTUFE,
                                               fadeAnimation: _KARTE_EINBLENDEN });
     _fixLeafletZoomIcons(eventsMap);
+    _nmMassstab(eventsMap);
     const evLayers = _makeTileLayers();
     _getPreferredLayer(evLayers).addTo(eventsMap);
     const evAIP = _makeAIPOverlay();
