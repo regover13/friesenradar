@@ -2229,9 +2229,11 @@
     }
     .leaflet-touch .map-fullscreen-btn { height: 30px; }
     /* Maßstab in NM unten links: über dem Vollbild-Knopf, der dort absolut auf 10 px sitzt.
-       Er erscheint beim Zoomen und Verschieben und geht nach drei Sekunden Ruhe wieder aus
-       (Nutzer 02.11.2026: nicht dauerhaft über der Karte, vor allem im Kniebrett). */
+       Er erscheint, wenn sich der Zoom ändert oder man die Karte von Hand schiebt, und geht nach
+       zehn Sekunden wieder aus (Nutzer 02.11.2026: nicht dauerhaft über der Karte). */
     .leaflet-bottom.leaflet-left .nm-massstab { margin-bottom: 48px; }
+    /* Leaflet rückt Maßstäbe nur 5 px ein, alle Knöpfe 10 px -- sonst steht er nicht bündig. */
+    .leaflet-left .nm-massstab { margin-left: 10px; }
     .nm-massstab { opacity: 0; transition: opacity 0.6s; pointer-events: none; }
     .nm-massstab.nm-sichtbar { opacity: 1; transition: opacity 0.15s; }
     .map-fullscreen-btn .icon {
@@ -5745,15 +5747,25 @@ function _nmMassstab(map) {
         const w = _nmMassstabWert(meter, maxPx);
         linie.style.width = w.px + 'px';
         linie.textContent = w.text;
+      };
+      // Einblenden nur bei Zoomwechsel oder Schieben von Hand. Das Nachführen der Karte
+      // (setView ohne Zoomwechsel) löst weder „zoomend“ noch „drag“ aus; hinge es an „move“,
+      // stünde er im Kniebrett mit Nachführen dauernd da.
+      this._zeigen = function () {
         box.classList.add('nm-sichtbar');
         clearTimeout(this._aus);
-        this._aus = setTimeout(function () { box.classList.remove('nm-sichtbar'); }, 3000);
+        this._aus = setTimeout(function () { box.classList.remove('nm-sichtbar'); }, 10000);
       }.bind(this);
       m.on('move zoom resize rotate', this._neu);
+      m.on('zoomend drag', this._zeigen);
       this._neu();
       return box;
     },
-    onRemove: function (m) { m.off('move zoom resize rotate', this._neu); clearTimeout(this._aus); },
+    onRemove: function (m) {
+      m.off('move zoom resize rotate', this._neu);
+      m.off('zoomend drag', this._zeigen);
+      clearTimeout(this._aus);
+    },
   });
   new Massstab().addTo(map);
 }

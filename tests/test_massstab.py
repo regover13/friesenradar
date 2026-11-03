@@ -46,9 +46,26 @@ def test_der_massstab_steht_ueber_dem_vollbild_knopf():
     assert re.search(r"\.leaflet-bottom\.leaflet-left \.nm-massstab \{[^}]*margin-bottom", INDEX)
 
 
-def test_der_massstab_blendet_sich_nach_ein_paar_sekunden_aus():
-    # Nutzer 02.11.2026: nicht dauerhaft über der Karte, vor allem im Kniebrett.
+def test_der_massstab_blendet_sich_nach_zehn_sekunden_aus():
+    # Nutzer 02.11.2026: nicht dauerhaft über der Karte, 3 Sekunden waren zu kurz.
     rumpf = _funktion("_nmMassstab")
     assert "nm-sichtbar" in rumpf and "setTimeout" in rumpf and "clearTimeout" in rumpf
+    assert "10000" in rumpf
+
+
+def test_nur_zoom_und_verschieben_von_hand_blenden_ihn_ein():
+    # Das Nachführen der Karte verschiebt sie ständig (setView ohne Zoomwechsel). Hinge das
+    # Einblenden an „move“, stünde er im Kniebrett dauernd da.
+    rumpf = _funktion("_nmMassstab")
+    assert re.search(r"m\.on\('zoomend drag', this\._zeigen\)", rumpf)
+    assert re.search(r"m\.on\('move zoom resize rotate', this\._neu\)", rumpf)
+    zeigen = rumpf[rumpf.index("this._zeigen = function"):]
+    assert "nm-sichtbar" in zeigen
+    neu = rumpf[rumpf.index("this._neu = function"):rumpf.index("this._zeigen = function")]
+    assert "nm-sichtbar" not in neu, "das Nachrechnen allein blendet nichts ein"
+
+
+def test_der_massstab_ist_buendig_mit_den_knoepfen():
+    assert re.search(r"\.leaflet-left \.nm-massstab \{[^}]*margin-left: 10px", INDEX)
     assert re.search(r"\.nm-massstab \{[^}]*opacity: 0", INDEX)
     assert re.search(r"\.nm-massstab\.nm-sichtbar \{[^}]*opacity: 1", INDEX)

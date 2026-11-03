@@ -6,6 +6,17 @@ Vor jedem Push: `git fetch` + Rebase auf `origin/main`; niemals fremde, uncommit
 
 ---
 
+## 2026-11-02 — 16.10.2/16.10.3: Maßstab in NM; `pytest.ini` neu
+
+- `_nmMassstab` (index.html) auf allen drei Karten. Eingeblendet wird nur bei `zoomend` und
+  `drag`, nicht bei `move`: Das Nachführen (`setView` ohne Zoomwechsel) lief sonst dauernd darauf.
+- **`pytest.ini` begrenzt die aufbewahrten Testläufe** auf einen und nur gescheiterte Tests.
+  Die Testdateien liegen in `/dev/shm`; drei aufbewahrte Läufe zu je ~950 MB brachten den Server
+  am 02.11.2026 in den Swap. Abgebrochene Läufe räumen nicht auf: Wer eine Suite abbricht,
+  löscht `/dev/shm/pytest-of-claude/pytest-*` selbst.
+
+---
+
 ## 2026-10-31 — 16.10.0 ist vergeben: Badge-Sets für alle Events
 
 - Tabelle `badge_sets`, Spalte `badge_set_id` an allen drei Event-Tabellen (auch im `_DDL`, die

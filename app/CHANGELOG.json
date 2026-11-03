@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.10.3",
+    "date": "2026-11-02",
+    "highlight": false,
+    "title": "Maßstab nachgebessert",
+    "items": [
+      "🗺️ Der Maßstab bleibt jetzt zehn Sekunden stehen und erscheint nur noch beim Zoomen und beim Verschieben von Hand. Folgt die Karte dem eigenen Flugzeug, bleibt er aus. Außerdem steht er jetzt bündig mit den Knöpfen."
+    ]
+  },
+  {
     "version": "16.10.2",
     "date": "2026-11-02",
     "highlight": false,
