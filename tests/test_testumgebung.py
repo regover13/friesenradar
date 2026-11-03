@@ -24,5 +24,6 @@ def test_temporaere_dateien_liegen_im_ram(tmp_path):
 
 def test_alte_laeufe_bleiben_nicht_im_arbeitsspeicher_liegen(pytestconfig):
     # 02.11.2026: drei aufbewahrte Läufe zu je ~950 MB in /dev/shm drückten den Server in den Swap.
-    assert pytestconfig.getini("tmp_path_retention_count") == "1"
+    # Je nach pytest-Fassung Zahl oder Text (GitHub: 1, Server: "1").
+    assert str(pytestconfig.getini("tmp_path_retention_count")) == "1"
     assert pytestconfig.getini("tmp_path_retention_policy") == "failed"
