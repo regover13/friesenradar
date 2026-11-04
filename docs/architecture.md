@@ -70,11 +70,6 @@ Zwei Fallen, beide im Quelltext vermerkt:
   `_dfsKarte`; ein `let` ist vor seiner Zeile nicht lesbar. Weiter oben eingesetzt legt er beim
   ersten Tab-Wechsel die Seite lahm. `node --check` findet das nicht — es ist ein TDZ-Fehler zur
   Laufzeit, und geprüft wird er nur, indem man das Skript wirklich ausführt.
-- **Maßstab (16.10.2/16.10.3):** `_nmMassstab(map)` hängt an Live-, Track- und Event-Karte einen
-  eigenen Maßstab in NM (Leaflets `L.control.scale` kennt nur km und Landmeilen), Stufen aus
-  `_nmMassstabWert`. Er rechnet bei jedem `move` neu (die Mercator-Streckung ändert sich mit der
-  Breite), eingeblendet wird er aber nur bei `zoomend` und `drag` und für 10 s. Das Nachführen der
-  Karte (`setView` ohne Zoomwechsel) löst keines von beiden aus. Abstand links 10 px wie die Knöpfe.
 - ⚠ **Leaflet misst 0 Pixel, solange sein Kasten `display:none` ist.** `tabOeffnen` ruft deshalb
   beim Wechsel `invalidateSize()` für die Karten des geöffneten Bereichs. Wer einen dritten
   Kartenbereich ergänzt, trägt ihn dort ein, sonst bleibt die Karte grau.
@@ -608,6 +603,12 @@ FriesenRadar mit `id` → `/api/flights/{id}/track`, sonst → `/api/pilots/{cid
 ### `app/static/index.html`
 
 Single-File-SPA ohne Build-Step. Vier Tabs:
+
+**Maßstab (16.10.2/16.10.3):** `_nmMassstab(map)` hängt an Live-, Track- und Event-Karte einen
+eigenen Maßstab in NM (Leaflets `L.control.scale` kennt nur km und Landmeilen), Stufen aus
+`_nmMassstabWert`. Er rechnet bei jedem `move` neu (die Mercator-Streckung ändert sich mit der
+Breite), eingeblendet wird er aber nur bei `zoomend` und `drag` und für 10 s. Das Nachführen der
+Karte (`setView` ohne Zoomwechsel) löst keines von beiden aus. Abstand links 10 px wie die Knöpfe.
 
 **Zwei Verhaltensweisen hängen an EINER Stelle statt in den Renderern (15.24.0).** Beide überleben jeden `innerHTML`-Neubau und greifen für jede künftige Ansicht von selbst:
 
