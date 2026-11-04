@@ -56,6 +56,17 @@ uvicorn app.main:app --reload
 pytest tests/ -v
 ```
 
+**Die Testdateien liegen im Arbeitsspeicher (`/dev/shm`, `tests/conftest.py`), ein Lauf hinterlässt
+rund 950 MB.** `pytest.ini` bewahrt deshalb nur gescheiterte Tests des letzten Laufs auf. Ein
+**abgebrochener** Lauf räumt gar nicht auf: Wer eine Suite abbricht, löscht danach
+`/dev/shm/pytest-of-claude/pytest-*`. Am 02.11.2026 lagen dort 4,3 GB, der Server rutschte in den
+Swap, die Suite brauchte über sieben statt zwei Minuten, und Tests mit Zeitgrenzen wurden rot.
+Erstes Prüfen bei einer plötzlich langsamen Suite: `df -h /dev/shm` und `/proc/pressure/memory`.
+
+**Auf GitHub läuft eine andere pytest-Fassung als auf dem Server.** `getini` lieferte dort `1`, hier
+`"1"`; ein zu streng formulierter Test hielt am 03.11.2026 einen Deploy auf. Werte aus der
+pytest-Konfiguration vergleicht man über `str(...)`.
+
 **KEINE Datei anfassen, solange eine Suite läuft — nicht nur `CHANGELOG.json`.** Mehrere
 Tests lesen Quelldateien als Text und prüfen deren Inhalt: `test_kutter_eventloop.py`
 und `test_flugliste_tempo.py` durchsuchen `app/main.py` nach Endpunkten, `test_handpassung_schutz.py` prüft `database.py`
