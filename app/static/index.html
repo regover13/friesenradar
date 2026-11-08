@@ -4227,6 +4227,23 @@
        TEAMSPEAK PANEL
        ===================================================================== */
     #ts-panel-title { display: flex; align-items: center; gap: 10px; }
+
+    /* Live-Tab: verschiebbare, einklappbare Kästen (08.11.2026) */
+    .lk-kopf { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+    .lk-titel { flex: 1 1 auto; min-width: 0; }
+    /* Symbole statt Zeichen ▲▼▾: Der Schrift im Kniebrett fehlen diese Zeichen (Probe 08.11.2026). */
+    .lk-dreher { flex: 0 0 auto; margin-right: -4px; transition: transform .15s; }
+    .lk-zu .lk-dreher { transform: rotate(-90deg); }
+    .lk-zahl { font-family: var(--text-mono); color: var(--green); }
+    .lk-kasten:not(.lk-zu) .lk-zahl { display: none; }
+    .lk-knoepfe { display: flex; gap: 4px; flex: 0 0 auto; }
+    .lk-pfeil {
+      background: none; border: 1px solid var(--green-grid); color: var(--text-label);
+      line-height: 0; padding: 4px 6px; cursor: pointer; border-radius: 3px;
+    }
+    .lk-pfeil:disabled { opacity: 0.25; cursor: default; }
+    .lk-zu > .lk-kopf { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .lk-zu > :not(.lk-kopf) { display: none !important; }
     .ts-count {
       font-family: var(--text-mono);
       font-weight: 700;
@@ -5194,8 +5211,11 @@
     <div id="reddung-banner" hidden></div>
     <div id="bummel-banner" hidden></div>
     <div id="kutter-banner" hidden></div>
-    <div class="panel">
-      <div class="panel-title">Live-Positionen · FriesenFlieger auf VATSIM</div>
+    <!-- Die drei festen Kästen lassen sich verschieben und einklappen (_lkAnwenden, 08.11.2026).
+         Die Event-Kästen darüber stehen bewusst außerhalb: Laufende Events bleiben immer oben. -->
+    <div id="live-kaesten">
+    <div class="panel lk-kasten" data-kasten="live">
+      <div class="panel-title lk-kopf" role="button" tabindex="0" aria-expanded="true"><svg class="icon lk-dreher"><use href="#icon-caret-down" xlink:href="#icon-caret-down"/></svg><span class="lk-titel">Live-Positionen · FriesenFlieger auf VATSIM</span><span class="lk-zahl"></span><span class="lk-knoepfe"><button type="button" class="lk-pfeil" data-lk="-1" aria-label="Nach oben"><svg class="icon"><use href="#icon-tri-up" xlink:href="#icon-tri-up"/></svg></button><button type="button" class="lk-pfeil" data-lk="1" aria-label="Nach unten"><svg class="icon"><use href="#icon-tri-down" xlink:href="#icon-tri-down"/></svg></button></span></div>
       <div id="live-content">
         <div class="loading">
           <div class="loading-dot"></div>
@@ -5205,8 +5225,8 @@
         </div>
       </div>
     </div>
-    <div class="panel" style="margin-top:16px;">
-      <div class="panel-title">Geplant · Flugpläne und Lotsenschichten</div>
+    <div class="panel lk-kasten" data-kasten="geplant">
+      <div class="panel-title lk-kopf" role="button" tabindex="0" aria-expanded="true"><svg class="icon lk-dreher"><use href="#icon-caret-down" xlink:href="#icon-caret-down"/></svg><span class="lk-titel">Geplant · Flugpläne und Lotsenschichten</span><span class="lk-zahl"></span><span class="lk-knoepfe"><button type="button" class="lk-pfeil" data-lk="-1" aria-label="Nach oben"><svg class="icon"><use href="#icon-tri-up" xlink:href="#icon-tri-up"/></svg></button><button type="button" class="lk-pfeil" data-lk="1" aria-label="Nach unten"><svg class="icon"><use href="#icon-tri-down" xlink:href="#icon-tri-down"/></svg></button></span></div>
       <div id="prefiles-content">
         <div class="loading">
           <div class="loading-dot"></div>
@@ -5216,9 +5236,10 @@
         </div>
       </div>
     </div>
-    <div id="ts-panel" class="panel" style="margin-top:16px;" hidden>
-      <div class="panel-title" id="ts-panel-title"><svg class="icon"><use href="#icon-headset" xlink:href="#icon-headset"/></svg> Im TeamSpeak</div>
+    <div id="ts-panel" class="panel lk-kasten" data-kasten="ts" hidden>
+      <div class="panel-title lk-kopf" role="button" tabindex="0" aria-expanded="true"><svg class="icon lk-dreher"><use href="#icon-caret-down" xlink:href="#icon-caret-down"/></svg><span class="lk-titel" id="ts-panel-title"><svg class="icon"><use href="#icon-headset" xlink:href="#icon-headset"/></svg> Im TeamSpeak</span><span class="lk-knoepfe"><button type="button" class="lk-pfeil" data-lk="-1" aria-label="Nach oben"><svg class="icon"><use href="#icon-tri-up" xlink:href="#icon-tri-up"/></svg></button><button type="button" class="lk-pfeil" data-lk="1" aria-label="Nach unten"><svg class="icon"><use href="#icon-tri-down" xlink:href="#icon-tri-down"/></svg></button></span></div>
       <div id="ts-content"></div>
+    </div>
     </div>
   </div>
 
@@ -10026,8 +10047,136 @@ function _scrollStellungHalten() {
 // also nichts verloren.
 function _istSichtbar(el) { return !!el && el.offsetParent !== null; }
 
+// ==========================================================================
+//  LIVE-TAB: KÄSTEN VERSCHIEBEN UND EINKLAPPEN (Nutzerwunsch 08.11.2026)
+// ==========================================================================
+// „TeamSpeak nach oben, Planung nach unten, Planung ausklappen“. Gemerkt je Gerät über den
+// Merker-Speicher (_prefLies/_prefSchreib) -- der hält auch im Kniebrett über einen
+// Sim-Neustart. Der Wert ist eine kurze Zeichenkette („ts,live,geplant|geplant“), weil der
+// Server je Merker höchstens 200 Zeichen annimmt (_PREFS_MAX_LAENGE).
+// Die Event-Kästen (Reddung, Bummel, Kutter) stehen außerhalb von #live-kaesten und bleiben
+// damit immer oben, sobald ein Event läuft.
+const _LK_KEY = 'live_kaesten';
+const _LK_STANDARD = ['live', 'geplant', 'ts'];
+
+/** Merker -> {reihe, zu}. Unbekanntes und Doppeltes fällt weg, Fehlendes kommt hinten dran
+ *  (ein später ergänzter Kasten erscheint so bei allen, die schon umsortiert haben). */
+function _lkLesen(roh) {
+  const teile = String(roh || '').split('|');
+  const reihe = [];
+  (teile.length === 2 ? teile[0].split(',') : []).forEach(function (k) {
+    if (_LK_STANDARD.indexOf(k) >= 0 && reihe.indexOf(k) < 0) reihe.push(k);
+  });
+  _LK_STANDARD.forEach(function (k) { if (reihe.indexOf(k) < 0) reihe.push(k); });
+  const zu = [];
+  (teile.length === 2 ? teile[1].split(',') : []).forEach(function (k) {
+    if (_LK_STANDARD.indexOf(k) >= 0 && zu.indexOf(k) < 0) zu.push(k);
+  });
+  return { reihe: reihe, zu: zu };
+}
+
+function _lkSchreiben(z) {
+  return z.reihe.join(',') + '|' + z.zu.join(',');
+}
+
+/** Verschiebt `kasten` um eine SICHTBARE Stelle. Ein ausgeblendeter Kasten (TeamSpeak ohne
+ *  Überwachung) wird übersprungen -- sonst täte ein Druck auf den Pfeil scheinbar nichts. */
+function _lkVerschieben(reihe, kasten, richtung, sichtbar) {
+  const r = reihe.slice();
+  const i = r.indexOf(kasten);
+  if (i < 0) return r;
+  let j = i + richtung;
+  while (j >= 0 && j < r.length && sichtbar.indexOf(r[j]) < 0) j += richtung;
+  if (j < 0 || j >= r.length) return r;
+  r.splice(i, 1);
+  r.splice(j, 0, kasten);
+  return r;
+}
+
+function _lkStand() { return _lkLesen(_prefLies(_LK_KEY)); }
+
+function _lkKaesten() {
+  const box = document.getElementById('live-kaesten');
+  const m = {};
+  if (box) box.querySelectorAll(':scope > .lk-kasten').forEach(function (el) { m[el.dataset.kasten] = el; });
+  return m;
+}
+
+function _lkSichtbar(m) {
+  return _LK_STANDARD.filter(function (k) { return m[k] && !m[k].hidden; });
+}
+
+/** Pfeile am oberen bzw. unteren sichtbaren Kasten abschalten. */
+function _lkPfeile() {
+  const m = _lkKaesten();
+  const sicht = _lkStand().reihe.filter(function (k) { return m[k] && !m[k].hidden; });
+  Object.keys(m).forEach(function (k) {
+    const p = sicht.indexOf(k);
+    m[k].querySelectorAll('.lk-pfeil').forEach(function (b) {
+      b.disabled = b.dataset.lk === '-1' ? p <= 0 : (p < 0 || p >= sicht.length - 1);
+    });
+  });
+}
+
+function _lkAnwenden() {
+  const box = document.getElementById('live-kaesten');
+  if (!box) return;
+  const m = _lkKaesten();
+  const z = _lkStand();
+  z.reihe.forEach(function (k) { if (m[k]) box.appendChild(m[k]); });
+  Object.keys(m).forEach(function (k) {
+    const zu = z.zu.indexOf(k) >= 0;
+    m[k].classList.toggle('lk-zu', zu);
+    const kopf = m[k].querySelector('.lk-kopf');
+    if (kopf) kopf.setAttribute('aria-expanded', zu ? 'false' : 'true');
+  });
+  _lkPfeile();
+}
+
+function _lkUmschalten(kasten) {
+  const z = _lkStand();
+  const i = z.zu.indexOf(kasten);
+  if (i >= 0) z.zu.splice(i, 1); else z.zu.push(kasten);
+  _prefSchreib(_LK_KEY, _lkSchreiben(z));
+  _lkAnwenden();
+  // Zugeklappt zeichnet renderLiveTable nicht (_istSichtbar) -- beim Aufklappen nachholen.
+  if (i >= 0 && kasten === 'live') _liveZeichnen();
+}
+
+function _lkBewegen(kasten, richtung) {
+  const z = _lkStand();
+  z.reihe = _lkVerschieben(z.reihe, kasten, richtung, _lkSichtbar(_lkKaesten()));
+  _prefSchreib(_LK_KEY, _lkSchreiben(z));
+  _lkAnwenden();
+}
+
+function _lkZahl(kasten, n) {
+  const el = document.querySelector('#live-kaesten [data-kasten="' + kasten + '"] .lk-zahl');
+  if (el) el.textContent = n ? '(' + n + ')' : '';
+}
+
+(function _lkInit() {
+  const box = document.getElementById('live-kaesten');
+  if (!box) return;
+  box.addEventListener('click', function (e) {
+    const kasten = e.target.closest('.lk-kasten');
+    if (!kasten) return;
+    const pfeil = e.target.closest('.lk-pfeil');
+    if (pfeil) { e.stopPropagation(); if (!pfeil.disabled) _lkBewegen(kasten.dataset.kasten, Number(pfeil.dataset.lk)); return; }
+    if (e.target.closest('.lk-kopf') && !e.target.closest('a, button')) _lkUmschalten(kasten.dataset.kasten);
+  });
+  box.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('lk-kopf')) {
+      e.preventDefault();
+      _lkUmschalten(e.target.closest('.lk-kasten').dataset.kasten);
+    }
+  });
+  _lkAnwenden();
+})();
+
 function renderLiveTable(pilots) {
   const container = document.getElementById('live-content');
+  _lkZahl('live', (pilots || []).length + _lotsen.online.length);
   if (!_istSichtbar(container)) return;
 
   pilots = pilots || [];
@@ -11429,6 +11578,7 @@ function renderPrefiles(data) {
   if (!container) return;
   const schichten = _lotsen.geplant || [];
   const eintraege = _geplantMischen(_prefileData, schichten, Date.now());
+  _lkZahl('geplant', eintraege.length);
   if (eintraege.length === 0) {
     container.innerHTML = '<div class="empty-state"><div class="empty-state-text">Nichts geplant</div></div>';
     return;
@@ -11522,8 +11672,8 @@ function renderTeamspeak(data) {
   if (!panel || !container) return;
 
   // TS-Überwachung nicht aktiv -> Panel komplett ausblenden
-  if (!data || !data.enabled) { panel.hidden = true; return; }
-  panel.hidden = false;
+  if (!data || !data.enabled) { if (!panel.hidden) { panel.hidden = true; _lkPfeile(); } return; }
+  if (panel.hidden) { panel.hidden = false; _lkPfeile(); }
 
   const users = data.users || [];
   title.innerHTML = icon('headset') + ` Im TeamSpeak <span class="ts-count">${users.length}</span>`;
@@ -17952,6 +18102,11 @@ const _prefsPromise = _prefVomServerHolen().then(function () {
     _trackUp   = _naviLies(_NAVI_TRACKUP_KEY);
     _movingMap = _naviLies(_NAVI_MOVING_KEY);
   }
+}).catch(() => {});
+
+// Live-Kästen: Im Kniebrett kommt die gemerkte Reihenfolge erst mit der Serverantwort.
+_prefsPromise.then(function () {
+  _lkAnwenden();
 }).catch(() => {});
 
 // Das Kopfskript hat auf der Website schon aus dem Cookie gemalt; hier gewinnt der Server

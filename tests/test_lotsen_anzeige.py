@@ -92,7 +92,8 @@ def test_zeile_in_der_geplant_liste():
 # --- Verdrahtung ---------------------------------------------------------------------------
 
 def test_ueberschrift_der_geplant_liste():
-    assert '<div class="panel-title">Geplant · Flugpläne und Lotsenschichten</div>' in INDEX
+    # Seit 16.11.0 steht der Titel in einer eigenen Spanne neben den Pfeilen (Live-Kästen).
+    assert '<span class="lk-titel">Geplant · Flugpläne und Lotsenschichten</span>' in INDEX
     assert "Eingereichte Flugpläne (Prefile)" not in INDEX
 
 

@@ -154,6 +154,8 @@ Zeigt alle Friesen, die gerade auf VATSIM fliegen — in Echtzeit, ohne Neuladen
 
 Die Liste aktualisiert sich über eine permanente Server-Verbindung (Server-Sent Events) live im Hintergrund — du siehst neue Positionen, ohne die Seite neu laden zu müssen. Steht die Verbindung, zeigt die Kopfzeile nichts an; reißt sie ab, erscheint dort rot **„GETRENNT“**. Ein Klick auf das Logo in der Kopfzeile führt zur Homepage der FriesenFlieger.
 
+**Kästen umsortieren und einklappen:** Die drei Kästen Live-Positionen, Geplant und Im TeamSpeak lassen sich anordnen, wie du willst. Mit den Pfeilen ▲ ▼ rechts in der Überschrift wandert ein Kasten eine Stelle nach oben oder unten. Ein Tipp auf die Überschrift klappt ihn ein oder wieder aus; eingeklappt steht hinter dem Titel, wie viele Einträge drin sind. Das Gerät merkt sich deinen Aufbau, im Kniebrett auch über einen Neustart des Sims. Ein anderes Gerät hat seinen eigenen. Laufende Events (Bummel, Kutter, Reddung) stehen immer ganz oben und lassen sich weder verschieben noch einklappen.
+
 **🎧 Im TeamSpeak:** Ist die TeamSpeak-Überwachung aktiv (`TS_NOTIFY_ENABLED=true`), erscheint im Live-Tab zusätzlich ein Panel mit allen Friesen, die gerade im FriesenFlieger-TeamSpeak sind, samt Anzahl. Angezeigt wird nur das **FRS-Callsign** (z. B. `FRS49`) — Klarnamen und sonstige Nickname-Zusätze werden weggelassen. Nicht-Friesen (ohne FRS-Tag) werden nicht angezeigt. Bei kurzzeitig nicht erreichbarem TeamSpeak bleibt der letzte Stand stehen.
 
 ---

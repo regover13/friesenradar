@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.11.0",
+    "date": "2026-11-08",
+    "highlight": false,
+    "title": "Live-Tab nach eigenem Geschmack",
+    "items": [
+      "✈ Die Kästen Live-Positionen, Geplant und Im TeamSpeak lassen sich mit den Pfeilen in der Überschrift umsortieren und mit einem Tipp auf die Überschrift einklappen. Jedes Gerät merkt sich seinen Aufbau. Laufende Events stehen weiter immer ganz oben."
+    ]
+  },
+  {
     "version": "16.10.3",
     "date": "2026-11-02",
     "highlight": false,
