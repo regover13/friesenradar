@@ -3706,6 +3706,26 @@ def get_special_events_stats(days: int = 30):
         conn.close()
 
 
+# Sonderorden: von Hand vergebene Orden ohne Event-Objekt dahinter (18.11.2026). Bewusst eine
+# feste Liste und keine Admin-Funktion -- auf Zuruf des Nutzers einmalig eingetragen. Die Bilder
+# liegen unter app/static/orden/ (Kreis, 256 px wie die Forum-Badges).
+_SONDERORDEN = [
+    # Gebirgsflug Teil 4 „Tobl will heim“, LOWI -> ETHA, 16.11.2026 2000lcl (Forum t=1893).
+    {"cid": 1031301, "name": "Gebirgsflug Teil 4", "datum": "2026-11-16T19:00:00Z",
+     "bild": "/static/orden/gebirgsflug-4.png"},                       # Reiner, FRS61
+    {"cid": 1642160, "name": "Gebirgsflug Teil 4", "datum": "2026-11-16T19:00:00Z",
+     "bild": "/static/orden/gebirgsflug-4.png"},                       # Engelhard, FRS123
+    {"cid": 1602713, "name": "Gebirgsflug Teil 4", "datum": "2026-11-16T19:00:00Z",
+     "bild": "/static/orden/gebirgsflug-4-frs49.png"},                 # Tobias, FRS49
+]
+
+
+def _sonderorden_fuer(cid: int, since: str) -> list[dict]:
+    return [{"art": "sonder", "event_id": None, "name": o["name"], "datum": o["datum"],
+             "sieger": False, "bild": o["bild"]}
+            for o in _SONDERORDEN if o["cid"] == cid and since <= o["datum"]]
+
+
 @app.get("/api/pilots/{cid}/orden")
 def pilot_orden(cid: int, days: int = 30):
     """Ordensleiste der Statistik-Details: je abgeschlossenem Spezial-Event im Zeitraum, fuer
@@ -3771,6 +3791,7 @@ def pilot_orden(cid: int, days: int = 30):
             })
         conn.commit()          # compute_reddung_stand kann den Snapshot ergaenzt haben
 
+        orden.extend(_sonderorden_fuer(cid, since))
         orden.sort(key=lambda o: o["datum"] or "", reverse=True)
         return orden
     finally:

@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.11.1",
+    "date": "2026-11-18",
+    "highlight": false,
+    "title": "Sonderorden",
+    "items": [
+      "🏔️ Die Ordensleiste kennt jetzt Sonderorden für besondere Flüge außerhalb der Events. Die ersten drei gibt es für den Gebirgsflug Teil 4 vom 16.11."
+    ]
+  },
+  {
     "version": "16.11.0",
     "date": "2026-11-08",
     "highlight": false,
