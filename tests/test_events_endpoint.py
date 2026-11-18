@@ -179,6 +179,18 @@ class TestEventsEndpoint:
             assert res.status_code == 200
             assert [p["cid"] for p in res.json()["pilots"]] == [4406], params
 
+    def test_statsim_zeile_ohne_landezeit_vom_vortag_kein_geistereintrag(self, tmp_path, monkeypatch):
+        # 18.11.2026: Montagsflug mit StatSim-Zeile ohne Landezeit (Spur endet Montagabend). Die
+        # Suche am Dienstagabend nahm den Piloten als Kandidaten auf -- canonicalize_legs fand im
+        # Fenster richtig keinen Flug, der Pilot stand trotzdem mit leerer Flugliste da.
+        client, db = self._app(tmp_path, monkeypatch)
+        self._statsim_ohne_landezeit(db, 4407)            # Flug am 02.07. 09:55-10:44
+        tag_danach = {"start": "2026-07-03T08:00:00Z", "end": "2026-07-03T12:00:00Z"}
+        for params in ({"icao": "EDDK", "radius": 50}, {"icao": "global"}):
+            res = client.get("/api/events", params={**params, **tag_danach})
+            assert res.status_code == 200
+            assert res.json()["pilots"] == [], params
+
     def test_foreign_callsign_flight_excluded_two_class_rule(self, tmp_path, monkeypatch):
         # 2-Klassen-Regel: ein StatSim-Flug mit fremdem Callsign eines bekannten Piloten
         # erscheint NICHT in der Event-Analyse (nur in der Piloten-Statistik, callsign_prefix="").

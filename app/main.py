@@ -3856,6 +3856,12 @@ def get_events(
     # StatSim-Ergänzung: Piloten, die per DEP/ARR im Zeitfenster gefunden werden, aber keine
     # position_history haben (z.B. FriesenRadar war nicht aktiv) — nur zur cid-Ermittlung; die
     # Flug-Dicts selbst liefert canonicalize_legs (deckt StatSim intern mit ab).
+    # Kandidaten, die NUR eine StatSim-Zeile belegt. Eine Zeile ohne Landezeit kommt über ein
+    # großzügiges Startfenster herein (offen_ab) und kann längst vor dem Suchfenster geendet
+    # haben -- sie bleiben nur, wenn canonicalize_legs im Fenster einen Flug findet (18.11.2026:
+    # Montagsflug mit offener StatSim-Zeile stand in der Suche für Dienstag, mit leerer Flugliste).
+    nur_statsim: set[int] = set()
+
     if global_search or icao_list:
         # Dieselbe Regel wie die Flugerfassung (16.9.9): StatSim-Zeilen ohne Landezeit zählen,
         # sonst fiel ein Pilot, den nur eine solche Zeile belegt, hier schon vor der Rechnung heraus.
@@ -3902,6 +3908,7 @@ def get_events(
             cid = r["cid"]
             if cid not in callsign_by_cid:
                 callsign_by_cid[cid] = r["callsign"] or ""
+                nur_statsim.add(cid)
 
     all_cids = list(callsign_by_cid.keys())
     if not all_cids:
@@ -3922,6 +3929,8 @@ def get_events(
             name_row = conn2.execute("SELECT name FROM pilots WHERE cid = ?", (cid,)).fetchone()
             name = name_row["name"] if name_row else ""
             flights = flights_by_cid.get(cid, [])
+            if not flights and cid in nur_statsim:
+                continue
             callsign = (flights[0].get("callsign") if flights else "") or callsign_by_cid.get(cid, "")
             pilots.append({
                 "cid": cid,

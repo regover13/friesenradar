@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.11.2",
+    "date": "2026-11-18",
+    "highlight": false,
+    "title": "Event-Suche ohne Geistereinträge",
+    "items": [
+      "🔍 In der Event-Suche tauchten manchmal Piloten ohne Flug im gesuchten Zeitraum auf, etwa nach einem Flug am Vortag, bei dem VATSIM keine Landung festgehalten hat. Die stehen jetzt nicht mehr in der Liste."
+    ]
+  },
+  {
     "version": "16.11.1",
     "date": "2026-11-18",
     "highlight": false,
