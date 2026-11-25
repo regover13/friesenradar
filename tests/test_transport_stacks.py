@@ -301,6 +301,27 @@ def test_s4_logout_am_zweiten_ladeplatz_gibt_dort_zurueck():
     _assert_erhaltung(r)
 
 
+def test_milchmann_unterbrochen_naechster_login_nimmt_alles_wieder_mit():
+    """Nutzer 25.11.2026: Logout mit Ware an Bord an einem Ladeplatz, der nicht der eigene
+    Startplatz ist -- die Ware liegt dort, und beim nächsten Login am selben Platz lädt er sie
+    wieder auf. README, Abschnitt FriesenKutter, „Ausloggen mit Ware an Bord“."""
+    r = derive_stacks(
+        manifest=MANIFEST,
+        events=[
+            _ev("login", 1, T0, "EDWG"),                        # lädt 800 Fisch
+            _ev("takeoff", 1, "2026-07-01T09:05:00Z"),
+            _ev("landing", 1, "2026-07-01T09:30:00Z", "EDWZ"),  # + 200 Tee (Kapazität 1000)
+            _ev("logout", 1, "2026-07-01T09:35:00Z"),           # alles bleibt in EDWZ liegen
+            _ev("login", 1, "2026-07-01T10:00:00Z", "EDWZ"),    # wieder da
+        ],
+        destination=DEST, loading_airports=LOADING,
+    )
+    assert r["onboard"][1]["Fischbrötchen"] == 800.0
+    assert r["onboard"][1]["Friesen Tee"] == 200.0
+    assert not any(m["kind"] in ("stolen", "sunk") for m in r["movements"])
+    _assert_erhaltung(r)
+
+
 def test_s5_logout_am_fremden_platz_ist_diebstahl():
     """S5: EDWG -> EDDW(fremd), Logout. Er nimmt die Ware mit nach Hause."""
     r = derive_stacks(

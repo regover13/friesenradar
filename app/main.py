@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import hmac
 import html as _html
@@ -6929,6 +6930,29 @@ def _progress_sperre(kind: str, ref_id: int) -> threading.Lock:
         return sperre
 
 
+# Live-Stand eines laufenden Events kurz zwischenhalten (25.11.2026, Geburtstags-Kutter). Gemessen
+# per py-spy: rund ein Abruf je Sekunde, jeder rechnete den kompletten Stand neu (gut 1 s), die
+# Abrufe standen an der Sperre an und rechneten danach trotzdem selbst. Die Rechnung lief damit
+# ununterbrochen, der Prozess hing an einem Kern, und der VATSIM-Abruf kam 2-5 s zu spaet dran.
+# Neue Positionen kommen ohnehin nur alle 15 s -- 10 s Haltezeit sieht niemand. Wer an der Sperre
+# gewartet hat, nimmt das frische Ergebnis seines Vordermanns. Jeder Abruf bekommt eine eigene
+# Kopie: _kutter_progress schreibt Sprueche in die Flug-Dicts. In den Tests steht die Zeit auf 0
+# (tests/conftest.py). Eine Admin-Aenderung am laufenden Event ist damit hoechstens 10 s verzoegert.
+_LIVE_STAND_HALTEN_S = 10.0
+_live_staende: dict[tuple, tuple[float, dict]] = {}
+
+
+def _uhr() -> float:
+    return time.monotonic()
+
+
+def _db_datei(conn) -> str:
+    try:
+        return conn.execute("PRAGMA database_list").fetchone()[2] or ""
+    except Exception:
+        return ""
+
+
 def _frozen_or_compute(conn, kind: str, ref_id: int, *, finished: bool, compute_fn, now: str) -> dict:
     """Gemeinsamer Zugriffs-Helfer Kutter/Bummel (#66 §3): ein abgeschlossenes Event/Rennen wird
     aus dem Snapshot bedient (Lazy-Freeze beim ersten Read, falls noch keiner existiert);
@@ -6941,7 +6965,15 @@ def _frozen_or_compute(conn, kind: str, ref_id: int, *, finished: bool, compute_
             return snap
     with _progress_sperre(kind, ref_id):
         if not finished:
-            return compute_fn()
+            if _LIVE_STAND_HALTEN_S <= 0:
+                return compute_fn()
+            schluessel = (_db_datei(conn), kind, ref_id)
+            vorrat = _live_staende.get(schluessel)
+            if vorrat is not None and _uhr() - vorrat[0] < _LIVE_STAND_HALTEN_S:
+                return copy.deepcopy(vorrat[1])
+            result = compute_fn()
+            _live_staende[schluessel] = (_uhr(), result)
+            return copy.deepcopy(result)
         # Zweiter Blick: Wer hier gewartet hat, findet den Snapshot des Vordermanns vor und
         # spart sich die volle Rechnung -- das ist der eigentliche Gewinn der Sperre.
         snap = get_progress_snapshot(conn, kind, ref_id)

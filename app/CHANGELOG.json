@@ -1,5 +1,14 @@
 [
   {
+    "version": "16.11.3",
+    "date": "2026-11-25",
+    "highlight": false,
+    "title": "Schneller bei großen Events",
+    "items": [
+      "⚡ Bei großen Kutter- und Bummel-Abenden musste der Server den Stand für jeden Zuschauer neu rechnen und kam dabei ins Schwitzen. Er rechnet ihn jetzt einmal und gibt ihn ein paar Sekunden lang an alle aus. Die Positionen auf der Karte bleiben dadurch auch bei vollem Haus pünktlich."
+    ]
+  },
+  {
     "version": "16.11.2",
     "date": "2026-11-18",
     "highlight": false,

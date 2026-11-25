@@ -52,3 +52,15 @@ def _icao_liste_leer_und_ohne_netz(monkeypatch):
     monkeypatch.setattr(icao_typen, "_holen", _kein_netz)
     yield
     icao_typen.setzen({})
+
+
+@pytest.fixture(autouse=True)
+def _live_stand_nicht_zwischenhalten(monkeypatch):
+    """Der Live-Stand von Kutter/Bummel wird in der App 10 s gehalten (_LIVE_STAND_HALTEN_S).
+    Viele Tests ändern Daten und rufen sofort neu ab -- sie bekämen sonst den alten Stand.
+    Wer das Halten prüfen will, setzt die Zeit selbst (tests/test_progress_cache.py)."""
+    import app.main as main
+    monkeypatch.setattr(main, "_LIVE_STAND_HALTEN_S", 0.0)
+    main._live_staende.clear()
+    yield
+    main._live_staende.clear()
