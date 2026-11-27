@@ -526,7 +526,7 @@ Flüge unter einem **Nicht-`FRS`-Callsign** (`callsign_prefix=""` liefert sie mi
 
 ## GET /api/pilots/{cid}/orden.png
 
-Die Ordensleiste als **ein PNG fürs Forum** (16.12.0). Alle Orden der letzten **365 Tage** (Liste wie `/api/pilots/{cid}/orden?days=365`), je Orden das Badge mit 36 px am Band, acht je Reihe, eine Zelle 40 × 50 px — eine volle Reihe ist 320 px breit. Ohne Orden ein durchsichtiges 1 × 1-Pixel-Bild, damit im Forum kein kaputtes Bild steht. **Nicht hinter dem Login-Gate** (wie die Badges; die Ausnahme gilt nur für genau diesen Pfad, die JSON-Liste bleibt geschützt). Der Server hält das Bild 10 Minuten vor; `ETag` + `Cache-Control: no-cache`, bei passendem `If-None-Match` `304`.
+Die Ordensleiste als **ein PNG fürs Forum** (16.12.0). Alle Orden der letzten **365 Tage** (Liste wie `/api/pilots/{cid}/orden?days=365`), je Orden das Badge mit 36 px am Band, acht je Reihe, eine Zelle 40 × 50 px — eine volle Reihe ist 320 px breit. Ohne Orden ein durchsichtiges 1 × 1-Pixel-Bild, damit im Forum kein kaputtes Bild steht. **Nicht hinter dem Login-Gate** (wie die Badges; die Ausnahme gilt nur für genau diesen Pfad, die JSON-Liste bleibt geschützt). Der Server hält das Bild 10 Minuten vor (höchstens 500 Piloten); eine Nummer, die FriesenRadar nicht als Pilot kennt, bekommt sofort das leere Bild, ohne Rechnung und ohne Vorrat. `ETag` + `Cache-Control: no-cache`, bei passendem `If-None-Match` `304`.
 
 ```
 [img]https://radar.friesenflieger.de/api/pilots/{cid}/orden.png[/img]

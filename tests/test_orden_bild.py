@@ -25,6 +25,11 @@ def _client(tmp_path, monkeypatch, orden):
         DB_PATH=db, CALLSIGN_PREFIX="FRS", SECRET_KEY="s", ADMIN_PASSWORD="p"))
     monkeypatch.setattr(main, "pilot_orden", lambda cid, days=30: orden)
     main._orden_bilder.clear()
+    from app.database import get_connection, upsert_pilot
+    conn = get_connection(db)
+    upsert_pilot(conn, 7, "Pilot Sieben")
+    conn.commit()
+    conn.close()
     return TestClient(main.app)
 
 
@@ -62,6 +67,28 @@ def test_etag_und_304(tmp_path, monkeypatch):
     assert a.headers["cache-control"] == "no-cache"
     b = c.get("/api/pilots/7/orden.png", headers={"if-none-match": a.headers["etag"]})
     assert b.status_code == 304
+
+
+def test_unbekannte_nummer_rechnet_nichts_und_merkt_sich_nichts(tmp_path, monkeypatch):
+    # Sicherheitsprüfung 27.11.2026: die Adresse ist ohne Anmeldung erreichbar. Beliebige Nummern
+    # dürfen weder die Orden-Rechnung auslösen noch den Zwischenspeicher füllen.
+    c = _client(tmp_path, monkeypatch, _sonder(3))
+    gerufen = []
+    monkeypatch.setattr(main, "pilot_orden", lambda cid, days=30: gerufen.append(cid) or [])
+    res = c.get("/api/pilots/99999999/orden.png")
+    assert res.status_code == 200
+    assert Image.open(io.BytesIO(res.content)).size == (1, 1)
+    assert gerufen == [] and main._orden_bilder == {}
+
+
+def test_zwischenspeicher_ist_begrenzt(monkeypatch):
+    monkeypatch.setattr(main, "_ORDEN_BILD_MAX", 3)
+    main._orden_bilder.clear()
+    for cid in range(10):
+        main._orden_bild_merken(("db", cid), b"x", '"e"')
+    assert len(main._orden_bilder) == 3
+    assert ("db", 9) in main._orden_bilder           # die jüngsten bleiben
+    main._orden_bilder.clear()
 
 
 def test_immer_365_tage(tmp_path, monkeypatch):

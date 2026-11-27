@@ -3743,7 +3743,28 @@ _ORDEN_BAND = (16, 14)     # Band: Breite, Höhe
 _ORDEN_HOEHE = 50          # Höhe einer Reihe
 _ORDEN_JE_REIHE = 8
 _ORDEN_BILD_HALTEN_S = 600
+# Die Adresse ist ohne Anmeldung erreichbar (Sicherheitsprüfung 27.11.2026): nur Nummern, die
+# FriesenRadar als Piloten kennt, lösen die Rechnung aus, und der Vorrat bleibt begrenzt.
+_ORDEN_BILD_MAX = 500
 _orden_bilder: dict[tuple, tuple[float, bytes, str]] = {}
+
+
+def _orden_bild_merken(schluessel: tuple, png: bytes, etag: str) -> None:
+    jetzt = time.monotonic()
+    for k in [k for k, v in _orden_bilder.items() if jetzt - v[0] >= _ORDEN_BILD_HALTEN_S]:
+        _orden_bilder.pop(k, None)
+    _orden_bilder.pop(schluessel, None)
+    _orden_bilder[schluessel] = (jetzt, png, etag)
+    while len(_orden_bilder) > _ORDEN_BILD_MAX:
+        _orden_bilder.pop(next(iter(_orden_bilder)))   # ältester Eintrag zuerst
+
+
+def _orden_bild_leer() -> bytes:
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGBA", (1, 1), (0, 0, 0, 0)).save(buf, format="PNG")
+    return buf.getvalue()
 
 # Bandfarben wie in index.html (.orden-band-*), Streifen als (von, bis, Farbe) in Anteilen der Breite.
 _ORDEN_BAENDER = {
@@ -3802,9 +3823,7 @@ def _orden_bild_rendern(orden: list[dict], cid: int) -> bytes:
         if png:
             bilder.append((o, png))
     if not bilder:
-        buf = io.BytesIO()
-        Image.new("RGBA", (1, 1), (0, 0, 0, 0)).save(buf, format="PNG")
-        return buf.getvalue()
+        return _orden_bild_leer()
     k = 3                                    # dreifach zeichnen, am Ende verkleinern
     spalten = min(len(bilder), _ORDEN_JE_REIHE)
     reihen = (len(bilder) + _ORDEN_JE_REIHE - 1) // _ORDEN_JE_REIHE
@@ -3830,14 +3849,24 @@ def _orden_bild_rendern(orden: list[dict], cid: int) -> bytes:
 def pilot_orden_bild(request: Request, cid: int):
     """Alle Orden der letzten 365 Tage als ein PNG fürs Forum (``[img]``)."""
     import hashlib
-    schluessel = (get_settings().DB_PATH, cid)
+    settings = get_settings()
+    schluessel = (settings.DB_PATH, cid)
     vorrat = _orden_bilder.get(schluessel)
     if vorrat is not None and time.monotonic() - vorrat[0] < _ORDEN_BILD_HALTEN_S:
         png, etag = vorrat[1], vorrat[2]
     else:
+        conn = get_connection(settings.DB_PATH)
+        try:
+            bekannt = conn.execute("SELECT 1 FROM pilots WHERE cid = ?", (cid,)).fetchone()
+        finally:
+            conn.close()
+        if not bekannt:
+            png = _orden_bild_leer()      # unbekannte Nummer: nichts rechnen, nichts merken
+            return Response(content=png, media_type="image/png",
+                            headers={"Cache-Control": "no-cache"})
         png = _orden_bild_rendern(pilot_orden(cid, days=365), cid)
         etag = '"' + hashlib.md5(png).hexdigest()[:12] + '"'
-        _orden_bilder[schluessel] = (time.monotonic(), png, etag)
+        _orden_bild_merken(schluessel, png, etag)
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
     return Response(content=png, media_type="image/png",
