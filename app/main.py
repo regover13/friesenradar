@@ -20,6 +20,7 @@ from datetime import timezone as _timezone
 import os
 import re
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import quote, urlsplit
 
 import httpx as _httpx
@@ -466,6 +467,7 @@ async def no_index_header(request: Request, call_next):
 
 # Pfade, die auch bei aktivem Gate IMMER erreichbar bleiben (Login-Flow, Break-glass,
 # Rechtstexte, PWA-Assets, Health).
+_ORDEN_BILD_PFAD = re.compile(r"/api/pilots/\d+/orden\.png")
 _GATE_ALLOW_PREFIXES = (
     "/auth/", "/static/", "/health", "/robots.txt", "/favicon",
     "/impressum", "/datenschutz", "/admin", "/api/admin/",
@@ -509,7 +511,10 @@ async def forum_login_gate(request: Request, call_next):
     path = request.url.path
     # Öffentliche Badge-PNGs (in Foren-Beiträge eingebettet) bleiben auch bei aktivem Gate
     # erreichbar — Cross-Site-<img> sendet das SameSite=Lax-Cookie sonst nicht mit.
-    if not path.startswith(_GATE_ALLOW_PREFIXES) and "/badge/" not in path:
+    # Dasselbe gilt für das Ordensbild (27.11.2026), streng auf genau diese Form begrenzt --
+    # die JSON-Liste /api/pilots/<cid>/orden bleibt hinter dem Gate.
+    if (not path.startswith(_GATE_ALLOW_PREFIXES) and "/badge/" not in path
+            and not _ORDEN_BILD_PFAD.fullmatch(path)):
         settings = get_settings()
         if _forum_login_active_cached(settings) and not _request_is_authenticated(request, settings):
             wants_html = request.method == "GET" and "text/html" in request.headers.get("accept", "")
@@ -3727,6 +3732,118 @@ def _sonderorden_fuer(cid: int, since: str) -> list[dict]:
             for o in _SONDERORDEN if o["cid"] == cid and since <= o["datum"]]
 
 
+# Ordensleiste als ein Bild fürs Forum (27.11.2026). Wie die Leiste in der Statistik: je Orden das
+# Badge klein am Band, der neueste links oben. Acht je Reihe ergeben 320 px -- passt auf ein Handy,
+# danach bricht die Reihe um. Gezeichnet dreifach groß und verkleinert, damit Band und Badge glatt
+# werden. Das Bild steht im Forum oft in Signaturen und wird mit jeder Seite abgerufen, deshalb
+# hält der Server es zehn Minuten vor; neue Orden kommen ohnehin erst nach einem Event dazu.
+_ORDEN_ZELLE = 40          # Breite je Orden (px)
+_ORDEN_BADGE = 36          # Durchmesser des Badges
+_ORDEN_BAND = (16, 14)     # Band: Breite, Höhe
+_ORDEN_HOEHE = 50          # Höhe einer Reihe
+_ORDEN_JE_REIHE = 8
+_ORDEN_BILD_HALTEN_S = 600
+_orden_bilder: dict[tuple, tuple[float, bytes, str]] = {}
+
+# Bandfarben wie in index.html (.orden-band-*), Streifen als (von, bis, Farbe) in Anteilen der Breite.
+_ORDEN_BAENDER = {
+    "standard": [(0, .25, "#191D53"), (.25, .35, "#EEF4FD"), (.35, .65, "#191D53"),
+                 (.65, .75, "#EEF4FD"), (.75, 1, "#191D53")],
+    "bummel": [(0, .30, "#D75F28"), (.30, .42, "#EEF4FD"), (.42, .58, "#D75F28"),
+               (.58, .70, "#EEF4FD"), (.70, 1, "#D75F28")],
+    "kutter": [(0, .30, "#8FBFF1"), (.30, .42, "#191D53"), (.42, .58, "#8FBFF1"),
+               (.58, .70, "#191D53"), (.70, 1, "#8FBFF1")],
+    "sieger": [(0, .38, "#8A1B1B"), (.38, .62, "#D75F28"), (.62, 1, "#8A1B1B")],
+}
+
+
+def _orden_band(art: str, sieger: bool, w: int, h: int):
+    from PIL import Image, ImageDraw
+    band = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(band)
+    if art == "reddung" and not sieger:
+        d.rectangle([0, 0, w, h], fill="#D75F28")
+        schritt = max(2, w // 5)
+        for x in range(-h, w + h, schritt * 2):
+            d.polygon([(x, h), (x + schritt, h), (x + schritt + h, 0), (x + h, 0)], fill="#EEF4FD")
+    else:
+        for von, bis, farbe in _ORDEN_BAENDER["sieger" if sieger else art if art in _ORDEN_BAENDER else "standard"]:
+            d.rectangle([round(von * w), 0, round(bis * w), h], fill=farbe)
+    maske = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(maske).polygon([(0, 0), (w, 0), (w, h), (w / 2, h * 0.75), (0, h)], fill=255)
+    band.putalpha(maske)
+    return band
+
+
+def _orden_badge_png(o: dict, cid: int) -> bytes | None:
+    """Das Badge-PNG eines Ordens -- über dieselben Endpunkte samt Datei-Cache wie im Forum."""
+    leer = SimpleNamespace(headers={})
+    try:
+        if o["art"] == "kutter":
+            return get_transport_badge(leer, o["event_id"], cid).body
+        if o["art"] == "reddung":
+            return get_reddung_badge(leer, o["event_id"], cid).body
+        if o["art"] == "bummel":
+            return asyncio.run(get_bummel_badge(leer, o["event_id"], cid)).body
+        if o["art"] == "sonder":
+            pfad = Path(__file__).resolve().parent / o["bild"].lstrip("/")
+            return pfad.read_bytes()
+    except (HTTPException, OSError):
+        return None
+    return None
+
+
+def _orden_bild_rendern(orden: list[dict], cid: int) -> bytes:
+    import io
+    from PIL import Image
+    bilder = []
+    for o in orden:
+        png = _orden_badge_png(o, cid)
+        if png:
+            bilder.append((o, png))
+    if not bilder:
+        buf = io.BytesIO()
+        Image.new("RGBA", (1, 1), (0, 0, 0, 0)).save(buf, format="PNG")
+        return buf.getvalue()
+    k = 3                                    # dreifach zeichnen, am Ende verkleinern
+    spalten = min(len(bilder), _ORDEN_JE_REIHE)
+    reihen = (len(bilder) + _ORDEN_JE_REIHE - 1) // _ORDEN_JE_REIHE
+    W, H = spalten * _ORDEN_ZELLE * k, reihen * _ORDEN_HOEHE * k
+    leinwand = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    bw, bh = _ORDEN_BAND[0] * k, _ORDEN_BAND[1] * k
+    durchmesser = _ORDEN_BADGE * k
+    for i, (o, png) in enumerate(bilder):
+        x0 = (i % _ORDEN_JE_REIHE) * _ORDEN_ZELLE * k
+        y0 = (i // _ORDEN_JE_REIHE) * _ORDEN_HOEHE * k
+        mitte = x0 + _ORDEN_ZELLE * k // 2
+        band = _orden_band(o["art"], bool(o.get("sieger")), bw, bh)
+        leinwand.alpha_composite(band, (mitte - bw // 2, y0 + k))
+        badge = Image.open(io.BytesIO(png)).convert("RGBA").resize((durchmesser, durchmesser), Image.LANCZOS)
+        leinwand.alpha_composite(badge, (mitte - durchmesser // 2, y0 + k + bh - 3 * k))
+    bild = leinwand.resize((W // k, H // k), Image.LANCZOS)
+    buf = io.BytesIO()
+    bild.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+
+@app.get("/api/pilots/{cid}/orden.png")
+def pilot_orden_bild(request: Request, cid: int):
+    """Alle Orden der letzten 365 Tage als ein PNG fürs Forum (``[img]``)."""
+    import hashlib
+    schluessel = (get_settings().DB_PATH, cid)
+    vorrat = _orden_bilder.get(schluessel)
+    if vorrat is not None and time.monotonic() - vorrat[0] < _ORDEN_BILD_HALTEN_S:
+        png, etag = vorrat[1], vorrat[2]
+    else:
+        png = _orden_bild_rendern(pilot_orden(cid, days=365), cid)
+        etag = '"' + hashlib.md5(png).hexdigest()[:12] + '"'
+        _orden_bilder[schluessel] = (time.monotonic(), png, etag)
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
+    return Response(content=png, media_type="image/png",
+                    headers={"Cache-Control": "no-cache", "ETag": etag})
+
+
 @app.get("/api/pilots/{cid}/orden")
 def pilot_orden(cid: int, days: int = 30):
     """Ordensleiste der Statistik-Details: je abgeschlossenem Spezial-Event im Zeitraum, fuer
@@ -4743,6 +4860,46 @@ def _fmt_de_date(iso: str) -> str:
         return ""
 
 
+# Forengröße (27.11.2026, Saschas PM): [img] im Forum kennt keine Größenangabe, ein Badge
+# erscheint so groß, wie es ist (256 px). ?px=<n> rechnet es auf n px herunter, die Kopier-Knöpfe
+# hängen ?px=128 an. Erlaubt 32..255; alles darüber ist die Originalgröße.
+_BADGE_PX_MIN, _BADGE_PX_MAX = 32, 256
+
+
+def _badge_px(px: int | None) -> int | None:
+    if px is None:
+        return None
+    px = max(_BADGE_PX_MIN, int(px))
+    return None if px >= _BADGE_PX_MAX else px
+
+
+def _badge_klein(png: bytes, px: int | None, path: str) -> bytes:
+    """Badge auf ``px`` Pixel verkleinern (LANCZOS, Alphakanal bleibt) -- mit Datei-Cache neben
+    dem großen Bild. Ohne ``px`` unverändert."""
+    if not px:
+        return png
+    import io
+    import os
+    from PIL import Image
+    klein_pfad = path[:-4] + f"_{px}.png"
+    try:
+        with open(klein_pfad, "rb") as fh:
+            return fh.read()
+    except OSError:
+        pass
+    bild = Image.open(io.BytesIO(png)).convert("RGBA").resize((px, px), Image.LANCZOS)
+    buf = io.BytesIO()
+    bild.save(buf, format="PNG", optimize=True)
+    data = buf.getvalue()
+    try:
+        os.makedirs(os.path.dirname(klein_pfad) or ".", exist_ok=True)
+        with open(klein_pfad, "wb") as fh:
+            fh.write(data)
+    except OSError:
+        pass
+    return data
+
+
 # Render-Version der Forum-Badges. Fließt in den ETag/Cache-Schlüssel von Kutter- UND Bummel-
 # Badge ein: Ändert sich NUR das Layout/Rendering (nicht die Daten), bleibt der datenbasierte
 # Hash sonst gleich und Browser/Forum zeigen per 304 das alte Bild. Bei jeder sichtbaren
@@ -4785,7 +4942,7 @@ def _render_badge(d: dict, is_winner: bool) -> bytes:
 
 
 @app.get("/api/bummel/race/{race_id}/badge/{cid}.png")
-async def get_bummel_badge(request: Request, race_id: int, cid: int):
+async def get_bummel_badge(request: Request, race_id: int, cid: int, px: int | None = None):
     """Forum-Badge (PNG) für einen Teilnehmer — Sieger groß, sonst Medaille. Erst nach Enthüllung."""
     import hashlib
     import os
@@ -4813,7 +4970,8 @@ async def get_bummel_badge(request: Request, race_id: int, cid: int):
         f"v{_BADGE_RENDER_VERSION}|{race.get('revealed_at')}|{is_winner}|{d['total_min']}|"
         f"{d.get('delta_sec')}|{d['aircraft']}|{d['callsign']}|{d.get('event')}|{motiv_key}".encode()
     ).hexdigest()[:10]
-    etag = f'"{key}"'
+    px = _badge_px(px)
+    etag = f'"{key}-{px}"' if px else f'"{key}"'
     # no-cache erzwingt Revalidierung; passt der ETag noch, antwortet der Server mit 304 (kein
     # erneuter Download), sonst mit dem frischen Bild.
     if request.headers.get("if-none-match") == etag:
@@ -4832,6 +4990,7 @@ async def get_bummel_badge(request: Request, race_id: int, cid: int):
                 fh.write(png)
         except OSError:
             pass  # Cache optional — Bild wurde bereits erzeugt
+    png = _badge_klein(png, px, path)
     return Response(content=png, media_type="image/png",
                     headers={"Cache-Control": "no-cache", "ETag": etag})
 
@@ -7104,7 +7263,7 @@ def _reddung_badge_data(conn, ev: dict, cid: int) -> dict:
 
 
 @app.get("/api/reddung/events/{event_id}/badge/{cid}.png")
-def get_reddung_badge(request: Request, event_id: int, cid: int):
+def get_reddung_badge(request: Request, event_id: int, cid: int, px: int | None = None):
     """Forum-Badge (PNG) fuer einen Reddung-Teilnehmer -- erst nach ``dtend``, damit kein
     Zwischenstand als "fertig" verewigt wird. Cache und ETag wie beim Kutter-Badge."""
     import hashlib
@@ -7126,7 +7285,8 @@ def get_reddung_badge(request: Request, event_id: int, cid: int):
         f"v{_BADGE_RENDER_VERSION}|reddung|{d['zellen']}|{d['rollen']}|{d['icao']}|"
         f"{d['aircraft']}|{d['callsign']}|{d['event']}|{d['date']}|{motiv_key}".encode()
     ).hexdigest()[:10]
-    etag = f'"{key}"'
+    px = _badge_px(px)
+    etag = f'"{key}-{px}"' if px else f'"{key}"'
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
 
@@ -7144,6 +7304,7 @@ def get_reddung_badge(request: Request, event_id: int, cid: int):
                 fh.write(png)
         except OSError:
             pass  # Cache optional -- Bild wurde bereits erzeugt
+    png = _badge_klein(png, px, path)
     return Response(content=png, media_type="image/png",
                     headers={"Cache-Control": "no-cache", "ETag": etag})
 
@@ -7237,7 +7398,7 @@ def _render_kutter_badge(d: dict) -> bytes:
 
 
 @app.get("/api/transport/event/{event_id}/badge/{cid}.png")
-def get_transport_badge(request: Request, event_id: int, cid: int):
+def get_transport_badge(request: Request, event_id: int, cid: int, px: int | None = None):
     """Forum-Badge (PNG) für einen Kutter-Teilnehmer — erst nach der Feierabend-Bilanz
     (``summarized_at``), damit kein Zwischenstand als "fertig" verewigt wird."""
     import hashlib
@@ -7261,7 +7422,8 @@ def get_transport_badge(request: Request, event_id: int, cid: int):
         f"v{_BADGE_RENDER_VERSION}|{ev.get('summarized_at')}|{d['delivered_kg']}|{d['stolen_kg']}|"
         f"{d['sunk_kg']}|{d['aircraft']}|{d['callsign']}|{d.get('event')}|{d['team_total_kg']}|{motiv_key}".encode()
     ).hexdigest()[:10]
-    etag = f'"{key}"'
+    px = _badge_px(px)
+    etag = f'"{key}-{px}"' if px else f'"{key}"'
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
 
@@ -7278,6 +7440,7 @@ def get_transport_badge(request: Request, event_id: int, cid: int):
                 fh.write(png)
         except OSError:
             pass  # Cache optional — Bild wurde bereits erzeugt
+    png = _badge_klein(png, px, path)
     return Response(content=png, media_type="image/png",
                     headers={"Cache-Control": "no-cache", "ETag": etag})
 

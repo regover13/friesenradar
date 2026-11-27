@@ -4062,6 +4062,7 @@
     .orden-band-sieger { background: linear-gradient(90deg, #8A1B1B 0 38%, #D75F28 38% 62%, #8A1B1B 62%); }
     .orden-band-reddung { background: repeating-linear-gradient(135deg, #D75F28 0 3px, #EEF4FD 3px 6px); }
     .orden:hover img { transform: scale(1.08); }
+    .orden-forum { display: block; margin: -6px 0 14px; }
     /* Bilanz ueber der Flugliste eines Piloten (14.10.2026). Acht kleine Felder: am Handy zwei
        Reihen zu vier, breit eine Reihe. Bewusst kleiner als die KPI-Box oben -- das hier ist
        die persoenliche Zusammenfassung, nicht die Hauptzahl der Seite. */
@@ -12083,7 +12084,7 @@ function _bummelBadgeLinks(raceId, cid) {
        + ` <button class="btn-share" onclick="copyBummelBadgeCode(${raceId}, ${cid}, this)" title="Forum-Code (BBCode) kopieren">${icon('clipboard')} Forum</button>`;
 }
 function copyBummelBadgeCode(raceId, cid, btn) {
-  const code = `[img]${_teilenUrsprung()}/api/bummel/race/${raceId}/badge/${cid}.png[/img]`;
+  const code = `[img]${_teilenUrsprung()}/api/bummel/race/${raceId}/badge/${cid}.png?px=128[/img]`;
   _copyText(code, btn, 'kopiert', 1500, false);
 }
 
@@ -12861,7 +12862,7 @@ function renderFlightsList(cid, pilotName, flights, statsimStatus) {
       <button class="btn-share" style="margin-left:auto;" onclick="copyShareUrl(this)">⎘ Teilen</button>
     </div>`;
   const ordenKey = `${cid}|${_statsDays()}`;
-  html += `<div id="pilot-orden">${_ordenHtml(_ordenCache[ordenKey])}</div>`;
+  html += `<div id="pilot-orden">${_ordenHtml(_ordenCache[ordenKey], cid)}</div>`;
   if (!(ordenKey in _ordenCache)) _ordenLaden(cid, _statsDays());
   if (statsimStatus === 'updating') {
     html += `<div style="text-align:center;padding:4px 0;font-size:0.8em;color:var(--color-label)">${icon('refresh')} StatSim wird aktualisiert…</div>`;
@@ -12980,7 +12981,7 @@ function _pilotBilanzHtml(b, cid, name) {
 // Ordensleiste: je Spezial-Event mit Forum-Badge ein kleiner Orden am Band, in der Reihenfolge
 // des Servers (neueste zuerst). Ein Tipp oeffnet das Badge in voller Groesse. Ohne Orden
 // bleibt die Leiste ganz weg.
-function _ordenHtml(orden) {
+function _ordenHtml(orden, cid) {
   if (!orden || !orden.length) return '';
   return '<div class="orden-leiste">' + orden.map(o => {
     const titel = `${o.name} · ${_fmtEventDate(o.datum).split(',')[0]}${o.sieger ? ' · Sieger' : ''}`;
@@ -12988,7 +12989,13 @@ function _ordenHtml(orden) {
     return `<a class="orden" href="${escHtml(o.bild)}" target="_blank" rel="noopener" title="${escHtml(titel)}">`
       + `<span class="${band}"></span>`
       + `<img src="${escHtml(o.bild)}" alt="${escHtml(titel)}" loading="lazy" width="44" height="44"></a>`;
-  }).join('') + '</div>';
+  }).join('') + '</div>'
+    // Alle Orden als EIN Bild fürs Forum (27.11.2026): /api/pilots/<cid>/orden.png, 365 Tage.
+    + (cid ? `<button class="btn-share orden-forum" onclick="_ordenFuersForum(this, ${Number(cid)})">⎘ Orden fürs Forum kopieren</button>` : '');
+}
+
+function _ordenFuersForum(btn, cid) {
+  _copyText(`[img]${_teilenUrsprung()}/api/pilots/${cid}/orden.png[/img]`, btn, 'kopiert', 1500, false);
 }
 
 async function _ordenLaden(cid, days) {
@@ -13003,7 +13010,7 @@ async function _ordenLaden(cid, days) {
     return;
   }
   const el = document.getElementById('pilot-orden');
-  if (el && currentStatsCid === cid && _statsDays() === days) el.innerHTML = _ordenHtml(_ordenCache[key]);
+  if (el && currentStatsCid === cid && _statsDays() === days) el.innerHTML = _ordenHtml(_ordenCache[key], cid);
 }
 
 // ==========================================================================
@@ -17108,7 +17115,7 @@ function _kutterBadgeLinks(eventId, cid) {
        + ` · <button class="btn-share" onclick="copyKutterBadgeCode(${eventId}, ${cid}, this)" title="Forum-Code (BBCode) kopieren">${icon('clipboard')} Forum</button>`;
 }
 function copyKutterBadgeCode(eventId, cid, btn) {
-  const code = `[img]${_teilenUrsprung()}/api/transport/event/${eventId}/badge/${cid}.png[/img]`;
+  const code = `[img]${_teilenUrsprung()}/api/transport/event/${eventId}/badge/${cid}.png?px=128[/img]`;
   _copyText(code, btn, 'kopiert', 1500, false);
 }
 function _kutterBadgeSection(d) {
@@ -17804,7 +17811,7 @@ function _reddungBadgeLinks(eventId, cid) {
        + ` · <button class="btn-share" onclick="copyReddungBadgeCode(${Number(eventId)}, ${Number(cid)}, this)" title="Forum-Code (BBCode) kopieren">${icon('clipboard')} Forum</button>`;
 }
 function copyReddungBadgeCode(eventId, cid, btn) {
-  _copyText(`[img]${_teilenUrsprung()}/api/reddung/events/${eventId}/badge/${cid}.png[/img]`, btn, 'kopiert', 1500, false);
+  _copyText(`[img]${_teilenUrsprung()}/api/reddung/events/${eventId}/badge/${cid}.png?px=128[/img]`, btn, 'kopiert', 1500, false);
 }
 function copyReddungShareHeader(btn) {
   if (_reddungOffenId == null) return;

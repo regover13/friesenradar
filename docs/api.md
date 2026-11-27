@@ -524,6 +524,14 @@ Flüge unter einem **Nicht-`FRS`-Callsign** (`callsign_prefix=""` liefert sie mi
 
 ---
 
+## GET /api/pilots/{cid}/orden.png
+
+Die Ordensleiste als **ein PNG fürs Forum** (16.12.0). Alle Orden der letzten **365 Tage** (Liste wie `/api/pilots/{cid}/orden?days=365`), je Orden das Badge mit 36 px am Band, acht je Reihe, eine Zelle 40 × 50 px — eine volle Reihe ist 320 px breit. Ohne Orden ein durchsichtiges 1 × 1-Pixel-Bild, damit im Forum kein kaputtes Bild steht. **Nicht hinter dem Login-Gate** (wie die Badges; die Ausnahme gilt nur für genau diesen Pfad, die JSON-Liste bleibt geschützt). Der Server hält das Bild 10 Minuten vor; `ETag` + `Cache-Control: no-cache`, bei passendem `If-None-Match` `304`.
+
+```
+[img]https://radar.friesenflieger.de/api/pilots/{cid}/orden.png[/img]
+```
+
 ## GET /api/pilots/{cid}/orden
 
 Die Ordensleiste der Statistik-Details (15.23.0): je abgeschlossenem Spezial-Event im Zeitraum, für das der Pilot ein Forum-Badge hat, ein Eintrag — neueste zuerst. Hinter dem Login-Gate.
@@ -971,6 +979,8 @@ Die Anlegen- und Ändern-Aufrufe von Bummel, Kutter und Reddung nehmen `badge_se
 
 ## GET /api/bummel/race/{race_id}/badge/{cid}.png
 
+> **`?px=<n>`** (16.12.0): verkleinert das Badge auf n × n Pixel (32–255; darüber und ohne Angabe 256). `[img]` im Forum kennt keine Größe, deshalb hängen die Kopier-Knöpfe `?px=128` an. Eigener Datei-Cache und eigener `ETag` je Größe.
+
 Badge-PNG für die Forensignatur eines Bummel-Teilnehmers. Erst nach Enthüllung des Rennens verfügbar (kein Leak vor der Enthüllung).
 
 **Voraussetzungen — sonst `404`:**
@@ -1053,6 +1063,8 @@ Zusätzliche Top-Level-Felder: `participants` (`[{cid, name, callsign, aircraft,
 ---
 
 ## GET /api/transport/event/{event_id}/badge/{cid}.png
+
+> **`?px=<n>`** (16.12.0): verkleinert das Badge auf n × n Pixel (32–255; darüber und ohne Angabe 256). `[img]` im Forum kennt keine Größe, deshalb hängen die Kopier-Knöpfe `?px=128` an. Eigener Datei-Cache und eigener `ETag` je Größe.
 
 Forum-Badge (PNG) für einen FriesenKutter-Teilnehmer. Erst nach der Feierabend-Bilanz verfügbar
 (kein Zwischenstand als „fertig" verewigt).
@@ -1249,6 +1261,8 @@ Gezählt wird bis zum Fund — was danach geflogen wird, ist keine Suche mehr �
 ---
 
 ## GET /api/reddung/events/{event_id}/badge/{cid}.png
+
+> **`?px=<n>`** (16.12.0): verkleinert das Badge auf n × n Pixel (32–255; darüber und ohne Angabe 256). `[img]` im Forum kennt keine Größe, deshalb hängen die Kopier-Knöpfe `?px=128` an. Eigener Datei-Cache und eigener `ETag` je Größe.
 
 Forum-Badge (PNG) für einen Teilnehmer einer FriesenReddung (15.23.0). Wie die anderen Badges ohne Login erreichbar (`/badge/` ist vom Gate ausgenommen), damit das Forum es einbinden kann.
 

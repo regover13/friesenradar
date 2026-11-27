@@ -1,5 +1,15 @@
 [
   {
+    "version": "16.12.0",
+    "date": "2026-11-27",
+    "highlight": false,
+    "title": "Badges in Forengröße und Ordensleiste fürs Forum",
+    "items": [
+      "🎖 Die Kopier-Knöpfe für die Forum-Badges von Bummel, Kutter und Reddung liefern das Badge jetzt halb so groß. Im Forum wirkte es bisher riesig. Wer es anders will, ändert die Zahl hinter px= in der Adresse.",
+      "🏅 Unter der Ordensleiste in den Piloten-Details kopiert ein neuer Knopf alle Orden als ein einziges Bild fürs Forum, klein am Band und so breit, dass es auch auf dem Handy passt. Neue Orden erscheinen darin von selbst."
+    ]
+  },
+  {
     "version": "16.11.3",
     "date": "2026-11-25",
     "highlight": false,

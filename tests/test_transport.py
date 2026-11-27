@@ -2306,6 +2306,31 @@ class TestKutterBadgeEndpoints:
         conn.close()
         return ev
 
+    def test_px_verkleinert_das_badge_fuers_forum(self, tmp_path, monkeypatch):
+        # Saschas PM 27.11.2026: die Badges wirken im Forum riesig; [img] kennt keine Größe.
+        import io
+        from PIL import Image
+        client, db = self._app(tmp_path, monkeypatch)
+        ev = self._seeded_event(db)
+        conn = get_connection(db)
+        set_transport_summarized(conn, ev["id"], "2026-07-01T23:00:00Z")
+        conn.commit()
+        conn.close()
+        gross = client.get(f"/api/transport/event/{ev['id']}/badge/500.png")
+        klein = client.get(f"/api/transport/event/{ev['id']}/badge/500.png?px=128")
+        assert gross.status_code == klein.status_code == 200
+        assert Image.open(io.BytesIO(gross.content)).size == (256, 256)
+        bild = Image.open(io.BytesIO(klein.content))
+        assert bild.size == (128, 128) and bild.mode == "RGBA"
+        assert gross.headers["etag"] != klein.headers["etag"]
+        # Zweiter Abruf kommt aus dem Datei-Cache, gleiches Bild.
+        assert client.get(f"/api/transport/event/{ev['id']}/badge/500.png?px=128").content == klein.content
+        # Unsinnige Werte werden eingefangen statt Fehler oder Riesenbild.
+        winzig = client.get(f"/api/transport/event/{ev['id']}/badge/500.png?px=3")
+        assert Image.open(io.BytesIO(winzig.content)).size == (32, 32)
+        riesig = client.get(f"/api/transport/event/{ev['id']}/badge/500.png?px=9999")
+        assert Image.open(io.BytesIO(riesig.content)).size == (256, 256)
+
     def test_404_before_summary(self, tmp_path, monkeypatch):
         client, db = self._app(tmp_path, monkeypatch)
         ev = self._seeded_event(db)
