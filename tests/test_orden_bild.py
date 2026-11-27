@@ -100,9 +100,13 @@ def test_immer_365_tage(tmp_path, monkeypatch):
 
 
 def test_kopierknopf_und_handbuch():
-    assert "/api/pilots/${cid}/orden.png[/img]" in INDEX
+    # Nutzer 27.11.2026: auf 36 px ist die Schrift nicht lesbar -- ein Klick im Forum führt deshalb
+    # zur eigenen Statistik mit 365 Tagen, dort öffnet jeder Orden in voller Größe.
+    assert "[url=${_teilenUrsprung()}/#tab=statistiken&cid=${cid}&days=365]`" in INDEX
+    assert "`[img]${_teilenUrsprung()}/api/pilots/${cid}/orden.png[/img][/url]`" in INDEX
     assert "Orden fürs Forum" in INDEX
     assert "Orden fürs Forum" in README
+    assert "Ein Klick auf die Orden im Forum" in README
 
 
 def test_auch_ohne_anmeldung_erreichbar(tmp_path, monkeypatch):

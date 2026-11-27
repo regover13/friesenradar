@@ -12995,7 +12995,10 @@ function _ordenHtml(orden, cid) {
 }
 
 function _ordenFuersForum(btn, cid) {
-  _copyText(`[img]${_teilenUrsprung()}/api/pilots/${cid}/orden.png[/img]`, btn, 'kopiert', 1500, false);
+  // Mit Link auf die eigene Statistik (365 Tage): Auf 36 px ist die Schrift der Orden nicht lesbar,
+  // dort öffnet jeder Orden mit einem Tipp in voller Größe (Nutzer 27.11.2026).
+  _copyText(`[url=${_teilenUrsprung()}/#tab=statistiken&cid=${cid}&days=365]`
+            + `[img]${_teilenUrsprung()}/api/pilots/${cid}/orden.png[/img][/url]`, btn, 'kopiert', 1500, false);
 }
 
 async function _ordenLaden(cid, days) {
